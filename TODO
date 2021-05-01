@@ -1,0 +1,15 @@
+move sound updates to display callback
+write s3m/it player and move to plib for low latency
+add sound effects
+add mouse support
+configurable bots (difficulty settings)
+win32: use gameglut
+show key settings somewhere
+check various TODOs in the code
+remove all the unused variables & functions
+materials: check shinyness
+
+configurable keys
+win32: dynamically load 3dfx opengl for Voodoo 1&2
+fix rpm's
+include freeglut & fullscreen stuff (for GLX / DRI users)
