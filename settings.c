@@ -145,7 +145,7 @@ void initMainGameSettings(char *filename) {
   fname = malloc(strlen(home) + strlen(RC_NAME) + 2);
   sprintf(fname, "%s%c%s", home, SEPERATOR, RC_NAME);
   f = fopen(fname, "r");
-  free(home);
+  // free(home);
   if(f == 0) {
     printf("no %s found - using defaults\n", fname);
     return; /* no rc exists */
@@ -193,7 +193,7 @@ void saveSettings() {
   fname = malloc(strlen(home) + strlen(RC_NAME) + 2);
   sprintf(fname, "%s%c%s", home, SEPERATOR, RC_NAME);
   f = fopen(fname, "w");
-  free(home);
+  // free(home);
   if(f == 0) {
     printf("can't open %s ", fname);
     perror("for writing");
