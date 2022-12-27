@@ -1,7 +1,7 @@
 # Makefile for gltron
 
 SHELL = /bin/sh
-CC = gcc
+CC = clang
 OPT = -O2
 
 BASE_CFLAGS = -c -pedantic -Wall
