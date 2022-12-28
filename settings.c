@@ -85,7 +85,7 @@ void initMainGameSettings(char *filename) {
   char *home;
   char buf[100];
   char expbuf[100];
-  int i, nohome;
+  int i;
   FILE* f;
 
   game = &main_game;
@@ -137,18 +137,18 @@ void initMainGameSettings(char *filename) {
 
   /* go for .gltronrc (or whatever is defined in RC_NAME) */
 
-  nohome = 0;
-  home = getenv("HOME"); /* find homedir */
-  if(home == 0) {
+  if(getenv("HOME") == 0) /* evaluate homedir */ {
     home = malloc(strlen(CURRENT_DIR) + 2);
     sprintf(home, "%s%c", CURRENT_DIR, SEPERATOR);
-    nohome = 1;
+  }
+  else {
+    home = malloc(strlen(getenv("HOME")));
+    sprintf(home, "%s", getenv("HOME"));
   }
   fname = malloc(strlen(home) + strlen(RC_NAME) + 2);
   sprintf(fname, "%s%c%s", home, SEPERATOR, RC_NAME);
   f = fopen(fname, "r");
-  if(nohome)
-    free(home);
+  free(home);
   if(f == 0) {
     printf("no %s found - using defaults\n", fname);
     return; /* no rc exists */
@@ -185,21 +185,21 @@ void initMainGameSettings(char *filename) {
 void saveSettings() {
   char *fname;
   char *home;
-  int i, nohome;
+  int i;
   FILE* f;
 
-  nohome = 0;
-  home = getenv("HOME"); /* find homedir */
-  if(home == 0) {
+  if(getenv("HOME") == 0) /* evaluate homedir */ {
     home = malloc(strlen(CURRENT_DIR) + 2);
     sprintf(home, "%s%c", CURRENT_DIR, SEPERATOR);
-    nohome = 1;
+  }
+  else {
+    home = malloc(strlen(getenv("HOME")));
+    sprintf(home, "%s", getenv("HOME"));
   }
   fname = malloc(strlen(home) + strlen(RC_NAME) + 2);
   sprintf(fname, "%s%c%s", home, SEPERATOR, RC_NAME);
   f = fopen(fname, "w");
-  if(nohome)
-    free(home);
+  free(home);
   if(f == 0) {
     printf("can't open %s ", fname);
     perror("for writing");
