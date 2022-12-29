@@ -5,18 +5,17 @@
 MODULE* sound_module;
 
 int initSound() {
-  char *drivers;
   md_mode |= DMODE_SOFT_MUSIC;
   md_mixfreq = 44100;
 
 #ifdef WIN32
   MikMod_RegisterDriver(&drv_win);
 #else
-  MikMod_RegisterDriver(&drv_sdl);
+  MikMod_RegisterAllDrivers();
 #endif
-  drivers = MikMod_InfoDriver();
-  printf("%s\n", drivers);
-  free(drivers);
+  printf("%s\n", MikMod_InfoDriver());
+  printf("select a driver\n");
+  scanf("%hd", &md_device);
 
   MikMod_RegisterAllLoaders();
 
