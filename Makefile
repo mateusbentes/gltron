@@ -31,7 +31,7 @@ XLIBS = -L/usr/X11/lib -L/usr/X11R6/lib -lX11 -lXext -lXmu -lXt -lXi -lSM -lICE 
 endif
 
 
-SNDLIBS = -lSDL_mixer
+SNDLIBS = `libmikmod-config --cflags` `libmikmod-config --libs`
 
 GLTRON_INSTALLDIR = /usr/bin
 GLTRON_HOME = /usr/share/games/gltron

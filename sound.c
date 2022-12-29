@@ -1,39 +1,67 @@
-#include "sound.h"
-#include "gltron.h"
+/* use libmikmod to play a soundsample */
 
-/* linux only, at the moment */
+#include <mikmod.h>
 
-static Mix_Music *music;
+MODULE* sound_module;
 
 int initSound() {
-  /* open the audio device */
-  if(Mix_OpenAudio(22050, AUDIO_U16, 1, 1024) < 0) {
-    printf("can't open audio device");
-    exit(2);
+  char *drivers;
+  md_mode |= DMODE_SOFT_MUSIC;
+  md_mixfreq = 44100;
+
+#ifdef WIN32
+  MikMod_RegisterDriver(&drv_win);
+#else
+  MikMod_RegisterDriver(&drv_sdl);
+#endif
+  drivers = MikMod_InfoDriver();
+  printf("%s\n", drivers);
+  free(drivers);
+
+  MikMod_RegisterAllLoaders();
+
+  if(MikMod_Init("")) {
+    printf("Cound not initialize sound: %s\n",
+	   MikMod_strerror(MikMod_errno));
+    return 1;
   }
   return 0;
 }
 
-int loadSound(char *name) {
-  music = Mix_LoadMUS(name);
+int loadSound(char* name) {
+  sound_module = Player_Load(name, 64, 0);
+  if(!sound_module) {
+    printf("Could not load module: %s\n",
+	   MikMod_strerror(MikMod_errno));
+    return 1;
+  }
   return 0;
 }
 
 int playSound() {
-  if( ! Mix_PlayingMusic() )
-    Mix_PlayMusic(music, -1);
-  /* todo: remove the following once the bug in SDL_mixer is fixed */
-  /* we don't want too many references to game objects here */
-  return 0;
+  if (sound_module) {
+    Player_Start(sound_module);
+    printf("sound startet\n");
+    return 0;
+  } else 
+    return 1;
 }
 
 int stopSound() {
-  if( Mix_PlayingMusic() )
-    Mix_HaltMusic();
+  Player_Stop();
+  printf("sound stopped");
   return 0;
 }
 
+void deleteSound() {
+  if(Player_Active())
+    Player_Stop();
+  if(sound_module)
+    Player_Free(sound_module);
+  MikMod_Exit();
+}
+
 void soundIdle() {
-  /* sdl_mixer uses pthreads, so no work here */
-  return;
+  if(Player_Active())
+    MikMod_Update();
 }
