@@ -67,6 +67,7 @@ void initSettingData(char *filename) {
   si[22].value = &(game->settings->show_crash_texture);
   si[23].value = &(game->settings->turn_cycle);
   si[24].value = &(game->settings->mouse_warp);
+  si[25].value = &(game->settings->sound_driver);
 
   sf[0].value = &(game->settings->speed);
 }
@@ -124,6 +125,7 @@ void initMainGameSettings(char *filename) {
   game->settings->ai_player3 = 1;
   game->settings->ai_player4 = 1;
   
+  game->settings->sound_driver = 0;
 
   /* not included in .gltronrc */
 

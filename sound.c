@@ -1,6 +1,7 @@
 /* use libmikmod to play a soundsample */
 
 #include <mikmod.h>
+#include "gltron.h"
 
 MODULE* sound_module;
 
@@ -14,8 +15,7 @@ int initSound() {
   MikMod_RegisterAllDrivers();
 #endif
   printf("%s\n", MikMod_InfoDriver());
-  printf("select a driver\n");
-  scanf("%hd", &md_device);
+  md_device = game->settings->sound_driver;
 
   MikMod_RegisterAllLoaders();
 

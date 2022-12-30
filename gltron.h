@@ -224,6 +224,7 @@ typedef struct Settings {
   int width;
   int height;
 
+  int sound_driver;
 
 } Settings;
 

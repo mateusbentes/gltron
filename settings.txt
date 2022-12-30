@@ -1,7 +1,7 @@
 2
 f1
 speed
-i25
+i26
 show_help
 show_fps
 show_wall
@@ -27,3 +27,4 @@ ai_player4
 show_crash_texture
 turn_cycle
 mouse_warp
+sound_driver
