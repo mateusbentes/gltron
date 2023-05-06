@@ -13,6 +13,7 @@
 #define SEPERATOR '/'
 #define RC_NAME ".gltronrc"
 #define CURRENT_DIR "."
+#define HOMEVAR "HOME"
 
 /* win32 additions by Jean-Bruno Richard <jean-bruno.richard@mg2.com> */
 
@@ -22,6 +23,7 @@
 #define M_PI 3.141592654
 #define SEPERATOR '\\'
 #define RC_NAME "gltron.ini"
+#define HOMEVAR "HOMEPATH"
 #endif
 
 /* FreeBSD additions by Andrey Zakhatov <andy@icc.surw.chel.su>  */

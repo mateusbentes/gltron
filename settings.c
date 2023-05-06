@@ -138,7 +138,7 @@ void initMainGameSettings(char *filename) {
 
   /* go for .gltronrc (or whatever is defined in RC_NAME) */
 
-  home = getenv("HOME");
+  home = getenv(HOMEVAR);
   if(home == 0) /* evaluate homedir */ {
     fname = malloc(strlen(CURRENT_DIR) + strlen(RC_NAME) + 2);
     sprintf(fname, "%s%c%s", CURRENT_DIR, SEPERATOR, RC_NAME);
