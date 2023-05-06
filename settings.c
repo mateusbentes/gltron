@@ -82,7 +82,7 @@ int* getVi(char* name) {
 }
 
 void initMainGameSettings(char *filename) {
-  char *fname;
+  char *fname, *home;
   char buf[100];
   char expbuf[100];
   int i;
@@ -138,13 +138,14 @@ void initMainGameSettings(char *filename) {
 
   /* go for .gltronrc (or whatever is defined in RC_NAME) */
 
-  if(getenv("HOME") == 0) /* evaluate homedir */ {
+  home = getenv("HOME");
+  if(home == 0) /* evaluate homedir */ {
     fname = malloc(strlen(CURRENT_DIR) + strlen(RC_NAME) + 2);
     sprintf(fname, "%s%c%s", CURRENT_DIR, SEPERATOR, RC_NAME);
   }
   else {
-    fname = malloc(strlen(getenv("HOME")) + strlen(RC_NAME) + 2);
-    sprintf(fname, "%s%c%s", getenv("HOME"), SEPERATOR, RC_NAME);
+    fname = malloc(strlen(home) + strlen(RC_NAME) + 2);
+    sprintf(fname, "%s%c%s", home, SEPERATOR, RC_NAME);
   }
   f = fopen(fname, "r");
   if(f == 0) {
