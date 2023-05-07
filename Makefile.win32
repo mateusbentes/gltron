@@ -22,7 +22,7 @@ else
 GL_LIBS = -lopengl32 -lglut32 -lglu32
 endif
 
-SNDLIBS = -lmikmod
+SNDLIBS = -lmikmod -lwinmm
 
 CFILES = \
 	sgi_texture.c \
@@ -62,10 +62,10 @@ all: gltron
 	$(CC) $(CFLAGS) $(OPT) $<
 
 gltron: $(OBJ)
-	$(CC) $(OPT) -o gltron $(OBJ) $(GL_LIBS) -lwinmm
+	$(CC) $(OPT) -o gltron $(OBJ) $(GL_LIBS)
 
 gltron_sound: $(OBJ_SOUND)
-	$(CC) $(OPT) -o gltron $(OBJ_SOUND) $(GL_LIBS) $(SNDLIBS) -lwinmm
+	$(CC) $(OPT) -o gltron $(OBJ_SOUND) $(GL_LIBS) $(SNDLIBS)
 
 sound:
 	$(MAKE) gltron_sound USE_SOUND=1 
