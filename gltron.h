@@ -48,7 +48,7 @@
 /* glut includes all necessary GL - Headers */
 
 #ifdef FREEGLUT
-#include "freeglut.h"
+#include <GL/freeglut.h>
 #else
 #include <GL/glut.h>
 /* #include <freeglut.h> */
