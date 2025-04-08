@@ -1,0 +1,2 @@
+/usr/bin/ar qc libnebu_filesystem.a CMakeFiles/nebu_filesystem.dir/directory-macos.c.o CMakeFiles/nebu_filesystem.dir/directory-win32.c.o CMakeFiles/nebu_filesystem.dir/directory.c.o CMakeFiles/nebu_filesystem.dir/file-macos.c.o CMakeFiles/nebu_filesystem.dir/file_io.c.o CMakeFiles/nebu_filesystem.dir/filesystem.c.o CMakeFiles/nebu_filesystem.dir/findpath.c.o
+/usr/bin/ranlib libnebu_filesystem.a

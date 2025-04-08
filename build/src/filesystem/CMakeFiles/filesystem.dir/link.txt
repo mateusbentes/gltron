@@ -1,0 +1,2 @@
+/usr/bin/ar qc libfilesystem.a CMakeFiles/filesystem.dir/dirsetup-macos.c.o CMakeFiles/filesystem.dir/dirsetup-win32.c.o CMakeFiles/filesystem.dir/dirsetup.c.o CMakeFiles/filesystem.dir/path.c.o
+/usr/bin/ranlib libfilesystem.a
