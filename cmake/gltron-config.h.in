@@ -1,0 +1,39 @@
+#ifndef GLTRON_CONFIG_H
+#define GLTRON_CONFIG_H
+
+#define VERSION "@PROJECT_VERSION@"
+
+/* Platform-specific definitions */
+#cmakedefine MACOSX
+#cmakedefine WIN32
+#cmakedefine LINUX
+#cmakedefine ANDROID
+
+/* Path definitions */
+#ifdef MACOSX
+  #define PREF_DIR "~/Library/Preferences/"
+  #define SNAP_DIR "~/Desktop/"
+  #define DATA_DIR "."
+  #define SEPARATOR '/'
+#elif defined(WIN32)
+  #define PREF_DIR "."
+  #define SNAP_DIR "."
+  #define DATA_DIR "."
+  #define SEPARATOR '\\'
+#else /* Linux, Android, etc. */
+  #define PREF_DIR "~/.gltron/"
+  #define SNAP_DIR "~/gltron-snapshots/"
+  #define DATA_DIR "@CMAKE_INSTALL_PREFIX@/share/gltron"
+  #define SEPARATOR '/'
+#endif
+
+/* Math function compatibility */
+#ifdef MACOSX
+  #define sinf(x) sin(x)
+  #define cosf(x) cos(x)
+  #define sqrtf(x) sqrt(x)
+  #define tanf(x) tan(x)
+  #define acosf(x) acos(x)
+#endif
+
+#endif /* GLTRON_CONFIG_H */

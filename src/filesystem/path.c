@@ -1,3 +1,4 @@
+#include "gltron-config.h"
 #include "filesystem/path.h"
 #include "filesystem/dirsetup.h"
 

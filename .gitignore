@@ -13,3 +13,5 @@ depcomp
 install-sh
 missing
 .qodo
+build
+build/

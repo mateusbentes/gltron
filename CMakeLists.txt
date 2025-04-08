@@ -1,14 +1,42 @@
 cmake_minimum_required(VERSION 3.10)
-project(gltron VERSION 1.0.0 LANGUAGES C CXX)
+project(gltron VERSION 0.71 LANGUAGES C CXX)
 
 # Options
 option(BUILD_ANDROID "Build for Android platform" OFF)
 option(ENABLE_STATIC_LINKING "Enable static linking" OFF)
+option(LOCAL_DATA "Use local data directory" OFF)
 
 # Set default build type if not specified
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build." FORCE)
 endif()
+
+# Platform detection
+if(APPLE)
+  set(MACOSX TRUE)
+elseif(WIN32)
+  # WIN32 is already defined by CMake
+elseif(UNIX AND NOT APPLE)
+  set(LINUX TRUE)
+endif()
+
+if(BUILD_ANDROID)
+  add_definitions(-DANDROID)
+endif()
+
+if(LOCAL_DATA)
+  add_definitions(-DLOCAL_DATA)
+endif()
+
+# Find SDL2 package
+if(NOT BUILD_ANDROID)
+  find_package(SDL2 REQUIRED)
+  # Add SDL2 include directories
+  include_directories(${SDL2_INCLUDE_DIRS})
+endif()
+
+# Generate configuration header
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/ConfigHeader.cmake)
 
 # Include directories
 include_directories(
