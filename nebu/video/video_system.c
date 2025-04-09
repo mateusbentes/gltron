@@ -3,12 +3,14 @@
 #include "base/nebu_system.h"
 #include "base/nebu_assert.h"
 #include "base/nebu_debug_memory.h"
+#include "base/sdl_compat.h"
 
 /* Include SDL2 header */
 #include <SDL2/SDL.h>
 
-static SDL_Window *window;
-static SDL_GLContext context;
+static SDL_Window *window = NULL;
+static SDL_GLContext context = NULL;
+static SDL_Surface *gScreen = NULL;
 static int width = 0;
 static int height = 0;
 static int bitdepth = 0;
@@ -28,6 +30,13 @@ void nebu_Video_SetWindowMode(int x, int y, int w, int h) {
   fprintf(stderr, "ignoring (%d,%d) initial window position - feature not implemented\n", x, y);
   width = w;
   height = h;
+  
+  /* Use SDL_SetVideoMode_Compat instead of direct SDL functions */
+  gScreen = SDL_SetVideoMode_Compat(w, h, 0, SDL_WINDOW_OPENGL);
+  if(!gScreen) {
+    fprintf(stderr, "Video initialization failed: %s\n", SDL_GetError());
+    nebu_assert(0); exit(1); /* OK: critical, no visual */
+  }
 }
 
 void nebu_Video_GetDimension(int *x, int *y)
@@ -93,19 +102,23 @@ void SystemSetGamma(float red, float green, float blue) {
 
 void createWindow(const char *name)
 {
-  if( (window = SDL_CreateWindow(name, 0, 0, width, height,
-                              SDL_WINDOW_OPENGL |
-                              ((flags & SYSTEM_FULLSCREEN) ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0))) == NULL ) {
+  /* Use compatibility layer instead of direct SDL functions */
+  Uint32 sdl_flags = SDL_WINDOW_OPENGL;
+  if(flags & SYSTEM_FULLSCREEN)
+    sdl_flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+    
+  gScreen = SDL_SetVideoMode_Compat(width, height, bitdepth, sdl_flags);
+  if(!gScreen) {
     fprintf(stderr, "[system] Couldn't set GL mode: %s\n", SDL_GetError());
     nebu_assert(0); exit(1); /* OK: critical, no visual */
   }
+  
+  /* Get window and context from compatibility layer */
+  window = SDL_GetWindow_Compat();
+  context = SDL_GL_GetCurrentContext();
+  
   window_id = 1;
-	if ((context = SDL_GL_CreateContext(window)) == NULL)
-	{
-		fprintf(stderr, "[system] Couldn't create GL context: %s\n", SDL_GetError());
-		nebu_assert(0); exit(1); /* OK: critical, no visual */
-	}
-        SDL_GL_SetSwapInterval(1);
+  SDL_GL_SetSwapInterval(1);
 }
 
 void nebu_Video_GetDisplayDepth(int *r, int *g, int *b, int *a)
@@ -157,10 +170,15 @@ void nebu_Video_Destroy(int id) {
 	/* there used to be some problems (memory leaks, unproper driver unloading)
 	 * caused by this, but I can't remember what they where
 	 */
-  if(id == window_id)
-	  SDL_QuitSubSystem(SDL_INIT_VIDEO);
-  else
-	  nebu_assert(0);
+  if(id == window_id) {
+    SDL_DestroyWindow_Compat();
+    SDL_QuitSubSystem(SDL_INIT_VIDEO);
+    gScreen = NULL;
+    window = NULL;
+    context = NULL;
+  } else {
+    nebu_assert(0);
+  }
   video_initialized = 0;
   window_id = 0;
 }
@@ -184,5 +202,5 @@ void nebu_Video_CheckErrors(const char *where) {
 }
 
 void nebu_Video_SwapBuffers(void) {
-	SDL_GL_SwapWindow(window);
+	SDL_GL_SwapWindow_Compat();
 }

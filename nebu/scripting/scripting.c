@@ -1,5 +1,6 @@
 #include "base/nebu_debug_memory.h"
 #include "scripting/nebu_scripting.h"
+#include "base/sdl_compat.h"
 
 #include "lua.h"
 #include "lualib.h"
@@ -15,12 +16,92 @@ lua_State *L;
 FILE* scripting_debug = NULL;
 extern void init_c_interface(lua_State *L);
 
+/* Register SDL2 key constants with their SDL 1.2 names */
+void scripting_RegisterSDL2Compat(lua_State *L) {
+    /* Register SDL2 key constants with their SDL 1.2 names */
+    lua_pushnumber(L, SDLK_UP); lua_setglobal(L, "SDLK_UP");
+    lua_pushnumber(L, SDLK_DOWN); lua_setglobal(L, "SDLK_DOWN");
+    lua_pushnumber(L, SDLK_LEFT); lua_setglobal(L, "SDLK_LEFT");
+    lua_pushnumber(L, SDLK_RIGHT); lua_setglobal(L, "SDLK_RIGHT");
+    lua_pushnumber(L, SDLK_RETURN); lua_setglobal(L, "SDLK_RETURN");
+    lua_pushnumber(L, SDLK_ESCAPE); lua_setglobal(L, "SDLK_ESCAPE");
+    lua_pushnumber(L, SDLK_SPACE); lua_setglobal(L, "SDLK_SPACE");
+    
+    /* Register keypad keys */
+    lua_pushnumber(L, SDLK_KP_0); lua_setglobal(L, "SDLK_KP0");
+    lua_pushnumber(L, SDLK_KP_1); lua_setglobal(L, "SDLK_KP1");
+    lua_pushnumber(L, SDLK_KP_2); lua_setglobal(L, "SDLK_KP2");
+    lua_pushnumber(L, SDLK_KP_3); lua_setglobal(L, "SDLK_KP3");
+    lua_pushnumber(L, SDLK_KP_4); lua_setglobal(L, "SDLK_KP4");
+    lua_pushnumber(L, SDLK_KP_5); lua_setglobal(L, "SDLK_KP5");
+    lua_pushnumber(L, SDLK_KP_6); lua_setglobal(L, "SDLK_KP6");
+    lua_pushnumber(L, SDLK_KP_7); lua_setglobal(L, "SDLK_KP7");
+    lua_pushnumber(L, SDLK_KP_8); lua_setglobal(L, "SDLK_KP8");
+    lua_pushnumber(L, SDLK_KP_9); lua_setglobal(L, "SDLK_KP9");
+    
+    /* Register function keys */
+    lua_pushnumber(L, SDLK_F1); lua_setglobal(L, "SDLK_F1");
+    lua_pushnumber(L, SDLK_F2); lua_setglobal(L, "SDLK_F2");
+    lua_pushnumber(L, SDLK_F3); lua_setglobal(L, "SDLK_F3");
+    lua_pushnumber(L, SDLK_F4); lua_setglobal(L, "SDLK_F4");
+    lua_pushnumber(L, SDLK_F5); lua_setglobal(L, "SDLK_F5");
+    lua_pushnumber(L, SDLK_F6); lua_setglobal(L, "SDLK_F6");
+    lua_pushnumber(L, SDLK_F7); lua_setglobal(L, "SDLK_F7");
+    lua_pushnumber(L, SDLK_F8); lua_setglobal(L, "SDLK_F8");
+    lua_pushnumber(L, SDLK_F9); lua_setglobal(L, "SDLK_F9");
+    lua_pushnumber(L, SDLK_F10); lua_setglobal(L, "SDLK_F10");
+    lua_pushnumber(L, SDLK_F11); lua_setglobal(L, "SDLK_F11");
+    lua_pushnumber(L, SDLK_F12); lua_setglobal(L, "SDLK_F12");
+    
+    /* Register modifier keys */
+    lua_pushnumber(L, SDLK_LSHIFT); lua_setglobal(L, "SDLK_LSHIFT");
+    lua_pushnumber(L, SDLK_RSHIFT); lua_setglobal(L, "SDLK_RSHIFT");
+    lua_pushnumber(L, SDLK_LCTRL); lua_setglobal(L, "SDLK_LCTRL");
+    lua_pushnumber(L, SDLK_RCTRL); lua_setglobal(L, "SDLK_RCTRL");
+    lua_pushnumber(L, SDLK_LALT); lua_setglobal(L, "SDLK_LALT");
+    lua_pushnumber(L, SDLK_RALT); lua_setglobal(L, "SDLK_RALT");
+    
+    /* Register SDL event types */
+    lua_pushnumber(L, SDL_KEYDOWN); lua_setglobal(L, "SDL_KEYDOWN");
+    lua_pushnumber(L, SDL_KEYUP); lua_setglobal(L, "SDL_KEYUP");
+    lua_pushnumber(L, SDL_MOUSEMOTION); lua_setglobal(L, "SDL_MOUSEMOTION");
+    lua_pushnumber(L, SDL_MOUSEBUTTONDOWN); lua_setglobal(L, "SDL_MOUSEBUTTONDOWN");
+    lua_pushnumber(L, SDL_MOUSEBUTTONUP); lua_setglobal(L, "SDL_MOUSEBUTTONUP");
+    lua_pushnumber(L, SDL_QUIT); lua_setglobal(L, "SDL_QUIT");
+    
+    /* Register SDL key modifiers */
+    lua_pushnumber(L, KMOD_NONE); lua_setglobal(L, "KMOD_NONE");
+    lua_pushnumber(L, KMOD_LSHIFT); lua_setglobal(L, "KMOD_LSHIFT");
+    lua_pushnumber(L, KMOD_RSHIFT); lua_setglobal(L, "KMOD_RSHIFT");
+    lua_pushnumber(L, KMOD_LCTRL); lua_setglobal(L, "KMOD_LCTRL");
+    lua_pushnumber(L, KMOD_RCTRL); lua_setglobal(L, "KMOD_RCTRL");
+    lua_pushnumber(L, KMOD_LALT); lua_setglobal(L, "KMOD_LALT");
+    lua_pushnumber(L, KMOD_RALT); lua_setglobal(L, "KMOD_RALT");
+    lua_pushnumber(L, KMOD_SHIFT); lua_setglobal(L, "KMOD_SHIFT");
+    lua_pushnumber(L, KMOD_CTRL); lua_setglobal(L, "KMOD_CTRL");
+    lua_pushnumber(L, KMOD_ALT); lua_setglobal(L, "KMOD_ALT");
+    
+    /* Register SDL mouse buttons */
+    lua_pushnumber(L, SDL_BUTTON_LEFT); lua_setglobal(L, "SDL_BUTTON_LEFT");
+    lua_pushnumber(L, SDL_BUTTON_MIDDLE); lua_setglobal(L, "SDL_BUTTON_MIDDLE");
+    lua_pushnumber(L, SDL_BUTTON_RIGHT); lua_setglobal(L, "SDL_BUTTON_RIGHT");
+    
+    /* Register SDL video flags */
+    lua_pushnumber(L, SDL_WINDOW_FULLSCREEN); lua_setglobal(L, "SDL_FULLSCREEN");
+    lua_pushnumber(L, SDL_WINDOW_OPENGL); lua_setglobal(L, "SDL_OPENGL");
+    lua_pushnumber(L, SDL_WINDOW_RESIZABLE); lua_setglobal(L, "SDL_RESIZABLE");
+}
+
 void scripting_Init(int flags) {
   L = lua_open();
   luaopen_base(L);
   luaopen_table(L);
   luaopen_string(L);
+  luaopen_math(L);
   luaopen_io(L);
+
+  /* Register SDL2 compatibility functions */
+  scripting_RegisterSDL2Compat(L);
 
   if(flags | NEBU_SCRIPTING_DEBUG)
   {

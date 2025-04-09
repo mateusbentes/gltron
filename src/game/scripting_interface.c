@@ -25,6 +25,9 @@
 #include "lua.h"
 #include "lualib.h"
 
+/* External declaration for touch interface registration */
+extern void touch_interface_register(void);
+
 /* Define GAME_SUCCESS for backward compatibility */
 #define GAME_SUCCESS 0
 
@@ -327,6 +330,9 @@ void init_c_interface(void) {
 	scripting_Register("c_updateUI", c_updateUI);
 	
 	scripting_Register("c_game_ComputeTimeDelta", c_game_ComputeTimeDelta);
+	
+	/* Register touch input functions */
+	touch_interface_register();
 }
 
 /*
