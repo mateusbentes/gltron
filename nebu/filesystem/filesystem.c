@@ -35,25 +35,6 @@ int nebu_FS_Test(const char *path) {
   return 0;
 }
 
-/* Implementation of goto_installpath for non-Windows platforms */
-#ifndef WIN32
-void goto_installpath(const char *executable) {
-    char *path;
-    char *p;
-    int result;
-    
-    path = strdup(executable);
-    p = strrchr(path, PATH_SEPARATOR);
-    if(p) {
-        *p = 0;
-        result = chdir(path);
-        if (result != 0) {
-            fprintf(stderr, "Warning: Failed to change directory to %s\n", path);
-        }
-    }
-    free(path);
-}
-#endif
 
 nebu_List *path_list = NULL;
 
