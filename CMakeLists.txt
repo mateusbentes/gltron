@@ -4,7 +4,7 @@ project(gltron VERSION 0.71 LANGUAGES C CXX)
 # Options
 option(BUILD_ANDROID "Build for Android platform" OFF)
 option(ENABLE_STATIC_LINKING "Enable static linking" OFF)
-option(LOCAL_DATA "Use local data directory" OFF)
+option(LOCAL_DATA "Use local data directory" ON)  # Changed to ON by default
 option(ENABLE_SOUND "Enable sound support (requires SDL_sound)" ON)
 
 # Set default build type if not specified
@@ -172,6 +172,47 @@ endif()
 
 if(ENABLE_SOUND)
   target_link_libraries(gltron PRIVATE ${SDL_SOUND_LIBRARY})
+endif()
+
+# Copy resources to build directory for LOCAL_DATA mode
+if(LOCAL_DATA)
+  # Create directories
+  file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/scripts)
+  file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/art)
+  file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/data)
+  file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/music)
+  file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/levels)
+  
+  # Copy resources
+  add_custom_command(TARGET gltron POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${CMAKE_SOURCE_DIR}/scripts ${CMAKE_BINARY_DIR}/scripts
+    COMMENT "Copying scripts to build directory"
+  )
+  
+  add_custom_command(TARGET gltron POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${CMAKE_SOURCE_DIR}/art ${CMAKE_BINARY_DIR}/art
+    COMMENT "Copying art to build directory"
+  )
+  
+  add_custom_command(TARGET gltron POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${CMAKE_SOURCE_DIR}/data ${CMAKE_BINARY_DIR}/data
+    COMMENT "Copying data to build directory"
+  )
+  
+  add_custom_command(TARGET gltron POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${CMAKE_SOURCE_DIR}/music ${CMAKE_BINARY_DIR}/music
+    COMMENT "Copying music to build directory"
+  )
+  
+  add_custom_command(TARGET gltron POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${CMAKE_SOURCE_DIR}/levels ${CMAKE_BINARY_DIR}/levels
+    COMMENT "Copying levels to build directory"
+  )
 endif()
 
 # Installation rules
