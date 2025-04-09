@@ -224,20 +224,31 @@ int c_SetCallback(lua_State *L) {
 		return 0;
 	}
 	
-	// Check for valid callback names
-	if(strcmp(name, "gui") != 0 && 
-	   strcmp(name, "game") != 0 && 
-	   strcmp(name, "pause") != 0 && 
-	   strcmp(name, "credits") != 0 && 
-	   strcmp(name, "configure") != 0 && 
-	   strcmp(name, "timedemo") != 0) {
+	fprintf(stderr, "[debug] Setting callback to: %s\n", name);
+	
+	/* Validate the callback name */
+	if(!(strcmp(name, "gui") == 0 || 
+	     strcmp(name, "game") == 0 || 
+	     strcmp(name, "pause") == 0 || 
+	     strcmp(name, "credits") == 0 || 
+	     strcmp(name, "configure") == 0 || 
+	     strcmp(name, "timedemo") == 0)) {
 		fprintf(stderr, "[warning] unknown callback set: %s\n", name);
-		// Continue anyway, as the setCallback function might handle unknown callbacks
+		/* Continue anyway, as the setCallback function might handle unknown callbacks */
 	}
 	
-	// Call setCallback with the validated name
-	fprintf(stderr, "[debug] Setting callback to: %s\n", name);
-	setCallback(name);
+	/* Make a copy of the name to ensure it remains valid */
+	char *name_copy = strdup(name);
+	if(!name_copy) {
+		fprintf(stderr, "[fatal] memory allocation failed for callback name\n");
+		return 0;
+	}
+	
+	/* Call setCallback with the validated name */
+	setCallback(name_copy);
+	
+	/* Free the copy after use */
+	free(name_copy);
 	
 	return 0;
 }
