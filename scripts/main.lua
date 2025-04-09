@@ -44,6 +44,7 @@ safe_execute(function()
 end, "timedemo check")
 
 safe_execute(function()
+    -- Initialize variables
     if callback == nil then
         callback = "gui"
     end
@@ -53,9 +54,8 @@ safe_execute(function()
     end
 
     game_initialized = 0;
-end, "initializing variables")
 
-safe_execute(function()
+    -- Initialize callback mapping table
     next_callback = {}
     next_callback[ EScriptingReturnCode.eSRC_Game_Launch ] = 
         function() 
@@ -85,23 +85,37 @@ safe_execute(function()
     next_callback[ EScriptingReturnCode.eSRC_Timedemo_Abort ] = nil
     next_callback[ EScriptingReturnCode.eSRC_Quit ] = nil
     -- next_callback[ EScriptingReturnCode.eSRC_32bitWarning_OK ] = function() return "gui"; end
-end, "initializing callbacks")
+end, "initializing variables and callbacks")
 
 print("[lua] Starting main loop")
 safe_execute(function()
-    while 1 do
+    while true do
         print("[lua] Setting callback: " .. tostring(callback))
-        c_setCallback(callback)
+        local cb_status, cb_err = pcall(c_setCallback, callback)
+        if not cb_status then
+            print("[lua] ERROR setting callback: " .. tostring(cb_err))
+            break
+        end
         
         print("[lua] Running main loop")
-        status = c_mainLoop()
+        local loop_status, status = pcall(c_mainLoop)
+        if not loop_status then
+            print("[lua] ERROR in main loop: " .. tostring(status))
+            break
+        end
+        
         print("[lua] System returned: " .. tostring(status))
         
-        if(next_callback[ status ]) then
-            callback = next_callback[ status ]()
+        if next_callback[status] then
+            local next_cb_status, next_cb = pcall(next_callback[status])
+            if not next_cb_status then
+                print("[lua] ERROR in callback handler: " .. tostring(next_cb))
+                break
+            end
+            callback = next_cb
             print("[lua] Next callback: " .. tostring(callback))
         else
-            if(status == EScriptingReturnCode.eSRC_Quit) then
+            if status == EScriptingReturnCode.eSRC_Quit then
                 print("[lua] clean exit")
                 break
             else
