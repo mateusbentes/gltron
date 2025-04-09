@@ -15,12 +15,14 @@ find_package(SDL2 REQUIRED)
 # Include directories
 target_include_directories(nebu_video PUBLIC
   ${CMAKE_SOURCE_DIR}/nebu/include
+  ${CMAKE_SOURCE_DIR}/src/include
   ${PNG_INCLUDE_DIRS}
   ${SDL2_INCLUDE_DIRS}
 )
 
-# Link with PNG and SDL2
-target_link_libraries(nebu_video PRIVATE
+# Link with sdl_compat first, then PNG and SDL2 libraries
+target_link_libraries(nebu_video PUBLIC
+  sdl_compat
   ${PNG_LIBRARIES}
   ${SDL2_LIBRARIES}
 )

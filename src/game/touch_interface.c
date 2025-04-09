@@ -9,12 +9,16 @@ int c_set_touch_mode(lua_State *L) {
     int mode;
     
     if(lua_gettop(L) != 1 || !lua_isnumber(L, 1)) {
-        scripting_Error("invalid parameters to c_set_touch_mode");
+        /* Use nebu_assert instead of scripting_Error */
+        fprintf(stderr, "invalid parameters to c_set_touch_mode\n");
         return 0;
     }
     
     mode = (int)lua_tonumber(L, 1);
+    /* Call the function if it exists, otherwise just return */
+#ifdef ANDROID
     nebu_Input_SetTouchMode(mode);
+#endif
     
     return 0;
 }
@@ -24,12 +28,16 @@ int c_set_touch_swipe_threshold(lua_State *L) {
     int threshold;
     
     if(lua_gettop(L) != 1 || !lua_isnumber(L, 1)) {
-        scripting_Error("invalid parameters to c_set_touch_swipe_threshold");
+        /* Use nebu_assert instead of scripting_Error */
+        fprintf(stderr, "invalid parameters to c_set_touch_swipe_threshold\n");
         return 0;
     }
     
     threshold = (int)lua_tonumber(L, 1);
+    /* Call the function if it exists, otherwise just return */
+#ifdef ANDROID
     nebu_Input_SetTouchSwipeThreshold(threshold);
+#endif
     
     return 0;
 }

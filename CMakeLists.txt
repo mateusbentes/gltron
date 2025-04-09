@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 3.10)
 project(gltron VERSION 0.71 LANGUAGES C CXX)
 
+# Set policy CMP0079 to NEW to allow linking targets from different directories
+if(POLICY CMP0079)
+  cmake_policy(SET CMP0079 NEW)
+endif()
+
 # Options
 option(BUILD_ANDROID "Build for Android platform" OFF)
 option(ENABLE_STATIC_LINKING "Enable static linking" OFF)
@@ -158,6 +163,16 @@ include_directories(
   ${SDL2_INCLUDE_DIRS}
 )
 
+# Create SDL compatibility library
+add_library(sdl_compat STATIC
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/base/sdl_compat.c
+)
+target_include_directories(sdl_compat PUBLIC
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/include
+  ${SDL2_INCLUDE_DIRS}
+)
+target_link_libraries(sdl_compat PUBLIC ${SDL2_LIBRARIES})
+
 # Copy resources to build directory for LOCAL_DATA mode
 # Do this before building any targets to ensure resources are available
 if(LOCAL_DATA)
@@ -199,6 +214,7 @@ target_compile_definitions(gltron PRIVATE LOCAL_DATA)
 
 # Link libraries - IMPORTANT: Order matters for static linking
 target_link_libraries(gltron PRIVATE
+  sdl_compat  # Add the SDL compatibility library first
   game
   input
   audio

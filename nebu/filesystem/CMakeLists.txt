@@ -1,88 +1,52 @@
-# Find all common source files in this directory
-file(GLOB COMMON_SOURCES "*.c" "*.cpp")
-file(GLOB HEADERS "*.h")
+# Initialize source files list
+set(SOURCES "")
+set(HEADERS "")
 
-# Remove all platform-specific files from common sources
-list(FILTER COMMON_SOURCES EXCLUDE REGEX "(filesystem|directory|file)-(macos|win32|linux|android)\\.c$")
+# Add common source files
+file(GLOB COMMON_SOURCES "file_io.c" "path.c" "dirsetup.c")
+file(GLOB COMMON_HEADERS "*.h")
 
-# Set platform-specific source files
-set(PLATFORM_SOURCES "")
+list(APPEND SOURCES ${COMMON_SOURCES})
+list(APPEND HEADERS ${COMMON_HEADERS})
 
-# Check for platform-specific filesystem implementation
+# Add platform-specific source files
 if(MACOSX)
-    # Use macOS-specific implementations
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/filesystem-macos.c")
-        list(APPEND PLATFORM_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/filesystem-macos.c")
-    endif()
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/directory-macos.c")
-        list(APPEND PLATFORM_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/directory-macos.c")
-    endif()
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/file-macos.c")
-        list(APPEND PLATFORM_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/file-macos.c")
-    endif()
+  file(GLOB PLATFORM_SOURCES "directory-macos.c")
+  list(APPEND SOURCES ${PLATFORM_SOURCES})
+  set(PLATFORM_DEFINE MACOSX)
 elseif(WIN32)
-    # Use Windows-specific implementations
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/filesystem-win32.c")
-        list(APPEND PLATFORM_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/filesystem-win32.c")
-    endif()
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/directory-win32.c")
-        list(APPEND PLATFORM_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/directory-win32.c")
-    endif()
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/file-win32.c")
-        list(APPEND PLATFORM_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/file-win32.c")
-    endif()
+  file(GLOB PLATFORM_SOURCES "directory-win32.c")
+  list(APPEND SOURCES ${PLATFORM_SOURCES})
+  set(PLATFORM_DEFINE WIN32)
+elseif(BUILD_ANDROID)
+  file(GLOB PLATFORM_SOURCES "directory.c")
+  list(APPEND SOURCES ${PLATFORM_SOURCES})
+  set(PLATFORM_DEFINE ANDROID)
 else()
-    # Use Linux/Android implementations
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/filesystem-android.c")
-        list(APPEND PLATFORM_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/filesystem-android.c")
-    elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/filesystem-linux.c")
-        list(APPEND PLATFORM_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/filesystem-linux.c")
-    endif()
-    
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/file-linux.c")
-        list(APPEND PLATFORM_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/file-linux.c")
-    endif()
-endif()
-
-# If we're building for Android but don't have filesystem-android.c, create a stub
-if(BUILD_ANDROID AND NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/filesystem-android.c" AND NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/filesystem-android-stub.c")
-    # Create a stub implementation for Android
-    file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/filesystem-android-stub.c" 
-"/* Auto-generated stub implementation for Android */
-#include \"Nebu_filesystem.h\"
-#include <stdio.h>
-
-int nebu_FS_Test(const char *path) {
-    FILE *f = fopen(path, \"r\");
-    if(f) {
-        fclose(f);
-        return 1;
-    }
-    return 0;
-}
-
-void nebu_FS_Delete(const char *path) {
-    remove(path);
-}
-")
-    list(APPEND PLATFORM_SOURCES "${CMAKE_CURRENT_BINARY_DIR}/filesystem-android-stub.c")
+  file(GLOB PLATFORM_SOURCES "directory.c")
+  list(APPEND SOURCES ${PLATFORM_SOURCES})
+  set(PLATFORM_DEFINE LINUX)
 endif()
 
 # Create the library
-add_library(nebu_filesystem STATIC ${COMMON_SOURCES} ${PLATFORM_SOURCES} ${HEADERS})
+add_library(nebu_filesystem STATIC ${SOURCES} ${HEADERS})
 
 # Include directories
 target_include_directories(nebu_filesystem PUBLIC
   ${CMAKE_SOURCE_DIR}/nebu/include
+  ${CMAKE_SOURCE_DIR}/src/include
+  ${SDL2_INCLUDE_DIRS}
+)
+
+# Link with SDL and sdl_compat
+target_link_libraries(nebu_filesystem PUBLIC
+  sdl_compat
+  ${SDL2_LIBRARIES}
 )
 
 # Platform-specific configurations
-if(MACOSX)
-  target_compile_definitions(nebu_filesystem PRIVATE MACOSX)
-elseif(WIN32)
-  target_compile_definitions(nebu_filesystem PRIVATE WIN32)
-elseif(BUILD_ANDROID)
-  target_compile_definitions(nebu_filesystem PRIVATE ANDROID)
-else()
-  target_compile_definitions(nebu_filesystem PRIVATE LINUX)
-endif()
+target_compile_definitions(nebu_filesystem PRIVATE ${PLATFORM_DEFINE})
+
+# Print information about which files are being compiled
+message(STATUS "Filesystem sources: ${SOURCES}")
+message(STATUS "Platform: ${PLATFORM_DEFINE}")
