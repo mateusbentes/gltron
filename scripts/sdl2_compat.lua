@@ -22,9 +22,17 @@ SDL.KMOD_LCTRL = 0x0040
 SDL.KMOD_RCTRL = 0x0080
 SDL.KMOD_LALT = 0x0100
 SDL.KMOD_RALT = 0x0200
-SDL.KMOD_SHIFT = SDL.KMOD_LSHIFT | SDL.KMOD_RSHIFT
-SDL.KMOD_CTRL = SDL.KMOD_LCTRL | SDL.KMOD_RCTRL
-SDL.KMOD_ALT = SDL.KMOD_LALT | SDL.KMOD_RALT
+
+-- Define bit operations if not available
+if not bit_or then
+    function bit_or(a, b)
+        return a | b
+    end
+end
+
+SDL.KMOD_SHIFT = bit_or(SDL.KMOD_LSHIFT, SDL.KMOD_RSHIFT)
+SDL.KMOD_CTRL = bit_or(SDL.KMOD_LCTRL, SDL.KMOD_RCTRL)
+SDL.KMOD_ALT = bit_or(SDL.KMOD_LALT, SDL.KMOD_RALT)
 
 -- SDL 1.2 mouse buttons
 SDL.BUTTON_LEFT = 1
