@@ -21,12 +21,20 @@ elseif(UNIX AND NOT APPLE)
   set(LINUX TRUE)
 endif()
 
+# Force LOCAL_DATA to be ON during development
+set(LOCAL_DATA ON CACHE BOOL "Use local data directory" FORCE)
+message(STATUS "LOCAL_DATA is set to: ${LOCAL_DATA}")
+
+# Add compiler definitions
 if(BUILD_ANDROID)
   add_definitions(-DANDROID)
 endif()
 
 if(LOCAL_DATA)
   add_definitions(-DLOCAL_DATA)
+  # Also add it as a global compile definition to ensure it's passed to all targets
+  add_compile_definitions(LOCAL_DATA)
+  message(STATUS "LOCAL_DATA definition added")
 endif()
 
 # Find required packages
@@ -90,8 +98,53 @@ if(NOT BUILD_ANDROID)
   endif()
 endif()
 
+# Create the cmake directory if it doesn't exist
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+
+# Generate config.h.in file
+file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/config.h.in 
+"#ifndef CONFIG_H
+#define CONFIG_H
+
+#cmakedefine LOCAL_DATA
+#cmakedefine HAVE_SDL_SOUND
+#cmakedefine ANDROID
+
+#endif /* CONFIG_H */
+")
+
 # Generate configuration header
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/ConfigHeader.cmake)
+configure_file(
+  ${CMAKE_CURRENT_SOURCE_DIR}/cmake/config.h.in
+  ${CMAKE_CURRENT_BINARY_DIR}/config.h
+)
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
+
+# Create gltron-config.h
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/src/include)
+file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/src/include/gltron-config.h
+"/* Platform-specific configuration for GLtron */
+#ifndef GLTRON_CONFIG_H
+#define GLTRON_CONFIG_H
+
+/* Directory paths */
+#define PREF_DIR \"~/.gltronrc\"
+#define SNAP_DIR \"~/gltron-snapshots\"
+#define DATA_DIR \"/usr/local/share/gltron\"
+#define VERSION \"0.71\"
+
+/* Platform-specific function replacements */
+#ifdef __APPLE__
+  /* Mac OS X doesn't have sinf and others in older versions */
+  #define sinf(x) sin(x)
+  #define cosf(x) cos(x)
+  #define sqrtf(x) sqrt(x)
+  #define tanf(x) tan(x)
+  #define acosf(x) acos(x)
+#endif
+
+#endif /* GLTRON_CONFIG_H */
+")
 
 # Include directories
 include_directories(
@@ -104,6 +157,26 @@ include_directories(
   ${ZLIB_INCLUDE_DIRS}
   ${SDL2_INCLUDE_DIRS}
 )
+
+# Copy resources to build directory for LOCAL_DATA mode
+# Do this before building any targets to ensure resources are available
+if(LOCAL_DATA)
+  # Create directories
+  file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/scripts)
+  file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/art)
+  file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/data)
+  file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/music)
+  file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/levels)
+  
+  # Copy resources immediately during configure step
+  file(COPY ${CMAKE_SOURCE_DIR}/scripts/ DESTINATION ${CMAKE_BINARY_DIR}/scripts)
+  file(COPY ${CMAKE_SOURCE_DIR}/art/ DESTINATION ${CMAKE_BINARY_DIR}/art)
+  file(COPY ${CMAKE_SOURCE_DIR}/data/ DESTINATION ${CMAKE_BINARY_DIR}/data)
+  file(COPY ${CMAKE_SOURCE_DIR}/music/ DESTINATION ${CMAKE_BINARY_DIR}/music)
+  file(COPY ${CMAKE_SOURCE_DIR}/levels/ DESTINATION ${CMAKE_BINARY_DIR}/levels)
+  
+  message(STATUS "Resources copied to build directory")
+endif()
 
 # Add subdirectories for all libraries
 add_subdirectory(lua5)
@@ -120,6 +193,9 @@ add_subdirectory(levels)
 
 # Main executable
 add_executable(gltron ${CMAKE_CURRENT_SOURCE_DIR}/src/gltron.c)
+
+# Add LOCAL_DATA definition specifically to the gltron target
+target_compile_definitions(gltron PRIVATE LOCAL_DATA)
 
 # Link libraries - IMPORTANT: Order matters for static linking
 target_link_libraries(gltron PRIVATE
@@ -174,16 +250,8 @@ if(ENABLE_SOUND)
   target_link_libraries(gltron PRIVATE ${SDL_SOUND_LIBRARY})
 endif()
 
-# Copy resources to build directory for LOCAL_DATA mode
+# Also copy resources as a post-build step to ensure they're updated if changed
 if(LOCAL_DATA)
-  # Create directories
-  file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/scripts)
-  file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/art)
-  file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/data)
-  file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/music)
-  file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/levels)
-  
-  # Copy resources
   add_custom_command(TARGET gltron POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
     ${CMAKE_SOURCE_DIR}/scripts ${CMAKE_BINARY_DIR}/scripts
@@ -227,4 +295,12 @@ install(DIRECTORY levels/ DESTINATION share/gltron/levels)
 add_custom_target(tags
   COMMAND find . -name '*.c' -or -name '*.cpp' -or -name '*.h' -or -name '*.lua' | xargs etags
   WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
+
+# Add a custom target to verify LOCAL_DATA is defined
+add_custom_target(verify_local_data
+  COMMAND ${CMAKE_COMMAND} -E echo "LOCAL_DATA is set to: ${LOCAL_DATA}"
+  COMMAND ${CMAKE_COMMAND} -E echo "Build type is: ${CMAKE_BUILD_TYPE}"
+  COMMAND ${CMAKE_COMMAND} -E echo "Resources should be in: ${CMAKE_BINARY_DIR}/scripts"
+  COMMAND ls -la ${CMAKE_BINARY_DIR}/scripts
 )
