@@ -136,8 +136,8 @@ target_link_libraries(gltron PRIVATE
   nebu_scripting
   nebu_filesystem
   nebu_base
-  lua
-  lualib
+  lua5  # Changed from lua to lua5
+  lualib5  # Changed from lualib to lualib5
   lib3ds
   ${GLEW_LIBRARIES}
   ${PNG_LIBRARIES}

@@ -9,12 +9,12 @@ add_library(nebu_scripting STATIC ${SOURCES} ${HEADERS})
 target_include_directories(nebu_scripting PUBLIC
   ${CMAKE_SOURCE_DIR}/nebu/include
   ${CMAKE_SOURCE_DIR}/lua5/include
-  ${CMAKE_BINARY_DIR}/lua5/include
 )
 
 # Link with Lua libraries
 target_link_libraries(nebu_scripting PUBLIC
   lua5
+  lualib5
 )
 
 # Platform-specific configurations
