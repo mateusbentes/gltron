@@ -10,6 +10,9 @@
 #define SYSTEM_ALPHA 64
 #define SYSTEM_RGBA (SYSTEM_RGB | SYSTEM_ALPHA)
 
+/* Include SDL2 header */
+#include <SDL2/SDL.h>
+
 extern void SystemReshapeFunc(void(*reshape)(int, int));
 extern void SystemSetGamma(float r, float g, float b);
 

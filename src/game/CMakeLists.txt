@@ -2,6 +2,9 @@
 file(GLOB SOURCES "*.c" "*.cpp")
 file(GLOB HEADERS "*.h")
 
+# Remove level.c since its functions are duplicated in game_level.c
+list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/level.c")
+
 # Create the library
 add_library(game STATIC ${SOURCES} ${HEADERS})
 

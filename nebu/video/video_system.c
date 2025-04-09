@@ -1,10 +1,11 @@
 #include "video/nebu_renderer_gl.h"
 #include "video/nebu_video_system.h"
 #include "base/nebu_system.h"
-
 #include "base/nebu_assert.h"
-
 #include "base/nebu_debug_memory.h"
+
+/* Include SDL2 header */
+#include <SDL2/SDL.h>
 
 static SDL_Window *window;
 static SDL_GLContext context;
@@ -153,7 +154,7 @@ void nebu_Video_Destroy(int id) {
 	 * otherwise SDL can't create a new context on win32, if the stencil
 	 * bits change 
 	 */
-	/* there used to be some problems (memory leaks, unprober driver unloading)
+	/* there used to be some problems (memory leaks, unproper driver unloading)
 	 * caused by this, but I can't remember what they where
 	 */
   if(id == window_id)

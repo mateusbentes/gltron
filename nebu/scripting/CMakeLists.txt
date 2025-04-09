@@ -11,6 +11,12 @@ target_include_directories(nebu_scripting PUBLIC
   ${CMAKE_SOURCE_DIR}/lua5/include
 )
 
+# Link with Lua libraries
+target_link_libraries(nebu_scripting PUBLIC
+  lua
+  lualib
+)
+
 # Platform-specific configurations
 if(BUILD_ANDROID)
   target_compile_definitions(nebu_scripting PRIVATE ANDROID)

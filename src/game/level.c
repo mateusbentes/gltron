@@ -116,6 +116,12 @@ void game_UnloadLevel(void)
 	// delete the current (global) lua table
 	// delete global 'level' table (garbage collected)
 	scripting_Run("level = nil");
+	
+	// Free the level structure if it exists
+	if(game->level) {
+		game_FreeLevel(game->level);
+		game->level = NULL;
+	}
 }
 
 int game_LoadLevel(void)
@@ -123,12 +129,12 @@ int game_LoadLevel(void)
 	// Load the selected level into the (global) lua table
 	char *path; 
 	char *pFilename;
+	int result = GAME_SUCCESS;
 
 	int iPos = scripting_StackGuardStart();
 
 	// make sure there's no level already loaded
 	scripting_GetGlobal("level", NULL);
-	nebu_assert(scripting_IsNil());
 	if(!scripting_IsNil())
 	{
 		scripting_Pop();
@@ -137,6 +143,11 @@ int game_LoadLevel(void)
 	}
 	scripting_Pop();
 
+	// Unload any existing level
+	if(game->level) {
+		game_UnloadLevel();
+	}
+
 	scripting_GetGlobal("settings", "current_level", NULL);
 	scripting_GetStringResult(&pFilename);
 	fprintf(stderr, "[status] loading level '%s'\n", pFilename);
@@ -144,16 +155,25 @@ int game_LoadLevel(void)
 	scripting_StringResult_Free(pFilename);
 
 	if(path) {
-		scripting_RunFile(path);
+		if(scripting_RunFile(path)) {
+			fprintf(stderr, "[error] failed to load level '%s'\n", path);
+			// Try to load a default level
+			free(path);
+			path = getPath(PATH_LEVEL, "default.lua");
+			if(path) {
+				scripting_RunFile(path);
+			}
+			result = GAME_ERROR_LEVEL_NOTLOADED;
+		}
 		free(path);
 	}
 	else
 	{
 		// fail silently, unloaded lvl will be caught later
+		result = GAME_ERROR_LEVEL_NOTLOADED;
 	}
 
 	scripting_GetGlobal("level", NULL);
-	nebu_assert(!scripting_IsNil());
 	if(scripting_IsNil())
 	{
 		scripting_Pop();
@@ -162,9 +182,17 @@ int game_LoadLevel(void)
 	}
 	scripting_Pop(); // level
 
+	// Create level from script data
+	game->level = game_CreateLevel();
+	
+	// Scale level if needed
+	if(game->level->scale_factor != 1.0f) {
+		game_ScaleLevel(game->level, game->level->scale_factor);
+	}
+
 	scripting_StackGuardEnd(iPos);
 
-	return GAME_SUCCESS;
+	return result;
 }
 
 void game_spawnset_Free(game_spawnset* pSpawnSet)

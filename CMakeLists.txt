@@ -29,11 +29,14 @@ if(LOCAL_DATA)
   add_definitions(-DLOCAL_DATA)
 endif()
 
-# Find SDL2 package
+# Find required packages
+find_package(ZLIB REQUIRED)
+find_package(PNG REQUIRED)
+find_package(SDL2 REQUIRED)
+find_package(GLEW REQUIRED)
+
 if(NOT BUILD_ANDROID)
-  find_package(SDL2 REQUIRED)
-  # Add SDL2 include directories
-  include_directories(${SDL2_INCLUDE_DIRS})
+  find_package(OpenGL REQUIRED)
   
   # Find SDL_sound if sound is enabled
   if(ENABLE_SOUND)
@@ -93,10 +96,6 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/ConfigHeader.cmake)
 # Add lib3ds first so its include directories are available to other components
 add_subdirectory(lib3ds)
 
-# Find GLEW package
-find_package(GLEW REQUIRED)
-include_directories(${GLEW_INCLUDE_DIRS})
-
 # Include directories
 include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/src/include
@@ -105,6 +104,9 @@ include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}  # Add the root directory to include path
   ${GLEW_INCLUDE_DIRS}
   ${LIB3DS_INCLUDE_DIRS}
+  ${PNG_INCLUDE_DIRS}
+  ${ZLIB_INCLUDE_DIRS}
+  ${SDL2_INCLUDE_DIRS}
 )
 
 # Add other subdirectories
@@ -122,7 +124,7 @@ add_subdirectory(levels)
 # Main executable
 add_executable(gltron ${CMAKE_CURRENT_SOURCE_DIR}/src/gltron.c)
 
-# Link libraries
+# Link libraries - IMPORTANT: Order matters for static linking
 target_link_libraries(gltron PRIVATE
   game
   input
@@ -141,6 +143,9 @@ target_link_libraries(gltron PRIVATE
   lualib
   lib3ds
   ${GLEW_LIBRARIES}
+  ${PNG_LIBRARIES}
+  ${ZLIB_LIBRARIES}
+  ${SDL2_LIBRARIES}
 )
 
 # Platform-specific configurations
@@ -163,12 +168,12 @@ if(BUILD_ANDROID)
   )
 else()
   # Desktop platform dependencies
-  find_package(OpenGL REQUIRED)
-  find_package(SDL2 REQUIRED)
-  
   target_link_libraries(gltron PRIVATE
     ${OPENGL_LIBRARIES}
-    ${SDL2_LIBRARIES}
+    # Add math library for Unix-like systems
+    $<$<NOT:$<PLATFORM_ID:Windows>>:m>
+    # Add dl library for dynamic loading on Unix-like systems
+    $<$<NOT:$<PLATFORM_ID:Windows>>:dl>
   )
   
   if(ENABLE_SOUND)

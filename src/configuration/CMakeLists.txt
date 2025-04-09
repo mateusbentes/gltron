@@ -1,9 +1,8 @@
 # Find all source files in this directory
 file(GLOB SOURCES "*.c" "*.cpp")
-file(GLOB HEADERS "*.h")
 
 # Create the library
-add_library(configuration STATIC ${SOURCES} ${HEADERS})
+add_library(configuration STATIC ${SOURCES})
 
 # Include directories
 target_include_directories(configuration PUBLIC
@@ -15,3 +14,6 @@ target_include_directories(configuration PUBLIC
 if(BUILD_ANDROID)
   target_compile_definitions(configuration PRIVATE ANDROID)
 endif()
+
+# Enable touch support on all platforms
+target_compile_definitions(configuration PRIVATE ENABLE_TOUCH_SUPPORT)
