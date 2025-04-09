@@ -1,9 +1,10 @@
 # Find all source files in this directory
-file(GLOB SOURCES "*.c" "*.cpp")
+file(GLOB SOURCES "*.c")
 file(GLOB HEADERS "*.h")
 
-# Make sure touch_interface.c is included
+# Explicitly add touch_interface.c and c_setcallback.c
 list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/touch_interface.c")
+list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/c_setcallback.c")
 
 # Remove level.c since its functions are duplicated in game_level.c
 list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/level.c")

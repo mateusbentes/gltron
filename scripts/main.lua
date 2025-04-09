@@ -1,19 +1,48 @@
-print("[lua] Starting main.lua")
+-- Debug version of main.lua with extensive logging
+print("[lua] Starting main.lua with debug logging")
 
 -- Define a function to safely execute code with error handling
 function safe_execute(func, description)
+    print("[lua] Executing: " .. description)
     local status, err = pcall(func)
     if not status then
         print("[lua] ERROR in " .. description .. ": " .. tostring(err))
         return false
     end
+    print("[lua] Successfully executed: " .. description)
     return true
 end
 
--- loop until RETURN_QUIT code is sent
+-- Define valid callbacks to check against
+local valid_callbacks = {
+    ["gui"] = true,
+    ["game"] = true,
+    ["pause"] = true,
+    ["credits"] = true,
+    ["configure"] = true,
+    ["timedemo"] = true
+}
+
+-- Function to validate callback names
+function validate_callback(cb_name)
+    print("[lua] Validating callback: " .. tostring(cb_name))
+    if type(cb_name) ~= "string" then
+        print("[lua] WARNING: Callback is not a string: " .. tostring(cb_name))
+        return "gui" -- Default to gui if not a string
+    end
+    
+    if not valid_callbacks[cb_name] then
+        print("[lua] WARNING: Unknown callback: " .. cb_name)
+        return "gui" -- Default to gui if unknown
+    end
+    
+    return cb_name
+end
+
+-- Initialize return codes
 safe_execute(function()
-    EScriptingReturnCode =
-    {
+    print("[lua] Initializing EScriptingReturnCode")
+    EScriptingReturnCode = {
         eSRC_Quit = 0,
         eSRC_Game_End = 1,
         eSRC_Game_Pause = 2,
@@ -32,21 +61,27 @@ safe_execute(function()
     }
 end, "initializing EScriptingReturnCode")
 
--- enable below to run in timedemo-only mode
+-- Check for timedemo mode
 safe_execute(function()
+    print("[lua] Checking for timedemo mode")
     timedemo = nil
     -- timedemo = 1
     if(timedemo) then
+        print("[lua] Running in timedemo mode")
         c_setCallback("timedemo")
         c_mainLoop()
         os.exit()
     end
 end, "timedemo check")
 
+-- Initialize variables and callbacks
 safe_execute(function()
+    print("[lua] Initializing variables and callbacks")
     -- Initialize variables
     if callback == nil then
         callback = "gui"
+    else
+        callback = validate_callback(callback)
     end
 
     if Menu == nil then
@@ -59,28 +94,55 @@ safe_execute(function()
     next_callback = {}
     next_callback[ EScriptingReturnCode.eSRC_Game_Launch ] = 
         function() 
+            print("[lua] Game launch -> pause")
             game_initialized = 1;
             return "pause";
         end
-    next_callback[ EScriptingReturnCode.eSRC_Game_End ] = function() return "pause"; end
-    next_callback[ EScriptingReturnCode.eSRC_Game_Pause ] = function() return "pause"; end
-    next_callback[ EScriptingReturnCode.eSRC_Game_Unpause ] = function() return "game"; end
-    next_callback[ EScriptingReturnCode.eSRC_Credits ] = function() return "credits"; end
+    next_callback[ EScriptingReturnCode.eSRC_Game_End ] = function() 
+        print("[lua] Game end -> pause")
+        return "pause"; 
+    end
+    next_callback[ EScriptingReturnCode.eSRC_Game_Pause ] = function() 
+        print("[lua] Game pause -> pause")
+        return "pause"; 
+    end
+    next_callback[ EScriptingReturnCode.eSRC_Game_Unpause ] = function() 
+        print("[lua] Game unpause -> game")
+        return "game"; 
+    end
+    next_callback[ EScriptingReturnCode.eSRC_Credits ] = function() 
+        print("[lua] Credits -> credits")
+        return "credits"; 
+    end
 
-    next_callback[ EScriptingReturnCode.eSRC_Game_Escape ] = function() return "gui"; end
+    next_callback[ EScriptingReturnCode.eSRC_Game_Escape ] = function() 
+        print("[lua] Game escape -> gui")
+        return "gui"; 
+    end
     next_callback[ EScriptingReturnCode.eSRC_GUI_Escape ] =
         function() 
             if(game_initialized == 1) then
+                print("[lua] GUI escape (game initialized) -> pause")
                 return "pause"
             else
+                print("[lua] GUI escape (game not initialized) -> gui")
                 return "gui"
             end
         end
         
-    next_callback[ EScriptingReturnCode.eSRC_GUI_Prompt_Escape ] = function() return "gui"; end
-    next_callback[ EScriptingReturnCode.eSRC_Pause_Escape ] = function() return "gui"; end
+    next_callback[ EScriptingReturnCode.eSRC_GUI_Prompt_Escape ] = function() 
+        print("[lua] GUI prompt escape -> gui")
+        return "gui"; 
+    end
+    next_callback[ EScriptingReturnCode.eSRC_Pause_Escape ] = function() 
+        print("[lua] Pause escape -> gui")
+        return "gui"; 
+    end
 
-    next_callback[ EScriptingReturnCode.eSRC_GUI_Prompt ] = function() return "configure"; end
+    next_callback[ EScriptingReturnCode.eSRC_GUI_Prompt ] = function() 
+        print("[lua] GUI prompt -> configure")
+        return "configure"; 
+    end
     next_callback[ EScriptingReturnCode.eSRC_Timedemo ] = nil
     next_callback[ EScriptingReturnCode.eSRC_Timedemo_Abort ] = nil
     next_callback[ EScriptingReturnCode.eSRC_Quit ] = nil
@@ -89,7 +151,14 @@ end, "initializing variables and callbacks")
 
 print("[lua] Starting main loop")
 safe_execute(function()
+    local iteration = 0
     while true do
+        iteration = iteration + 1
+        print("[lua] Main loop iteration " .. iteration)
+        
+        -- Validate callback before using it
+        callback = validate_callback(callback)
+        
         print("[lua] Setting callback: " .. tostring(callback))
         local cb_status, cb_err = pcall(c_setCallback, callback)
         if not cb_status then
@@ -107,19 +176,20 @@ safe_execute(function()
         print("[lua] System returned: " .. tostring(status))
         
         if next_callback[status] then
+            print("[lua] Calling next_callback handler for status: " .. tostring(status))
             local next_cb_status, next_cb = pcall(next_callback[status])
             if not next_cb_status then
                 print("[lua] ERROR in callback handler: " .. tostring(next_cb))
                 break
             end
-            callback = next_cb
+            callback = validate_callback(next_cb)
             print("[lua] Next callback: " .. tostring(callback))
         else
             if status == EScriptingReturnCode.eSRC_Quit then
-                print("[lua] clean exit")
+                print("[lua] Clean exit")
                 break
             else
-                print("[lua] unhandled callback (" .. tostring(status) .. ")")
+                print("[lua] Unhandled callback (" .. tostring(status) .. ")")
                 break
             end
         end
