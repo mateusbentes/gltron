@@ -10,9 +10,10 @@
 #include <lib3ds/light.h>
 
 #include <stdlib.h>
+#include <string.h>  // Added for memcpy
 
-static void countVerticesAndTriangles(nebu_Mesh_3DSFile *pFile, 
-															 int *pnVertices, int *pnTriangles)
+static void countVerticesAndTriangles(nebu_Mesh_3ds_File *pFile, 
+                                     int *pnVertices, int *pnTriangles)
 {
 	Lib3dsMesh *p;
 	for(p = pFile->meshes; p != NULL; p = p->next)
@@ -25,13 +26,13 @@ static void countVerticesAndTriangles(nebu_Mesh_3DSFile *pFile,
 static void addToMesh(nebu_Mesh *pMesh, int *pCurVertex, int *pCurTri, Lib3dsMesh *pLib3dsMesh)
 {
 	// TODO: add vertices & triangles of this node to mesh
-	memcpy(pMesh->pVertices + 3 * *pCurVertex, pLib3dsMesh->pointL, pLib3dsMesh->points * 3 * sizeof(float));
+	memcpy(pMesh->pVB->pVertices + 3 * *pCurVertex, pLib3dsMesh->pointL, pLib3dsMesh->points * 3 * sizeof(float));
 
 	for(unsigned int i = 0; i < pLib3dsMesh->faces; i++)
 	{
 		for(int j = 0; j < 3; j++)
 		{
-			pMesh->pTriangles[3 * (i + *pCurTri) + j] = pLib3dsMesh->faceL[i].points[j] + *pCurVertex;
+			pMesh->pIB->pIndices[3 * (i + *pCurTri) + j] = pLib3dsMesh->faceL[i].points[j] + *pCurVertex;
 		}
 	}
 	*pCurVertex += pLib3dsMesh->points;
@@ -39,13 +40,14 @@ static void addToMesh(nebu_Mesh *pMesh, int *pCurVertex, int *pCurTri, Lib3dsMes
 }
 
 
-nebu_Mesh* nebu_Mesh_GetFrom3DSFile(nebu_Mesh_3DSFile* pFile)
+nebu_Mesh* nebu_Mesh_3ds_GetFromFile(nebu_Mesh_3ds_File* pFile)
 {
 	int nTriangles = 0;
 	int nVertices = 0;
 
 	countVerticesAndTriangles(pFile, &nVertices, &nTriangles);
-	nebu_Mesh* pMesh = nebu_Mesh_Create(NEBU_MESH_VERTICES, nVertices, nTriangles);
+	// Changed NEBU_MESH_VERTICES to NEBU_MESH_POSITION
+	nebu_Mesh* pMesh = nebu_Mesh_Create(NEBU_MESH_POSITION, nVertices, nTriangles);
 
 	Lib3dsMesh *p;
 
@@ -59,18 +61,22 @@ nebu_Mesh* nebu_Mesh_GetFrom3DSFile(nebu_Mesh_3DSFile* pFile)
 	return pMesh;
 }
 
-nebu_Mesh_3DSFile* nebu_Mesh_Load3DSFile(const char *filename)
+nebu_Mesh_3ds_File* nebu_Mesh_3ds_LoadFile(const char *filename)
 {
 	return lib3ds_file_load(filename);
 }
 
-nebu_Mesh* nebu_Mesh_Load3DS(const char *filename) {
+nebu_Mesh* nebu_Mesh_3ds_Load(const char *filename) {
 	nebu_Mesh* pMesh = NULL;
-	nebu_Mesh_3DSFile *p3DSFile = nebu_Mesh_Load3DSFile(filename);
+	nebu_Mesh_3ds_File *p3DSFile = nebu_Mesh_3ds_LoadFile(filename);
 	if(!p3DSFile)
 		return NULL;
 	
-	pMesh = nebu_Mesh_GetFrom3DSFile(p3DSFile);
-	nebu_Mesh_Free3DSFile(p3DSFile);
+	pMesh = nebu_Mesh_3ds_GetFromFile(p3DSFile);
+	nebu_Mesh_3ds_FreeFile(p3DSFile);
 	return pMesh;
+}
+
+void nebu_Mesh_3ds_FreeFile(nebu_Mesh_3ds_File* pFile) {
+	lib3ds_file_free(pFile);
 }

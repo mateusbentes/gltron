@@ -1,4 +1,4 @@
-#include "geom.h"
+#include "video/nebu_geometry.h"
 
 static float normal[4];
 static float eye[4];

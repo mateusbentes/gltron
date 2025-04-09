@@ -4,6 +4,13 @@
 #include "base/nebu_util.h"
 #include "filesystem/nebu_file_io.h"
 
+/* Define platform-specific path separator */
+#if defined(WIN32) || defined(_WIN32)
+  #define PATH_SEPARATOR '\\'
+#else
+  #define PATH_SEPARATOR '/'
+#endif
+
 typedef struct {
 	int tag;
 	int nDirs;

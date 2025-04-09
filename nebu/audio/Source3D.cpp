@@ -1,3 +1,4 @@
+
 #include "audio/nebu_Source3D.h"
 
 #include "base/nebu_assert.h"
@@ -103,6 +104,7 @@ namespace Sound {
 		fPan = 0;
 		fVolume = 0;
 		fShift = 1;
+		return;
 	}
     Vector3& vListenerLocation = listener._location;
     Vector3 vListenerVelocity = listener._velocity;
@@ -123,8 +125,8 @@ namespace Sound {
 
     /* panning */
     Vector3 vTarget = vSourceLocation - vListenerLocation;
-		Vector3 v1 = vListenerLeft * ( vTarget * vListenerLeft );
-		Vector3 v2 = vListenerDirection * (vTarget * vListenerDirection );
+	Vector3 v1 = vListenerLeft * ( vTarget * vListenerLeft );
+	Vector3 v2 = vListenerDirection * (vTarget * vListenerDirection );
     Vector3 vTargetPlanar = v1 + v2;
   
     float cosPhi = 
@@ -151,23 +153,24 @@ namespace Sound {
     fShift = 
       (USOUND + ( vListenerVelocity * vTarget ) / vTarget.Length() ) / 
       (USOUND + ( vSourceVelocity * vTarget ) / vTarget.Length() );
-		if(fShift < 0.5) {
-			printf("clamping fShift from %.2f to 0.5\n", fShift);
-			fShift = 0.5f;
-		}
-		if(fShift > 1.5) {
-			printf("clamping fShift from %.2f to 1.5\n", fShift);
-			fShift = 1.5f;
-		}
+	if(fShift < 0.5) {
+		printf("clamping fShift from %.2f to 0.5\n", fShift);
+		fShift = 0.5f;
+	}
+	if(fShift > 1.5) {
+		printf("clamping fShift from %.2f to 1.5\n", fShift);
+		fShift = 1.5f;
+	}
 
     /* done doppler */
   }
 
   int Source3D::Mix(Uint8 *data, int len) {
-    if(_source->_buffer == NULL) return 0;
+    // Use accessor methods instead of direct access to private members
+    if(_source->GetBuffer() == NULL) return 0;
 
     if(_source->IsPlaying()) {
-	  // TODO: find out if source volume is handled correctly
+      // TODO: find out if source volume is handled correctly
       // int volume = (int)(_source->GetVolume() * SDL_MIX_MAXVOLUME);
       float pan = 0, shift = 1.0f, vol = 1.0f;
       int clen, shifted_len;
@@ -178,27 +181,29 @@ namespace Sound {
       shifted_len = 4 * fxComputeShiftLen( shift, len / 4 );
       clen = MAX(len, shifted_len) + 32; // safety distance
 
-      nebu_assert(clen < _source->_buffersize);
+      nebu_assert(clen < _source->GetBufferSize());
 
       if(vol > SOUND_VOL_THRESHOLD) {
-				// copy clen bytes from the buffer to a temporary buffer
-				if(clen <= _source->_buffersize - _position) {
-					memcpy(tmp, _source->_buffer + _position, clen);
-				} else {
-					memcpy(tmp, _source->_buffer + _position,
-								 _source->_buffersize - _position);
-					memcpy(tmp + _source->_buffersize - _position, _source->_buffer,
-								 clen - (_source->_buffersize - _position));
-				}
+        // copy clen bytes from the buffer to a temporary buffer
+        Uint8* sourceBuffer = _source->GetBuffer();
+        int bufferSize = _source->GetBufferSize();
+        
+        if(clen <= bufferSize - _position) {
+          memcpy(tmp, sourceBuffer + _position, clen);
+        } else {
+          memcpy(tmp, sourceBuffer + _position, bufferSize - _position);
+          memcpy(tmp + bufferSize - _position, sourceBuffer,
+                 clen - (bufferSize - _position));
+        }
 
-				fxPan(pan, vol, tmp, clen);
-				// fxshift mixes the data to the stream
-				_position += fxShift(shift, data, tmp, len);
+        fxPan(pan, vol, tmp, clen);
+        // fxshift mixes the data to the stream
+        _position += fxShift(shift, data, tmp, len);
 
-				if(_position > _source->_buffersize)
-					_position -= _source->_buffersize;
+        if(_position > bufferSize)
+          _position -= bufferSize;
 
-				return 1; // mixed something
+        return 1; // mixed something
       }
     }
     return 0; // didn't mix anything to the stream

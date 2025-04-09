@@ -1,5 +1,6 @@
-#include "Sound.h"
-#include "gltron.h"
+#include "audio/audio.h"
+#include "game/gltron.h"
+#include "scripting/nebu_scripting.h"
 
 void Sound_loadFX() {}
 void Sound_reloadTrack() {}

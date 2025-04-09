@@ -1,4 +1,6 @@
 
+#include "video/nebu_gl.h"  // Include the OpenGL headers
+
 float vertices[] = { 
   -.5, -.5, 0, 1,
   .5, -.5, 0, 1,
@@ -28,14 +30,14 @@ void fill_plain() {
   glDepthMask(GL_TRUE);
   glEnable(GL_DEPTH_TEST);
 
-  glDisableClientState( GL_COLOR_ARRAY );
-  glDisableClientState( GL_NORMAL_ARRAY );
-  glDisableClientState( GL_TEXTURE_COORD_ARRAY );
-  glEnableClientState( GL_VERTEX_ARRAY );
+  glDisableClientState(GL_COLOR_ARRAY);
+  glDisableClientState(GL_NORMAL_ARRAY);
+  glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+  glEnableClientState(GL_VERTEX_ARRAY);
 
   glColor4f(1, 1, 1, 1.0f);
   glDrawElements(GL_TRIANGLES, 2, GL_UNSIGNED_INT, indices);
-  glDisableClientState( GL_VERTEX_ARRAY );
+  glDisableClientState(GL_VERTEX_ARRAY);
 }
 
 void fill_textured() {
@@ -51,16 +53,13 @@ void setupGL() {
   glLoadIdentity();
 
   glVertexPointer(4, GL_FLOAT, 0, vertices);
-  glTexturePointer(2, GL_FLOAT, 0, tex_coords);
+  glTexCoordPointer(2, GL_FLOAT, 0, tex_coords);  // Fixed: glTexturePointer -> glTexCoordPointer
   glColorPointer(4, GL_FLOAT, 0, colors);
 
   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 2, 2, 0, GL_LUMINANCE,
 	       GL_UNSIGNED_BYTE, pixels);
 
-  glTexParameterf();
+  // Fixed: glTexParameterf needs parameters
+  glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 }
-
-  
-
-
-

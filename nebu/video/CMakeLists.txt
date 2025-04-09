@@ -2,6 +2,9 @@
 file(GLOB SOURCES "*.c" "*.cpp")
 file(GLOB HEADERS "*.h")
 
+# Explicitly include vector.c
+list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/vector.c")
+
 # Create the library
 add_library(nebu_video STATIC ${SOURCES} ${HEADERS})
 

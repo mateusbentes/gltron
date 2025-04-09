@@ -4,12 +4,13 @@
 
 namespace Sound {
   int SourceCopy::Mix(Uint8 *data, int len) {
-    if(_source->_buffer == NULL) return 0;
+    // Use accessor methods instead of direct access to private members
+    if(_source->GetBuffer() == NULL) return 0;
 
     int volume = (int)(_source->GetVolume() * SDL_MIX_MAXVOLUME);
     // fprintf(stderr, "playing copy sample at %d, position: %d\n", volume, _position);
-    int buffersize = _source->_buffersize;
-    Uint8* buffer = (Uint8*) _source->_buffer;
+    int buffersize = _source->GetBufferSize();
+    Uint8* buffer = _source->GetBuffer();
     
     nebu_assert(len < buffersize);
       

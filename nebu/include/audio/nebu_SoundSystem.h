@@ -8,7 +8,8 @@ extern "C" {
 #include "audio/nebu_Source.h"
 #include "base/nebu_Vector3.h"
 
-#include "SDL_sound.h"
+// Forward declarations for SDL types to avoid include conflicts
+struct SDL_AudioSpec;
 
 namespace Sound {
   extern "C" {
@@ -29,7 +30,6 @@ namespace Sound {
 
   class System {
   public:
-
     System(SDL_AudioSpec *spec); 
 	~System();
     typedef void(*Audio_Callback)(void *userdata, Uint8* data, int len);
@@ -38,7 +38,7 @@ namespace Sound {
     void Idle(); /* remove dead sound sources */
     void AddSource(Source* source);
 	void RemoveSource(Source* source);
-    Sound_AudioInfo* GetAudioInfo() { return &_info; };
+    
     Listener& GetListener() { return _listener; };
     void SetMixMusic(int value) { _mix_music = value; };
     void SetMixFX(int value) { _mix_fx = value; };
@@ -46,14 +46,12 @@ namespace Sound {
 
   private:
     SDL_AudioSpec *_spec;
-    Sound_AudioInfo _info;
     Listener _listener;
     nebu_List *_sources;
     int _mix_music;
     int _mix_fx;
     int _status;
   };
-
 }
 
 #endif

@@ -5,6 +5,7 @@ project(gltron VERSION 0.71 LANGUAGES C CXX)
 option(BUILD_ANDROID "Build for Android platform" OFF)
 option(ENABLE_STATIC_LINKING "Enable static linking" OFF)
 option(LOCAL_DATA "Use local data directory" OFF)
+option(ENABLE_SOUND "Enable sound support (requires SDL_sound)" ON)
 
 # Set default build type if not specified
 if(NOT CMAKE_BUILD_TYPE)
@@ -33,21 +34,80 @@ if(NOT BUILD_ANDROID)
   find_package(SDL2 REQUIRED)
   # Add SDL2 include directories
   include_directories(${SDL2_INCLUDE_DIRS})
+  
+  # Find SDL_sound if sound is enabled
+  if(ENABLE_SOUND)
+    find_path(SDL_SOUND_INCLUDE_DIR SDL_sound.h
+      HINTS
+      ENV SDL_SOUNDDIR
+      ENV SDLSOUNDDIR
+      PATH_SUFFIXES include/SDL include SDL SDL2
+      PATHS
+      ~/Library/Frameworks
+      /Library/Frameworks
+      /usr/local/include/SDL
+      /usr/include/SDL
+      /usr/local/include
+      /usr/include
+      /sw/include/SDL # Fink
+      /sw/include
+      /opt/local/include/SDL # DarwinPorts
+      /opt/local/include
+      /opt/csw/include/SDL # Blastwave
+      /opt/csw/include
+      /opt/include/SDL
+      /opt/include
+    )
+    
+    find_library(SDL_SOUND_LIBRARY
+      NAMES SDL_sound
+      HINTS
+      ENV SDL_SOUNDDIR
+      ENV SDLSOUNDDIR
+      PATH_SUFFIXES lib64 lib
+      PATHS
+      ~/Library/Frameworks
+      /Library/Frameworks
+      /usr/local
+      /usr
+      /sw
+      /opt/local
+      /opt/csw
+      /opt
+    )
+    
+    if(SDL_SOUND_INCLUDE_DIR AND SDL_SOUND_LIBRARY)
+      include_directories(${SDL_SOUND_INCLUDE_DIR})
+      message(STATUS "Found SDL_sound: ${SDL_SOUND_LIBRARY}")
+      add_definitions(-DHAVE_SDL_SOUND)
+    else()
+      message(WARNING "SDL_sound not found. Building without sound support.")
+      set(ENABLE_SOUND OFF)
+    endif()
+  endif()
 endif()
 
 # Generate configuration header
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/ConfigHeader.cmake)
+
+# Add lib3ds first so its include directories are available to other components
+add_subdirectory(lib3ds)
+
+# Find GLEW package
+find_package(GLEW REQUIRED)
+include_directories(${GLEW_INCLUDE_DIRS})
 
 # Include directories
 include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/src/include
   ${CMAKE_CURRENT_SOURCE_DIR}/lua5/include
   ${CMAKE_CURRENT_SOURCE_DIR}/nebu/include
+  ${CMAKE_CURRENT_SOURCE_DIR}  # Add the root directory to include path
+  ${GLEW_INCLUDE_DIRS}
+  ${LIB3DS_INCLUDE_DIRS}
 )
 
-# Add subdirectories for all libraries
-add_subdirectory(glew)
-add_subdirectory(lib3ds)
+# Add other subdirectories
 add_subdirectory(lua5)
 add_subdirectory(nebu)
 add_subdirectory(src)
@@ -80,7 +140,7 @@ target_link_libraries(gltron PRIVATE
   lua
   lualib
   lib3ds
-  glew
+  ${GLEW_LIBRARIES}
 )
 
 # Platform-specific configurations
@@ -110,6 +170,10 @@ else()
     ${OPENGL_LIBRARIES}
     ${SDL2_LIBRARIES}
   )
+  
+  if(ENABLE_SOUND)
+    target_link_libraries(gltron PRIVATE ${SDL_SOUND_LIBRARY})
+  endif()
 endif()
 
 # Installation rules

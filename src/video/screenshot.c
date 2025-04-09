@@ -2,6 +2,7 @@
 #include "video/video.h"
 #include "filesystem/path.h"
 #include "Nebu_filesystem.h"
+#include "gltron-config.h"  /* Added for VERSION definition */
 
 #include <png.h>
 
@@ -14,6 +15,11 @@
 #endif
 
 #define SCREENSHOT_PREFIX "gltron"
+
+/* Define VERSION if not already defined */
+#ifndef VERSION
+#define VERSION "0.71"  /* Default version if not defined in gltron-config.h */
+#endif
 
 
 /*

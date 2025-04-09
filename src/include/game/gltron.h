@@ -24,4 +24,9 @@
 #define RC_NAME "gltronPrefs.txt"
 #endif
 
+/* Default RC_NAME for other platforms (Linux, Unix, etc.) */
+#ifndef RC_NAME
+#define RC_NAME ".gltronrc"
+#endif
+
 #endif /* GLTRON_H */

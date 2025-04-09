@@ -4,6 +4,7 @@
 
 #include "configuration/settings.h"
 #include "configuration/configuration.h"
+#include "game/gltron.h"  /* Added for RC_NAME definition */
 
 #include "scripting/nebu_scripting.h"
 #include "base/util.h"

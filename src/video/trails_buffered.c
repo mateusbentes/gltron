@@ -1,19 +1,26 @@
 #include "video/video.h"
 #include "game/game.h"
+#include "video/nebu_quad.h"
+#include "video/nebu_renderer_gl.h"
+#include "video/trail_geometry.h"
+#include "video/nebu_light.h"
+
+/* Define Line type if not already defined */
+typedef segment2 Line;
 
 int getTrailCount() {
   int i;
   int c = 0;
   Line *l;
   for(i = 0; i < game->players; i++) {
-		Data* data = game->player[i].data;
+    Data* data = &game->player[i].data;
     l = data->trails;
-		fprintf(stderr, "trailcount: %d\n", data->trailOffset + 1);
-    while(l != data->trails + data->trailOffset) {
+    fprintf(stderr, "trailcount: %d\n", data->nTrails + 1);
+    while(l != data->trails + data->nTrails) {
       l++;
       c++;
     }
-		c++;
+    c++;
   }
   fprintf(stderr, "trails: %d\n", c);
   return c;
@@ -27,7 +34,7 @@ void bufferPlayerBow(Player *p, QuadBuffer *qb) {
   int bdist;
   float white[] = { 1.0, 1.0, 1.0, 1.0 };
 
-  data = p->data;
+  data = &p->data;
   height = data->trail_height;
   if(height <= 0) return;
 
@@ -59,14 +66,13 @@ void bufferPlayerBow(Player *p, QuadBuffer *qb) {
   q_setTexCoord2f(q, 1, ZERO, ONE);
   q_setVertex3f(q, 1, sx, sy, height);
 
-  q_setColor4fv(q, 2, p->pColorDiffuse);
+  q_setColor4fv(q, 2, p->profile.pColorDiffuse);
   q_setTexCoord2f(q, 2, ONE, ONE);
   q_setVertex3f(q, 2, ex, ey, height);
 
-  q_setColor4fv(q, 3, p->pColorDiffuse);
+  q_setColor4fv(q, 3, p->profile.pColorDiffuse);
   q_setTexCoord2f(q, 3, ONE, ZERO);
   q_setVertex3f(q, 3, ex, ey, 0.0);
-
 }
 
 void bufferPlayerTrail(Player *p, QuadBuffer *qb) {
@@ -82,25 +88,25 @@ void bufferPlayerTrail(Player *p, QuadBuffer *qb) {
   Quad *q;
   int tex;
 
-  if(p->data->trail_height <= 0) return;
+  data = &p->data;
+  if(data->trail_height <= 0) return;
 
   tex = gScreen->textures[TEX_DECAL];
 
-  data = p->data;
   height = data->trail_height;
 
   if(height < 0) return;
 
   /* calculate trail color and set blending modes */
   if(gSettingsCache.alpha_trails) {
-    setColor4fv(p->pColorAlpha);
+    setColor4fv(p->profile.pColorAlpha);
   } else {
-    setColor3fv(p->pColorAlpha);
+    setColor3fv(p->profile.pColorAlpha);
   }
 
   /* start drawing */
   ln = &(data->trails[0]);
-  while(ln != data->trails + data->trailOffset) { /* the last segment is special cased */
+  while(ln != data->trails + data->nTrails) {
     q = getNextQuad(qb);
     if (gSettingsCache.softwareRendering == 0 && 
         gSettingsCache.show_decals == 1) {
@@ -109,7 +115,7 @@ void bufferPlayerTrail(Player *p, QuadBuffer *qb) {
       q->type = QUAD_COLOR;
     }
     q->texture_id = tex;
-    if(ln->sy == ln->ey) {
+    if(ln->vDirection.v[1] == 0) {
       normal = normal1;
     } else {
       normal = normal2;
@@ -117,38 +123,40 @@ void bufferPlayerTrail(Player *p, QuadBuffer *qb) {
 
     /* glNormal3fv(normal); */
     setNormal3fv(normal);
-    setVertex3f( (ln->sx + ln->ex) / 2, (ln->sy + ln->ey) / 2, 0);
+    setVertex3f((ln->vStart.v[0] + ln->vDirection.v[0]) / 2, 
+                (ln->vStart.v[1] + ln->vDirection.v[1]) / 2, 0);
     light4fv(color);
     
     q_setColor4fv(q, 0, color);
     q_setTexCoord2f(q, 0, 0.0, 0.0);
-    q_setVertex3f(q, 0, ln->sx, ln->sy, 0.0);
+    q_setVertex3f(q, 0, ln->vStart.v[0], ln->vStart.v[1], 0.0);
 
     uv = getSegmentUV(ln);
 
     q_setColor4fv(q, 1, color);
     q_setTexCoord2f(q, 1, uv, 0.0);
-    q_setVertex3f(q, 1, ln->ex, ln->ey, 0.0);
+    q_setVertex3f(q, 1, ln->vStart.v[0] + ln->vDirection.v[0], 
+                        ln->vStart.v[1] + ln->vDirection.v[1], 0.0);
 
     q_setColor4fv(q, 2, color);
     q_setTexCoord2f(q, 2, uv, 1.0);
-    q_setVertex3f(q, 2, ln->ex, ln->ey, height);
+    q_setVertex3f(q, 2, ln->vStart.v[0] + ln->vDirection.v[0], 
+                        ln->vStart.v[1] + ln->vDirection.v[1], height);
 
     q_setColor4fv(q, 3, color);
     q_setTexCoord2f(q, 3, 0.0, 1.0);
-    q_setVertex3f(q, 3, ln->sx, ln->sy, height);
-
+    q_setVertex3f(q, 3, ln->vStart.v[0], ln->vStart.v[1], height);
 
     ln++;
   }
 
-  if(ln->sy == data->posy) normal = normal1;
+  if(ln->vDirection.v[1] == 0) normal = normal1;
   else normal = normal2;
   /* glNormal3fv(normal); */
 
   /* calculate segment color */
   setNormal3fv(normal);
-  setVertex3f(ln->sx, ln->sy, 0);
+  setVertex3f(ln->vStart.v[0], ln->vStart.v[1], 0);
   light4fv(color);
 
   q = getNextQuad(qb);
@@ -161,7 +169,7 @@ void bufferPlayerTrail(Player *p, QuadBuffer *qb) {
 
   q_setColor4fv(q, 0, color);
   q_setTexCoord2f(q, 0, 0.0, 0.0);
-  q_setVertex3f(q, 0, ln->sx, ln->sy, 0.0);
+  q_setVertex3f(q, 0, ln->vStart.v[0], ln->vStart.v[1], 0.0);
 
   uv = getSegmentEndUV(ln, data);
   ex = getSegmentEndX(data, 1);
@@ -176,10 +184,9 @@ void bufferPlayerTrail(Player *p, QuadBuffer *qb) {
   q_setTexCoord2f(q, 2, uv, 1.0);
   q_setVertex3f(q, 2, ex, ey, height);
 
-
   q_setColor4fv(q, 3, color);
   q_setTexCoord2f(q, 3, 0.0, 1.0);
-  q_setVertex3f(q, 3, ln->sx, ln->sy, height);
+  q_setVertex3f(q, 3, ln->vStart.v[0], ln->vStart.v[1], height);
 
   /* 
   printf("uv for last segment: %.3f\n");
@@ -230,6 +237,36 @@ void doTrails(Player *p) {
   static QuadBuffer *q = NULL;
   int size;
   int *index;
+  /* Get the camera from the player visual instead of game2 */
+  Camera *cam = NULL;
+  
+  /* Find the player's camera from gppPlayerVisuals */
+  int i;
+  for(i = 0; i < gnPlayerVisuals; i++) {
+    if(gppPlayerVisuals[i]->pPlayer == p) {
+      cam = &gppPlayerVisuals[i]->camera;
+      break;
+    }
+  }
+  
+  /* If we couldn't find the player's camera, use a default position */
+  if(cam == NULL) {
+    /* Use the first player's camera as a fallback */
+    if(gnPlayerVisuals > 0) {
+      cam = &gppPlayerVisuals[0]->camera;
+    } else {
+      /* If no cameras are available, we can't sort properly */
+      /* Just continue without sorting */
+      static Camera defaultCam;
+      static int initialized = 0;
+      if(!initialized) {
+        memset(&defaultCam, 0, sizeof(Camera));
+        initialized = 1;
+      }
+      cam = &defaultCam;
+    }
+  }
+  
   if(q == NULL) {
     size = getTrailCount() + 12;
     // printf("allocating QuadBuffer, size %d\n", size);
@@ -252,7 +289,7 @@ void doTrails(Player *p) {
       bufferPlayerTrail(game->player + i, q);
       bufferPlayerBow(game->player + i, q);
     }
-    index = getSortedQuads(q, p->camera->cam);
+    index = getSortedQuads(q, cam->cam);
     glEnable(GL_BLEND);
     drawTrails(q, index);
     glDisable(GL_BLEND);
@@ -272,7 +309,7 @@ void doTrails(Player *p) {
       bufferPlayerBow(game->player + i, q);
     }
     /* bows are transparent, so sort back-to-front */
-    index = getSortedQuads(q, p->camera->cam);
+    index = getSortedQuads(q, cam->cam);
     glEnable(GL_BLEND);
     drawTrails(q, index);
     glDisable(GL_BLEND);

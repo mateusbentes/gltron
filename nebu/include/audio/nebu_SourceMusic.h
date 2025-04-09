@@ -6,6 +6,8 @@
 #include "nebu_Source.h"
 #include "nebu_SoundSystem.h"
 
+#include <SDL.h>
+
 namespace Sound {
   class SourceMusic : public Source {
   public:
@@ -13,29 +15,28 @@ namespace Sound {
     virtual ~SourceMusic();
     void Load(char *filename);
     virtual int Mix(Uint8 *data, int len);
-		virtual void Idle(void);
+    virtual void Idle(void);
 
   protected:
-    virtual void Reset(void) { 
-      if(_sample != NULL) {
-				CleanUp();
-				CreateSample();
-				// fprintf(stderr, "sample resetted\n");
-      };
-    };
-    void CleanUp(void);
-    void CreateSample(void);
-
+    virtual void Reset() { 
+      // Stub implementation
+      _read = 0;
+      _decoded = 0;
+    }
+      
   private:
-    Sound_Sample* _sample;
-		int _sample_buffersize;
-		
-		Uint8* _buffer;
+    void CreateSample(void);
+    void CleanUp(void);
+
+    // Buffer management
+    Uint8* _buffer;
     int _buffersize;
+    int _sample_buffersize;
     int _read;
     int _decoded;
 
-		char *_filename;
+    // File management
+    char *_filename;
     SDL_RWops *_rwops;
   };
 }

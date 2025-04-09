@@ -3,6 +3,13 @@
 
 /* if you update this listing, also make sure you update scripts/path.lua */
 
+/* Define platform-specific path separator */
+#if defined(WIN32) || defined(_WIN32)
+  #define SEPARATOR '\\'
+#else
+  #define SEPARATOR '/'
+#endif
+
 typedef enum ePathLocation { 
 	PATH_PREFERENCES = 0,
 	PATH_SNAPSHOTS, /* demos, screenshots */

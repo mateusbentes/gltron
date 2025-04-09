@@ -4,8 +4,23 @@
 #include <stdlib.h>
 
 void game_FreeLevel(game_level *l) {
-	free(l->boundaries);
-	free(l->spawnPoints);
+	int i;
+
+	if(l->nAxis)
+	{
+		free(l->pAxis);
+	}
+
+	if(l->nBoundaries)
+	{
+		free(l->boundaries);
+	}
+	
+	for(i = 0; i < l->nSpawnSets; i++)
+	{
+		game_spawnset_Free(l->ppSpawnSets[i]);
+	}
+	free(l->ppSpawnSets);
 	free(l);
 }
 
@@ -14,95 +29,231 @@ void game_ScaleLevel(game_level *l, float fSize)
 	int i;
 	for(i = 0; i < l->nBoundaries; i++)
 	{
-		vec2_Scale(& l->boundaries[i].vStart, &l->boundaries[i].vStart, fSize);
-		vec2_Scale(& l->boundaries[i].vDirection, &l->boundaries[i].vDirection, fSize);
+		segment2_Scale(&l->boundaries[i], fSize);
 	}
-	for(i = 0; i < l->nSpawnPoints; i++)
+	if(!l->spawnIsRelative)
 	{
-		vec2_Scale(& l->spawnPoints[i].v, & l->spawnPoints[i].v, fSize);
+		for(i = 0; i < l->nSpawnSets; i++)
+		{
+			int j;
+			for(j = 0; j < l->ppSpawnSets[i]->nPoints; j++)
+			{
+				vec2_Scale(&l->ppSpawnSets[i]->pSpawnPoints[j].vStart, fSize);
+				vec2_Scale(&l->ppSpawnSets[i]->pSpawnPoints[j].vEnd, fSize);
+			}
+		}
 	}
 
-	vec2_Scale(& l->boundingBox.vMin, & l->boundingBox.vMin, fSize);
-	vec2_Scale(& l->boundingBox.vMax, & l->boundingBox.vMax, fSize);
+	box2_Scale(&l->boundingBox, fSize);
 }
 
 void computeBoundingBox(game_level *l)
 {
 	int i;
 
-	box2_Init(& l->boundingBox);
+	box2_Init(&l->boundingBox);
 	for(i = 0; i < l->nBoundaries; i++)
 	{
 		vec2 vEnd;
-		vec2_Add(&vEnd, & l->boundaries[i].vStart, & l->boundaries[i].vDirection);
-		box2_Extend(& l->boundingBox, & l->boundaries[i].vStart);
-		box2_Extend(& l->boundingBox, & vEnd);
+		vec2_Add(&vEnd, &l->boundaries[i].vStart, &l->boundaries[i].vDirection);
+		box2_Extend(&l->boundingBox, &l->boundaries[i].vStart);
+		box2_Extend(&l->boundingBox, &vEnd);
 	}
+}
+
+game_spawnset* game_spawnset_Create(void)
+{
+	scripting_StringResult s;
+	int i;
+
+	game_spawnset* pSpawnSet = (game_spawnset*) malloc(sizeof(game_spawnset));
+
+	// get spawnset type
+	scripting_GetValue("type");
+	scripting_GetStringResult(&s);
+	if(strcmp(s, "list") == 0) { pSpawnSet->type = eGameSpawnPoint; }
+	else if(strcmp(s, "lines") == 0) { pSpawnSet->type = eGameSpawnLine; }
+	else { pSpawnSet->type = eGameSpawnUndef; }
+	scripting_StringResult_Free(s);
+
+	scripting_GetValue("set");
+
+	scripting_GetArraySize(&pSpawnSet->nPoints);
+	pSpawnSet->pSpawnPoints = malloc(pSpawnSet->nPoints * sizeof(game_spawnpoint));
+
+	// Spawn points are relative to the bounding box of the floor
+	for(i = 0; i < pSpawnSet->nPoints; i++)
+	{
+		game_spawnpoint *pSpawnPoint = pSpawnSet->pSpawnPoints + i;
+
+		scripting_GetArrayIndex(i + 1);
+
+		switch(pSpawnSet->type)
+		{
+		case eGameSpawnPoint:
+			scripting_GetValue("x");
+			scripting_GetFloatResult(&pSpawnPoint->vStart.v[0]);
+			scripting_GetValue("y");
+			scripting_GetFloatResult(&pSpawnPoint->vStart.v[1]);
+			scripting_GetValue("dir");
+			scripting_GetIntegerResult(&pSpawnPoint->dir);
+			break;
+		case eGameSpawnLine:
+			scripting_GetValue("vStart");
+			scripting_GetValue("x");
+			scripting_GetFloatResult(&pSpawnPoint->vStart.v[0]);
+			scripting_GetValue("y");
+			scripting_GetFloatResult(&pSpawnPoint->vStart.v[1]);
+			scripting_Pop(); // vStart
+
+			scripting_GetValue("vEnd");
+			scripting_GetValue("x");
+			scripting_GetFloatResult(&pSpawnPoint->vEnd.v[0]);
+			scripting_GetValue("y");
+			scripting_GetFloatResult(&pSpawnPoint->vEnd.v[1]);
+			scripting_Pop(); // vEnd
+
+			scripting_GetValue("n");
+			scripting_GetIntegerResult(&pSpawnPoint->n);
+			if(pSpawnPoint->n == 0)
+			{
+				// TODO: find a different limit somehow?
+				pSpawnPoint->n = 999;
+			}
+
+			scripting_GetValue("dir");
+			scripting_GetIntegerResult(&pSpawnPoint->dir);
+			break;
+		default:
+			break;
+		}
+
+		scripting_Pop(); // index i
+	}
+
+	scripting_Pop(); // set
+
+	return pSpawnSet;
+}
+
+void game_spawnset_Free(game_spawnset* pSpawnSet)
+{
+	free(pSpawnSet->pSpawnPoints);
+	free(pSpawnSet);
 }
 
 game_level* game_CreateLevel(void) {
 	int i;
 	game_level* l;
+	int iHasBoundary;
 
-	l = malloc( sizeof(game_level) );
+	l = malloc(sizeof(game_level));
 	scripting_GetGlobal("level", NULL);
-	// get scalability flag
-	scripting_GetValue("scalable");
-	scripting_GetIntegerResult(& l->scalable);
+	
+	// get scale factor, if present
+	scripting_GetOptional_Float("scale_factor", &l->scale_factor, 1);
+	// are spawn points relative?
+	scripting_GetOptional_Int("spawn_is_relative", &l->spawnIsRelative, 1);
+
 	// get number of spawnpoints
 	scripting_GetValue("spawn");
-	scripting_GetArraySize(& l->nSpawnPoints);
-	// copy spawnpoints into vec2's
-	l->spawnPoints = malloc(l->nSpawnPoints * sizeof(game_spawnpoint));
+	scripting_GetArraySize(&l->nSpawnSets);
 
-	// fixme, use scalability
-	for(i = 0; i < l->nSpawnPoints; i++) {
+	l->ppSpawnSets = malloc(l->nSpawnSets * sizeof(game_spawnset*));
+
+	for(i = 0; i < l->nSpawnSets; i++)
+	{
 		scripting_GetArrayIndex(i + 1);
-
-		scripting_GetValue("x");
-		scripting_GetFloatResult(& l->spawnPoints[i].v.v[0]);
-		scripting_GetValue("y");
-		scripting_GetFloatResult(& l->spawnPoints[i].v.v[1]);
-		scripting_GetValue("dir");
-		scripting_GetIntegerResult(& l->spawnPoints[i].dir);
-
-		scripting_PopTable(); // index i
+		l->ppSpawnSets[i] = game_spawnset_Create();
+		scripting_Pop(); // index
 	}
-	scripting_PopTable(); // spawn
+	scripting_Pop(); // spawn
 	
-	// get number of boundary segments
+	// TODO: in testing
+
+	// two possibilities:
+	// 1) The level contains boundary, vertices & indices fields,
+	//    so we can load everything from there
+	// 2) There's a 'model' field, and the boundaries	are the triangle edges
+	//    without an adjacency
+
 	scripting_GetValue("boundary");
-	scripting_GetArraySize(& l->nBoundaries);
-	// copy boundaries into segments
-	l->boundaries = malloc(l->nBoundaries * sizeof(segment2));
-	for(i = 0; i < l->nBoundaries; i++) {
+	iHasBoundary = scripting_IsNil() ? 0 : 1;
+	scripting_Pop();
+
+	if(iHasBoundary)
+	{
+		// store boundary from lua
+		scripting_GetValue("boundary");
+
+		// get number of boundary segments
+		scripting_GetArraySize(&l->nBoundaries);
+		// copy boundaries into segments
+		l->boundaries = malloc(l->nBoundaries * sizeof(segment2));
+		for(i = 0; i < l->nBoundaries; i++)
+		{
+			scripting_GetArrayIndex(i + 1);
+			
+			scripting_GetArrayIndex(1);
+			scripting_GetValue("x");
+			scripting_GetFloatResult(&l->boundaries[i].vStart.v[0]);
+			scripting_GetValue("y");
+			scripting_GetFloatResult(&l->boundaries[i].vStart.v[1]);
+			scripting_Pop(); // index 0
+			
+			scripting_GetArrayIndex(2);
+			{
+				vec2 v;
+				scripting_GetValue("x");
+				scripting_GetFloatResult(&v.v[0]);
+				scripting_GetValue("y");
+				scripting_GetFloatResult(&v.v[1]);
+				vec2_Sub(&l->boundaries[i].vDirection, &v, &l->boundaries[i].vStart);
+			}
+			scripting_Pop(); // index 1
+		
+			scripting_Pop(); // index i
+		}
+		scripting_Pop(); // boundary
+	}		
+	else
+	{
+		// compute boundaries from level model
+		computeBoundaries(l);
+	}
+
+	// load movement directions
+	// store boundary from lua
+	scripting_GetValue("axis");
+
+	// get number of movement directions
+	scripting_GetArraySize(&l->nAxis);
+	// copy movement directions
+	l->pAxis = malloc(l->nAxis * sizeof(vec2));
+	for(i = 0; i < l->nAxis; i++)
+	{
 		scripting_GetArrayIndex(i + 1);
 		
-		scripting_GetArrayIndex(1);
 		scripting_GetValue("x");
-		scripting_GetFloatResult(& l->boundaries[i].vStart.v[0]);
+		scripting_GetFloatResult(&l->pAxis[i].v[0]);
 		scripting_GetValue("y");
-		scripting_GetFloatResult(& l->boundaries[i].vStart.v[1]);
-		scripting_PopTable(); // index 0
-		
-		scripting_GetArrayIndex(2);
-		{
-			vec2 v;
-			scripting_GetValue("x");
-			scripting_GetFloatResult(& v.v[0]);
-			scripting_GetValue("y");
-			scripting_GetFloatResult(& v.v[1]);
-			vec2_Sub(& l->boundaries[i].vDirection, &v, &l->boundaries[i].vStart);
-		}
-		scripting_PopTable(); // index 1
-	
-		scripting_PopTable(); // index i
+		scripting_GetFloatResult(&l->pAxis[i].v[1]);
+			
+		scripting_Pop(); // index i
 	}
-	scripting_PopTable(); // boundary
+	scripting_Pop(); // axis
 
-	scripting_PopTable(); // level
+	scripting_Pop(); // level
 
 	computeBoundingBox(l);
 
 	return l;
+}
+
+void computeBoundaries(game_level *l)
+{
+	// Implementation for computing boundaries from level model
+	// This is a stub - you'll need to implement this based on your requirements
+	l->nBoundaries = 0;
+	l->boundaries = NULL;
 }
