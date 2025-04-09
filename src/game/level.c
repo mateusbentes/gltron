@@ -5,12 +5,18 @@
 #include "video/video.h"
 #include "filesystem/path.h"
 #include "Nebu_scripting.h"
+#include "game/game.h"
 
 #include "base/nebu_debug_memory.h"
 
 #include "base/nebu_assert.h"
 #include <math.h>
 #include <string.h>
+
+/* Define error codes for backward compatibility */
+#define GAME_SUCCESS 0
+#define GAME_ERROR_LEVEL_NOTLOADED 1
+#define GAME_ERROR_LEVEL_ALREADYLOADED 2
 
 /*! Scales the level by the factor fScale
 
@@ -111,6 +117,11 @@ void computeBoundaries(game_level *l)
 	nebu_assert(iCurIndex == l->nBoundaries);
 }	
 
+/* 
+ * These functions are now implemented in game_level.c
+ * We keep them here but commented out to avoid conflicts
+ */
+/*
 void game_UnloadLevel(void)
 {
 	// delete the current (global) lua table
@@ -194,6 +205,7 @@ int game_LoadLevel(void)
 
 	return result;
 }
+*/
 
 void game_spawnset_Free(game_spawnset* pSpawnSet)
 {
