@@ -9,6 +9,18 @@ add_library(video STATIC ${SOURCES} ${HEADERS})
 target_include_directories(video PUBLIC
   ${CMAKE_SOURCE_DIR}/src/include
   ${CMAKE_SOURCE_DIR}/nebu/include
+  ${GLEW_INCLUDE_DIRS}
+  ${SDL2_INCLUDE_DIRS}
+)
+
+# Link libraries
+target_link_libraries(video PUBLIC
+  nebu_filesystem
+  nebu_video
+  sdl_compat
+  ${GLEW_LIBRARIES}
+  ${SDL2_LIBRARIES}
+  ${OPENGL_LIBRARIES}
 )
 
 # Platform-specific configurations

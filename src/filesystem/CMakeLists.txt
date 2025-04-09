@@ -6,6 +6,9 @@ file(GLOB HEADERS "*.h")
 # Remove all platform-specific files from common sources
 list(FILTER COMMON_SOURCES EXCLUDE REGEX "dirsetup-(macos|win32)\\.c$")
 
+# Explicitly add installpath.c if it's not already included
+list(APPEND COMMON_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/installpath.c")
+
 # Set platform-specific source files
 set(PLATFORM_SOURCES "")
 
@@ -27,6 +30,12 @@ add_library(filesystem STATIC ${COMMON_SOURCES} ${PLATFORM_SOURCES} ${HEADERS})
 target_include_directories(filesystem PUBLIC
   ${CMAKE_SOURCE_DIR}/src/include
   ${CMAKE_SOURCE_DIR}/nebu/include
+)
+
+# Link with nebu_filesystem
+target_link_libraries(filesystem PUBLIC
+  nebu_filesystem
+  sdl_compat
 )
 
 # Platform-specific configurations

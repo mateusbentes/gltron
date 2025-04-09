@@ -20,9 +20,10 @@ target_include_directories(nebu_video PUBLIC
   ${SDL2_INCLUDE_DIRS}
 )
 
-# Link with sdl_compat first, then PNG and SDL2 libraries
+# Link with PNG, SDL2, SDL compatibility library and nebu_filesystem
 target_link_libraries(nebu_video PUBLIC
   sdl_compat
+  nebu_filesystem
   ${PNG_LIBRARIES}
   ${SDL2_LIBRARIES}
 )

@@ -199,7 +199,7 @@ void gui_LoadResources(void)
 		nebu_assert(0); exit(1);
 	}
 
-	path = nebu_FS_GetPath(PATH_ART, "gui.png");
+	path = nebu_FS_GetPath_WithFilename(PATH_ART, "gui.png");
 	if(path)
 	{
 		pBackground = nebu_2d_LoadPNG(path, 0);
@@ -372,11 +372,11 @@ void drawMenu(Visual *d) {
 
 Callbacks configureCallbacks = {
   displayConfigure, idleGui, keyboardConfigure, initGui, NULL /* exit */,
-  NULL /* mouse button */, NULL /* mouse motion */, "configure"
+  NULL /* mouse button */, NULL /* mouse motion */, NULL /* reshape */, "configure"
 };
 
 Callbacks guiCallbacks = {
   displayGui, idleGui, keyboardGui, initGui, exitGui,
-  guiMouse, guiMouseMotion, "gui"
+  guiMouse, guiMouseMotion, NULL /* reshape */, "gui"
 };
 

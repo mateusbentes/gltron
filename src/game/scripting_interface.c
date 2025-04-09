@@ -284,7 +284,7 @@ int c_setArtPath(lua_State *l)
 
 	// I don't understand why the explicit cast is required to
 	// keep the compiler happy
-	nebu_FS_SetupPath(PATH_ART, 2, (const char**) art_dirs);
+	nebu_FS_SetupPath_WithDirs(PATH_ART, 2, (const char**) art_dirs);
 	return 0;
 }
 

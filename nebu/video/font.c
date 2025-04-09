@@ -133,7 +133,7 @@ nebu_Font* nebu_Font_Load(const char *filename, int fs_tag)
 		memcpy(texname, buf, len); 
 		glBindTexture(GL_TEXTURE_2D, font->pTextures[i]);
 		// TODO: load texture 
-		path = nebu_FS_GetPath(fs_tag, texname);
+		path = nebu_FS_GetPath_WithFilename(fs_tag, texname);
 		if(path)
 		{
 			nebu_Surface* p2d = nebu_Surface_LoadPNG(path);

@@ -31,7 +31,7 @@ static void releaseMesh(void *pData)
 void* get2d(char *filename, void *dummy)
 {
 	char *path;
-	path = nebu_FS_GetPath(PATH_ART, filename);
+	path = nebu_FS_GetPath_WithFilename(PATH_ART, filename);
 	if(path)
 	{
 		void *pData = nebu_2d_LoadPNG(path, 0);
@@ -63,7 +63,7 @@ static void releaseFont(void *pData)
 void* getTexture(char *filename, void *meta)
 {
 	char *path;
-	path = nebu_FS_GetPath(PATH_ART, filename);
+	path = nebu_FS_GetPath_WithFilename(PATH_ART, filename);
 	if(path)
 	{
 		void *pData = nebu_Texture2D_Load(path, (nebu_Texture2D_meta*) meta);

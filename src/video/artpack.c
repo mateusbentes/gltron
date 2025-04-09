@@ -84,7 +84,7 @@ void loadArt(void) {
 	runScript(PATH_SCRIPTS, "artpack.lua");
 
 	// load custom artpack settings
-	path = nebu_FS_GetPath(PATH_ART, "artpack.lua");
+	path = nebu_FS_GetPath_WithFilename(PATH_ART, "artpack.lua");
 	if(path != NULL) {
 		scripting_RunFile(path);
 		free(path);

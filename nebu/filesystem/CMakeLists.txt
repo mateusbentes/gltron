@@ -3,7 +3,7 @@ set(SOURCES "")
 set(HEADERS "")
 
 # Add common source files
-file(GLOB COMMON_SOURCES "file_io.c" "path.c" "dirsetup.c")
+file(GLOB COMMON_SOURCES "file_io.c" "path.c" "dirsetup.c" "filesystem.c")
 file(GLOB COMMON_HEADERS "*.h")
 
 list(APPEND SOURCES ${COMMON_SOURCES})

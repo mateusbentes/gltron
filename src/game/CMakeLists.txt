@@ -14,8 +14,15 @@ add_library(game STATIC ${SOURCES} ${HEADERS})
 # Include directories
 target_include_directories(game PUBLIC
   ${CMAKE_SOURCE_DIR}/src/include
-  ${CMAKE_SOURCE_DIR}/lua5/include
   ${CMAKE_SOURCE_DIR}/nebu/include
+  ${CMAKE_SOURCE_DIR}/lua5/include
+)
+
+# Link libraries
+target_link_libraries(game PUBLIC
+  nebu_filesystem
+  nebu_scripting
+  sdl_compat
 )
 
 # Platform-specific configurations

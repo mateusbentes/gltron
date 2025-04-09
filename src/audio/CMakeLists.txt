@@ -9,6 +9,15 @@ add_library(audio STATIC ${SOURCES} ${HEADERS})
 target_include_directories(audio PUBLIC
   ${CMAKE_SOURCE_DIR}/src/include
   ${CMAKE_SOURCE_DIR}/nebu/include
+  ${SDL2_INCLUDE_DIRS}
+)
+
+# Link libraries
+target_link_libraries(audio PUBLIC
+  nebu_filesystem
+  nebu_audio
+  sdl_compat
+  ${SDL2_LIBRARIES}
 )
 
 # Platform-specific configurations
