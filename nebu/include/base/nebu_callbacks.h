@@ -9,6 +9,7 @@ typedef struct Callbacks {
 	void (*exit)(void);
 	void (*mouse)(int, int, int, int);
 	void (*mouseMotion)(int, int);
+	void (*reshape)(int, int);  /* Added reshape callback */
 	char *name;
 } Callbacks;
 

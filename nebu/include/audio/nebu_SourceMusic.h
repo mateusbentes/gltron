@@ -1,43 +1,39 @@
-#ifndef NEBU_Sound_SourceMusic_H
-#define NEBU_Sound_SourceMusic_H
+#ifndef NEBU_SOUND_SOURCE_MUSIC_H
+#define NEBU_SOUND_SOURCE_MUSIC_H
 
-#include "nebu_Sound.h"
+// Include SDL2 headers instead of SDL
+#include <SDL2/SDL.h>
 
-#include "nebu_Source.h"
-#include "nebu_SoundSystem.h"
-
-#include <SDL.h>
+#include "audio/nebu_Source.h"
 
 namespace Sound {
   class SourceMusic : public Source {
   public:
     SourceMusic(System *system);
-    virtual ~SourceMusic();
+    ~SourceMusic();
+    
     void Load(char *filename);
+    void CleanUp(void);
+    void CreateSample(void);
+    
     virtual int Mix(Uint8 *data, int len);
     virtual void Idle(void);
-
-  protected:
-    virtual void Reset() { 
-      // Stub implementation
-      _read = 0;
-      _decoded = 0;
-    }
-      
+    
+    // Override GetBuffer and GetBufferSize to provide access to the buffer
+    virtual Uint8* GetBuffer() { return _buffer; }
+    virtual int GetBufferSize() { return _buffersize; }
+    
   private:
-    void CreateSample(void);
-    void CleanUp(void);
-
-    // Buffer management
-    Uint8* _buffer;
+    Uint8 *_buffer;
     int _buffersize;
     int _sample_buffersize;
-    int _read;
+    
     int _decoded;
-
-    // File management
+    int _read;
+    
     char *_filename;
     SDL_RWops *_rwops;
   };
 }
+
 #endif
