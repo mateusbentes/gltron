@@ -1,8 +1,8 @@
-
 #include "audio/nebu_Source3D.h"
 
 #include "base/nebu_assert.h"
 #include <string.h>
+#include <math.h>  // Added for pow() function
 
 Uint8 tmp[65536];
 
@@ -181,12 +181,15 @@ namespace Sound {
       shifted_len = 4 * fxComputeShiftLen( shift, len / 4 );
       clen = MAX(len, shifted_len) + 32; // safety distance
 
-      nebu_assert(clen < _source->GetBufferSize());
+      int bufferSize = _source->GetBufferSize();
+      if(bufferSize <= 0) return 0; // Safety check
+      
+      nebu_assert(clen < bufferSize);
 
       if(vol > SOUND_VOL_THRESHOLD) {
         // copy clen bytes from the buffer to a temporary buffer
         Uint8* sourceBuffer = _source->GetBuffer();
-        int bufferSize = _source->GetBufferSize();
+        if(sourceBuffer == NULL) return 0; // Safety check
         
         if(clen <= bufferSize - _position) {
           memcpy(tmp, sourceBuffer + _position, clen);

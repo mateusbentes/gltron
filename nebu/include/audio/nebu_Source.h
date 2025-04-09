@@ -1,11 +1,11 @@
 #ifndef NEBU_Sound_Source_H
 #define NEBU_Sound_Source_H
 
-#include "nebu_Sound.h"
-
 #include "base/nebu_system.h"
+#include <SDL2/SDL.h>
 
 namespace Sound {
+  // Define sound type enum values
   enum {
     eSoundMusic = 1,
     eSoundFX = 2
@@ -21,7 +21,7 @@ namespace Sound {
     virtual void Stop();
     virtual void Pause();
     virtual void UnPause();
-		virtual void Idle();
+    virtual void Idle();
     virtual int Mix(Uint8 *data, int len) = 0;
 
     virtual Uint8 IsPlaying();
@@ -35,6 +35,10 @@ namespace Sound {
     virtual int GetType(void);
     void SetName(const char *name);
     const char* GetName(void);
+    
+    // Add these methods to make them accessible to derived classes
+    virtual Uint8* GetBuffer() { return NULL; }
+    virtual int GetBufferSize() { return 0; }
 
   protected:
     virtual void Reset();
@@ -46,14 +50,12 @@ namespace Sound {
     float _volume;
     int _type;
     char* _name;
-		
-		SDL_mutex* _mutex;
-		SDL_sem * _sem;
+    
+    SDL_mutex* _mutex;
+    SDL_sem* _sem;
+    
+    // Make Reset accessible to derived classes
+    friend class Source3D;
   };
 }
-
 #endif
-
-
-
-

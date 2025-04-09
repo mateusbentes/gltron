@@ -1,18 +1,23 @@
-#ifndef NEBU_Sound_SourceEngine_H
-#define NEBU_Sound_SourceEngine_H
+#ifndef NEBU_SOUND_SOURCE_ENGINE_H
+#define NEBU_SOUND_SOURCE_ENGINE_H
 
-#include "nebu_Source3D.h"
+#include "audio/nebu_Source3D.h"
+#include "audio/nebu_SourceSample.h" // Include the missing header
 
 namespace Sound {
   class SourceEngine : public Source3D {
   public:
-	  SourceEngine(System *system, SourceSample *source) : Source3D(system, source) {
+    SourceEngine(System* system, SourceSample* source) : Source3D(system, source) {
       _speedShift = 1.0f;
       _pitchShift = 1.0f;
-    };
-
-    virtual void GetModifiers(float &fPan, float &fVolume, float &fShift);
-
+    }
+    
+    void GetModifiers(float& fPan, float& fVolume, float& fShift);
+    
+    void SetSpeedShift(float fSpeed) { _speedShift = fSpeed; }
+    void SetPitchShift(float fPitch) { _pitchShift = fPitch; }
+    
+  private:
     float _speedShift;
     float _pitchShift;
   };

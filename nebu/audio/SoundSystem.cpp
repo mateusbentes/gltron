@@ -1,7 +1,7 @@
 #include "audio/nebu_SoundSystem.h"
 
-// Include SDL headers here instead of in the header
-#include <SDL.h>
+// Include SDL2 headers instead of SDL
+#include <SDL2/SDL.h>
 #include <string.h>
 
 #include "base/nebu_debug_memory.h"
@@ -106,11 +106,11 @@ namespace Sound {
       }
     }
   }
+}
 
-  extern "C" {
-    void c_callback(void *userdata, Uint8 *stream, int len) { 
-      // printf("c_callback got called for %d bytes of data\n", len);
-      ((System*)userdata)->Callback(stream, len);
-    }
+extern "C" {
+  void c_callback(void *userdata, Uint8 *stream, int len) { 
+    // printf("c_callback got called for %d bytes of data\n", len);
+    ((Sound::System*)userdata)->Callback(stream, len);
   }
 }
