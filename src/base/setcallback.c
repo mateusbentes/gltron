@@ -138,21 +138,19 @@ void setCallbackByType(CallbackType type) {
 }
 
 /* Set the current callback set based on name */
-void setCallback(const char *name) {
-    fprintf(stderr, "[debug] setCallback called with name=%p\n", name);
-    
-    /* Defensive programming - check for NULL */
-    if (!name) {
-        fprintf(stderr, "[error] setCallback: NULL name provided\n");
+void setCallbackSafe(const char *name) {
+    fprintf(stderr, "[debug] setCallbackSafe called with name=%p\n", name);
+
+    /* Defensive programming - check for NULL or empty string */
+    if (!name || name[0] == '\0') {
+        fprintf(stderr, "[error] setCallbackSafe: NULL or empty name provided\n");
         setCallbackByType(CB_GUI); /* Default to GUI */
         return;
     }
 
-    fprintf(stderr, "[debug] setCallback: setting callback to '%s'\n", name);
+    fprintf(stderr, "[debug] setCallbackSafe: setting callback to '%s'\n", name);
     
     /* Convert string to callback type and set it */
     CallbackType type = getCallbackTypeFromString(name);
     setCallbackByType(type);
-    
-    fprintf(stderr, "[debug] setCallback: function completed\n");
 }

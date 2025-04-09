@@ -82,27 +82,39 @@ void keyboardPause(int state, int key, int x, int y) {
 }
 
 void initPause(void) {
-	nebu_Input_HidePointer();
-	nebu_Input_Mouse_WarpToOrigin();
+    /* Check if gWorld is NULL and initialize it if needed */
+    extern video_level *gWorld;  // Changed from void * to video_level *
+    extern void video_LoadLevel(void);
+    
+    if (!gWorld) {
+        fprintf(stderr, "[status] initPause: loading level\n");
+        video_LoadLevel();
+    }
+    
+    nebu_Input_HidePointer();
+    nebu_Input_Mouse_WarpToOrigin();
 
-	/* disable game sound effects */
-	Audio_DisableEngine();
+    /* disable game sound effects */
+    Audio_DisableEngine();
 
-	/* 
-	* TODO: Provide an option to disable game music here. 
-	* Game should be totally silent in pause mode. (Nice when 
-	* the boss is walking by, phone call, etc...)
-	*/
+    /* 
+    * TODO: Provide an option to disable game music here. 
+    * Game should be totally silent in pause mode. (Nice when 
+    * the boss is walking by, phone call, etc...)
+    */
 
-	updateSettingsCache();
+    updateSettingsCache();
 }
 
+// Define exitPause function
 void exitPause(void) {
+    // Empty function, just to satisfy the callback structure
 }
 
 Callbacks pauseCallbacks = {
-	displayGame, idlePause, keyboardPause,
-	initPause, exitPause, gameMouse, NULL, "pause"
+    displayGame, idlePause, keyboardPause,
+    initPause, exitPause, gameMouse, NULL, 
+    "pause"  // This is the name, not a function pointer
 };
 
 void keyboardPrompt(int state, int key, int x, int y) {
@@ -124,9 +136,9 @@ void initPrompt(void) { }
 void exitPrompt(void) { }
 
 Callbacks promptCallbacks = {
-	displayGame, idlePause, keyboardPrompt,
-	initPrompt, exitPrompt, NULL /* mouse button */, NULL /* mouse motion */, 
-	"prompt"
+    displayGame, idlePause, keyboardPrompt,
+    initPrompt, exitPrompt, NULL /* mouse button */, NULL /* mouse motion */, 
+    "prompt"  // This is the name, not a function pointer
 };
 
 

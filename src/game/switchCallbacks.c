@@ -31,19 +31,42 @@ Callbacks *callbackList[N_CALLBACKS] = {
 };
 
 void setCallback(const char *name) {
-	int i;
+    int i;
 
-	for(i = 0; i < N_CALLBACKS; i++) {
-		if(strcmp( callbackList[i]->name, name ) == 0)
-			break;
-	}
-	if(i == N_CALLBACKS) {
-		fprintf(stderr, "fatal: no callback named '%s' found\n", name);
-		nebu_assert(0); exit(1); // OK: programmer error, critical
-	}
+    /* Check for NULL or empty name */
+    if (!name || name[0] == '\0') {
+        fprintf(stderr, "error: NULL or empty callback name provided\n");
+        /* Default to GUI */
+        for(i = 0; i < N_CALLBACKS; i++) {
+            if(strcmp(callbackList[i]->name, "gui") == 0)
+                break;
+        }
+        if(i == N_CALLBACKS) {
+            fprintf(stderr, "fatal: no callback named 'gui' found\n");
+            return; /* Don't crash, just return */
+        }
+    } else {
+        /* Find the callback with the given name */
+        for(i = 0; i < N_CALLBACKS; i++) {
+            if(strcmp(callbackList[i]->name, name) == 0)
+                break;
+        }
+        if(i == N_CALLBACKS) {
+            fprintf(stderr, "fatal: no callback named '%s' found\n", name);
+            /* Default to GUI */
+            for(i = 0; i < N_CALLBACKS; i++) {
+                if(strcmp(callbackList[i]->name, "gui") == 0)
+                    break;
+            }
+            if(i == N_CALLBACKS) {
+                fprintf(stderr, "fatal: no callback named 'gui' found\n");
+                return; /* Don't crash, just return */
+            }
+        }
+    }
 
-	last_callback = current_callback;
-	current_callback = callbackList[i];
+    last_callback = current_callback;
+    current_callback = callbackList[i];
 
-	nebu_System_SetCallbacks(callbackList[i]);
+    nebu_System_SetCallbacks(callbackList[i]);
 }

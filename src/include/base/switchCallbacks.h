@@ -36,6 +36,7 @@ void game_Callbacks_ExitCurrent(void);
 void game_Callbacks_InitCurrent(void);
 void setCallback(const char *name);
 void setCallbackByType(CallbackType type);
+void setCallbackSafe(const char *name);
 Callbacks* getCurrentCallbacks(void);
 
 /* Utility function to convert string to callback type */

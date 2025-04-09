@@ -124,15 +124,20 @@ void video_Shader_Cleanup(video_level_shader* shader, int pass)
 
 void video_shader_InitResources(video_level_shader *shader)
 {
-	nebu_Texture2D *pTexture = NULL;
-	if(shader->ridTexture)
-		pTexture = (nebu_Texture2D*)resource_Get(shader->ridTexture, eRT_Texture);
-	if(pTexture)
-	{
-		shader->idTexture = pTexture->id;
-	}
-	else
-		shader->idTexture = 0;
+    if (!shader) {
+        fprintf(stderr, "[error] video_shader_InitResources: NULL shader\n");
+        return;
+    }
+
+    nebu_Texture2D *pTexture = NULL;
+    if(shader->ridTexture)
+        pTexture = (nebu_Texture2D*)resource_Get(shader->ridTexture, eRT_Texture);
+    if(pTexture)
+    {
+        shader->idTexture = pTexture->id;
+    }
+    else
+        shader->idTexture = 0;
 }
 
 int level_LoadTexture() {

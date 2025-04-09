@@ -205,52 +205,44 @@ int c_timedemo(lua_State *L) {
 }
 
 int c_SetCallback(lua_State *L) {
-	const char *name;
-	int top = lua_gettop(L);
-	
-	if(top < 1) {
-		fprintf(stderr, "[fatal] no callback set name provided\n");
-		return 0;
-	}
-	
-	if(!lua_isstring(L, top)) {
-		fprintf(stderr, "[fatal] invalid callback set (not a string)\n");
-		return 0;
-	}
-	
-	name = lua_tostring(L, top);
-	if(!name) {
-		fprintf(stderr, "[fatal] NULL callback set name\n");
-		return 0;
-	}
-	
-	fprintf(stderr, "[debug] Setting callback to: %s\n", name);
-	
-	/* Validate the callback name */
-	if(!(strcmp(name, "gui") == 0 || 
-	     strcmp(name, "game") == 0 || 
-	     strcmp(name, "pause") == 0 || 
-	     strcmp(name, "credits") == 0 || 
-	     strcmp(name, "configure") == 0 || 
-	     strcmp(name, "timedemo") == 0)) {
-		fprintf(stderr, "[warning] unknown callback set: %s\n", name);
-		/* Continue anyway, as the setCallback function might handle unknown callbacks */
-	}
-	
-	/* Make a copy of the name to ensure it remains valid */
-	char *name_copy = strdup(name);
-	if(!name_copy) {
-		fprintf(stderr, "[fatal] memory allocation failed for callback name\n");
-		return 0;
-	}
-	
-	/* Call setCallback with the validated name */
-	setCallback(name_copy);
-	
-	/* Free the copy after use */
-	free(name_copy);
-	
-	return 0;
+    const char *name;
+    int top = lua_gettop(L);
+    
+    if(top < 1) {
+        fprintf(stderr, "[fatal] no callback set name provided\n");
+        setCallbackByType(CB_GUI); /* Default to GUI */
+        return 0;
+    }
+    
+    if(!lua_isstring(L, top)) {
+        fprintf(stderr, "[fatal] invalid callback set (not a string)\n");
+        setCallbackByType(CB_GUI); /* Default to GUI */
+        return 0;
+    }
+    
+    name = lua_tostring(L, top);
+    if(!name || name[0] == '\0') {
+        fprintf(stderr, "[fatal] NULL or empty callback set name\n");
+        setCallbackByType(CB_GUI); /* Default to GUI */
+        return 0;
+    }
+    
+    fprintf(stderr, "[debug] c_SetCallback: setting callback to: %s\n", name);
+    
+    /* Make a copy of the string to ensure it remains valid */
+    char *name_copy = strdup(name);
+    if(!name_copy) {
+        fprintf(stderr, "[fatal] memory allocation failed for callback name\n");
+        return 0;
+    }
+    
+    /* Call setCallbackSafe with the validated name */
+    setCallbackSafe(name_copy);
+    
+    /* Free the copy after use */
+    free(name_copy);
+    
+    return 0;
 }
 
 int c_mainLoop(lua_State *L) {

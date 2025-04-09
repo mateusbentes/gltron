@@ -70,58 +70,68 @@ void clearScreen() {
 
 void initFrameResources(void)
 {
-	int i;
+    int i;
 
-	for(i = 0; i < TEX_COUNT; i++)
-	{
-		nebu_Texture2D *pTexture = NULL;
-		if(gScreen->ridTextures[i])
-			pTexture = (nebu_Texture2D*)resource_Get(gScreen->ridTextures[i], eRT_Texture);
-		if(pTexture)
-		{
-			gScreen->textures[i] = pTexture->id;
-		}
-		else
-			gScreen->textures[i] = 0;
-	}
+    for(i = 0; i < TEX_COUNT; i++)
+    {
+        nebu_Texture2D *pTexture = NULL;
+        if(gScreen->ridTextures[i])
+            pTexture = (nebu_Texture2D*)resource_Get(gScreen->ridTextures[i], eRT_Texture);
+        if(pTexture)
+        {
+            gScreen->textures[i] = pTexture->id;
+        }
+        else
+            gScreen->textures[i] = 0;
+    }
 
-	video_shader_InitResources(&gWorld->arena_shader);
-	video_shader_InitResources(&gWorld->floor_shader);
+    if (!gWorld) {
+        fprintf(stderr, "[error] initFrameResources: gWorld is NULL\n");
+        return;
+    }
+
+    video_shader_InitResources(&gWorld->arena_shader);
+    video_shader_InitResources(&gWorld->floor_shader);
 }
 
 void drawGame(void) {
-	GLint i;
+    GLint i;
 
-	initFrameResources();
+    if (!gWorld) {
+        fprintf(stderr, "[error] drawGame: gWorld is NULL\n");
+        return;
+    }
 
-	clearScreen();
+    initFrameResources();
 
-	glShadeModel( GL_SMOOTH );
-	glDepthMask(GL_TRUE);
-	glEnable(GL_DEPTH_TEST);
+    clearScreen();
 
-	if(getSettingi("wireframe"))
-	{
+    glShadeModel(GL_SMOOTH);
+    glDepthMask(GL_TRUE);
+    glEnable(GL_DEPTH_TEST);
+
+    if(getSettingi("wireframe"))
+    {
 #ifndef OPENGL_ES
-		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 #endif
-	}
+    }
 
-	for(i = 0; i < vp_max[gViewportType]; i++) {
-		Visual *d = &gppPlayerVisuals[i]->display;
+    for(i = 0; i < vp_max[gViewportType]; i++) {
+        Visual *d = &gppPlayerVisuals[i]->display;
 
-		if(d->onScreen == 1) {
-			glViewport(d->vp_x, d->vp_y, d->vp_w, d->vp_h);
-			drawCam(gppPlayerVisuals[i]);
+        if(d->onScreen == 1) {
+            glViewport(d->vp_x, d->vp_y, d->vp_w, d->vp_h);
+            drawCam(gppPlayerVisuals[i]);
 
-			/* hud stuff for every player */
-			drawHUD(gppPlayerVisuals[i]->pPlayer,
-				gppPlayerVisuals[i]);
-		}
-	}
+            /* hud stuff for every player */
+            drawHUD(gppPlayerVisuals[i]->pPlayer,
+                gppPlayerVisuals[i]);
+        }
+    }
 
 #ifndef OPENGL_ES
-	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 #endif
 }
 
