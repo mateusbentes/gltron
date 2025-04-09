@@ -36,10 +36,20 @@ static unsigned int lastFrame = 0;
 static unsigned int dt = 0;
 static unsigned int isSinceLastFrame = 0;
 
+/* Pointer to the current callback structure */
 Callbacks *current = 0;
 
 void nebu_System_SetCallbacks(Callbacks *cb) {
+  if (!cb) {
+    fprintf(stderr, "[error] nebu_System_SetCallbacks: NULL callbacks provided\n");
+    return;
+  }
+  
   current = cb;
+  
+  /* Print debug info about the callbacks being set */
+  fprintf(stderr, "[debug] nebu_System_SetCallbacks: setting callbacks '%s'\n", 
+          current->name ? current->name : "unnamed");
 }
 
 void nebu_System_Exit() {
@@ -56,7 +66,6 @@ int nebu_System_MainLoop() {
   SDL_Event event;
   int now;
   int dt;
-  int i;
 
   now = getElapsedTime();
   dt = now - fps_last;
@@ -72,6 +81,9 @@ int nebu_System_MainLoop() {
   /* run game, draw scene */
   if(redisplay && current && current->display) {
     current->display();
+    redisplay = 0;
+  } else if(redisplay && (!current || !current->display)) {
+    fprintf(stderr, "[warning] Display requested but no valid display callback available\n");
     redisplay = 0;
   }
   /* process pending events */
@@ -95,6 +107,8 @@ int nebu_System_MainLoop() {
   /* idle callback */
   if(current && current->idle)
     current->idle();
+  else if(!idle)
+    SDL_Delay(10); /* Prevent CPU spinning when no idle callback is set */
   /* wait for vsync */
   // nebu_System_Sleep(15);
  done:

@@ -2,8 +2,9 @@
 file(GLOB SOURCES "*.c" "*.cpp")
 file(GLOB HEADERS "*.h")
 
-# Make sure sdl_compat.c is included
+# Make sure sdl_compat.c and setcallback.c are included
 list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/sdl_compat.c")
+list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/setcallback.c")
 
 # Create the library
 add_library(base STATIC ${SOURCES} ${HEADERS})

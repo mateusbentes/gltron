@@ -207,15 +207,38 @@ int c_timedemo(lua_State *L) {
 int c_SetCallback(lua_State *L) {
 	const char *name;
 	int top = lua_gettop(L);
-	if(lua_isstring(L, top)) {
-		name = lua_tostring(L, top);
-		setCallback(name);
-		// printf("enabling callback-set '%s'\n", name);
+	
+	if(top < 1) {
+		fprintf(stderr, "[fatal] no callback set name provided\n");
+		return 0;
 	}
-	else {
-		fprintf(stderr, "[fatal] invalid callback set\n");
-		nebu_assert(0); exit(1);
+	
+	if(!lua_isstring(L, top)) {
+		fprintf(stderr, "[fatal] invalid callback set (not a string)\n");
+		return 0;
 	}
+	
+	name = lua_tostring(L, top);
+	if(!name) {
+		fprintf(stderr, "[fatal] NULL callback set name\n");
+		return 0;
+	}
+	
+	// Check for valid callback names
+	if(strcmp(name, "gui") != 0 && 
+	   strcmp(name, "game") != 0 && 
+	   strcmp(name, "pause") != 0 && 
+	   strcmp(name, "credits") != 0 && 
+	   strcmp(name, "configure") != 0 && 
+	   strcmp(name, "timedemo") != 0) {
+		fprintf(stderr, "[warning] unknown callback set: %s\n", name);
+		// Continue anyway, as the setCallback function might handle unknown callbacks
+	}
+	
+	// Call setCallback with the validated name
+	fprintf(stderr, "[debug] Setting callback to: %s\n", name);
+	setCallback(name);
+	
 	return 0;
 }
 
