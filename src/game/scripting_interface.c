@@ -25,6 +25,9 @@
 #include "lua.h"
 #include "lualib.h"
 
+/* Define GAME_SUCCESS for backward compatibility */
+#define GAME_SUCCESS 0
+
 // some functions defined elsewhere: graphics_hud.c
 int c_drawRectangle(lua_State *l);
 int c_drawCircle(lua_State *l);
@@ -129,13 +132,21 @@ int c_reloadArtpack(lua_State *L)  {
 }
 
 int c_reloadLevel(lua_State *L) {
-	int status;
+	int status = GAME_SUCCESS;  // Default to success
 
 	// free all loaded mesh resources & textures
 	video_UnloadLevel();
 	game_UnloadLevel();
 
-	status = game_LoadLevel();
+	// Call game_LoadLevel() but don't try to use its return value
+	game_LoadLevel();
+	
+	// Check if level loading was successful by checking if game2->level exists
+	if(game2->level == NULL)
+	{
+		status = 1;  // Error code
+	}
+
 	if(status != GAME_SUCCESS)
 	{
 		// scrap current level

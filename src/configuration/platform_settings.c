@@ -1,5 +1,6 @@
 #include "configuration/settings.h"
 #include "configuration/platform_settings.h"
+#include "video/nebu_video_system.h"
 
 void platform_InitSettings(void) {
 #if defined(ANDROID) || defined(__ANDROID__)

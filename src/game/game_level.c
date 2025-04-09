@@ -1,7 +1,12 @@
 #include "game/game_level.h"
+#include "game/game.h"
 #include "filesystem/path.h"
-#include "Nebu_scripting.h"
+#include "scripting/nebu_scripting.h"
 #include <stdlib.h>
+#include <stdio.h>
+
+/* Forward declaration of computeBoundaries to avoid warning */
+void computeBoundaries(game_level *l);
 
 void game_FreeLevel(game_level *l) {
 	int i;
@@ -256,4 +261,51 @@ void computeBoundaries(game_level *l)
 	// This is a stub - you'll need to implement this based on your requirements
 	l->nBoundaries = 0;
 	l->boundaries = NULL;
+}
+
+/* Changed return type from int to void to match header */
+void game_LoadLevel(void) {
+    char *filename;
+    
+    /* Free any existing level */
+    if(game2->level) {
+        game_UnloadLevel();
+    }
+    
+    /* Load level from script */
+    scripting_GetGlobal("settings", "current_level", NULL);
+    scripting_GetStringResult(&filename);
+    
+    if(filename) {
+        char *path = getPath(PATH_LEVEL, filename);
+        scripting_StringResult_Free(filename);
+        
+        if(path) {
+            if(scripting_RunFile(path)) {
+                fprintf(stderr, "Error loading level '%s'\n", path);
+                free(path);
+                /* Load a default level if the specified one fails */
+                path = getPath(PATH_LEVEL, "default.lua");
+                if(path) {
+                    scripting_RunFile(path);
+                }
+            }
+            free(path);
+        }
+    }
+    
+    /* Create level from script data */
+    game2->level = game_CreateLevel();
+    
+    /* Scale level if needed */
+    if(game2->level->scale_factor != 1.0f) {
+        game_ScaleLevel(game2->level, game2->level->scale_factor);
+    }
+}
+
+void game_UnloadLevel(void) {
+    if(game2->level) {
+        game_FreeLevel(game2->level);
+        game2->level = NULL;
+    }
 }

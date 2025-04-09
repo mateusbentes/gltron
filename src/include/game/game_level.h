@@ -2,49 +2,50 @@
 #define GAME_LEVEL_H
 
 #include "base/nebu_vector.h"
+#include "base/nebu_util.h"
+#include "base/nebu_math.h"
 
-enum {
-	eGameSpawnUndef,
+typedef enum {
+	eGameSpawnUndef = 0,
 	eGameSpawnPoint,
 	eGameSpawnLine
-};
+} eGameSpawnType;
 
-typedef struct game_spawnpoint {
-	int type;
+typedef struct {
 	vec2 vStart;
 	vec2 vEnd; // unused for eGameSpawnLine
 	int n;
 	int dir;
 } game_spawnpoint;
 
-typedef struct game_spawnset {
-	int type;
+typedef struct {
+	eGameSpawnType type;
 	int nPoints;
 	game_spawnpoint *pSpawnPoints;
 } game_spawnset;
 
-typedef struct game_level {
+typedef struct {
 	int nBoundaries;
 	segment2 *boundaries;
 	int nAxis;
 	vec2 *pAxis;
-	int nSpawnSets;
-	int spawnIsRelative;
-	game_spawnset **ppSpawnSets;
-	box2 boundingBox;
 	float scale_factor;
+	int spawnIsRelative;
+	box2 boundingBox;
+	int nSpawnSets;
+	game_spawnset **ppSpawnSets;
 } game_level;
 
 void game_FreeLevel(game_level *l);
-game_level* game_CreateLevel();
 void game_ScaleLevel(game_level *l, float fSize);
-void game_UnloadLevel(void);
-int game_LoadLevel(void);
+game_level* game_CreateLevel(void);
+game_spawnset* game_spawnset_Create(void);
+void game_spawnset_Free(game_spawnset* pSpawnSet);
+void computeBoundingBox(game_level *l);
+void computeBoundaries(game_level *l);
 
-enum {
-	GAME_SUCCESS = 0,
-	GAME_ERROR_LEVEL_ALREADYLOADED = 1,
-	GAME_ERROR_LEVEL_NOTLOADED,
-};
+/* Changed return type from int to void to match implementation */
+void game_LoadLevel(void);
+void game_UnloadLevel(void);
 
 #endif

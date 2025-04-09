@@ -93,9 +93,6 @@ endif()
 # Generate configuration header
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/ConfigHeader.cmake)
 
-# Add lib3ds first so its include directories are available to other components
-add_subdirectory(lib3ds)
-
 # Include directories
 include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/src/include
@@ -103,14 +100,14 @@ include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/nebu/include
   ${CMAKE_CURRENT_SOURCE_DIR}  # Add the root directory to include path
   ${GLEW_INCLUDE_DIRS}
-  ${LIB3DS_INCLUDE_DIRS}
   ${PNG_INCLUDE_DIRS}
   ${ZLIB_INCLUDE_DIRS}
   ${SDL2_INCLUDE_DIRS}
 )
 
-# Add other subdirectories
+# Add subdirectories for all libraries
 add_subdirectory(lua5)
+add_subdirectory(lib3ds)
 add_subdirectory(nebu)
 add_subdirectory(src)
 
@@ -145,7 +142,12 @@ target_link_libraries(gltron PRIVATE
   ${GLEW_LIBRARIES}
   ${PNG_LIBRARIES}
   ${ZLIB_LIBRARIES}
+  ${OPENGL_LIBRARIES}
   ${SDL2_LIBRARIES}
+  # Add math library for Unix-like systems
+  $<$<NOT:$<PLATFORM_ID:Windows>>:m>
+  # Add dl library for dynamic loading on Unix-like systems
+  $<$<NOT:$<PLATFORM_ID:Windows>>:dl>
 )
 
 # Platform-specific configurations
@@ -166,19 +168,10 @@ if(BUILD_ANDROID)
     ${EGL_LIB}
     ${GLES_LIB}
   )
-else()
-  # Desktop platform dependencies
-  target_link_libraries(gltron PRIVATE
-    ${OPENGL_LIBRARIES}
-    # Add math library for Unix-like systems
-    $<$<NOT:$<PLATFORM_ID:Windows>>:m>
-    # Add dl library for dynamic loading on Unix-like systems
-    $<$<NOT:$<PLATFORM_ID:Windows>>:dl>
-  )
-  
-  if(ENABLE_SOUND)
-    target_link_libraries(gltron PRIVATE ${SDL_SOUND_LIBRARY})
-  endif()
+endif()
+
+if(ENABLE_SOUND)
+  target_link_libraries(gltron PRIVATE ${SDL_SOUND_LIBRARY})
 endif()
 
 # Installation rules
