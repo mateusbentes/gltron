@@ -29,4 +29,7 @@ void nebu_Video_WarpPointer(int x, int y);
 void nebu_Video_CheckErrors(const char *where);
 void nebu_Video_SwapBuffers(void);
 
+// Get the screen size (primarily for mobile devices)
+void nebu_Video_GetScreenSize(int *width, int *height);
+
 #endif

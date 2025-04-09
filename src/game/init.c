@@ -14,6 +14,7 @@
 #include "audio/nebu_audio_system.h"
 #include "configuration/settings.h"
 #include "configuration/configuration.h"
+#include "configuration/platform_settings.h"  /* Added platform settings header */
 #include "video/nebu_video_system.h"
 #include "filesystem/nebu_filesystem.h"
 #include "scripting/nebu_scripting.h"
@@ -59,6 +60,9 @@ void initSubsystems(int argc, const char *argv[]) {
 	initFilesystem(argc, argv);
 	initScripting();
 
+	/* Initialize platform-specific settings before general configuration */
+	platform_InitSettings();
+	
 	initConfiguration(argc, argv);
 	initArtpacks(); // stores the artpack directory names in a lua table, so we can display it in the menu later on
 
