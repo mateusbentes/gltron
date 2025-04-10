@@ -235,6 +235,8 @@ void video_LoadLevel(void) {
     
     if(!gWorld) {
         printf("[error] video_LoadLevel: failed to create level\n");
+    } else {
+        printf("[debug] video_LoadLevel: successfully created level\n");
     }
 }
 	

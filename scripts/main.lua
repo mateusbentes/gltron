@@ -223,22 +223,22 @@ while not _exit_requested do
     print("[lua] Setting callback: " .. tostring(callback))
     
     -- Try to call c_setCallback with error handling
-    local cb_status, cb_err = pcall(function()
-        if callback == "pause" then
-            print("[lua] Trying to set callback to 'pause', checking if gWorld is NULL")
-            -- Try to set callback to "gui" if gWorld is NULL
-            local fallback_status, fallback_err = pcall(function()
-                c_setCallback("gui")
-            end)
-            if not fallback_status then
-                print("[lua] ERROR setting fallback callback: " .. tostring(fallback_err))
-            else
-                callback = "gui"
-            end
-        else
-            c_setCallback(callback)
-        end
-    end)
+	local cb_status, cb_err = pcall(function()
+		if callback == "pause" then
+			print("[lua] Trying to set callback to 'pause'")
+			
+			-- Try to initialize the game world first
+			if c_startGame and type(c_startGame) == "function" and game_initialized == 1 then
+				print("[lua] Ensuring game is initialized")
+				c_startGame()
+			end
+			
+			-- Now set the callback to pause
+			c_setCallback("pause")
+		else
+			c_setCallback(callback)
+		end
+	end)
     
     if not cb_status then
         print("[lua] ERROR setting callback: " .. tostring(cb_err))
@@ -303,11 +303,14 @@ while not _exit_requested do
     end
     
     -- On Android, check if we need to yield to the system occasionally
-    if is_android and iteration % 100 == 0 then
-        if c_checkAndroidEvents and type(c_checkAndroidEvents) == "function" then
-            c_checkAndroidEvents()
-        end
-    end
+	if is_android then
+    	if iteration >= 100 then
+        	iteration = 0
+        	if c_checkAndroidEvents and type(c_checkAndroidEvents) == "function" then
+            	c_checkAndroidEvents()
+        	end
+    	end
+	end
 end
 
 print("[lua] main.lua completed")

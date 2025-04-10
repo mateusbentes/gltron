@@ -26,8 +26,13 @@ extern void video_LoadLevel(void);
 
 void idlePause(void) {
     Sound_idle();
-    // Don't set game2->time.dt = 0, let the game run
-    // game2->time.dt = 0;
+    // Allow the game to run by not setting dt to 0
+    // Instead, let's update the time but at a slower rate
+    if (game2 && game2->time.dt > 0) {
+        // Slow down time while paused (optional)
+        // game2->time.dt = game2->time.dt / 2;
+    }
+    
     doCameraMovement();
     {
         int dx, dy;
@@ -96,7 +101,22 @@ void initPause(void) {
     if (!gWorld) {
         fprintf(stderr, "[status] initPause: loading level\n");
         video_LoadLevel();
+        
+        /* Check if initialization was successful */
+        if (!gWorld) {
+            fprintf(stderr, "[error] initPause: failed to load level\n");
+            return;
+        }
     }
+    
+    /* Make sure game is properly initialized */
+    if (!game) {
+        fprintf(stderr, "[error] initPause: game is NULL\n");
+        return;
+    }
+    
+    /* Set the pause flag to indicate we're in pause mode */
+    game->pauseflag = PAUSE_GAME_SUSPENDED;
     
     nebu_Input_HidePointer();
     nebu_Input_Mouse_WarpToOrigin();
@@ -113,39 +133,54 @@ void initPause(void) {
     updateSettingsCache();
 }
 
-// Define exitPause function
 void exitPause(void) {
-    // Empty function, just to satisfy the callback structure
+    /* If we're exiting pause mode to go to game mode, make sure the game is running */
+    if (game) {
+        game->pauseflag = PAUSE_GAME_RUNNING;
+    }
+    
+    /* Re-enable game sound effects */
+    Audio_EnableEngine();
 }
+
+void pauseReshape(int x, int y) {
+    /* This function can be empty or handle window resizing if needed */
+}
+
 
 Callbacks pauseCallbacks = {
     displayGame, idlePause, keyboardPause,
-    initPause, exitPause, gameMouse, NULL, 
-    "pause"  // This is the name, not a function pointer
+    initPause, exitPause, gameMouse, pauseReshape, 
+    "pause"
 };
 
 void keyboardPrompt(int state, int key, int x, int y) {
-	if(state == NEBU_INPUT_KEYSTATE_UP)
-		return;
+    if(state == NEBU_INPUT_KEYSTATE_UP)
+        return;
 
-	switch(key) {
-	case 27:
-	case SYSTEM_KEY_TAB:
-		nebu_System_ExitLoop(eSRC_Pause_Escape);
-		break;
-	case SYSTEM_KEY_RETURN:
-		/* promptEvaluate(); */
-		break;
-	}
+    switch(key) {
+    case 27:
+    case SYSTEM_KEY_TAB:
+        nebu_System_ExitLoop(eSRC_Pause_Escape);
+        break;
+    case SYSTEM_KEY_RETURN:
+        /* promptEvaluate(); */
+        break;
+    }
 }
 
 void initPrompt(void) { }
 void exitPrompt(void) { }
 
+/* Define a reshape function for prompt callbacks */
+void promptReshape(int x, int y) {
+    /* This function can be empty or handle window resizing if needed */
+}
+
 Callbacks promptCallbacks = {
     displayGame, idlePause, keyboardPrompt,
-    initPrompt, exitPrompt, NULL /* mouse button */, NULL /* mouse motion */, 
-    "prompt"  // This is the name, not a function pointer
+    initPrompt, exitPrompt, NULL /* mouse button */, promptReshape, 
+    "prompt"
 };
 
 

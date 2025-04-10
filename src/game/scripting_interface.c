@@ -263,6 +263,30 @@ int c_SetCallback(lua_State *L) {
     return 0;
 }
 
+int c_loadLevel(lua_State *L) {
+    fprintf(stderr, "[debug] c_loadLevel: loading level\n");
+    
+    /* Unload any existing level */
+    if(gWorld) {
+        fprintf(stderr, "[debug] c_loadLevel: unloading existing level\n");
+        video_FreeLevel(gWorld);
+        gWorld = NULL;
+    }
+    
+    /* Load the level */
+    fprintf(stderr, "[debug] c_loadLevel: calling video_LoadLevel()\n");
+    video_LoadLevel();
+    
+    /* Check if loading was successful */
+    if(!gWorld) {
+        fprintf(stderr, "[error] c_loadLevel: failed to load level\n");
+    } else {
+        fprintf(stderr, "[debug] c_loadLevel: successfully loaded level\n");
+    }
+    
+    return 0;
+}
+
 int c_mainLoop(lua_State *L) {
 	int value = nebu_System_MainLoop();
 	lua_pushnumber(L, value);
