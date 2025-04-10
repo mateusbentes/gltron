@@ -151,10 +151,10 @@ if not next_callback then
         game_initialized = 1;
         return "game";  -- Changed from "pause" to "game"
     end
-    next_callback[ EScriptingReturnCode.eSRC_Game_End ] = function() 
-        print("[lua] Game end -> pause")
-        return "pause"; 
-    end
+	next_callback[ EScriptingReturnCode.eSRC_Game_End ] = function() 
+		print("[lua] Game end -> gui")  -- Changed from "pause" to "gui"
+		return "gui";  -- Changed from "pause" to "gui"
+	end
     next_callback[ EScriptingReturnCode.eSRC_Game_Pause ] = function() 
         print("[lua] Game pause -> pause")
         return "pause"; 
