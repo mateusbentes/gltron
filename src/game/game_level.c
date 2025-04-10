@@ -267,6 +267,12 @@ void computeBoundaries(game_level *l)
 void game_LoadLevel(void) {
     char *filename;
     
+    /* Check if game2 is NULL */
+    if(!game2) {
+        fprintf(stderr, "Error: game2 is NULL in game_LoadLevel()\n");
+        return;
+    }
+    
     /* Free any existing level */
     if(game2->level) {
         game_UnloadLevel();
@@ -304,7 +310,7 @@ void game_LoadLevel(void) {
 }
 
 void game_UnloadLevel(void) {
-    if(game2->level) {
+    if(game2 && game2->level) {
         game_FreeLevel(game2->level);
         game2->level = NULL;
     }

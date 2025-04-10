@@ -119,6 +119,10 @@ if not next_callback then
         print("[lua] GUI prompt -> configure")
         return "configure"; 
     end
+    next_callback[ EScriptingReturnCode.eSRC_Quit ] = function() 
+        print("[lua] Quit -> gui")
+        return "gui"; 
+    end
 else
     print("[lua] next_callback already initialized")
 end
@@ -185,7 +189,7 @@ while true do
     elseif next_callback[status] == nil then
         print("[lua] WARNING: next_callback[" .. tostring(status) .. "] is nil")
         if status == EScriptingReturnCode.eSRC_Quit then
-            print("[lua] Clean exit")
+            print("[lua] Received eSRC_Quit (0), clean exit")
             break
         else
             print("[lua] Unhandled callback (" .. tostring(status) .. "), defaulting to gui")

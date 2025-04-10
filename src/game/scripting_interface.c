@@ -96,6 +96,7 @@ int c_updateUI(lua_State *L)
 		changeDisplay(-1);
 	return 0;
 }
+
 int c_startGame(lua_State *L) { 
     video_UnloadLevel();
     game_UnloadLevel();
