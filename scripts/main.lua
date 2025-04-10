@@ -1,5 +1,77 @@
--- Debug version of main.lua with extensive logging
+-- Debug version of main.lua with extensive logging and Android compatibility
 print("[lua] Starting main.lua with debug logging")
+
+-- Platform detection
+local is_android = false
+if c_isAndroid and type(c_isAndroid) == "function" then
+    is_android = c_isAndroid()
+    print("[lua] Platform detection: " .. (is_android and "Android" or "Desktop"))
+else
+    print("[lua] Platform detection: Desktop (c_isAndroid not available)")
+end
+
+-- Cross-platform exit function
+function exit_game()
+    print("[lua] Exiting game")
+    if is_android then
+        -- Use Android-specific exit method
+        if c_androidExit and type(c_androidExit) == "function" then
+            print("[lua] Using Android exit method")
+            c_androidExit()
+        else
+            print("[lua] Android exit function not available, trying fallback")
+            -- Try to exit the activity gracefully
+            if c_finishActivity and type(c_finishActivity) == "function" then
+                c_finishActivity()
+            end
+        end
+    else
+        -- Use standard exit on desktop platforms
+        print("[lua] Using standard os.exit()")
+        os.exit()
+    end
+    
+    -- If we're still running, try to break out of the main loop
+    print("[lua] Exit function didn't terminate process, setting exit flag")
+    _exit_requested = true
+end
+
+-- Android lifecycle handlers (called from Java via JNI)
+function onAndroidPause()
+    print("[lua] Android app paused")
+    -- Save state, pause audio, etc.
+    if callback == "game" or callback == "pause" then
+        -- Store current state to resume later
+        _android_paused_state = callback
+        -- Force GUI mode when app is paused
+        callback = "gui"
+        if c_pauseAudio and type(c_pauseAudio) == "function" then
+            c_pauseAudio()
+        end
+    end
+end
+
+function onAndroidResume()
+    print("[lua] Android app resumed")
+    -- Restore state, resume audio, etc.
+    if _android_paused_state then
+        callback = _android_paused_state
+        _android_paused_state = nil
+    end
+    if c_resumeAudio and type(c_resumeAudio) == "function" then
+        c_resumeAudio()
+    end
+end
+
+-- Initialize touch controls if on Android
+if is_android then
+    if c_initTouchControls and type(c_initTouchControls) == "function" then
+        print("[lua] Initializing touch controls")
+        c_initTouchControls()
+    else
+        print("[lua] Touch control initialization function not available")
+    end
+end
 
 -- Define a function to safely execute code with error handling
 function safe_execute(func, description)
@@ -42,6 +114,8 @@ end
 -- Initialize global variables
 callback = "gui"
 game_initialized = 0
+_exit_requested = false
+_android_paused_state = nil
 
 -- Initialize return codes
 if not EScriptingReturnCode then
@@ -97,16 +171,16 @@ if not next_callback then
         print("[lua] Game escape -> gui")
         return "gui"; 
     end
-    next_callback[ EScriptingReturnCode.eSRC_GUI_Escape ] =
-        function() 
-            if(game_initialized == 1) then
-                print("[lua] GUI escape (game initialized) -> pause")
-                return "pause"
-            else
-                print("[lua] GUI escape (game not initialized) -> gui")
-                return "gui"
-            end
+    next_callback[ EScriptingReturnCode.eSRC_GUI_Escape ] = function() 
+        if(game_initialized == 1) then
+            print("[lua] GUI escape (game initialized) -> pause")
+            return "pause"
+        else
+            print("[lua] GUI escape (game not initialized) -> quit")
+            exit_game() -- Use cross-platform exit function
+            return "gui" -- This line won't be reached if exit_game works
         end
+    end
     next_callback[ EScriptingReturnCode.eSRC_GUI_Prompt_Escape ] = function() 
         print("[lua] GUI prompt escape -> gui")
         return "gui"; 
@@ -119,6 +193,11 @@ if not next_callback then
         print("[lua] GUI prompt -> configure")
         return "configure"; 
     end
+    next_callback[ EScriptingReturnCode.eSRC_Quit ] = function() 
+        print("[lua] Quit -> exiting")
+        exit_game() -- Use cross-platform exit function
+        return "gui" -- This line won't be reached if exit_game works
+    end
 else
     print("[lua] next_callback already initialized")
 end
@@ -129,12 +208,12 @@ if(timedemo) then
     print("[lua] Running in timedemo mode")
     c_setCallback("timedemo")
     c_mainLoop()
-    os.exit()
+    exit_game() -- Use cross-platform exit function
 end
 
 print("[lua] Starting main loop")
 local iteration = 0
-while true do
+while not _exit_requested do
     iteration = iteration + 1
     print("[lua] Main loop iteration " .. iteration)
     
@@ -145,7 +224,20 @@ while true do
     
     -- Try to call c_setCallback with error handling
     local cb_status, cb_err = pcall(function()
-        c_setCallback(callback)
+        if callback == "pause" then
+            print("[lua] Trying to set callback to 'pause', checking if gWorld is NULL")
+            -- Try to set callback to "gui" if gWorld is NULL
+            local fallback_status, fallback_err = pcall(function()
+                c_setCallback("gui")
+            end)
+            if not fallback_status then
+                print("[lua] ERROR setting fallback callback: " .. tostring(fallback_err))
+            else
+                callback = "gui"
+            end
+        else
+            c_setCallback(callback)
+        end
     end)
     
     if not cb_status then
@@ -186,7 +278,8 @@ while true do
         print("[lua] WARNING: next_callback[" .. tostring(status) .. "] is nil")
         if status == EScriptingReturnCode.eSRC_Quit then
             print("[lua] Received eSRC_Quit (0), clean exit")
-            break
+            exit_game() -- Use cross-platform exit function
+            break -- This line won't be reached if exit_game works immediately
         else
             print("[lua] Unhandled callback (" .. tostring(status) .. "), defaulting to gui")
             callback = "gui"
@@ -200,6 +293,19 @@ while true do
         else
             callback = validate_callback(next_cb)
             print("[lua] Next callback: " .. tostring(callback))
+        end
+    end
+    
+    -- Check for exit request (in case exit_game() didn't terminate immediately)
+    if _exit_requested then
+        print("[lua] Exit requested, breaking main loop")
+        break
+    end
+    
+    -- On Android, check if we need to yield to the system occasionally
+    if is_android and iteration % 100 == 0 then
+        if c_checkAndroidEvents and type(c_checkAndroidEvents) == "function" then
+            c_checkAndroidEvents()
         end
     end
 end
