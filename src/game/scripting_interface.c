@@ -98,25 +98,38 @@ int c_updateUI(lua_State *L)
 }
 
 int c_startGame(lua_State *L) { 
+    fprintf(stderr, "[debug] c_startGame: starting game\n");
+    
     video_UnloadLevel();
     game_UnloadLevel();
 
+    fprintf(stderr, "[debug] c_startGame: loading level\n");
     game_LoadLevel(); // loads the lua level description
     video_LoadLevel();
 
+    fprintf(stderr, "[debug] c_startGame: creating players\n");
     /* initialize the rest of the game's datastructures */
     game_CreatePlayers(getSettingi("players") + getSettingi("ai_opponents"), &game, &game2);
+    
+    fprintf(stderr, "[debug] c_startGame: changing display\n");
     changeDisplay(-1);
 
-    if(!game2->level)
+    fprintf(stderr, "[debug] c_startGame: checking if game2->level exists\n");
+    if(!game2 || !game2->level)
     {
+        fprintf(stderr, "[debug] c_startGame: initializing levels\n");
         initLevels();
     }
+    
+    fprintf(stderr, "[debug] c_startGame: resetting data\n");
     game_ResetData();
     video_ResetData();
     Audio_ResetData();
 
+    fprintf(stderr, "[debug] c_startGame: exiting loop with eSRC_Game_Launch\n");
     nebu_System_ExitLoop(eSRC_Game_Launch);
+    
+    fprintf(stderr, "[debug] c_startGame: function completed\n");
     return 0;
 }
 
@@ -230,13 +243,6 @@ int c_SetCallback(lua_State *L) {
     
     fprintf(stderr, "[debug] c_SetCallback: setting callback to: %s\n", name);
     
-    /* Check if trying to set to "pause" but gWorld is NULL */
-    if(strcmp(name, "pause") == 0 && !gWorld) {
-        fprintf(stderr, "[warning] c_SetCallback: trying to set to 'pause' but gWorld is NULL\n");
-        fprintf(stderr, "[warning] c_SetCallback: loading level first\n");
-        video_LoadLevel();
-    }
-    
     /* Convert string to callback type directly */
     CallbackType type;
     
@@ -258,6 +264,7 @@ int c_SetCallback(lua_State *L) {
     }
     
     /* Call setCallbackByType directly with the numeric type */
+    fprintf(stderr, "[debug] c_SetCallback: calling setCallbackByType with type %d\n", type);
     setCallbackByType(type);
     
     return 0;

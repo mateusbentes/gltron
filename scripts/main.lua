@@ -145,12 +145,12 @@ end
 if not next_callback then
     print("[lua] Initializing next_callback")
     next_callback = {}
-    next_callback[ EScriptingReturnCode.eSRC_Game_Launch ] = 
-        function() 
-            print("[lua] Game launch -> pause")
-            game_initialized = 1;
-            return "pause";
-        end
+	next_callback[ EScriptingReturnCode.eSRC_Game_Launch ] = 
+    function() 
+        print("[lua] Game launch -> game")  -- Changed from "pause" to "game"
+        game_initialized = 1;
+        return "game";  -- Changed from "pause" to "game"
+    end
     next_callback[ EScriptingReturnCode.eSRC_Game_End ] = function() 
         print("[lua] Game end -> pause")
         return "pause"; 
@@ -223,27 +223,31 @@ while not _exit_requested do
     print("[lua] Setting callback: " .. tostring(callback))
     
     -- Try to call c_setCallback with error handling
-    local cb_status, cb_err = pcall(function()
-        -- First check if c_setCallback exists
-        if not c_setCallback or type(c_setCallback) ~= "function" then
-            error("c_setCallback is not available")
-        end
-        
-        if callback == "pause" then
-            print("[lua] Trying to set callback to 'pause'")
-            
-            -- Try to initialize the game world first
-            if c_startGame and type(c_startGame) == "function" and game_initialized == 1 then
-                print("[lua] Ensuring game is initialized")
-                c_startGame()
-            end
-            
-            -- Now set the callback to pause
-            c_setCallback("pause")
-        else
-            c_setCallback(callback)
-        end
-    end)
+	local cb_status, cb_err = pcall(function()
+		if callback == "pause" then
+			print("[lua] Trying to set callback to 'pause'")
+			
+			-- Try to initialize the game world first
+			if c_startGame and type(c_startGame) == "function" and game_initialized == 1 then
+				print("[lua] Ensuring game is initialized")
+				c_startGame()
+			end
+			
+			-- Now try to set the callback to pause
+			local pause_status, pause_err = pcall(function()
+				c_setCallback("pause")
+			end)
+			
+			if not pause_status then
+				print("[lua] ERROR setting callback to 'pause': " .. tostring(pause_err))
+				print("[lua] Falling back to 'gui'")  -- Changed from 'game' to 'gui'
+				c_setCallback("gui")
+				callback = "gui"  -- Changed from 'game' to 'gui'
+			end
+		else
+			c_setCallback(callback)
+		end
+	end)
     
     if not cb_status then
         print("[lua] ERROR setting callback: " .. tostring(cb_err))
