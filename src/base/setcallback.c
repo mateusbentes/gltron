@@ -140,7 +140,7 @@ void setCallbackByType(CallbackType type) {
 /* Set the current callback set based on name */
 void setCallbackSafe(const char *name) {
     fprintf(stderr, "[debug] setCallbackSafe called with name=%p\n", name);
-
+    
     /* Defensive programming - check for NULL or empty string */
     if (!name || name[0] == '\0') {
         fprintf(stderr, "[error] setCallbackSafe: NULL or empty name provided\n");

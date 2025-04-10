@@ -45,8 +45,11 @@ int c_SetCallback(lua_State *L) {
         video_LoadLevel();
     }
     
-    /* Call setCallback with the name */
-    setCallback(name);
+    /* Convert string to callback type directly */
+    CallbackType type = getCallbackTypeFromString(name);
+    
+    /* Call setCallbackByType directly with the numeric type */
+    setCallbackByType(type);
     
     return 0;
 }

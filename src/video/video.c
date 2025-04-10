@@ -223,10 +223,19 @@ void video_UnloadLevel(void)
 }
 
 void video_LoadLevel(void) {
-	printf("[status] load/reload video data\n");
+    printf("[status] load/reload video data\n");
 
-	nebu_assert(!gWorld);
-	gWorld = video_CreateLevel();
+    if(gWorld) {
+        printf("[warning] video_LoadLevel: gWorld is not NULL, freeing it first\n");
+        video_FreeLevel(gWorld);
+        gWorld = NULL;
+    }
+    
+    gWorld = video_CreateLevel();
+    
+    if(!gWorld) {
+        printf("[error] video_LoadLevel: failed to create level\n");
+    }
 }
 	
 void video_ResetData(void) {

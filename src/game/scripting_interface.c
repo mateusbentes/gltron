@@ -97,26 +97,26 @@ int c_updateUI(lua_State *L)
 	return 0;
 }
 int c_startGame(lua_State *L) { 
-	video_UnloadLevel();
-	game_UnloadLevel();
+    video_UnloadLevel();
+    game_UnloadLevel();
 
-	game_LoadLevel(); // loads the lua level description
-	video_LoadLevel();
+    game_LoadLevel(); // loads the lua level description
+    video_LoadLevel();
 
-	/* initialize the rest of the game's datastructures */
-	game_CreatePlayers(getSettingi("players") + getSettingi("ai_opponents"), &game, &game2);
-	changeDisplay(-1);
+    /* initialize the rest of the game's datastructures */
+    game_CreatePlayers(getSettingi("players") + getSettingi("ai_opponents"), &game, &game2);
+    changeDisplay(-1);
 
-	if(!game2->level)
-	{
-		initLevels();
-	}
-	game_ResetData();
-	video_ResetData();
-	Audio_ResetData();
+    if(!game2->level)
+    {
+        initLevels();
+    }
+    game_ResetData();
+    video_ResetData();
+    Audio_ResetData();
 
-	nebu_System_ExitLoop(eSRC_Game_Launch);
-	return 0;
+    nebu_System_ExitLoop(eSRC_Game_Launch);
+    return 0;
 }
 
 int c_reloadTrack(lua_State *L) {
@@ -229,18 +229,35 @@ int c_SetCallback(lua_State *L) {
     
     fprintf(stderr, "[debug] c_SetCallback: setting callback to: %s\n", name);
     
-    /* Make a copy of the string to ensure it remains valid */
-    char *name_copy = strdup(name);
-    if(!name_copy) {
-        fprintf(stderr, "[fatal] memory allocation failed for callback name\n");
-        return 0;
+    /* Check if trying to set to "pause" but gWorld is NULL */
+    if(strcmp(name, "pause") == 0 && !gWorld) {
+        fprintf(stderr, "[warning] c_SetCallback: trying to set to 'pause' but gWorld is NULL\n");
+        fprintf(stderr, "[warning] c_SetCallback: loading level first\n");
+        video_LoadLevel();
     }
     
-    /* Call setCallbackSafe with the validated name */
-    setCallbackSafe(name_copy);
+    /* Convert string to callback type directly */
+    CallbackType type;
     
-    /* Free the copy after use */
-    free(name_copy);
+    if(strcmp(name, "game") == 0) {
+        type = CB_GAME;
+    } else if(strcmp(name, "gui") == 0) {
+        type = CB_GUI;
+    } else if(strcmp(name, "pause") == 0) {
+        type = CB_PAUSE;
+    } else if(strcmp(name, "credits") == 0) {
+        type = CB_CREDITS;
+    } else if(strcmp(name, "configure") == 0) {
+        type = CB_CONFIGURE;
+    } else if(strcmp(name, "timedemo") == 0) {
+        type = CB_TIMEDEMO;
+    } else {
+        fprintf(stderr, "[warning] c_SetCallback: unknown callback name '%s', defaulting to GUI\n", name);
+        type = CB_GUI;
+    }
+    
+    /* Call setCallbackByType directly with the numeric type */
+    setCallbackByType(type);
     
     return 0;
 }

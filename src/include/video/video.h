@@ -116,7 +116,7 @@ extern float rec_outline_color[3];
 extern float rec_spec_color[4];
 
 
-extern video_level *gWorld;
+extern video_level *gWorld;  /* Changed from void * to video_level * */
 
 extern int gTokenGameFont;
 // extern nebu_Font *gameFtx;

@@ -39,16 +39,12 @@ function validate_callback(cb_name)
     return cb_name
 end
 
--- Check if c_setCallback is defined
-if type(c_setCallback) ~= "function" then
-    print("[lua] ERROR: c_setCallback is not defined or not a function")
-    print("[lua] Type of c_setCallback: " .. type(c_setCallback))
-else
-    print("[lua] c_setCallback is defined as a function")
-end
+-- Initialize global variables
+callback = "gui"
+game_initialized = 0
 
 -- Initialize return codes
-safe_execute(function()
+if not EScriptingReturnCode then
     print("[lua] Initializing EScriptingReturnCode")
     EScriptingReturnCode = {
         eSRC_Quit = 0,
@@ -67,46 +63,13 @@ safe_execute(function()
         eSRC_Pause_Escape = 14,
         eSRC_32bitWarning_OK = 15,
     }
-end, "initializing EScriptingReturnCode")
+else
+    print("[lua] EScriptingReturnCode already initialized")
+end
 
--- Check for timedemo mode
-safe_execute(function()
-    print("[lua] Checking for timedemo mode")
-    timedemo = nil
-    -- timedemo = 1
-    if(timedemo) then
-        print("[lua] Running in timedemo mode")
-        if type(c_setCallback) == "function" then
-            c_setCallback("timedemo")
-        else
-            print("[lua] ERROR: c_setCallback is not defined or not a function")
-        end
-        if type(c_mainLoop) == "function" then
-            c_mainLoop()
-        else
-            print("[lua] ERROR: c_mainLoop is not defined or not a function")
-        end
-        os.exit()
-    end
-end, "timedemo check")
-
--- Initialize variables and callbacks
-safe_execute(function()
-    print("[lua] Initializing variables and callbacks")
-    -- Initialize variables
-    if callback == nil then
-        callback = "gui"
-    else
-        callback = validate_callback(callback)
-    end
-
-    if Menu == nil then
-        Menu = MainGameMenu
-    end
-
-    game_initialized = 0;
-
-    -- Initialize callback mapping table
+-- Initialize callback mapping table
+if not next_callback then
+    print("[lua] Initializing next_callback")
     next_callback = {}
     next_callback[ EScriptingReturnCode.eSRC_Game_Launch ] = 
         function() 
@@ -130,7 +93,6 @@ safe_execute(function()
         print("[lua] Credits -> credits")
         return "credits"; 
     end
-
     next_callback[ EScriptingReturnCode.eSRC_Game_Escape ] = function() 
         print("[lua] Game escape -> gui")
         return "gui"; 
@@ -145,7 +107,6 @@ safe_execute(function()
                 return "gui"
             end
         end
-        
     next_callback[ EScriptingReturnCode.eSRC_GUI_Prompt_Escape ] = function() 
         print("[lua] GUI prompt escape -> gui")
         return "gui"; 
@@ -154,115 +115,93 @@ safe_execute(function()
         print("[lua] Pause escape -> gui")
         return "gui"; 
     end
-
     next_callback[ EScriptingReturnCode.eSRC_GUI_Prompt ] = function() 
         print("[lua] GUI prompt -> configure")
         return "configure"; 
     end
-    next_callback[ EScriptingReturnCode.eSRC_Timedemo ] = nil
-    next_callback[ EScriptingReturnCode.eSRC_Timedemo_Abort ] = nil
-    next_callback[ EScriptingReturnCode.eSRC_Quit ] = nil
-    -- next_callback[ EScriptingReturnCode.eSRC_32bitWarning_OK ] = function() return "gui"; end
-end, "initializing variables and callbacks")
+else
+    print("[lua] next_callback already initialized")
+end
+
+-- Check for timedemo mode
+timedemo = nil
+if(timedemo) then
+    print("[lua] Running in timedemo mode")
+    c_setCallback("timedemo")
+    c_mainLoop()
+    os.exit()
+end
 
 print("[lua] Starting main loop")
-safe_execute(function()
-    local iteration = 0
-    while true do
-        iteration = iteration + 1
-        print("[lua] Main loop iteration " .. iteration)
-        
-        -- Validate callback before using it
-        callback = validate_callback(callback)
-        
-        print("[lua] Setting callback: " .. tostring(callback))
-        
-        -- Check if c_setCallback is defined
-        if type(c_setCallback) ~= "function" then
-            print("[lua] ERROR: c_setCallback is not defined or not a function")
-            print("[lua] Type of c_setCallback: " .. type(c_setCallback))
-            break
-        end
-        
-        -- Try to call c_setCallback with error handling and more debugging
-        local cb_status, cb_err = pcall(function()
-            print("[lua] About to call c_setCallback with: " .. tostring(callback))
-            
-            -- Check for any global variables that might be nil
-            print("[lua] Checking global variables:")
-            print("[lua] - EScriptingReturnCode: " .. tostring(EScriptingReturnCode))
-            print("[lua] - next_callback: " .. tostring(next_callback))
-            print("[lua] - game_initialized: " .. tostring(game_initialized))
-            
-            -- Try to call c_setCallback with just the string "gui" directly
-            print("[lua] Calling c_setCallback with hardcoded 'gui'")
+local iteration = 0
+while true do
+    iteration = iteration + 1
+    print("[lua] Main loop iteration " .. iteration)
+    
+    -- Validate callback before using it
+    callback = validate_callback(callback)
+    
+    print("[lua] Setting callback: " .. tostring(callback))
+    
+    -- Try to call c_setCallback with error handling
+    local cb_status, cb_err = pcall(function()
+        c_setCallback(callback)
+    end)
+    
+    if not cb_status then
+        print("[lua] ERROR setting callback: " .. tostring(cb_err))
+        -- Try to set callback to "gui" as a fallback
+        print("[lua] Trying to set callback to 'gui' as fallback")
+        local fallback_status, fallback_err = pcall(function()
             c_setCallback("gui")
-            
-            print("[lua] c_setCallback call completed")
         end)
-        
-        if not cb_status then
-            print("[lua] ERROR setting callback: " .. tostring(cb_err))
-            
-            -- Try to identify what's nil
-            print("[lua] Trying to identify the nil value:")
-            local debug_status, debug_err = pcall(function()
-                -- Try to access common global variables
-                print("[lua] - _G: " .. tostring(_G))
-                print("[lua] - _G.c_setCallback: " .. tostring(_G.c_setCallback))
-                
-                -- Try to call c_setCallback with minimal arguments
-                print("[lua] Calling c_setCallback with no arguments")
-                c_setCallback()
-            end)
-            
-            if not debug_status then
-                print("[lua] DEBUG ERROR: " .. tostring(debug_err))
-            end
-            
+        if not fallback_status then
+            print("[lua] ERROR setting fallback callback: " .. tostring(fallback_err))
             break
         end
-        
-        print("[lua] Running main loop")
-        
-        -- Check if c_mainLoop is defined
-        if type(c_mainLoop) ~= "function" then
-            print("[lua] ERROR: c_mainLoop is not defined or not a function")
-            print("[lua] Type of c_mainLoop: " .. type(c_mainLoop))
+        callback = "gui"
+    end
+    
+    print("[lua] Running main loop")
+    
+    -- Try to call c_mainLoop with error handling
+    local loop_status, status = pcall(function()
+        return c_mainLoop()
+    end)
+    
+    if not loop_status then
+        print("[lua] ERROR in main loop: " .. tostring(status))
+        break
+    end
+    
+    print("[lua] System returned: " .. tostring(status))
+    
+    if status == nil then
+        print("[lua] WARNING: status is nil, defaulting to gui")
+        callback = "gui"
+    elseif next_callback == nil then
+        print("[lua] WARNING: next_callback is nil, defaulting to gui")
+        callback = "gui"
+    elseif next_callback[status] == nil then
+        print("[lua] WARNING: next_callback[" .. tostring(status) .. "] is nil")
+        if status == EScriptingReturnCode.eSRC_Quit then
+            print("[lua] Clean exit")
             break
+        else
+            print("[lua] Unhandled callback (" .. tostring(status) .. "), defaulting to gui")
+            callback = "gui"
         end
-        
-        -- Try to call c_mainLoop with error handling
-        local loop_status, status = pcall(function()
-            return c_mainLoop()
-        end)
-        
-        if not loop_status then
-            print("[lua] ERROR in main loop: " .. tostring(status))
-            break
-        end
-        
-        print("[lua] System returned: " .. tostring(status))
-        
-        if next_callback[status] then
-            print("[lua] Calling next_callback handler for status: " .. tostring(status))
-            local next_cb_status, next_cb = pcall(next_callback[status])
-            if not next_cb_status then
-                print("[lua] ERROR in callback handler: " .. tostring(next_cb))
-                break
-            end
+    else
+        print("[lua] Calling next_callback handler for status: " .. tostring(status))
+        local next_cb_status, next_cb = pcall(next_callback[status])
+        if not next_cb_status then
+            print("[lua] ERROR in callback handler: " .. tostring(next_cb))
+            callback = "gui"
+        else
             callback = validate_callback(next_cb)
             print("[lua] Next callback: " .. tostring(callback))
-        else
-            if status == EScriptingReturnCode.eSRC_Quit then
-                print("[lua] Clean exit")
-                break
-            else
-                print("[lua] Unhandled callback (" .. tostring(status) .. ")")
-                break
-            end
         end
     end
-end, "main loop")
+end
 
 print("[lua] main.lua completed")
