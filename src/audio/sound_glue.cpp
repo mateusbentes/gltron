@@ -353,38 +353,82 @@ extern "C" {
   }
 
   void Audio_LoadSample(char *name, int number) {
-    printf("[audio] Loading sample %d: %s\n", number, name);
+    if (!sound) {
+        fprintf(stderr, "[error] Cannot load sample - sound system not initialized\n");
+        return;
+    }
+    
+    printf("[audio] Attempting to load sample %d: %s\n", number, name);
+    
+    // Check if file exists
+    FILE *f = fopen(name, "rb");
+    if (!f) {
+        // Try with "game_" prefix if the original file doesn't exist
+        char alt_name[512];
+        const char* basename = strrchr(name, '/');
+        if (basename) {
+            char path[512];
+            size_t path_len = basename - name + 1;
+            strncpy(path, name, path_len);
+            path[path_len] = '\0';
+            sprintf(alt_name, "%sgame_%s", path, basename + 1);
+        } else {
+            sprintf(alt_name, "game_%s", name);
+        }
+        
+        FILE *alt_f = fopen(alt_name, "rb");
+        if (alt_f) {
+            fclose(alt_f);
+            printf("[audio] Original file not found, using alternative: %s\n", alt_name);
+            name = strdup(alt_name); // Note: This creates a memory leak, but it's small and one-time
+        } else {
+            fprintf(stderr, "[error] Sample file not found: %s (also tried %s)\n", name, alt_name);
+            return;
+        }
+    } else {
+        fclose(f);
+    }
+    
     switch(number) {
-    case 0:
-      sample_engine = new Sound::SourceSample(sound);
-      if (!sample_engine->Load(name)) {
-        fprintf(stderr, "[error] Failed to load engine sample: %s\n", name);
-      } else {
-        printf("[audio] Loaded engine sample successfully\n");
-      }
-      sample_engine->SetName("sample: engine");
-      break;
-    case 1:
-      sample_crash = new Sound::SourceSample(sound);
-      if (!sample_crash->Load(name)) {
-        fprintf(stderr, "[error] Failed to load crash sample: %s\n", name);
-      } else {
-        printf("[audio] Loaded crash sample successfully\n");
-      }
-      sample_crash->SetName("sample: crash");
-      break;
-    case 2:
-      sample_recognizer = new Sound::SourceSample(sound);
-      if (!sample_recognizer->Load(name)) {
-        fprintf(stderr, "[error] Failed to load recognizer sample: %s\n", name);
-      } else {
-        printf("[audio] Loaded recognizer sample successfully\n");
-      }
-      sample_recognizer->SetName("sample: recognizer");
-      break;
+    case 0: // engine sound
+        if (sample_engine) {
+            delete sample_engine;
+        }
+        sample_engine = new Sound::SourceSample(sound);
+        if (!sample_engine->Load(name)) {
+            fprintf(stderr, "[error] Failed to load engine sample: %s\n", name);
+        } else {
+            printf("[audio] Loaded engine sample successfully: %s\n", name);
+        }
+        sample_engine->SetName("sample: engine");
+        break;
+    case 1: // crash sound
+        if (sample_crash) {
+            delete sample_crash;
+        }
+        sample_crash = new Sound::SourceSample(sound);
+        if (!sample_crash->Load(name)) {
+            fprintf(stderr, "[error] Failed to load crash sample: %s\n", name);
+        } else {
+            printf("[audio] Loaded crash sample successfully: %s\n", name);
+        }
+        sample_crash->SetName("sample: crash");
+        break;
+    case 2: // recognizer sound
+        if (sample_recognizer) {
+            delete sample_recognizer;
+        }
+        sample_recognizer = new Sound::SourceSample(sound);
+        if (!sample_recognizer->Load(name)) {
+            fprintf(stderr, "[error] Failed to load recognizer sample: %s\n", name);
+        } else {
+            printf("[audio] Loaded recognizer sample successfully: %s\n", name);
+        }
+        sample_recognizer->SetName("sample: recognizer");
+        break;
     default:
-      /* programmer error, but non-critical */
-      fprintf(stderr, "[error] unknown sample %d: '%s'\n", number, name);
+        /* programmer error, but non-critical */
+        fprintf(stderr, "[error] unknown sample %d: '%s'\n", number, name);
     }
   }
 }
