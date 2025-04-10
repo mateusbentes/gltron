@@ -223,29 +223,38 @@ while not _exit_requested do
     print("[lua] Setting callback: " .. tostring(callback))
     
     -- Try to call c_setCallback with error handling
-	local cb_status, cb_err = pcall(function()
-		if callback == "pause" then
-			print("[lua] Trying to set callback to 'pause'")
-			
-			-- Try to initialize the game world first
-			if c_startGame and type(c_startGame) == "function" and game_initialized == 1 then
-				print("[lua] Ensuring game is initialized")
-				c_startGame()
-			end
-			
-			-- Now set the callback to pause
-			c_setCallback("pause")
-		else
-			c_setCallback(callback)
-		end
-	end)
+    local cb_status, cb_err = pcall(function()
+        -- First check if c_setCallback exists
+        if not c_setCallback or type(c_setCallback) ~= "function" then
+            error("c_setCallback is not available")
+        end
+        
+        if callback == "pause" then
+            print("[lua] Trying to set callback to 'pause'")
+            
+            -- Try to initialize the game world first
+            if c_startGame and type(c_startGame) == "function" and game_initialized == 1 then
+                print("[lua] Ensuring game is initialized")
+                c_startGame()
+            end
+            
+            -- Now set the callback to pause
+            c_setCallback("pause")
+        else
+            c_setCallback(callback)
+        end
+    end)
     
     if not cb_status then
         print("[lua] ERROR setting callback: " .. tostring(cb_err))
         -- Try to set callback to "gui" as a fallback
         print("[lua] Trying to set callback to 'gui' as fallback")
         local fallback_status, fallback_err = pcall(function()
-            c_setCallback("gui")
+            if c_setCallback and type(c_setCallback) == "function" then
+                c_setCallback("gui")
+            else
+                error("c_setCallback is not available for fallback")
+            end
         end)
         if not fallback_status then
             print("[lua] ERROR setting fallback callback: " .. tostring(fallback_err))
@@ -258,6 +267,10 @@ while not _exit_requested do
     
     -- Try to call c_mainLoop with error handling
     local loop_status, status = pcall(function()
+        -- Check if c_mainLoop exists
+        if not c_mainLoop or type(c_mainLoop) ~= "function" then
+            error("c_mainLoop is not available")
+        end
         return c_mainLoop()
     end)
     

@@ -3,7 +3,7 @@
 #define GLTRON_CONFIG_H
 
 /* Directory paths */
-#define PREF_DIR "~/.gltronrc"
+#define RC_NAME ".gltronrc"
 #define SNAP_DIR "~/gltron-snapshots"
 #define DATA_DIR "/usr/local/share/gltron"
 #define VERSION "0.71"

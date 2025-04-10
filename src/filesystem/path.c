@@ -25,10 +25,12 @@ static char scripts_dir[PATH_MAX];
 static char level_dir[PATH_MAX];
 
 void initDirectories(void) {
-  if(PREF_DIR[0] != '~')
-    sprintf(preferences_dir, PREF_DIR);
+  // Set preferences_dir to the home directory
+  sprintf(preferences_dir, "%s", getHome());
+  if(SNAP_DIR[0] != '~')
+    sprintf(snapshots_dir, SNAP_DIR);
   else
-    sprintf(preferences_dir, "%s%s", getHome(), PREF_DIR + 1);
+    sprintf(snapshots_dir, "%s%s", getHome(), SNAP_DIR + 1);
 
   if(SNAP_DIR[0] != '~')
     sprintf(snapshots_dir, SNAP_DIR);
