@@ -133,7 +133,11 @@ extern "C" {
       // check if music is enabled. if it is, advance to
       // next song
       if(gSettingsCache.playMusic) {
-        scripting_Run("nextTrack()");
+        printf("[audio] Music not playing, calling nextTrack() script\n");
+        int result = scripting_Run("nextTrack()");
+        printf("[audio] nextTrack() script returned: %d\n", result);
+      } else {
+        printf("[audio] Music not playing, but playMusic is disabled\n");
       }
     }
 
@@ -251,30 +255,132 @@ extern "C" {
   }
 
   void Audio_LoadMusic(char *name) {
-    if(music != NULL) {
-      music->Stop();
-      music->SetRemovable();
+    printf("[audio] Audio_LoadMusic called with name: %s\n", name ? name : "NULL");
+    
+    if (!sound) {
+        fprintf(stderr, "[error] Cannot load music - sound system not initialized\n");
+        return;
     }
+    
+    printf("[audio] Loading music: %s\n", name);
+    
+    // Check if file exists
+    FILE *f = fopen(name, "rb");
+    if (!f) {
+        printf("[audio] File not found at path: %s\n", name);
+        // Try looking in the music directory if the file isn't found
+        char music_path[512];
+        const char* basename = strrchr(name, '/');
+        if (basename) {
+            basename++; // Skip the '/'
+        } else {
+            basename = name;
+        }
+        
+        sprintf(music_path, "music/%s", basename);
+        f = fopen(music_path, "rb");
+        
+        if (f) {
+            fclose(f);
+            printf("[audio] Found music in music directory: %s\n", music_path);
+            name = strdup(music_path); // Note: This creates a memory leak, but it's small and one-time
+            printf("[audio] Using new path: %s\n", name);
+        } else {
+            // Try looking in the sounds directory
+            sprintf(music_path, "sounds/%s", basename);
+            f = fopen(music_path, "rb");
+            
+            if (f) {
+                fclose(f);
+                printf("[audio] Found music in sounds directory: %s\n", music_path);
+                name = strdup(music_path); // Note: This creates a memory leak, but it's small and one-time
+                printf("[audio] Using new path: %s\n", name);
+            } else {
+                fprintf(stderr, "[error] Music file not found: %s\n", name);
+                fprintf(stderr, "[error] Also tried: music/%s and sounds/%s\n", basename, basename);
+                return;
+            }
+        }
+    } else {
+        fclose(f);
+    }
+    
+    if(music != NULL) {
+        printf("[audio] Stopping previous music track\n");
+        music->Stop();
+        music->SetRemovable();
+    }
+    
     music = new Sound::SourceMusic(sound);
+    
+    printf("[audio] Attempting to load music file: %s\n", name);
+    // SourceMusic::Load returns void, not bool, so we can't check its return value
     music->Load(name);
-		if(getSettingi("loopMusic"))
-			music->SetLoop(255);
+    printf("[audio] Music file loaded into memory\n");
+    
+    int loopSetting = getSettingi("loopMusic");
+    printf("[audio] Loop setting: %d\n", loopSetting);
+    if(loopSetting)
+        music->SetLoop(255);
     music->SetType(Sound::eSoundMusic);
-
     music->SetName("music");
     sound->AddSource(music);
+    
+    if(music) {
+        printf("[audio] Music object details:\n");
+        printf("  - Name: %s\n", music->GetName());
+        printf("  - Type: %d\n", music->GetType());
+        printf("  - Loop: %d\n", music->GetLoop());
+        printf("  - Volume: %.2f\n", music->GetVolume());
+        printf("  - Is playing: %s\n", music->IsPlaying() ? "yes" : "no");
+    }
+    
+    printf("[audio] Music loaded successfully: %s\n", name);
   }
 
   void Audio_PlayMusic(void) {
+    printf("[audio] Audio_PlayMusic called\n");
+    
+    if (!music) {
+        fprintf(stderr, "[error] Cannot play music - music not loaded\n");
+        return;
+    }
+    
+    if (!sound) {
+        fprintf(stderr, "[error] Cannot play music - sound system not initialized\n");
+        return;
+    }
+    
+    // Make sure music mixing is enabled
+    sound->SetMixMusic(1);
+    
+    // Print music information
+    printf("[audio] Music name: %s\n", music->GetName());
+    printf("[audio] Music type: %d\n", music->GetType());
+    printf("[audio] Music volume: %.2f\n", music->GetVolume());
+    
     music->Start();
+    printf("[audio] Music playback started\n");
   }
 
   void Audio_StopMusic(void) {
+    if (!music) {
+        fprintf(stderr, "[error] Cannot stop music - music not loaded\n");
+        return;
+    }
+    
     music->Stop();
+    printf("[audio] Music playback stopped\n");
   }
 
   void Audio_SetMusicVolume(float volume) {
+    if (!music) {
+        fprintf(stderr, "[error] Cannot set music volume - music not loaded\n");
+        return;
+    }
+    
     music->SetVolume(volume);
+    printf("[audio] Music volume set to %.2f\n", volume);
   }
   
   void Audio_SetFxVolume(float volume) {

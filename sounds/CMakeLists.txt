@@ -22,12 +22,9 @@ set(RECOGNIZER_FILE "${CMAKE_CURRENT_SOURCE_DIR}/recognizer.wav")
 if(EXISTS ${RECOGNIZER_FILE})
     message(STATUS "Recognizer sound file found: ${RECOGNIZER_FILE}")
 else()
-    message(WARNING "Missing recognizer sound file. Some game sounds may not work.")
+    message(STATUS "Recognizer sound file not found. Creating a substitute...")
     
     # Try to create a recognizer.wav from another sound file
-    message(STATUS "Attempting to create a substitute recognizer.wav file...")
-    
-    # Try to use game_win.wav or another suitable file as a substitute
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/game_win.wav")
         configure_file("${CMAKE_CURRENT_SOURCE_DIR}/game_win.wav" ${RECOGNIZER_FILE} COPYONLY)
         message(STATUS "Created substitute recognizer.wav from game_win.wav")
