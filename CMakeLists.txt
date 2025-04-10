@@ -182,6 +182,7 @@ if(LOCAL_DATA)
   file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/data)
   file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/music)
   file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/levels)
+  file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/sounds)
   
   # Copy resources immediately during configure step
   file(COPY ${CMAKE_SOURCE_DIR}/scripts/ DESTINATION ${CMAKE_BINARY_DIR}/scripts)
@@ -189,6 +190,7 @@ if(LOCAL_DATA)
   file(COPY ${CMAKE_SOURCE_DIR}/data/ DESTINATION ${CMAKE_BINARY_DIR}/data)
   file(COPY ${CMAKE_SOURCE_DIR}/music/ DESTINATION ${CMAKE_BINARY_DIR}/music)
   file(COPY ${CMAKE_SOURCE_DIR}/levels/ DESTINATION ${CMAKE_BINARY_DIR}/levels)
+  file(COPY ${CMAKE_SOURCE_DIR}/sounds/ DESTINATION ${CMAKE_BINARY_DIR}/sounds)
   
   message(STATUS "Resources copied to build directory")
 endif()
@@ -205,6 +207,7 @@ add_subdirectory(data)
 add_subdirectory(music)
 add_subdirectory(scripts)
 add_subdirectory(levels)
+add_subdirectory(sounds)
 
 # Main executable
 add_executable(gltron ${CMAKE_CURRENT_SOURCE_DIR}/src/gltron.c)
@@ -297,6 +300,12 @@ if(LOCAL_DATA)
     ${CMAKE_SOURCE_DIR}/levels ${CMAKE_BINARY_DIR}/levels
     COMMENT "Copying levels to build directory"
   )
+  
+  add_custom_command(TARGET gltron POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${CMAKE_SOURCE_DIR}/sounds ${CMAKE_BINARY_DIR}/sounds
+    COMMENT "Copying sounds to build directory"
+  )
 endif()
 
 # Installation rules
@@ -306,6 +315,7 @@ install(DIRECTORY data/ DESTINATION share/gltron/data)
 install(DIRECTORY music/ DESTINATION share/gltron/music)
 install(DIRECTORY scripts/ DESTINATION share/gltron/scripts)
 install(DIRECTORY levels/ DESTINATION share/gltron/levels)
+install(DIRECTORY sounds/ DESTINATION share/gltron/sounds)
 
 # Generate tags (similar to the original Makefile.am)
 add_custom_target(tags

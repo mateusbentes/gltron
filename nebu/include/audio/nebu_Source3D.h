@@ -38,6 +38,8 @@ namespace Sound {
     
     void SetLocation(const Vector3& v) { _location = v; }
     void SetVelocity(const Vector3& v) { _velocity = v; }
+    const Vector3& GetLocation() const { return _location; }
+    const Vector3& GetVelocity() const { return _velocity; }
     
     void GetModifiers(float& fPan, float& fVolume, float& fShift);
     

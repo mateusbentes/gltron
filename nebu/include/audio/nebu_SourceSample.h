@@ -8,27 +8,25 @@
 
 namespace Sound {
   // Forward declaration for friendship
-  class Source3D;
-  
   class SourceSample : public Source {
-  public:
-    SourceSample(System *system);
-    virtual ~SourceSample();
-    void Load(char *filename);
-    virtual int Mix(Uint8 *data, int len);
-    
-    // Accessor methods for Source3D
-    Uint8* GetBuffer() const { return _buffer; }
-    int GetBufferSize() const { return _buffersize; }
-    
-  private:
-    Uint8 *_buffer;
-    int _buffersize;
-    int _position;
-    int _decoded;
-    
-    // Make Source3D a friend so it can access private members
-    friend class Source3D;
-  };
+    public:
+      SourceSample(System *system);
+      virtual ~SourceSample();
+      bool Load(char *filename);  // Changed from void to bool
+      virtual int Mix(Uint8 *data, int len);
+      
+      // Accessor methods for Source3D
+      Uint8* GetBuffer() const { return _buffer; }
+      int GetBufferSize() const { return _buffersize; }
+      
+    private:
+      Uint8 *_buffer;
+      int _buffersize;
+      int _position;
+      int _decoded;
+      
+      // Make Source3D a friend so it can access private members
+      friend class Source3D;
+    };
 }
 #endif

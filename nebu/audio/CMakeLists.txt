@@ -15,6 +15,7 @@ target_include_directories(nebu_audio PUBLIC
 # Link libraries
 target_link_libraries(nebu_audio PUBLIC
   sdl_compat
+  nebu_base  # Add dependency on nebu_base which contains the nebu_List functions
   ${SDL2_LIBRARIES}
 )
 

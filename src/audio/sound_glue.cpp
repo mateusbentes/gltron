@@ -1,4 +1,4 @@
-#if 0
+#if 1
 #include "audio/sound_glue.h"
 extern "C" {
 #include "game/game.h"
@@ -13,8 +13,8 @@ extern "C" {
 
 #include "Nebu_audio.h"
 
-#include "SDL.h"
-#include "SDL_sound.h"
+#include <SDL2/SDL.h>
+// Using SDL2 without SDL_sound
 
 #include "base/nebu_debug_memory.h"
 
@@ -30,28 +30,7 @@ static Sound::Source3D *recognizerEngine;
 
 #define TURNLENGTH 250.0f
 
-static void output_decoders(void)
-{
-    const Sound_DecoderInfo **rc = Sound_AvailableDecoders();
-    const Sound_DecoderInfo **i;
-    const char **ext;
-
-    printf("Supported sound formats:\n");
-    if (rc == NULL)
-        printf(" * Apparently, NONE!\n");
-    else
-    {
-        for (i = rc; *i != NULL; i++)
-        {
-            printf(" * %s\n", (*i)->description);
-            for (ext = (*i)->extensions; *ext != NULL; ext++)
-                printf("   File extension \"%s\"\n", *ext);
-            printf("   Written by %s.\n   %s\n\n", (*i)->author, (*i)->url);
-        } /* for */
-    } /* else */
-
-    printf("\n");
-} /* output_decoders */
+// Removed output_decoders function since it depends on SDL_sound
 
 extern "C" {
 
@@ -74,105 +53,116 @@ extern "C" {
   }
 
   void Audio_Idle(void) { 
-    // iterate over all the players and update the engines
-    if(sample_engine->IsPlaying()) {
+    // Check if sound system is initialized
+    if (!sound) {
+      return;
+    }
+
+    // Update player engine sounds
+    if(sample_engine && sample_engine->IsPlaying() && game && ppPlayerSources) {
       for(int i = 0; i < game->players; i++) {
-				if(!ppPlayerSources || !ppPlayerSources[i])
-					continue;
+        if(i >= nPlayerSources || !ppPlayerSources[i])
+          continue;
 
-				Player *p = game->player + i;
-				Sound::SourceEngine *p3d = ppPlayerSources[i];
+        Player *p = game->player + i;
+        if(!p)
+          continue;
 
-				float x, y;
-				getPositionFromIndex(&x, &y, i);
-				p3d->_location = Vector3(x, y, 0);
-				float V = p->data.speed;
+        Sound::SourceEngine *p3d = ppPlayerSources[i];
 
-				int dt = game2->time.current - p->data.turn_time;
-				if(dt < TURN_LENGTH) {
-					float t = (float)dt / TURNLENGTH;
+        float x, y;
+        getPositionFromIndex(&x, &y, i);
+        p3d->SetLocation(Vector3(x, y, 0));
+        float V = p->data.speed;
 
-					float vx = (1 - t) * game2->level->pAxis[p->data.last_dir].v[0] +
-						t * game2->level->pAxis[p->data.dir].v[0];
-					float vy = (1 - t) * game2->level->pAxis[p->data.last_dir].v[1] +
-						t * game2->level->pAxis[p->data.dir].v[1];
-					p3d->_velocity = Vector3(V * vx, V * vy, 0);
-				} else {
-					p3d->_velocity = Vector3(V * game2->level->pAxis[p->data.dir].v[0], 
-					 V * game2->level->pAxis[p->data.dir].v[1], 
-					 0);
-				}
-				if(i == 0) {
-					if(p->data.boost_enabled) {
-						p3d->_speedShift = 1.2f;
-					} else {
-						p3d->_speedShift = 1.0f;
-					}
-					p3d->_pitchShift = p->data.speed / getSettingf("speed");
-				}
+        if(game2) {
+          int dt = game2->time.current - p->data.turn_time;
+          if(dt < TURN_LENGTH && game2->level && game2->level->pAxis) {
+            float t = (float)dt / TURNLENGTH;
+
+            float vx = (1 - t) * game2->level->pAxis[p->data.last_dir].v[0] +
+              t * game2->level->pAxis[p->data.dir].v[0];
+            float vy = (1 - t) * game2->level->pAxis[p->data.last_dir].v[1] +
+              t * game2->level->pAxis[p->data.dir].v[1];
+            p3d->SetVelocity(Vector3(V * vx, V * vy, 0));
+          } else if(game2->level && game2->level->pAxis) {
+            p3d->SetVelocity(Vector3(V * game2->level->pAxis[p->data.dir].v[0], 
+             V * game2->level->pAxis[p->data.dir].v[1], 
+             0));
+          }
+        }
+        
+        if(i == 0) {
+          if(p->data.boost_enabled) {
+            p3d->SetSpeedShift(1.2f);
+          } else {
+            p3d->SetSpeedShift(1.0f);
+          }
+          p3d->SetPitchShift(p->data.speed / getSettingf("speed"));
+        }
 						
 #if 0
-				if(i == 0) {
-					if( dt < TURNLENGTH ) {
-						float t = (float)dt / TURNLENGTH;
-						float speedShift = ( 1 - t ) * 0.4 + t * 0.3;
-						float pitchShift = ( 1 - t ) * 0.9 + t * 1.0;
-						( (Sound::SourceEngine*) p3d )->_speedShift = speedShift;
-						( (Sound::SourceEngine*) p3d )->_pitchShift = pitchShift;
-					} else {
-						( (Sound::SourceEngine*) p3d )->_speedShift = 0.3;
-						( (Sound::SourceEngine*) p3d )->_pitchShift = 1.0;
-					}
-				}
+        if(i == 0) {
+          if( dt < TURNLENGTH ) {
+            float t = (float)dt / TURNLENGTH;
+            float speedShift = ( 1 - t ) * 0.4 + t * 0.3;
+            float pitchShift = ( 1 - t ) * 0.9 + t * 1.0;
+            ( (Sound::SourceEngine*) p3d )->_speedShift = speedShift;
+            ( (Sound::SourceEngine*) p3d )->_pitchShift = pitchShift;
+          } else {
+            ( (Sound::SourceEngine*) p3d )->_speedShift = 0.3;
+            ( (Sound::SourceEngine*) p3d )->_pitchShift = 1.0;
+          }
+        }
 #endif
       }
     }
 
-    if(sample_recognizer->IsPlaying()) {
+    // Update recognizer sound
+    if(sample_recognizer && sample_recognizer->IsPlaying() && recognizerEngine) {
       if (gSettingsCache.show_recognizer) {
-				vec2 p, v;
-				getRecognizerPositionVelocity(&p, &v);
-				// recognizerEngine->_location = Vector3(p.x, p.y, RECOGNIZER_HEIGHT);
-				recognizerEngine->_location = Vector3(p.v[0], p.v[1], 10.0f);
-				recognizerEngine->_velocity = Vector3(v.v[0], v.v[1], 0);
+        vec2 p, v;
+        getRecognizerPositionVelocity(&p, &v);
+        recognizerEngine->SetLocation(Vector3(p.v[0], p.v[1], 10.0f));
+        recognizerEngine->SetVelocity(Vector3(v.v[0], v.v[1], 0));
       }
     }
 
-	if(music && !music->IsPlaying()) {
-		// check if music is enabled. if it is, advance to
-		// next song
-		if(gSettingsCache.playMusic) {
-			scripting_Run("nextTrack()");
-		}
-	}
+    // Check if music needs to be restarted
+    if(music && !music->IsPlaying()) {
+      // check if music is enabled. if it is, advance to
+      // next song
+      if(gSettingsCache.playMusic) {
+        scripting_Run("nextTrack()");
+      }
+    }
 
-	// TODO: add support for multiple listeners here
-	// Problem/Constraint:
-	// Each listener MUST consume exactly the same amount of samples
-	// from each source (that means the pitch shift can't just be
-	// done by speeding up playback)
+    // TODO: add support for multiple listeners here
+    // Problem/Constraint:
+    // Each listener MUST consume exactly the same amount of samples
+    // from each source (that means the pitch shift can't just be
+    // done by speeding up playback)
     Sound::Listener& listener = sound->GetListener();
-	if(gnPlayerVisuals == 0 || gppPlayerVisuals[0]->pPlayer == NULL)
-	{
-		listener._isValid = 0;
-	}
-	else
-	{
-		nebu_assert(gppPlayerVisuals);
-		nebu_assert(gppPlayerVisuals[0]);
-		listener._isValid = 1;
-		listener._location = Vector3(gppPlayerVisuals[0]->camera.cam);
-			Vector3 v1 = Vector3(gppPlayerVisuals[0]->camera.target);
-			Vector3 v2 = Vector3(gppPlayerVisuals[0]->camera.cam);
-		listener._direction = v1 - v2;
-	      
-		// listener._location = players[0]->_location;
-		// listener._direction = players[0]->_velocity;
-		if(ppPlayerSources)
-			listener._velocity = ppPlayerSources[0]->_velocity;
-		else
-		listener._velocity = Vector3(0, 0, 0);
-	}
+    
+    // Check if player visuals are available
+    if(gnPlayerVisuals == 0 || !gppPlayerVisuals || !gppPlayerVisuals[0] || !gppPlayerVisuals[0]->pPlayer)
+    {
+      listener._isValid = 0;
+    }
+    else
+    {
+      listener._isValid = 1;
+      listener._location = Vector3(gppPlayerVisuals[0]->camera.cam);
+      Vector3 v1 = Vector3(gppPlayerVisuals[0]->camera.target);
+      Vector3 v2 = Vector3(gppPlayerVisuals[0]->camera.cam);
+      listener._direction = v1 - v2;
+      
+      // Check if player sources are available before accessing
+      if(ppPlayerSources && ppPlayerSources[0])
+        listener._velocity = ppPlayerSources[0]->GetVelocity();
+      else
+        listener._velocity = Vector3(0, 0, 0);
+    }
     listener._up = Vector3(0, 0, 1);
 
     sound->SetMixMusic(gSettingsCache.playMusic);
@@ -190,8 +180,13 @@ extern "C" {
   }
 
   void Audio_Init(void) {
-    Sound_Init(); // Init SDL_Sound
-    // output_decoders();
+    // Initialize SDL audio subsystem instead of SDL_sound
+    if (SDL_InitSubSystem(SDL_INIT_AUDIO) != 0) {
+      fprintf(stderr, "[error] SDL audio initialization failed: %s\n", SDL_GetError());
+      return;
+    }
+
+    printf("[audio] SDL audio subsystem initialized\n");
 
     SDL_AudioSpec* spec = new SDL_AudioSpec;
     spec->freq = 22050;
@@ -204,21 +199,20 @@ extern "C" {
     spec->userdata = sound;
     spec->callback = sound->GetCallback();
 
-	SDL_AudioSpec obtained;
+    SDL_AudioSpec obtained;
 
-    if(SDL_OpenAudio( spec, &obtained ) != 0) {
+    if(SDL_OpenAudio(spec, &obtained) != 0) {
       fprintf(stderr, "[error] %s\n", SDL_GetError());
       sound->SetStatus(Sound::eUninitialized);
     } else {
       sound->SetStatus(Sound::eInitialized);
-			/*
-			fprintf(stderr, "[sound] frequency: %d\n", obtained.freq);
-			fprintf(stderr, "[sound] format: %d\n", obtained.format);
-			fprintf(stderr, "[sound] channels: %d\n", obtained.channels);
-			fprintf(stderr, "[sound] silence: %d\n", obtained.silence);
-			fprintf(stderr, "[sound] buffer in samples: %d\n", obtained.samples);
-			fprintf(stderr, "[sound] buffer in bytes: %d\n", obtained.size);
-			*/
+      printf("[audio] Audio device opened successfully\n");
+      printf("[audio] frequency: %d\n", obtained.freq);
+      printf("[audio] format: %d\n", obtained.format);
+      printf("[audio] channels: %d\n", obtained.channels);
+      printf("[audio] silence: %d\n", obtained.silence);
+      printf("[audio] buffer in samples: %d\n", obtained.samples);
+      printf("[audio] buffer in bytes: %d\n", obtained.size);
     }
     sound->SetMixMusic(gSettingsCache.playMusic);
     sound->SetMixFX(gSettingsCache.playEffects);
@@ -230,28 +224,30 @@ extern "C" {
 
   void Audio_Quit(void) {
     SDL_PauseAudio(1);
-    Sound_Quit();
     SDL_CloseAudio();
-	if(sound)
-	{
-		delete sound;
-		sound = NULL;
-	}
-	if(sample_crash)
-	{
-		delete sample_crash;
-		sample_crash = NULL;
-	}
-	if(sample_engine)
-	{
-		delete sample_engine;
-		sample_engine = NULL;
-	}
-	if(sample_recognizer)
-	{
-		delete sample_recognizer;
-		sample_recognizer = NULL;
-	}
+    if(sound)
+    {
+        delete sound;
+        sound = NULL;
+    }
+    if(sample_crash)
+    {
+        delete sample_crash;
+        sample_crash = NULL;
+    }
+    if(sample_engine)
+    {
+        delete sample_engine;
+        sample_engine = NULL;
+    }
+    if(sample_recognizer)
+    {
+        delete sample_recognizer;
+        sample_recognizer = NULL;
+    }
+    
+    // Quit SDL audio subsystem
+    SDL_QuitSubSystem(SDL_INIT_AUDIO);
   }
 
   void Audio_LoadMusic(char *name) {
@@ -316,7 +312,7 @@ extern "C" {
 		  for(int i = 0; i < nPlayerSources; i++)
 		  {
 			  sound->RemoveSource(ppPlayerSources[i]);
-			  nebu_assert(ppPlayerSources[i]);
+			  if (!ppPlayerSources[i]) { fprintf(stderr, "[error] ppPlayerSources[%d] is NULL\n", i); continue; }
 			  delete ppPlayerSources[i];
 		  }
 		  delete[] ppPlayerSources;
@@ -357,25 +353,38 @@ extern "C" {
   }
 
   void Audio_LoadSample(char *name, int number) {
+    printf("[audio] Loading sample %d: %s\n", number, name);
     switch(number) {
     case 0:
       sample_engine = new Sound::SourceSample(sound);
-      sample_engine->Load(name);
-	  sample_engine->SetName("sample: engine");
+      if (!sample_engine->Load(name)) {
+        fprintf(stderr, "[error] Failed to load engine sample: %s\n", name);
+      } else {
+        printf("[audio] Loaded engine sample successfully\n");
+      }
+      sample_engine->SetName("sample: engine");
       break;
     case 1:
       sample_crash = new Sound::SourceSample(sound);
-      sample_crash->Load(name);
-	  sample_crash->SetName("sample: crash");
+      if (!sample_crash->Load(name)) {
+        fprintf(stderr, "[error] Failed to load crash sample: %s\n", name);
+      } else {
+        printf("[audio] Loaded crash sample successfully\n");
+      }
+      sample_crash->SetName("sample: crash");
       break;
     case 2:
       sample_recognizer = new Sound::SourceSample(sound);
-      sample_recognizer->Load(name);
-	  sample_recognizer->SetName("sample: recognizer");
+      if (!sample_recognizer->Load(name)) {
+        fprintf(stderr, "[error] Failed to load recognizer sample: %s\n", name);
+      } else {
+        printf("[audio] Loaded recognizer sample successfully\n");
+      }
+      sample_recognizer->SetName("sample: recognizer");
       break;
     default:
       /* programmer error, but non-critical */
-      fprintf(stderr, "[error] unkown sample %d: '%s'\n", number, name);
+      fprintf(stderr, "[error] unknown sample %d: '%s'\n", number, name);
     }
   }
 }

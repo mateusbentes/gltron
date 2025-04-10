@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "base/nebu_debug_memory.h"
+#include "base/nebu_util.h"  // Include the header that contains nebu_List declarations
 
 namespace Sound {
   System::System(SDL_AudioSpec *spec) { 
@@ -15,7 +16,7 @@ namespace Sound {
 
     _sources = nebu_List_Create();
 
-    _status = 0; // sound system is not initialized
+    _status = eUninitialized; // sound system is not initialized
   }
   
   System::~System()
@@ -31,10 +32,8 @@ namespace Sound {
   }
 
   void System::Callback(Uint8* data, int len) {
-    // printf("callback got called for %d bytes of data\n", len);
-
     // ensure silence
-    memset(data, 0, len);
+    memset(data, _spec->silence, len);
 
     if(_status == eUninitialized) 
       return;
@@ -44,19 +43,16 @@ namespace Sound {
     for(p = _sources; p->next != NULL; p = p->next) {
       Source* s = static_cast<Source*>(p->data);
       if(s->IsPlaying()) {
-        // fprintf(stderr, "mixing source\n");
-        if(!(
-             (s->GetType() & eSoundFX && ! _mix_fx ) ||
-             (s->GetType() & eSoundMusic && ! _mix_music) )
-           )
-          {
-            if( s->Mix(data, len) )
-              sources_mixed++;
-          }
-        // fprintf(stderr, "done mixing %d sources\n", sources_mixed);
+        if(!((s->GetType() & eSoundFX && !_mix_fx) ||
+             (s->GetType() & eSoundMusic && !_mix_music)))
+        {
+          if(s->Mix(data, len))
+            sources_mixed++;
+        }
       }
     }
   }
+
 
   void System::AddSource(Source* source) { 
     nebu_List_AddTail(_sources, source);
@@ -78,39 +74,42 @@ namespace Sound {
 
   void System::Idle(void) {
     /* idle processing */
-    nebu_List *p, *pPrev;
-    int bCheckRemove = 1;
-
+    nebu_List *p, *pNext;
+    
+    // First call Idle on all sources
     for(p = _sources; p->next != NULL; p = p->next)
     {
       Source *source = static_cast<Source*>(p->data);
       source->Idle();
     }
-
-    while(bCheckRemove)
+    
+    // Then check for removable sources
+    nebu_List *pPrev = NULL;
+    p = _sources;
+    
+    while(p->next != NULL)
     {
-      bCheckRemove = 0;
-      pPrev = NULL;
-      for(p = _sources; p->next != NULL; p = p->next)
+      Source *source = static_cast<Source*>(p->data);
+      pNext = p->next;
+      
+      if(source->IsRemovable() && !source->IsPlaying())
       {
-        // check if source is removable & has stopped playing
-        Source *source = static_cast<Source*>(p->data);
-        if(source->IsRemovable() && !source->IsPlaying())
-        {
-          delete source;  // Use the properly cast pointer
-          nebu_List_RemoveAt(p, pPrev);
-          bCheckRemove = 1;
-          break;
-        }
+        delete source;
+        nebu_List_RemoveAt(p, pPrev);
+        p = pNext;
+      }
+      else
+      {
         pPrev = p;
+        p = pNext;
       }
     }
   }
+  
 }
 
 extern "C" {
   void c_callback(void *userdata, Uint8 *stream, int len) { 
-    // printf("c_callback got called for %d bytes of data\n", len);
-    ((Sound::System*)userdata)->Callback(stream, len);
+    static_cast<Sound::System*>(userdata)->Callback(stream, len);
   }
 }

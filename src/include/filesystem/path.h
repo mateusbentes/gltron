@@ -10,6 +10,9 @@
   #define SEPARATOR '/'
 #endif
 
+/* Define the name of the configuration file */
+#define RC_NAME ".gltronrc"
+
 typedef enum ePathLocation { 
 	PATH_PREFERENCES = 0,
 	PATH_SNAPSHOTS, /* demos, screenshots */
