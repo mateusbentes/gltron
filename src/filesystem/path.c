@@ -11,6 +11,8 @@
 
 #include "base/nebu_debug_memory.h"
 
+void makeDirectory(const char *name);
+
 #ifndef PATH_MAX
 // #warning PATH_MAX "is not defined in limits.h!"
 #define PATH_MAX 255
@@ -25,13 +27,13 @@ static char scripts_dir[PATH_MAX];
 static char level_dir[PATH_MAX];
 
 void initDirectories(void) {
-  // Set preferences_dir to the home directory
-  sprintf(preferences_dir, "%s", getHome());
-  if(SNAP_DIR[0] != '~')
-    sprintf(snapshots_dir, SNAP_DIR);
+  // Set preferences_dir based on PREF_DIR
+  if(PREF_DIR[0] != '~')
+    sprintf(preferences_dir, PREF_DIR);
   else
-    sprintf(snapshots_dir, "%s%s", getHome(), SNAP_DIR + 1);
+    sprintf(preferences_dir, "%s%s", getHome(), PREF_DIR + 1);
 
+  // Set snapshots_dir based on SNAP_DIR
   if(SNAP_DIR[0] != '~')
     sprintf(snapshots_dir, SNAP_DIR);
   else
@@ -60,18 +62,18 @@ void initDirectories(void) {
   sprintf(level_dir, "%s%c%s", DATA_DIR, SEPARATOR, "levels");
 #endif
 
-	/*
+  /*
   printf("directories:\n"
-	 "\tprefs: %s\n"
-	 "\tsnaps: %s\n"
-	 "\tdata:  %s\n"
-	 "\tart:   %s\n"
-	 "\tscripts:   %s\n"
-	 "\tmusic: %s\n",
-	 preferences_dir, snapshots_dir, 
-	 data_dir, art_dir, scripts_dir, 
-	 music_dir);
-	*/
+     "\tprefs: %s\n"
+     "\tsnaps: %s\n"
+     "\tdata:  %s\n"
+     "\tart:   %s\n"
+     "\tscripts:   %s\n"
+     "\tmusic: %s\n",
+     preferences_dir, snapshots_dir, 
+     data_dir, art_dir, scripts_dir, 
+     music_dir);
+  */
 
   makeDirectory(preferences_dir);
   makeDirectory(snapshots_dir);
@@ -91,9 +93,20 @@ char* getPath( ePathLocation eLocation, const char *filename) {
   return NULL;
 }
 
-char* getPossiblePath( ePathLocation eLocation, const char *filename ) {
-  char *path = malloc( PATH_MAX );
-  sprintf(path, "%s%c%s", getDirectory( eLocation ), SEPARATOR, filename);
+char* getPossiblePath(ePathLocation eLocation, const char *filename) {
+  char *path = malloc(PATH_MAX);
+  const char *directory = getDirectory(eLocation);
+  
+  // Special case for preferences directory on Linux/Unix
+  if (eLocation == PATH_PREFERENCES && strcmp(filename, RC_NAME) == 0 && 
+      strstr(directory, RC_NAME) != NULL) {
+    // If the directory already includes the filename, just use the directory
+    sprintf(path, "%s", directory);
+  } else {
+    // Normal case - append filename to directory
+    sprintf(path, "%s%c%s", directory, SEPARATOR, filename);
+  }
+  
   return path;
 }
 
