@@ -19,73 +19,80 @@
 #include "base/nebu_callbacks.h"
 #include "video/nebu_console.h"
 
+extern video_level *gWorld;  // Use the correct type for gWorld
+extern void video_LoadLevel(void);
+
 /* very brief - just the pause mode */
 
 void idlePause(void) {
-	Sound_idle();
-	game2->time.dt = 0;
-	doCameraMovement();
-	{
-		int dx, dy;
-		nebu_Input_Mouse_GetDelta(&dx,&dy);
-		if(dx || dy)
+    Sound_idle();
+    // Don't set game2->time.dt = 0, let the game run
+    // game2->time.dt = 0;
+    doCameraMovement();
+    {
+        int dx, dy;
+        nebu_Input_Mouse_GetDelta(&dx,&dy);
+        if(dx || dy)
             nebu_Input_Mouse_WarpToOrigin();
-	}
-	scripting_RunGC();
-	nebu_Time_FrameDelay(10);
-	nebu_System_PostRedisplay();
+    }
+    scripting_RunGC();
+    nebu_Time_FrameDelay(10);
+    nebu_System_PostRedisplay();
 }
 
 void keyboardPause(int state, int key, int x, int y) {
-	if(state == NEBU_INPUT_KEYSTATE_UP)
-		return;
+    fprintf(stderr, "[debug] keyboardPause: state=%d, key=%d\n", state, key);
+    
+    if(state == NEBU_INPUT_KEYSTATE_UP)
+        return;
 
-	switch(key) {
-	case 27:
-		nebu_System_ExitLoop(eSRC_Pause_Escape);
-		break;
-	case SYSTEM_KEY_F1: changeDisplay(0); break;
-	case SYSTEM_KEY_F2: changeDisplay(1); break;
-	case SYSTEM_KEY_F3: changeDisplay(2); break;
-	case SYSTEM_KEY_F4: changeDisplay(3); break;
+    switch(key) {
+    case 27:
+        fprintf(stderr, "[debug] keyboardPause: ESC key pressed, exiting with eSRC_Pause_Escape\n");
+        nebu_System_ExitLoop(eSRC_Pause_Escape);
+        break;
+    case SYSTEM_KEY_F1: changeDisplay(0); break;
+    case SYSTEM_KEY_F2: changeDisplay(1); break;
+    case SYSTEM_KEY_F3: changeDisplay(2); break;
+    case SYSTEM_KEY_F4: changeDisplay(3); break;
 
-		// somehow, this breaks the 'keys' array, and saving
-		// at the end of the game fails
-		// case SYSTEM_KEY_F5: saveSettings(); return;
+        // somehow, this breaks the 'keys' array, and saving
+        // at the end of the game fails
+        // case SYSTEM_KEY_F5: saveSettings(); return;
 
-	case SYSTEM_KEY_F10: nextCameraType(); break;
+    case SYSTEM_KEY_F10: nextCameraType(); break;
 
-	case SYSTEM_KEY_F11: doBmpScreenShot(gScreen); break;
-	case SYSTEM_KEY_F12: doPngScreenShot(gScreen); break;
-	    
-	case SYSTEM_KEY_UP: console_Seek(-1); break;
-	case SYSTEM_KEY_DOWN: console_Seek(1); break;
+    case SYSTEM_KEY_F11: doBmpScreenShot(gScreen); break;
+    case SYSTEM_KEY_F12: doPngScreenShot(gScreen); break;
+        
+    case SYSTEM_KEY_UP: console_Seek(-1); break;
+    case SYSTEM_KEY_DOWN: console_Seek(1); break;
 
-	case SYSTEM_KEY_TAB: 
-		// nebu_System_ExitLoop(RETURN_MENU_PROMPT);
-		break;
+    case SYSTEM_KEY_TAB: 
+        // nebu_System_ExitLoop(RETURN_MENU_PROMPT);
+        break;
 
-	default:
-		if(game->pauseflag == PAUSE_GAME_FINISHED) {
-			game_ResetData();
-			video_ResetData();
-			Audio_ResetData();
-		}
-		else
-		{
-			game->pauseflag = PAUSE_GAME_RUNNING;
-			nebu_System_ExitLoop(eSRC_Game_Unpause);
-		}
-		/* lasttime = SystemGetElapsedTime(); */
-		break;
-	}
+    default:
+        fprintf(stderr, "[debug] keyboardPause: default case, key=%d\n", key);
+        if(game->pauseflag == PAUSE_GAME_FINISHED) {
+            fprintf(stderr, "[debug] keyboardPause: game finished, resetting data\n");
+            game_ResetData();
+            video_ResetData();
+            Audio_ResetData();
+        }
+        else
+        {
+            fprintf(stderr, "[debug] keyboardPause: unpausing game\n");
+            game->pauseflag = PAUSE_GAME_RUNNING;
+            nebu_System_ExitLoop(eSRC_Game_Unpause);
+        }
+        /* lasttime = SystemGetElapsedTime(); */
+        break;
+    }
 }
 
 void initPause(void) {
     /* Check if gWorld is NULL and initialize it if needed */
-    extern video_level *gWorld;  // Changed from void * to video_level *
-    extern void video_LoadLevel(void);
-    
     if (!gWorld) {
         fprintf(stderr, "[status] initPause: loading level\n");
         video_LoadLevel();

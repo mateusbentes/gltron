@@ -119,10 +119,6 @@ if not next_callback then
         print("[lua] GUI prompt -> configure")
         return "configure"; 
     end
-    next_callback[ EScriptingReturnCode.eSRC_Quit ] = function() 
-        print("[lua] Quit -> gui")
-        return "gui"; 
-    end
 else
     print("[lua] next_callback already initialized")
 end
