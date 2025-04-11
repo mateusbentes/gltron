@@ -38,7 +38,9 @@ end
 
 -- Function to save all settings
 function save()
-  table.foreach(settings,savevar)
+  for n, v in pairs(settings) do
+    savevar(n, v)
+  end
 end
 
 -- Function to save settings with music handling
