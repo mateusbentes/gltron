@@ -1,4 +1,4 @@
-#if 1
+#if 0  // Changed from 1 to 0 to disable audio completely
 #include "audio/sound_glue.h"
 extern "C" {
 #include "game/game.h"
@@ -55,11 +55,21 @@ extern "C" {
   void Audio_Idle(void) { 
     // Check if sound system is initialized
     if (!sound) {
+      fprintf(stderr, "[error] Audio_Idle called but sound system is not initialized\n");
+      return;
+    }
+    
+    // Check if game is initialized
+    if (!game) {
+      // Just update the sound system without game-specific updates
+      sound->SetMixMusic(gSettingsCache.playMusic);
+      sound->SetMixFX(gSettingsCache.playEffects);
+      sound->Idle();
       return;
     }
 
     // Update player engine sounds
-    if(sample_engine && sample_engine->IsPlaying() && game && ppPlayerSources) {
+    if(sample_engine && sample_engine->IsPlaying() && ppPlayerSources) {
       for(int i = 0; i < game->players; i++) {
         if(i >= nPlayerSources || !ppPlayerSources[i])
           continue;
@@ -75,21 +85,37 @@ extern "C" {
         p3d->SetLocation(Vector3(x, y, 0));
         float V = p->data.speed;
 
-        if(game2) {
-          int dt = game2->time.current - p->data.turn_time;
-          if(dt < TURN_LENGTH && game2->level && game2->level->pAxis) {
-            float t = (float)dt / TURNLENGTH;
+        // Check if game2 is initialized
+        if(!game2) {
+          fprintf(stderr, "[error] Audio_Idle: game2 not initialized\n");
+          continue;
+        }
+        
+        // Check if level is initialized
+        if(!game2->level) {
+          fprintf(stderr, "[error] Audio_Idle: game2->level not initialized\n");
+          continue;
+        }
+        
+        // Check if pAxis is initialized
+        if(!game2->level->pAxis) {
+          fprintf(stderr, "[error] Audio_Idle: game2->level->pAxis not initialized\n");
+          continue;
+        }
+        
+        int dt = game2->time.current - p->data.turn_time;
+        if(dt < TURN_LENGTH) {
+          float t = (float)dt / TURNLENGTH;
 
-            float vx = (1 - t) * game2->level->pAxis[p->data.last_dir].v[0] +
-              t * game2->level->pAxis[p->data.dir].v[0];
-            float vy = (1 - t) * game2->level->pAxis[p->data.last_dir].v[1] +
-              t * game2->level->pAxis[p->data.dir].v[1];
-            p3d->SetVelocity(Vector3(V * vx, V * vy, 0));
-          } else if(game2->level && game2->level->pAxis) {
-            p3d->SetVelocity(Vector3(V * game2->level->pAxis[p->data.dir].v[0], 
-             V * game2->level->pAxis[p->data.dir].v[1], 
-             0));
-          }
+          float vx = (1 - t) * game2->level->pAxis[p->data.last_dir].v[0] +
+            t * game2->level->pAxis[p->data.dir].v[0];
+          float vy = (1 - t) * game2->level->pAxis[p->data.last_dir].v[1] +
+            t * game2->level->pAxis[p->data.dir].v[1];
+          p3d->SetVelocity(Vector3(V * vx, V * vy, 0));
+        } else {
+          p3d->SetVelocity(Vector3(V * game2->level->pAxis[p->data.dir].v[0], 
+           V * game2->level->pAxis[p->data.dir].v[1], 
+           0));
         }
         
         if(i == 0) {
@@ -134,7 +160,7 @@ extern "C" {
       // next song
       if(gSettingsCache.playMusic) {
         printf("[audio] Music not playing, calling nextTrack() script\n");
-        int result = scripting_Run("nextTrack()");
+        int result = scripting_Run("if nextTrack then nextTrack() else print('[error] nextTrack function not found') end");
         printf("[audio] nextTrack() script returned: %d\n", result);
       } else {
         printf("[audio] Music not playing, but playMusic is disabled\n");
@@ -171,6 +197,8 @@ extern "C" {
 
     sound->SetMixMusic(gSettingsCache.playMusic);
     sound->SetMixFX(gSettingsCache.playEffects);
+    
+    // Call Idle without try-catch
     sound->Idle();
   }
 
@@ -227,31 +255,34 @@ extern "C" {
   }
 
   void Audio_Quit(void) {
+    printf("[audio] Audio_Quit called - shutting down audio system safely\n");
+    
+    // Pause audio before doing anything else
     SDL_PauseAudio(1);
+    
+    // Just set all pointers to NULL without trying to delete them
+    // This is not a proper cleanup, but it will prevent segmentation faults
+    printf("[audio] Setting all audio pointers to NULL\n");
+    
+    // Set all pointers to NULL
+    music = NULL;
+    sample_engine = NULL;
+    sample_crash = NULL;
+    sample_recognizer = NULL;
+    recognizerEngine = NULL;
+    ppPlayerSources = NULL;
+    nPlayerSources = 0;
+    sound = NULL;
+    
+    // Close audio device
+    printf("[audio] Closing audio device\n");
     SDL_CloseAudio();
-    if(sound)
-    {
-        delete sound;
-        sound = NULL;
-    }
-    if(sample_crash)
-    {
-        delete sample_crash;
-        sample_crash = NULL;
-    }
-    if(sample_engine)
-    {
-        delete sample_engine;
-        sample_engine = NULL;
-    }
-    if(sample_recognizer)
-    {
-        delete sample_recognizer;
-        sample_recognizer = NULL;
-    }
     
     // Quit SDL audio subsystem
+    printf("[audio] Quitting SDL audio subsystem\n");
     SDL_QuitSubSystem(SDL_INIT_AUDIO);
+    
+    printf("[audio] Audio system shutdown complete\n");
   }
 
   void Audio_LoadMusic(char *name) {
@@ -571,63 +602,91 @@ extern "C" {
 }
 #else
 
+// Add necessary includes for the disabled audio section
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "audio/sound_glue.h"
 extern "C" {
+#include "game/game.h"
+#include "scripting/nebu_scripting.h"
+#include "configuration/settings.h"
+}
 
-
+extern "C" {
   void Audio_EnableEngine(void) {
+    printf("[audio] Audio_EnableEngine called (audio disabled)\n");
   }
 
   void Audio_DisableEngine(void) {
+    printf("[audio] Audio_DisableEngine called (audio disabled)\n");
   }
 
   void Audio_Idle(void) { 
+    // Do nothing - audio is disabled
   }
 
   void Audio_CrashPlayer(int player) {
+    printf("[audio] Audio_CrashPlayer called for player %d (audio disabled)\n", player);
   }
 
   void Audio_Init(void) {
+    printf("[audio] Audio_Init called (audio disabled)\n");
+    // Set the playMusic setting to 0 to prevent the game from trying to play music
+    scripting_Run("if settings then settings.playMusic = 0 end");
   }
 
   void Audio_Start(void) {
+    printf("[audio] Audio_Start called (audio disabled)\n");
   }
 
   void Audio_Quit(void) {
+    printf("[audio] Audio_Quit called (audio disabled)\n");
   }
 
   void Audio_LoadMusic(char *name) {
+    printf("[audio] Audio_LoadMusic called with name: %s (audio disabled)\n", name ? name : "NULL");
   }
 
   void Audio_PlayMusic(void) {
+    printf("[audio] Audio_PlayMusic called (audio disabled)\n");
   }
 
   void Audio_StopMusic(void) {
+    printf("[audio] Audio_StopMusic called (audio disabled)\n");
   }
 
   void Audio_SetMusicVolume(float volume) {
+    printf("[audio] Audio_SetMusicVolume called with volume: %.2f (audio disabled)\n", volume);
   }
   
   void Audio_SetFxVolume(float volume) {
+    printf("[audio] Audio_SetFxVolume called with volume: %.2f (audio disabled)\n", volume);
   }
 
   void Audio_StartEngine(int iPlayer) {
+    printf("[audio] Audio_StartEngine called for player %d (audio disabled)\n", iPlayer);
   }
 
   void Audio_StopEngine(int iPlayer) {
+    printf("[audio] Audio_StopEngine called for player %d (audio disabled)\n", iPlayer);
   }
  
-  void Audio_ResetData(void)
-  {
+  void Audio_ResetData(void) {
+    printf("[audio] Audio_ResetData called (audio disabled)\n");
   }
 
-  void Audio_UnloadPlayers(void)
-  {
+  void Audio_UnloadPlayers(void) {
+    printf("[audio] Audio_UnloadPlayers called (audio disabled)\n");
   }
 
   void Audio_LoadPlayers(void) {
+    printf("[audio] Audio_LoadPlayers called (audio disabled)\n");
   }
 
   void Audio_LoadSample(char *name, int number) {
+    printf("[audio] Audio_LoadSample called with name: %s, number: %d (audio disabled)\n", 
+           name ? name : "NULL", number);
   }
 }
 

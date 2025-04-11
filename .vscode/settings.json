@@ -9,6 +9,7 @@
         "cmath": "cpp",
         "string.h": "c",
         "nebu_scripting.h": "c",
-        "typeinfo": "cpp"
+        "typeinfo": "cpp",
+        "*.tcc": "cpp"
     }
 }

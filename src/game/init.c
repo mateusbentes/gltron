@@ -1,6 +1,7 @@
 #include "filesystem/path.h"
 #include "filesystem/dirsetup.h"
 #include "game/engine.h"
+#include <stdio.h>
 #include "game/init.h"
 #include "game/gltron.h"
 #include "game/game.h"
@@ -11,6 +12,7 @@
 #include "scripting/scripting.h"
 #include "base/nebu_system.h"
 #include "audio/audio.h"
+#include "audio/sound_glue.h"  /* Added sound_glue.h for Audio_* functions */
 #include "audio/nebu_audio_system.h"
 #include "configuration/settings.h"
 #include "configuration/configuration.h"
@@ -26,11 +28,26 @@
 #include "base/nebu_assert.h"
 
 void initFilesystem(int argc, const char *argv[]);
+void debug_print_paths(void);
 void initGUIs(void);
+
+/* Debug function to print out the current paths */
+void debug_print_paths(void) {
+    printf("[debug] Current paths:\n");
+    printf("[debug] PATH_PREFERENCES: %s\n", getDirectory(PATH_PREFERENCES));
+    printf("[debug] PATH_SNAPSHOTS: %s\n", getDirectory(PATH_SNAPSHOTS));
+    printf("[debug] PATH_DATA: %s\n", getDirectory(PATH_DATA));
+    printf("[debug] PATH_SCRIPTS: %s\n", getDirectory(PATH_SCRIPTS));
+    printf("[debug] PATH_MUSIC: %s\n", getDirectory(PATH_MUSIC));
+    printf("[debug] PATH_ART: %s\n", getDirectory(PATH_ART));
+    printf("[debug] PATH_LEVEL: %s\n", getDirectory(PATH_LEVEL));
+}
 
 void exitSubsystems(void)
 {
 	Sound_shutdown();
+	// Audio_Quit();  /* Commented out to prevent segmentation fault */
+	printf("[audio] Skipping Audio_Quit to prevent segmentation fault\n");
 
 	freeVideoData();
 
@@ -68,14 +85,21 @@ void initSubsystems(int argc, const char *argv[]) {
 
 	initGUIs();
 	initVideo();
-	//initAudio();
+	initAudio();  /* Uncommented to initialize audio */
 	initInput();
 
 	fprintf(stderr, "[status] done loading level...\n");
 }
 
 void initFilesystem(int argc, const char *argv[]) {
+	printf("[debug] Initializing filesystem with argv[0]: %s\n", argv[0]);
+	
+	/* Set up directories based on the executable path */
 	dirSetup(argv[0]);
+	
+	/* Print out the current paths for debugging */
+	debug_print_paths();
+	
 	// FIXME: why should argc be 1
 	nebu_assert(argc == 1);
 }
@@ -184,15 +208,133 @@ void initVideo(void) {
 	loadModels();
 }
 
-#if 0
 void initAudio(void) {
-	nebu_Audio_Init();
-	runScript(PATH_SCRIPTS, "audio.lua");
-	/* probe for artpacks & songs */
-	Sound_initTracks();
-	Sound_setup();
+    int audio_available = 1;
+    
+    fprintf(stderr, "[audio] Initializing audio system\n");
+    
+    /* Initialize the audio system */
+    fprintf(stderr, "[audio] Calling Audio_Init()\n");
+    Audio_Init();
+    
+    fprintf(stderr, "[audio] Calling Audio_Start()\n");
+    Audio_Start();
+    
+    /* Load audio scripts with error checking */
+    fprintf(stderr, "[audio] Loading audio scripts\n");
+    
+    char *audio_script = getPossiblePath(PATH_SCRIPTS, "audio.lua");
+    if (audio_script && nebu_FS_Test(audio_script)) {
+        fprintf(stderr, "[audio] Loading audio.lua from: %s\n", audio_script);
+        scripting_RunFile(audio_script);
+        free(audio_script);
+    } else {
+        fprintf(stderr, "[error] Failed to load audio.lua\n");
+        if (audio_script) free(audio_script);
+        audio_available = 0;
+    }
+    
+    char *music_functions_script = getPossiblePath(PATH_SCRIPTS, "music_functions.lua");
+    if (music_functions_script && nebu_FS_Test(music_functions_script)) {
+        fprintf(stderr, "[audio] Loading music_functions.lua from: %s\n", music_functions_script);
+        scripting_RunFile(music_functions_script);
+        free(music_functions_script);
+    } else {
+        fprintf(stderr, "[error] Failed to load music_functions.lua\n");
+        if (music_functions_script) free(music_functions_script);
+        
+        /* Create a basic music_functions.lua script */
+        fprintf(stderr, "[audio] Creating basic music_functions.lua stubs\n");
+        scripting_Run("function nextTrack() print('[lua] nextTrack called (stub)') return 1 end");
+        scripting_Run("function previousTrack() print('[lua] previousTrack called (stub)') return 1 end");
+    }
+    
+    /* Load sound samples with error checking */
+    fprintf(stderr, "[audio] Loading sound samples\n");
+    
+    /* Check if sound files exist before loading */
+    char *crash_sound = getPossiblePath(PATH_DATA, "sounds/game_crash.wav");
+    if (crash_sound && nebu_FS_Test(crash_sound)) {
+        fprintf(stderr, "[audio] Loading crash sound from: %s\n", crash_sound);
+        Audio_LoadSample(crash_sound, 1);
+        free(crash_sound);
+    } else {
+        fprintf(stderr, "[error] Failed to load crash sound\n");
+        if (crash_sound) free(crash_sound);
+        audio_available = 0;
+    }
+    
+    char *engine_sound = getPossiblePath(PATH_DATA, "sounds/game_engine.wav");
+    if (engine_sound && nebu_FS_Test(engine_sound)) {
+        fprintf(stderr, "[audio] Loading engine sound from: %s\n", engine_sound);
+        Audio_LoadSample(engine_sound, 0);
+        free(engine_sound);
+    } else {
+        fprintf(stderr, "[error] Failed to load engine sound\n");
+        if (engine_sound) free(engine_sound);
+        audio_available = 0;
+    }
+    
+    char *recognizer_sound = getPossiblePath(PATH_DATA, "sounds/game_win.wav");
+    if (recognizer_sound && nebu_FS_Test(recognizer_sound)) {
+        fprintf(stderr, "[audio] Loading recognizer sound from: %s\n", recognizer_sound);
+        Audio_LoadSample(recognizer_sound, 2);
+        free(recognizer_sound);
+    } else {
+        fprintf(stderr, "[error] Failed to load recognizer sound\n");
+        if (recognizer_sound) free(recognizer_sound);
+        audio_available = 0;
+    }
+    
+    /* If audio is not available, disable it */
+    if (!audio_available) {
+        fprintf(stderr, "[audio] Audio not fully available, disabling music\n");
+        scripting_Run("if settings then settings.playMusic = 0 end");
+    }
+    
+    /* Set up audio volumes with error checking */
+    fprintf(stderr, "[audio] Setting audio volumes\n");
+    
+    if (isSetting("fxVolume")) {
+        float volume = getSettingf("fxVolume");
+        fprintf(stderr, "[audio] Setting FX volume to: %f\n", volume);
+        Audio_SetFxVolume(volume);
+    } else {
+        fprintf(stderr, "[warning] fxVolume setting not found, using default\n");
+        Audio_SetFxVolume(0.8f);
+    }
+    
+    if (isSetting("musicVolume")) {
+        float volume = getSettingf("musicVolume");
+        fprintf(stderr, "[audio] Setting music volume to: %f\n", volume);
+        Audio_SetMusicVolume(volume);
+    } else {
+        fprintf(stderr, "[warning] musicVolume setting not found, using default\n");
+        Audio_SetMusicVolume(0.8f);
+    }
+    
+    /* Try to load and play music with error checking */
+    fprintf(stderr, "[audio] Checking if music is enabled\n");
+    
+    if (audio_available && isSetting("playMusic") && getSettingi("playMusic")) {
+        fprintf(stderr, "[audio] Music is enabled, trying to play\n");
+        
+        /* Check if nextTrack function exists */
+        scripting_GetGlobal("nextTrack", NULL);
+        if (!scripting_IsNil()) {
+            fprintf(stderr, "[audio] nextTrack function found, calling it\n");
+            scripting_Pop();
+            scripting_Run("if nextTrack then nextTrack() end");
+        } else {
+            fprintf(stderr, "[error] nextTrack function not found\n");
+            scripting_Pop();
+        }
+    } else {
+        fprintf(stderr, "[audio] Music is disabled\n");
+    }
+    
+    fprintf(stderr, "[audio] Audio initialization complete\n");
 }
-#endif
 	
 void initGUIs(void)
 {
