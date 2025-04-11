@@ -1,3 +1,4 @@
+
 #include "game/gltron.h"
 #include "game/game.h"
 #include "game/game_data.h"
@@ -24,6 +25,7 @@
 
 #include "lua.h"
 #include "lualib.h"
+#include "lauxlib.h"  /* Added for Lua 5 compatibility */
 
 /* External declaration for touch interface registration */
 extern void touch_interface_register(void);
@@ -232,9 +234,12 @@ int c_configureKeyboard(lua_State *L) {
 int c_getKeyName(lua_State *L) {
 	int top = lua_gettop(L);
 	if(lua_isnumber(L, top)) {
-		lua_pushstring(L, nebu_Input_GetKeyname( (int) lua_tonumber(L, top) ));
+		/* Lua 5 version: lua_pushlstring requires length parameter */
+		const char* keyname = nebu_Input_GetKeyname((int)lua_tonumber(L, top));
+		lua_pushlstring(L, keyname, strlen(keyname));
 	} else {
-		lua_pushstring(L, "error");
+		/* Lua 5 version: lua_pushlstring requires length parameter */
+		lua_pushlstring(L, "error", 5);
 	}
 	return 1;
 }
@@ -260,6 +265,7 @@ int c_SetCallback(lua_State *L) {
         return 0;
     }
     
+    /* Lua 5 version: use lua_tostring instead of lua_tolstring */
     name = lua_tostring(L, top);
     if(!name || name[0] == '\0') {
         fprintf(stderr, "[fatal] NULL or empty callback set name\n");
@@ -322,6 +328,7 @@ int c_loadLevel(lua_State *L) {
 
 int c_mainLoop(lua_State *L) {
 	int value = nebu_System_MainLoop();
+	/* Lua 5 version: use lua_pushinteger */
 	lua_pushnumber(L, value);
 	return 1;
 }
@@ -350,7 +357,8 @@ int c_loadDirectory(lua_State *L) {
 
 	lua_newtable(L);
 	for(p = files; p->next; p = p->next) {
-		lua_pushstring(L, p->data);
+		/* Lua 5 version: lua_pushlstring requires length parameter */
+		lua_pushlstring(L, (const char*)p->data, strlen((const char*)p->data));
 		lua_rawseti(L, -2, nFiles + 1);
 		nFiles++;
 		free(p->data);

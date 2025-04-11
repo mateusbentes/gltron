@@ -14,6 +14,7 @@ int c_set_touch_mode(lua_State *L) {
         return 0;
     }
     
+    /* Use lua_tonumber instead of lua_tonumberx for Lua 5 compatibility */
     mode = (int)lua_tonumber(L, 1);
     /* Call the function if it exists, otherwise just return */
 #ifdef ANDROID
@@ -33,6 +34,7 @@ int c_set_touch_swipe_threshold(lua_State *L) {
         return 0;
     }
     
+    /* Use lua_tonumber instead of lua_tonumberx for Lua 5 compatibility */
     threshold = (int)lua_tonumber(L, 1);
     /* Call the function if it exists, otherwise just return */
 #ifdef ANDROID
@@ -48,6 +50,7 @@ int c_get_screen_dimensions(lua_State *L) {
     
     nebu_Video_GetDimension(&width, &height);
     
+    /* Use lua_pushnumber instead of lua_pushinteger for Lua 5 compatibility */
     lua_pushnumber(L, width);
     lua_pushnumber(L, height);
     

@@ -29,7 +29,7 @@ int c_SetCallback(lua_State *L) {
         return 0;
     }
     
-    name = lua_tostring(L, top);
+    name = lua_tolstring(L, top, NULL);
     if(!name || name[0] == '\0') {
         fprintf(stderr, "[fatal] NULL or empty callback set name\n");
         setCallbackByType(CB_GUI); /* Default to GUI */
