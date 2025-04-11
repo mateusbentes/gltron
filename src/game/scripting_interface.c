@@ -134,8 +134,34 @@ int c_startGame(lua_State *L) {
 }
 
 int c_reloadTrack(lua_State *L) {
-	Sound_reloadTrack();
-	return 0;
+    fprintf(stderr, "[audio] c_reloadTrack called\n");
+    
+    // Get the current track from settings
+    char *track = NULL;
+    scripting_GetGlobal("settings", "current_track", NULL);
+    scripting_GetStringResult(&track);
+    
+    if(track && track[0] != '\0') {
+        fprintf(stderr, "[audio] Loading track: %s\n", track);
+        
+        // Try to find the track in music directory first
+        char music_path[512];
+        sprintf(music_path, "music/%s", track);
+        
+        // Load and play the music
+        Audio_LoadMusic(music_path);
+        Audio_PlayMusic();
+        
+        fprintf(stderr, "[audio] Track loaded and playing\n");
+    } else {
+        fprintf(stderr, "[audio] No current track set in settings\n");
+    }
+    
+    if(track) {
+        scripting_StringResult_Free(track);
+    }
+    
+    return 0;
 }
 
 int c_reloadArtpack(lua_State *L)  {

@@ -1,6 +1,140 @@
 -- Debug version of main.lua with extensive logging and Android compatibility
 print("[lua] Starting main.lua with debug logging")
 
+-- Function to initialize menu music
+function initializeMenuMusic()
+    print("[lua] Initializing menu music")
+    
+    -- Make sure music is enabled
+    if settings.playMusic == nil then
+        settings.playMusic = 1
+        print("[lua] Enabled music (was nil)")
+    elseif settings.playMusic == 0 then
+        settings.playMusic = 1
+        print("[lua] Enabled music (was 0)")
+    end
+    
+    -- Set music volume if not set
+    if settings.musicVolume == nil or settings.musicVolume == 0 then
+        settings.musicVolume = 0.8
+        print("[lua] Set music volume to 0.8")
+    end
+    
+    -- Update audio volume
+    if c_update_audio_volume and type(c_update_audio_volume) == "function" then
+        c_update_audio_volume()
+    end
+    
+    -- Try to play music directly
+    print("[lua] Trying to play music directly")
+    local direct_player_path = "scripts/direct_music_player.lua"
+    local direct_player_file = io.open(direct_player_path, "r")
+    
+    if direct_player_file then
+        direct_player_file:close()
+        print("[lua] Found direct_music_player.lua")
+        
+        local success = dofile(direct_player_path)
+        if success then
+            print("[lua] Music started successfully")
+            return
+        else
+            print("[lua] Failed to start music with direct player")
+        end
+    else
+        print("[lua] WARNING: direct_music_player.lua not found")
+        print("[lua] Looking in current directory...")
+        
+        -- Try in current directory
+        direct_player_file = io.open("direct_music_player.lua", "r")
+        if direct_player_file then
+            direct_player_file:close()
+            print("[lua] Found direct_music_player.lua in current directory")
+            
+            local success = dofile("direct_music_player.lua")
+            if success then
+                print("[lua] Music started successfully")
+                return
+            else
+                print("[lua] Failed to start music with direct player")
+            end
+        else
+            print("[lua] direct_music_player.lua not found in current directory")
+        end
+    end
+    
+    -- Fallback to traditional method
+    print("[lua] Falling back to traditional method")
+    
+    if not tracks or table.getn(tracks) == 0 then
+        print("[lua] No tracks defined, loading from music directory")
+        
+        local menu_music_path = "scripts/menu_music.lua"
+        local menu_music_file = io.open(menu_music_path, "r")
+        
+        if menu_music_file then
+            menu_music_file:close()
+            print("[lua] Found menu_music.lua")
+            
+            local success = dofile(menu_music_path)
+            if success then
+                print("[lua] Tracks loaded successfully")
+            else
+                print("[lua] Failed to load tracks")
+            end
+        else
+            print("[lua] WARNING: menu_music.lua not found")
+            print("[lua] Looking in current directory...")
+            
+            -- Try in current directory
+            menu_music_file = io.open("menu_music.lua", "r")
+            if menu_music_file then
+                menu_music_file:close()
+                print("[lua] Found menu_music.lua in current directory")
+                
+                local success = dofile("menu_music.lua")
+                if success then
+                    print("[lua] Tracks loaded successfully")
+                else
+                    print("[lua] Failed to load tracks")
+                end
+            else
+                print("[lua] menu_music.lua not found in current directory")
+            end
+        end
+    end
+    
+    -- Make sure current_track is set
+    if tracks and table.getn(tracks) > 0 then
+        if not settings.current_track or settings.current_track == "" then
+            settings.current_track = tracks[1]
+            current_track_index = 1
+            print("[lua] Set current track to: " .. settings.current_track)
+        end
+        
+        -- Play the current track
+        print("[lua] Playing current track: " .. settings.current_track)
+        if c_reloadTrack and type(c_reloadTrack) == "function" then
+            c_reloadTrack()
+        else
+            print("[lua] WARNING: c_reloadTrack function not available")
+            
+            -- Try direct approach
+            if Audio_LoadMusic and Audio_PlayMusic then
+                print("[lua] Loading music directly: " .. settings.current_track)
+                Audio_LoadMusic(settings.current_track)
+                
+                print("[lua] Playing music directly")
+                Audio_PlayMusic()
+            else
+                print("[lua] ERROR: Audio functions not available")
+            end
+        end
+    else
+        print("[lua] No tracks available")
+    end
+end
+
 -- Platform detection
 local is_android = false
 if c_isAndroid and type(c_isAndroid) == "function" then
@@ -95,6 +229,21 @@ local valid_callbacks = {
     ["timedemo"] = true
 }
 
+-- Function to handle graphics warning
+function handle_graphics_warning()
+    print("[lua] Handling graphics warning")
+    
+    -- Check if we're in the warning state
+    if callback == "gui" and status == EScriptingReturnCode.eSRC_32bitWarning_OK then
+        print("[lua] Acknowledging 32-bit color warning")
+        -- Continue to GUI mode
+        callback = "gui"
+        return true
+    end
+    
+    return false
+end
+
 -- Function to validate callback names
 function validate_callback(cb_name)
     print("[lua] Validating callback: " .. tostring(cb_name))
@@ -111,11 +260,57 @@ function validate_callback(cb_name)
     return cb_name
 end
 
+-- Function to initialize RootMenu music
+function initializeRootMenuMusic()
+    print("[lua] Initializing root menu music")
+    
+    -- Check if music is already playing
+    if music_initialized then
+        print("[lua] Music already initialized, skipping")
+        return
+    end
+    
+    -- Make sure music is enabled
+    if settings.playMusic == nil then
+        settings.playMusic = 1
+        print("[lua] Enabled music (was nil)")
+    elseif settings.playMusic == 0 then
+        settings.playMusic = 1
+        print("[lua] Enabled music (was 0)")
+    end
+    
+    -- Set music volume if not set
+    if settings.musicVolume == nil or settings.musicVolume == 0 then
+        settings.musicVolume = 0.8
+        print("[lua] Set music volume to 0.8")
+    end
+    
+    -- Update audio volume
+    if c_update_audio_volume and type(c_update_audio_volume) == "function" then
+        c_update_audio_volume()
+    end
+    
+    -- Try to play music directly
+    print("[lua] Loading direct_music_player.lua")
+    if loadfile("scripts/direct_music_player.lua") then
+        local success = dofile("scripts/direct_music_player.lua")
+        if success then
+            print("[lua] Music started successfully")
+            music_initialized = true
+        else
+            print("[lua] Failed to start music")
+        end
+    else
+        print("[lua] WARNING: direct_music_player.lua not found")
+    end
+end
+
 -- Initialize global variables
 callback = "gui"
 game_initialized = 0
 _exit_requested = false
 _android_paused_state = nil
+music_initialized = false
 
 -- Initialize return codes
 if not EScriptingReturnCode then
@@ -139,6 +334,11 @@ if not EScriptingReturnCode then
     }
 else
     print("[lua] EScriptingReturnCode already initialized")
+    -- Make sure 32-bit warning code is defined
+    if not EScriptingReturnCode.eSRC_32bitWarning_OK then
+        EScriptingReturnCode.eSRC_32bitWarning_OK = 15
+        print("[lua] Added eSRC_32bitWarning_OK to EScriptingReturnCode")
+    end
 end
 
 -- Initialize callback mapping table
@@ -198,8 +398,20 @@ if not next_callback then
         exit_game() -- Use cross-platform exit function
         return "gui" -- This line won't be reached if exit_game works
     end
+    next_callback[ EScriptingReturnCode.eSRC_32bitWarning_OK ] = function() 
+        print("[lua] 32-bit color warning acknowledged -> gui")
+        return "gui"
+    end
 else
     print("[lua] next_callback already initialized")
+    -- Make sure 32-bit warning handler is defined
+    if not next_callback[EScriptingReturnCode.eSRC_32bitWarning_OK] then
+        next_callback[EScriptingReturnCode.eSRC_32bitWarning_OK] = function()
+            print("[lua] 32-bit color warning acknowledged -> gui")
+            return "gui"
+        end
+        print("[lua] Added handler for eSRC_32bitWarning_OK")
+    end
 end
 
 -- Check for timedemo mode
@@ -219,6 +431,18 @@ while not _exit_requested do
     
     -- Validate callback before using it
     callback = validate_callback(callback)
+    
+    -- Initialize music when entering GUI mode
+    if callback == "gui" and not music_initialized then
+        safe_execute(function() initializeMenuMusic() end, "initializing menu music")
+        music_initialized = true
+    end
+    
+    -- Check if we're in the RootMenu or AudioMenu and music isn't playing
+    if callback == "gui" and Menu and (Menu.current == "RootMenu" or Menu.current == "AudioMenu") and not music_initialized then
+        print("[lua] In " .. Menu.current .. ", initializing music")
+        safe_execute(function() initializeRootMenuMusic() end, "initializing menu music")
+    end
     
     print("[lua] Setting callback: " .. tostring(callback))
     
@@ -285,7 +509,12 @@ while not _exit_requested do
     
     print("[lua] System returned: " .. tostring(status))
     
-    if status == nil then
+    -- Check for 32-bit color warning
+    if status ~= nil and status == EScriptingReturnCode.eSRC_32bitWarning_OK then
+        print("[lua] Received 32-bit color warning, acknowledging")
+        handle_graphics_warning()
+        callback = "gui"
+    elseif status == nil then
         print("[lua] WARNING: status is nil, defaulting to gui")
         callback = "gui"
     elseif next_callback == nil then
@@ -331,3 +560,8 @@ while not _exit_requested do
 end
 
 print("[lua] main.lua completed")
+
+-- Ensure music is initialized before exiting
+if not music_initialized then
+    safe_execute(function() initializeMenuMusic() end, "initializing menu music on exit")
+end

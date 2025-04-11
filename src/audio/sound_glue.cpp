@@ -262,6 +262,11 @@ extern "C" {
         return;
     }
     
+    if (!name || name[0] == '\0') {
+        fprintf(stderr, "[error] Cannot load music - invalid filename\n");
+        return;
+    }
+    
     printf("[audio] Loading music: %s\n", name);
     
     // Check if file exists
@@ -384,12 +389,38 @@ extern "C" {
   }
   
   void Audio_SetFxVolume(float volume) {
-    sample_engine->SetVolume(volume);
-    sample_crash->SetVolume(volume);
-    if(volume > 0.8f)
-      sample_recognizer->SetVolume(volume);
-    else 
-      sample_recognizer->SetVolume(volume * 1.25f);
+    printf("[audio] Audio_SetFxVolume called with volume: %.2f\n", volume);
+    
+    if (!sound) {
+      fprintf(stderr, "[error] Cannot set FX volume - sound system not initialized\n");
+      return;
+    }
+    
+    if (sample_engine) {
+      sample_engine->SetVolume(volume);
+      printf("[audio] Engine sample volume set to %.2f\n", volume);
+    } else {
+      fprintf(stderr, "[error] Cannot set engine volume - sample not loaded\n");
+    }
+    
+    if (sample_crash) {
+      sample_crash->SetVolume(volume);
+      printf("[audio] Crash sample volume set to %.2f\n", volume);
+    } else {
+      fprintf(stderr, "[error] Cannot set crash volume - sample not loaded\n");
+    }
+    
+    if (sample_recognizer) {
+      if(volume > 0.8f) {
+        sample_recognizer->SetVolume(volume);
+        printf("[audio] Recognizer sample volume set to %.2f\n", volume);
+      } else {
+        sample_recognizer->SetVolume(volume * 1.25f);
+        printf("[audio] Recognizer sample volume set to %.2f\n", volume * 1.25f);
+      }
+    } else {
+      fprintf(stderr, "[error] Cannot set recognizer volume - sample not loaded\n");
+    }
   }
 
   void Audio_StartEngine(int iPlayer) {
