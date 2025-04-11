@@ -1,6 +1,12 @@
 -- Force Music Script
 print("[force_music] Starting force music script")
 
+-- Load music functions if needed
+if not nextTrack then
+    print("[force_music] Loading music functions")
+    dofile("scripts/music_functions.lua")
+end
+
 -- Function to force music to play
 function force_music_play()
     print("[force_music] Forcing music to play")
@@ -39,6 +45,14 @@ function force_music_play()
         
         if not file then
             print("[force_music] File not found in sounds directory either")
+            
+            -- Try using nextTrack function if available
+            if nextTrack then
+                print("[force_music] Trying nextTrack function")
+                local result = nextTrack()
+                return result == 1
+            end
+            
             return false
         end
     end

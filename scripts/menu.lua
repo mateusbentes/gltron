@@ -1,3 +1,9 @@
+-- Load music functions if they don't exist
+if not nextTrack then
+    print("[menu] Loading music functions")
+    dofile("scripts/music_functions.lua")
+end
+
 MainGameMenu = { 
    -- menu after startup
    current = "RootMenu",
@@ -563,9 +569,51 @@ MainGameMenu = {
    },
    Song = {
       type = MenuC.type.slider, caption = "Song",
-      right = function() nextTrack(); end,
-      left = function() previousTrack(); end,
-      action = function() nextTrack(); end,
+      right = function() 
+         if nextTrack then
+            nextTrack()
+         else
+            print("[menu] WARNING: nextTrack function not defined")
+            -- Try to load music functions
+            dofile("scripts/music_functions.lua")
+            -- Try again after loading
+            if nextTrack then
+               nextTrack()
+            else
+               print("[menu] ERROR: Failed to load nextTrack function")
+            end
+         end
+      end,
+      left = function() 
+         if previousTrack then
+            previousTrack()
+         else
+            print("[menu] WARNING: previousTrack function not defined")
+            -- Try to load music functions
+            dofile("scripts/music_functions.lua")
+            -- Try again after loading
+            if previousTrack then
+               previousTrack()
+            else
+               print("[menu] ERROR: Failed to load previousTrack function")
+            end
+         end
+      end,
+      action = function() 
+         if nextTrack then
+            nextTrack()
+         else
+            print("[menu] WARNING: nextTrack function not defined")
+            -- Try to load music functions
+            dofile("scripts/music_functions.lua")
+            -- Try again after loading
+            if nextTrack then
+               nextTrack()
+            else
+               print("[menu] ERROR: Failed to load nextTrack function")
+            end
+         end
+      end,
       read = function()
 								_,_,name = string.find(settings.current_track, "(.*)%..+")
 								if name then
