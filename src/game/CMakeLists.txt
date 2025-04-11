@@ -1,13 +1,11 @@
-# Find all source files in this directory
 file(GLOB SOURCES "*.c")
 file(GLOB HEADERS "*.h")
 
-# Explicitly add touch_interface.c and c_setcallback.c
-list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/touch_interface.c")
-list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/c_setcallback.c")
+# Remove scripting_helpers.c from the build
+list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/scripting_helpers.c")
 
-# Remove level.c since its functions are duplicated in game_level.c
-list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/level.c")
+# Add embedded_processing.c explicitly
+list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/embedded_processing.c")
 
 # Create the library
 add_library(game STATIC ${SOURCES} ${HEADERS})
@@ -19,14 +17,14 @@ target_include_directories(game PUBLIC
   ${CMAKE_SOURCE_DIR}/lua5/include
 )
 
-# Link libraries
+# Link libraries - Order matters for static linking
 target_link_libraries(game PUBLIC
-  nebu_filesystem
-  nebu_scripting
+  nebu_scripting  # For scripting_GetLuaState
+  lua5  # For luaL_loadstring
+  lualib5  # For lua_pcall
+  nebu_filesystem  # For nebu_FS_Test
+  nebu_input
+  nebu_video
+  nebu_base  # For basic functions
   sdl_compat
 )
-
-# Platform-specific configurations
-if(BUILD_ANDROID)
-  target_compile_definitions(game PRIVATE ANDROID)
-endif()

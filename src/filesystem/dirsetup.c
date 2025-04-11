@@ -11,6 +11,9 @@
 #include <libgen.h>
 #include <limits.h>
 
+/* Define this to use embedded scripts instead of external files */
+#define USE_EMBEDDED_SCRIPTS 1
+
 const char* getHome() {
   return getenv("HOME");
 }
@@ -34,6 +37,38 @@ void dirSetup(const char *executable) {
     
     printf("[debug] Using base directory: %s\n", base_dir);
     
+#if USE_EMBEDDED_SCRIPTS
+    /* When using embedded scripts, we'll set up a virtual path */
+    printf("[debug] Using embedded scripts\n");
+    
+    /* Set up virtual paths for embedded resources */
+    nebu_FS_SetupPath(PATH_SCRIPTS, "embedded://scripts");
+    
+    /* Still set up paths for other resources that might not be embedded */
+    char art_dir[PATH_MAX];
+    char music_dir[PATH_MAX];
+    char level_dir[PATH_MAX];
+    char data_dir[PATH_MAX];
+    char snap_dir[PATH_MAX];
+    char pref_dir[PATH_MAX];
+    
+    /* Use subdirectories of the base directory */
+    sprintf(art_dir, "%s/art", base_dir);
+    sprintf(music_dir, "%s/music", base_dir);
+    sprintf(level_dir, "%s/levels", base_dir);
+    sprintf(data_dir, "%s/data", base_dir);
+    sprintf(snap_dir, "%s/snapshots", base_dir);
+    sprintf(pref_dir, "%s", base_dir);  /* Use base directory for preferences */
+    
+    /* Set the directories for non-script resources */
+    nebu_FS_SetupPath(PATH_ART, art_dir);
+    nebu_FS_SetupPath(PATH_MUSIC, music_dir);
+    nebu_FS_SetupPath(PATH_LEVEL, level_dir);
+    nebu_FS_SetupPath(PATH_DATA, data_dir);
+    nebu_FS_SetupPath(PATH_SNAPSHOTS, snap_dir);
+    nebu_FS_SetupPath(PATH_PREFERENCES, pref_dir);
+
+#else
     /* Set up the directories */
     char scripts_dir[PATH_MAX];
     char art_dir[PATH_MAX];
@@ -81,6 +116,7 @@ void dirSetup(const char *executable) {
     nebu_FS_SetupPath(PATH_DATA, data_dir);
     nebu_FS_SetupPath(PATH_SNAPSHOTS, snap_dir);
     nebu_FS_SetupPath(PATH_PREFERENCES, pref_dir);
+#endif
     
 #ifdef LOCAL_DATA
     goto_installpath(executable);

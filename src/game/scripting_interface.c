@@ -26,6 +26,7 @@
 #include "lua.h"
 #include "lualib.h"
 #include "lauxlib.h"  /* Added for Lua 5 compatibility */
+#include "scripting/embedded_scripts.h"
 
 /* External declaration for touch interface registration */
 extern void touch_interface_register(void);
@@ -99,8 +100,12 @@ int c_updateUI(lua_State *L)
 	return 0;
 }
 
+
 int c_startGame(lua_State *L) { 
     fprintf(stderr, "[debug] c_startGame: starting game\n");
+    
+    /* Run game initialization script */
+    runScript(PATH_SCRIPTS, "game_init.lua");
     
     video_UnloadLevel();
     game_UnloadLevel();

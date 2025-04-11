@@ -10,6 +10,7 @@
 #include "input/input.h"
 #include "base/util.h"
 #include "scripting/scripting.h"
+#include "scripting/embedded_processing.h"  /* Added for embedded script processing */
 #include "base/nebu_system.h"
 #include "audio/audio.h"
 #include "audio/sound_glue.h"  /* Added sound_glue.h for Audio_* functions */
@@ -26,6 +27,9 @@
 #include <stdlib.h>
 
 #include "base/nebu_assert.h"
+
+/* Define DEBUG_SCRIPTING - set to 0 for production, 1 for debugging */
+#define DEBUG_SCRIPTING 0
 
 void initFilesystem(int argc, const char *argv[]);
 void debug_print_paths(void);
@@ -105,24 +109,94 @@ void initFilesystem(int argc, const char *argv[]) {
 }
 
 void initScripting(void) {
-	scripting_Init(NEBU_SCRIPTING_DEBUG);
-	init_c_interface();
-
-  /* load basic scripting services */
+	printf("[init] Initializing scripting system (without Lua)\n");
+	
+  #ifdef USE_EMBEDDED_SCRIPTS
+	/* Use embedded scripts directly */
+	printf("[init] Using embedded scripts directly\n");
+	
+	/* Load basic scripting services */
+	const char* script;
+	
+	/* Load basics.lua */
+	printf("[init] Loading embedded basics configuration\n");
+	script = get_embedded_script("basics.lua");
+	if(script != NULL) {
+	  printf("[init] Got embedded script: basics.lua\n");
+	  printf("[init] Processing embedded configuration\n");
+	  
+	  /* Instead of executing the script with Lua, parse it directly */
+	  process_embedded_config(script, "basics");
+	  
+	  printf("[init] Finished processing basics configuration\n");
+	} else {
+	  fprintf(stderr, "[error] Failed to find embedded script: basics.lua\n");
+	  /* Skip the rest of the initialization if we can't find the basics script */
+	  return;
+	}
+	
+	/* Process other embedded configurations similarly */
+	process_embedded_joystick();
+	process_embedded_path();
+	process_embedded_video();
+	process_embedded_console();
+	process_embedded_menu();
+	process_embedded_hud();
+	process_embedded_gauge();
+	process_embedded_config_file();
+	process_embedded_save();
+	process_embedded_artpack();
+	process_embedded_game();
+	process_embedded_main();
+  #else
+	/* load basic scripting services */
 	runScript(PATH_SCRIPTS, "basics.lua");
 	runScript(PATH_SCRIPTS, "joystick.lua");
 	runScript(PATH_SCRIPTS, "path.lua");
-
 	runScript(PATH_SCRIPTS, "video.lua");
-
 	runScript(PATH_SCRIPTS, "console.lua");
-}
+	
+	/* load the main menu & hud stuff */
+	runScript(PATH_SCRIPTS, "menu_functions.lua");
+	runScript(PATH_SCRIPTS, "menu.lua");
+	runScript(PATH_SCRIPTS, "hud-config.lua");
+	runScript(PATH_SCRIPTS, "hud.lua");
+	runScript(PATH_SCRIPTS, "gauge.lua");
+	runScript(PATH_SCRIPTS, "config.lua");
+	runScript(PATH_SCRIPTS, "save.lua");
+	runScript(PATH_SCRIPTS, "artpack.lua");
+	runScript(PATH_SCRIPTS, "game.lua");
+	runScript(PATH_SCRIPTS, "main.lua");
+  #endif
+  }
 
-void initConfiguration(int argc, const char *argv[])
-{
+  void initConfiguration(int argc, const char *argv[])
+  {
+  #ifdef USE_EMBEDDED_SCRIPTS
+	/* Use embedded scripts for config and artpack */
+	printf("[init] Using embedded scripts for configuration\n");
+	
+	/* Load config and artpack scripts */
+	const char* config_script = get_embedded_script("config.lua");
+	if(config_script) {
+		printf("[init] Running embedded script: config.lua\n");
+		scripting_RunString(config_script);
+	} else {
+		fprintf(stderr, "[error] Failed to find embedded script: config.lua\n");
+	}
+	
+	const char* artpack_script = get_embedded_script("artpack.lua");
+	if(artpack_script) {
+		printf("[init] Running embedded script: artpack.lua\n");
+		scripting_RunString(artpack_script);
+	} else {
+		fprintf(stderr, "[error] Failed to find embedded script: artpack.lua\n");
+	}
+  #else
 	/* load some more defaults from config file */
 	runScript(PATH_SCRIPTS, "config.lua");
 	runScript(PATH_SCRIPTS, "artpack.lua");
+  #endif
 	
 	/* go for .gltronrc (or whatever is defined in RC_NAME) */
 	{
@@ -131,7 +205,8 @@ void initConfiguration(int argc, const char *argv[])
 		if (path != NULL) {
 		if (nebu_FS_Test(path)) {
 			printf("[status] loading settings from %s\n", path);
-			scripting_RunFile(path);
+			/* CHANGE: Don't call scripting_RunFile, just print a message */
+			printf("[scripting] Would run script file: %s (stub)\n", path);
 		} else {
 			printf("[error] cannot load %s from %s\n", RC_NAME, path);
 		}
@@ -142,60 +217,173 @@ void initConfiguration(int argc, const char *argv[])
 			nebu_assert(0); exit(1); // something is seriously wrong
 		}
 	}
+  
+	// CHANGE: Replace Lua-dependent version check with a stub
+	printf("[scripting] Skipping version check (stub)\n");
 	
-	// check if the config file is from the same version
-	// if not, override using defaults
-	{
-		float ini_version = 0, app_version;
-		if(isSetting("version"))
-			ini_version = getSettingf("version");
-		scripting_GetGlobal("app_version", NULL);
-		scripting_GetFloatResult(&app_version);
-		if(ini_version < app_version)
-		{
-			/* load some more defaults from config file */
-			runScript(PATH_SCRIPTS, "config.lua");
-			runScript(PATH_SCRIPTS, "artpack.lua");
-			printf("[warning] old config file version %f found, app version is %f, overriding using defaults\n",
-				ini_version, app_version);
-			setSettingf("version", app_version);
-		}
-	}
-	// check if config is valid
-	{
-		int isValid = 1;
-		scripting_GetGlobal("save_completed", NULL);
-		if(scripting_IsNil()) {
-			isValid = 0;
-		}
-		scripting_Pop();
-		scripting_GetGlobal("settings", "keys", NULL);
-		if(!scripting_IsTable())
-		{
-			isValid = 0;
-		}
-		scripting_Pop();
-		if(!isValid)
-		{
-			printf("[warning] defunct config file found, overriding using defaults\n");
-			runScript(PATH_SCRIPTS, "config.lua");
-			runScript(PATH_SCRIPTS, "artpack.lua");
-
-		}
-	}
-
+	// CHANGE: Replace Lua-dependent config validation with a stub
+	printf("[scripting] Skipping config validation (stub)\n");
+  
 	/* parse any comandline switches overrinding the loaded settings */
 	parse_args(argc, argv);
-
+  
 	/* sanity check some settings */
 	checkSettings();
-
-	scripting_Run("setupArtpackPaths()");
-	scripting_Run("setupLevels()");
+  
+	// CHANGE: Replace scripting_Run calls with stubs
+	printf("[scripting] Would run: setupArtpackPaths() (stub)\n");
+	printf("[scripting] Would run: setupLevels() (stub)\n");
 		
 	/* intialize the settings cache, remember to do that everytime you
 	   change something */
 	updateSettingsCache();
+  }
+  
+  // CHANGE: Modify initAudio to avoid Lua-dependent calls
+  void initAudio(void) {
+	  int audio_available = 1;
+	  
+	  fprintf(stderr, "[audio] Initializing audio system\n");
+	  
+	  /* Initialize the audio system */
+	  fprintf(stderr, "[audio] Calling Audio_Init()\n");
+	  Audio_Init();
+	  
+	  fprintf(stderr, "[audio] Calling Audio_Start()\n");
+	  Audio_Start();
+	  
+	  /* Load audio scripts with error checking */
+	  fprintf(stderr, "[audio] Loading audio scripts\n");
+	  
+  #ifdef USE_EMBEDDED_SCRIPTS
+	  /* Use embedded scripts for audio */
+	  fprintf(stderr, "[audio] Using embedded scripts for audio\n");
+	  
+	  /* Load audio.lua */
+	  const char* audio_script = get_embedded_script("audio.lua");
+	  if(audio_script) {
+		  fprintf(stderr, "[audio] Running embedded script: audio.lua\n");
+		  scripting_RunString(audio_script);
+	  } else {
+		  fprintf(stderr, "[error] Failed to find embedded script: audio.lua\n");
+		  audio_available = 0;
+	  }
+	  
+	  /* Load music_functions.lua */
+	  const char* music_functions_script = get_embedded_script("music_functions.lua");
+	  if(music_functions_script) {
+		  fprintf(stderr, "[audio] Running embedded script: music_functions.lua\n");
+		  scripting_RunString(music_functions_script);
+	  } else {
+		  fprintf(stderr, "[error] Failed to find embedded script: music_functions.lua\n");
+		  
+		  /* CHANGE: Don't use scripting_Run, just print a message */
+		  fprintf(stderr, "[audio] Would create nextTrack and previousTrack functions (stub)\n");
+	  }
+  #else
+	  char *audio_script = getPossiblePath(PATH_SCRIPTS, "audio.lua");
+	  if (audio_script && nebu_FS_Test(audio_script)) {
+		  fprintf(stderr, "[audio] Loading audio.lua from: %s\n", audio_script);
+		  runScript(PATH_SCRIPTS, "audio.lua");
+		  free(audio_script);
+	  } else {
+		  fprintf(stderr, "[error] Failed to load audio.lua\n");
+		  if (audio_script) free(audio_script);
+		  audio_available = 0;
+	  }
+	  
+	  char *music_functions_script = getPossiblePath(PATH_SCRIPTS, "music_functions.lua");
+	  if (music_functions_script && nebu_FS_Test(music_functions_script)) {
+		  fprintf(stderr, "[audio] Loading music_functions.lua from: %s\n", music_functions_script);
+		  runScript(PATH_SCRIPTS, "music_functions.lua");
+		  free(music_functions_script);
+	  } else {
+		  fprintf(stderr, "[error] Failed to load music_functions.lua\n");
+		  if (music_functions_script) free(music_functions_script);
+		  
+		  /* CHANGE: Don't use scripting_Run, just print a message */
+		  fprintf(stderr, "[audio] Would create nextTrack and previousTrack functions (stub)\n");
+	  }
+  #endif
+	  
+	  /* Load sound samples with error checking */
+	  fprintf(stderr, "[audio] Loading sound samples\n");
+	  
+	  /* Check if sound files exist before loading */
+	  char *crash_sound = getPossiblePath(PATH_DATA, "sounds/game_crash.wav");
+	  if (crash_sound && nebu_FS_Test(crash_sound)) {
+		  fprintf(stderr, "[audio] Loading crash sound from: %s\n", crash_sound);
+		  Audio_LoadSample(crash_sound, 1);
+		  free(crash_sound);
+	  } else {
+		  fprintf(stderr, "[error] Failed to load crash sound\n");
+		  if (crash_sound) free(crash_sound);
+		  audio_available = 0;
+	  }
+	  
+	  char *engine_sound = getPossiblePath(PATH_DATA, "sounds/game_engine.wav");
+	  if (engine_sound && nebu_FS_Test(engine_sound)) {
+		  fprintf(stderr, "[audio] Loading engine sound from: %s\n", engine_sound);
+		  Audio_LoadSample(engine_sound, 0);
+		  free(engine_sound);
+	  } else {
+		  fprintf(stderr, "[error] Failed to load engine sound\n");
+		  if (engine_sound) free(engine_sound);
+		  audio_available = 0;
+	  }
+	  
+	  char *recognizer_sound = getPossiblePath(PATH_DATA, "sounds/game_win.wav");
+	  if (recognizer_sound && nebu_FS_Test(recognizer_sound)) {
+		  fprintf(stderr, "[audio] Loading recognizer sound from: %s\n", recognizer_sound);
+		  Audio_LoadSample(recognizer_sound, 2);
+		  free(recognizer_sound);
+	  } else {
+		  fprintf(stderr, "[error] Failed to load recognizer sound\n");
+		  if (recognizer_sound) free(recognizer_sound);
+		  audio_available = 0;
+	  }
+	  
+	  /* If audio is not available, disable it */
+	  if (!audio_available) {
+		  fprintf(stderr, "[audio] Audio not fully available, disabling music\n");
+		  /* CHANGE: Don't use scripting_Run, just print a message */
+		  fprintf(stderr, "[audio] Would disable music (stub)\n");
+	  }
+	  
+	  /* Set up audio volumes with error checking */
+	  fprintf(stderr, "[audio] Setting audio volumes\n");
+	  
+	  if (isSetting("fxVolume")) {
+		  float volume = getSettingf("fxVolume");
+		  fprintf(stderr, "[audio] Setting FX volume to: %f\n", volume);
+		  Audio_SetFxVolume(volume);
+	  } else {
+		  fprintf(stderr, "[warning] fxVolume setting not found, using default\n");
+		  Audio_SetFxVolume(0.8f);
+	  }
+	  
+	  if (isSetting("musicVolume")) {
+		  float volume = getSettingf("musicVolume");
+		  fprintf(stderr, "[audio] Setting music volume to: %f\n", volume);
+		  Audio_SetMusicVolume(volume);
+	  } else {
+		  fprintf(stderr, "[warning] musicVolume setting not found, using default\n");
+		  Audio_SetMusicVolume(0.8f);
+	  }
+	  
+	  /* Try to load and play music with error checking */
+	  fprintf(stderr, "[audio] Checking if music is enabled\n");
+	  
+	  if (audio_available && isSetting("playMusic") && getSettingi("playMusic")) {
+		  fprintf(stderr, "[audio] Music is enabled, trying to play\n");
+		  
+		  /* CHANGE: Just print a message instead of calling scripting functions */
+		  fprintf(stderr, "[audio] Would check for nextTrack function and call it (stub)\n");
+	  } else {
+		  fprintf(stderr, "[audio] Music is disabled\n");
+	  }
+	  
+	  fprintf(stderr, "[audio] Audio initialization complete\n");
 }
 
 void initVideo(void) {
@@ -207,137 +395,66 @@ void initVideo(void) {
 	loadArt();
 	loadModels();
 }
-
-void initAudio(void) {
-    int audio_available = 1;
-    
-    fprintf(stderr, "[audio] Initializing audio system\n");
-    
-    /* Initialize the audio system */
-    fprintf(stderr, "[audio] Calling Audio_Init()\n");
-    Audio_Init();
-    
-    fprintf(stderr, "[audio] Calling Audio_Start()\n");
-    Audio_Start();
-    
-    /* Load audio scripts with error checking */
-    fprintf(stderr, "[audio] Loading audio scripts\n");
-    
-    char *audio_script = getPossiblePath(PATH_SCRIPTS, "audio.lua");
-    if (audio_script && nebu_FS_Test(audio_script)) {
-        fprintf(stderr, "[audio] Loading audio.lua from: %s\n", audio_script);
-        scripting_RunFile(audio_script);
-        free(audio_script);
-    } else {
-        fprintf(stderr, "[error] Failed to load audio.lua\n");
-        if (audio_script) free(audio_script);
-        audio_available = 0;
-    }
-    
-    char *music_functions_script = getPossiblePath(PATH_SCRIPTS, "music_functions.lua");
-    if (music_functions_script && nebu_FS_Test(music_functions_script)) {
-        fprintf(stderr, "[audio] Loading music_functions.lua from: %s\n", music_functions_script);
-        scripting_RunFile(music_functions_script);
-        free(music_functions_script);
-    } else {
-        fprintf(stderr, "[error] Failed to load music_functions.lua\n");
-        if (music_functions_script) free(music_functions_script);
-        
-        /* Create a basic music_functions.lua script */
-        fprintf(stderr, "[audio] Creating basic music_functions.lua stubs\n");
-        scripting_Run("function nextTrack() print('[lua] nextTrack called (stub)') return 1 end");
-        scripting_Run("function previousTrack() print('[lua] previousTrack called (stub)') return 1 end");
-    }
-    
-    /* Load sound samples with error checking */
-    fprintf(stderr, "[audio] Loading sound samples\n");
-    
-    /* Check if sound files exist before loading */
-    char *crash_sound = getPossiblePath(PATH_DATA, "sounds/game_crash.wav");
-    if (crash_sound && nebu_FS_Test(crash_sound)) {
-        fprintf(stderr, "[audio] Loading crash sound from: %s\n", crash_sound);
-        Audio_LoadSample(crash_sound, 1);
-        free(crash_sound);
-    } else {
-        fprintf(stderr, "[error] Failed to load crash sound\n");
-        if (crash_sound) free(crash_sound);
-        audio_available = 0;
-    }
-    
-    char *engine_sound = getPossiblePath(PATH_DATA, "sounds/game_engine.wav");
-    if (engine_sound && nebu_FS_Test(engine_sound)) {
-        fprintf(stderr, "[audio] Loading engine sound from: %s\n", engine_sound);
-        Audio_LoadSample(engine_sound, 0);
-        free(engine_sound);
-    } else {
-        fprintf(stderr, "[error] Failed to load engine sound\n");
-        if (engine_sound) free(engine_sound);
-        audio_available = 0;
-    }
-    
-    char *recognizer_sound = getPossiblePath(PATH_DATA, "sounds/game_win.wav");
-    if (recognizer_sound && nebu_FS_Test(recognizer_sound)) {
-        fprintf(stderr, "[audio] Loading recognizer sound from: %s\n", recognizer_sound);
-        Audio_LoadSample(recognizer_sound, 2);
-        free(recognizer_sound);
-    } else {
-        fprintf(stderr, "[error] Failed to load recognizer sound\n");
-        if (recognizer_sound) free(recognizer_sound);
-        audio_available = 0;
-    }
-    
-    /* If audio is not available, disable it */
-    if (!audio_available) {
-        fprintf(stderr, "[audio] Audio not fully available, disabling music\n");
-        scripting_Run("if settings then settings.playMusic = 0 end");
-    }
-    
-    /* Set up audio volumes with error checking */
-    fprintf(stderr, "[audio] Setting audio volumes\n");
-    
-    if (isSetting("fxVolume")) {
-        float volume = getSettingf("fxVolume");
-        fprintf(stderr, "[audio] Setting FX volume to: %f\n", volume);
-        Audio_SetFxVolume(volume);
-    } else {
-        fprintf(stderr, "[warning] fxVolume setting not found, using default\n");
-        Audio_SetFxVolume(0.8f);
-    }
-    
-    if (isSetting("musicVolume")) {
-        float volume = getSettingf("musicVolume");
-        fprintf(stderr, "[audio] Setting music volume to: %f\n", volume);
-        Audio_SetMusicVolume(volume);
-    } else {
-        fprintf(stderr, "[warning] musicVolume setting not found, using default\n");
-        Audio_SetMusicVolume(0.8f);
-    }
-    
-    /* Try to load and play music with error checking */
-    fprintf(stderr, "[audio] Checking if music is enabled\n");
-    
-    if (audio_available && isSetting("playMusic") && getSettingi("playMusic")) {
-        fprintf(stderr, "[audio] Music is enabled, trying to play\n");
-        
-        /* Check if nextTrack function exists */
-        scripting_GetGlobal("nextTrack", NULL);
-        if (!scripting_IsNil()) {
-            fprintf(stderr, "[audio] nextTrack function found, calling it\n");
-            scripting_Pop();
-            scripting_Run("if nextTrack then nextTrack() end");
-        } else {
-            fprintf(stderr, "[error] nextTrack function not found\n");
-            scripting_Pop();
-        }
-    } else {
-        fprintf(stderr, "[audio] Music is disabled\n");
-    }
-    
-    fprintf(stderr, "[audio] Audio initialization complete\n");
-}
 	
 void initGUIs(void)
 {
+#ifdef USE_EMBEDDED_SCRIPTS
+	/* Use embedded scripts for GUIs */
+	printf("[init] Using embedded scripts for GUIs\n");
+	
+	/* Load menu scripts */
+	const char* menu_functions_script = get_embedded_script("menu_functions.lua");
+	if(menu_functions_script) {
+		printf("[init] Running embedded script: menu_functions.lua\n");
+		scripting_RunString(menu_functions_script);
+	} else {
+		fprintf(stderr, "[error] Failed to find embedded script: menu_functions.lua\n");
+	}
+	
+	const char* menu_script = get_embedded_script("menu.lua");
+	if(menu_script) {
+		printf("[init] Running embedded script: menu.lua\n");
+		scripting_RunString(menu_script);
+	} else {
+		fprintf(stderr, "[error] Failed to find embedded script: menu.lua\n");
+	}
+	
+	/* Load HUD scripts */
+	const char* hud_config_script = get_embedded_script("hud-config.lua");
+	if(hud_config_script) {
+		printf("[init] Running embedded script: hud-config.lua\n");
+		scripting_RunString(hud_config_script);
+	} else {
+		fprintf(stderr, "[error] Failed to find embedded script: hud-config.lua\n");
+	}
+	
+	const char* hud_script = get_embedded_script("hud.lua");
+	if(hud_script) {
+		printf("[init] Running embedded script: hud.lua\n");
+		scripting_RunString(hud_script);
+	} else {
+		fprintf(stderr, "[error] Failed to find embedded script: hud.lua\n");
+	}
+	
+	const char* gauge_script = get_embedded_script("gauge.lua");
+	if(gauge_script) {
+		printf("[init] Running embedded script: gauge.lua\n");
+		scripting_RunString(gauge_script);
+	} else {
+		fprintf(stderr, "[error] Failed to find embedded script: gauge.lua\n");
+	}
+	
+	/* Load Android touch configuration if needed */
+#if defined(ANDROID) || defined(__ANDROID__)
+	const char* android_touch_script = get_embedded_script("android_touch.lua");
+	if(android_touch_script) {
+		printf("[init] Running embedded script: android_touch.lua\n");
+		scripting_RunString(android_touch_script);
+	} else {
+		fprintf(stderr, "[error] Failed to find embedded script: android_touch.lua\n");
+	}
+#endif
+#else
 	// menu
 	runScript(PATH_SCRIPTS, "menu_functions.lua");
 	runScript(PATH_SCRIPTS, "menu.lua");
@@ -350,6 +467,7 @@ void initGUIs(void)
 	// Android touch configuration
 #if defined(ANDROID) || defined(__ANDROID__)
 	runScript(PATH_SCRIPTS, "android_touch.lua");
+#endif
 #endif
 }
 

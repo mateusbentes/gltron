@@ -10,6 +10,7 @@
         "string.h": "c",
         "nebu_scripting.h": "c",
         "typeinfo": "cpp",
-        "*.tcc": "cpp"
+        "*.tcc": "cpp",
+        "stdlib.h": "c"
     }
 }

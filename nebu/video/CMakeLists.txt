@@ -11,6 +11,8 @@ add_library(nebu_video STATIC ${SOURCES} ${HEADERS})
 # Find required packages
 find_package(PNG REQUIRED)
 find_package(SDL2 REQUIRED)
+find_package(GLEW REQUIRED)
+find_package(OpenGL REQUIRED)
 
 # Include directories
 target_include_directories(nebu_video PUBLIC
@@ -20,12 +22,15 @@ target_include_directories(nebu_video PUBLIC
   ${SDL2_INCLUDE_DIRS}
 )
 
-# Link with PNG, SDL2, SDL compatibility library and nebu_filesystem
+# Link with PNG, SDL2, SDL compatibility library, nebu_filesystem, GLEW and OpenGL
 target_link_libraries(nebu_video PUBLIC
   sdl_compat
   nebu_filesystem
+  nebu_base
+  GLEW::GLEW
   ${PNG_LIBRARIES}
   ${SDL2_LIBRARIES}
+  ${OPENGL_LIBRARIES}
 )
 
 # Platform-specific configurations

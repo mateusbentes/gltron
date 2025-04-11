@@ -11,6 +11,7 @@ option(BUILD_ANDROID "Build for Android platform" OFF)
 option(ENABLE_STATIC_LINKING "Enable static linking" OFF)
 option(LOCAL_DATA "Use local data directory" ON)  # Changed to ON by default
 option(ENABLE_SOUND "Enable sound support (requires SDL_sound)" ON)
+option(USE_EMBEDDED_SCRIPTS "Use embedded Lua scripts" ON)  # Added option for embedded scripts
 
 # Set default build type if not specified
 if(NOT CMAKE_BUILD_TYPE)
@@ -29,6 +30,7 @@ endif()
 # Force LOCAL_DATA to be ON during development
 set(LOCAL_DATA ON CACHE BOOL "Use local data directory" FORCE)
 message(STATUS "LOCAL_DATA is set to: ${LOCAL_DATA}")
+message(STATUS "USE_EMBEDDED_SCRIPTS is set to: ${USE_EMBEDDED_SCRIPTS}")
 
 # Add compiler definitions
 if(BUILD_ANDROID)
@@ -42,11 +44,26 @@ if(LOCAL_DATA)
   message(STATUS "LOCAL_DATA definition added")
 endif()
 
+if(USE_EMBEDDED_SCRIPTS)
+  add_definitions(-DUSE_EMBEDDED_SCRIPTS)
+  # Also add it as a global compile definition to ensure it's passed to all targets
+  add_compile_definitions(USE_EMBEDDED_SCRIPTS)
+  message(STATUS "USE_EMBEDDED_SCRIPTS definition added")
+endif()
+
 # Find required packages
 find_package(ZLIB REQUIRED)
 find_package(PNG REQUIRED)
 find_package(SDL2 REQUIRED)
 find_package(GLEW REQUIRED)
+
+# Make sure we have the GLEW::GLEW target
+if(NOT TARGET GLEW::GLEW)
+  add_library(GLEW::GLEW UNKNOWN IMPORTED)
+  set_target_properties(GLEW::GLEW PROPERTIES
+    IMPORTED_LOCATION "${GLEW_LIBRARIES}"
+    INTERFACE_INCLUDE_DIRECTORIES "${GLEW_INCLUDE_DIRS}")
+endif()
 
 if(NOT BUILD_ANDROID)
   find_package(OpenGL REQUIRED)
@@ -114,6 +131,7 @@ file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/config.h.in
 #cmakedefine LOCAL_DATA
 #cmakedefine HAVE_SDL_SOUND
 #cmakedefine ANDROID
+#cmakedefine USE_EMBEDDED_SCRIPTS
 
 #endif /* CONFIG_H */
 ")
@@ -127,6 +145,7 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 # Create gltron-config.h
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/src/include)
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/src/include/scripting)
 file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/src/include/gltron-config.h
 "/* Platform-specific configuration for GLtron */
 #ifndef GLTRON_CONFIG_H
@@ -151,11 +170,35 @@ file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/src/include/gltron-config.h
 #endif /* GLTRON_CONFIG_H */
 ")
 
-# Include directories
+# Create embedded_scripts.h
+file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/src/include/scripting/embedded_scripts.h
+"/* 
+ * Header file for embedded scripts
+ */
+#ifndef EMBEDDED_SCRIPTS_H
+#define EMBEDDED_SCRIPTS_H
+
+#ifdef __cplusplus
+extern \"C\" {
+#endif
+
+/* Function to get an embedded script by name */
+const char* get_embedded_script(const char *name);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* EMBEDDED_SCRIPTS_H */
+")
+
+# Include directories - IMPORTANT: Order matters!
 include_directories(
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/include  # This should be first to ensure our headers are found first
+  ${CMAKE_CURRENT_BINARY_DIR}  # For generated files like config.h
   ${CMAKE_CURRENT_SOURCE_DIR}/lua5/include
   ${CMAKE_CURRENT_SOURCE_DIR}/nebu/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/lib3ds/include  # Add lib3ds include directory
   ${CMAKE_CURRENT_SOURCE_DIR}  # Add the root directory to include path
   ${GLEW_INCLUDE_DIRS}
   ${PNG_INCLUDE_DIRS}
@@ -175,7 +218,7 @@ target_link_libraries(sdl_compat PUBLIC ${SDL2_LIBRARIES})
 
 # Copy resources to build directory for LOCAL_DATA mode
 # Do this before building any targets to ensure resources are available
-if(LOCAL_DATA)
+if(LOCAL_DATA AND NOT USE_EMBEDDED_SCRIPTS)
   # Create directories
   file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/scripts)
   file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/art)
@@ -201,13 +244,15 @@ add_subdirectory(lib3ds)
 add_subdirectory(nebu)
 add_subdirectory(src)
 
-# Resources
-add_subdirectory(art)
-add_subdirectory(data)
-add_subdirectory(music)
-add_subdirectory(scripts)
-add_subdirectory(levels)
-add_subdirectory(sounds)
+# Resources - only add if not using embedded scripts
+if(NOT USE_EMBEDDED_SCRIPTS)
+  add_subdirectory(art)
+  add_subdirectory(data)
+  add_subdirectory(music)
+  add_subdirectory(scripts)
+  add_subdirectory(levels)
+  add_subdirectory(sounds)
+endif()
 
 # Main executable
 add_executable(gltron ${CMAKE_CURRENT_SOURCE_DIR}/src/gltron.c)
@@ -215,9 +260,19 @@ add_executable(gltron ${CMAKE_CURRENT_SOURCE_DIR}/src/gltron.c)
 # Add LOCAL_DATA definition specifically to the gltron target
 target_compile_definitions(gltron PRIVATE LOCAL_DATA)
 
+# Add USE_EMBEDDED_SCRIPTS definition if enabled
+if(USE_EMBEDDED_SCRIPTS)
+  target_compile_definitions(gltron PRIVATE USE_EMBEDDED_SCRIPTS)
+endif()
+
 # Link libraries - IMPORTANT: Order matters for static linking
 target_link_libraries(gltron PRIVATE
   sdl_compat  # Add the SDL compatibility library first
+  lua5  # For luaL_loadstring - move this before nebu_scripting
+  lualib5  # For lua_pcall - move this before nebu_scripting
+  nebu_scripting  # For scripting_GetLuaState - move this before game
+  nebu_filesystem  # For nebu_FS_Test - move this before game
+  nebu_base  # For basic functions - move this before game
   game
   input
   audio
@@ -228,11 +283,6 @@ target_link_libraries(gltron PRIVATE
   nebu_input
   nebu_audio
   nebu_video
-  nebu_scripting
-  nebu_filesystem
-  nebu_base
-  lua5  # Changed from lua to lua5
-  lualib5  # Changed from lualib to lualib5
   lib3ds
   ${GLEW_LIBRARIES}
   ${PNG_LIBRARIES}
@@ -270,7 +320,7 @@ if(ENABLE_SOUND)
 endif()
 
 # Also copy resources as a post-build step to ensure they're updated if changed
-if(LOCAL_DATA)
+if(LOCAL_DATA AND NOT USE_EMBEDDED_SCRIPTS)
   add_custom_command(TARGET gltron POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
     ${CMAKE_SOURCE_DIR}/scripts ${CMAKE_BINARY_DIR}/scripts
@@ -308,14 +358,16 @@ if(LOCAL_DATA)
   )
 endif()
 
-# Installation rules
+# Installation rules - only install resources if not using embedded scripts
 install(TARGETS gltron DESTINATION bin)
-install(DIRECTORY art/ DESTINATION share/gltron/art)
-install(DIRECTORY data/ DESTINATION share/gltron/data)
-install(DIRECTORY music/ DESTINATION share/gltron/music)
-install(DIRECTORY scripts/ DESTINATION share/gltron/scripts)
-install(DIRECTORY levels/ DESTINATION share/gltron/levels)
-install(DIRECTORY sounds/ DESTINATION share/gltron/sounds)
+if(NOT USE_EMBEDDED_SCRIPTS)
+  install(DIRECTORY art/ DESTINATION share/gltron/art)
+  install(DIRECTORY data/ DESTINATION share/gltron/data)
+  install(DIRECTORY music/ DESTINATION share/gltron/music)
+  install(DIRECTORY scripts/ DESTINATION share/gltron/scripts)
+  install(DIRECTORY levels/ DESTINATION share/gltron/levels)
+  install(DIRECTORY sounds/ DESTINATION share/gltron/sounds)
+endif()
 
 # Generate tags (similar to the original Makefile.am)
 add_custom_target(tags
@@ -326,6 +378,7 @@ add_custom_target(tags
 # Add a custom target to verify LOCAL_DATA is defined
 add_custom_target(verify_local_data
   COMMAND ${CMAKE_COMMAND} -E echo "LOCAL_DATA is set to: ${LOCAL_DATA}"
+  COMMAND ${CMAKE_COMMAND} -E echo "USE_EMBEDDED_SCRIPTS is set to: ${USE_EMBEDDED_SCRIPTS}"
   COMMAND ${CMAKE_COMMAND} -E echo "Build type is: ${CMAKE_BUILD_TYPE}"
   COMMAND ${CMAKE_COMMAND} -E echo "Resources should be in: ${CMAKE_BINARY_DIR}/scripts"
   COMMAND ls -la ${CMAKE_BINARY_DIR}/scripts

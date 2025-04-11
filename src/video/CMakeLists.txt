@@ -16,11 +16,17 @@ target_include_directories(video PUBLIC
 # Link libraries
 target_link_libraries(video PUBLIC
   nebu_filesystem
+  nebu_scripting  # Added for gui_ReleaseResources
   nebu_video
+  nebu_base
+  nebu_input     # Adding input library
+  nebu_audio     # Adding audio library
   sdl_compat
   ${GLEW_LIBRARIES}
   ${SDL2_LIBRARIES}
+  ${SDL2_IMAGE_LIBRARIES}  # Adding SDL2_image
   ${OPENGL_LIBRARIES}
+  ${CMAKE_DL_LIBS}         # Adding dynamic loading library
 )
 
 # Platform-specific configurations
