@@ -98,6 +98,44 @@ function nextTrack()
     end
 end
 
+-- Function to get the previous track
+function previousTrack()
+    print("[music_functions] previousTrack() called")
+    
+    if table.getn(tracks) == 0 then
+        print("[music_functions] No tracks available")
+        return 0
+    end
+    
+    -- Move to previous track
+    current_track_index = current_track_index - 1
+    if current_track_index < 1 then
+        current_track_index = table.getn(tracks)
+    end
+    
+    -- Get the track path
+    local track_path = tracks[current_track_index]
+    print("[music_functions] Previous track: " .. track_path)
+    
+    -- Extract filename from path
+    local filename = string.gsub(track_path, "^.*/", "")
+    print("[music_functions] Extracted filename: " .. filename)
+    
+    -- Set as current track
+    settings.current_track = filename
+    print("[music_functions] Set current_track to: " .. filename)
+    
+    -- Try to play the music
+    if c_reloadTrack then
+        print("[music_functions] Calling c_reloadTrack()")
+        c_reloadTrack()
+        return 1
+    else
+        print("[music_functions] c_reloadTrack not available")
+        return 0
+    end
+end
+
 -- Function to play a specific track
 function playTrack(index)
     print("[music_functions] playTrack(" .. index .. ") called")
@@ -136,6 +174,67 @@ function playTrack(index)
     else
         print("[music_functions] c_reloadTrack not available")
         return 0
+    end
+end
+
+-- Helper functions for volume control
+function MusicVolumeUp()
+    print("[music_functions] MusicVolumeUp() called")
+    
+    if settings.musicVolume < 1.0 then
+        settings.musicVolume = settings.musicVolume + 0.1
+        if settings.musicVolume > 1.0 then
+            settings.musicVolume = 1.0
+        end
+        
+        if c_update_audio_volume then
+            c_update_audio_volume()
+        end
+    end
+end
+
+function MusicVolumeDown()
+    print("[music_functions] MusicVolumeDown() called")
+    
+    if settings.musicVolume > 0.0 then
+        settings.musicVolume = settings.musicVolume - 0.1
+        if settings.musicVolume < 0.0 then
+            settings.musicVolume = 0.0
+        end
+        
+        if c_update_audio_volume then
+            c_update_audio_volume()
+        end
+    end
+end
+
+function FXVolumeUp()
+    print("[music_functions] FXVolumeUp() called")
+    
+    if settings.fxVolume < 1.0 then
+        settings.fxVolume = settings.fxVolume + 0.1
+        if settings.fxVolume > 1.0 then
+            settings.fxVolume = 1.0
+        end
+        
+        if c_update_audio_volume then
+            c_update_audio_volume()
+        end
+    end
+end
+
+function FXVolumeDown()
+    print("[music_functions] FXVolumeDown() called")
+    
+    if settings.fxVolume > 0.0 then
+        settings.fxVolume = settings.fxVolume - 0.1
+        if settings.fxVolume < 0.0 then
+            settings.fxVolume = 0.0
+        end
+        
+        if c_update_audio_volume then
+            c_update_audio_volume()
+        end
     end
 end
 

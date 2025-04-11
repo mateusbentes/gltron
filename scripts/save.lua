@@ -1,5 +1,13 @@
--- dump global environment
+-- Save script with Music Functions
+print("[save] Loading save.lua")
 
+-- Load music functions if they're not already loaded
+if not nextTrack then
+    print("[save] Loading music functions")
+    dofile("scripts/music_functions.lua")
+end
+
+-- dump global environment
 function savevar (n,v)
  if v == nil then return end
  if type(v)=="userdata" or type(v)=="function" then return end
@@ -28,6 +36,87 @@ function savevar (n,v)
  io.write("\n")
 end
 
-function save ()
+-- Function to save all settings
+function save()
   table.foreach(settings,savevar)
 end
+
+-- Function to save settings with music handling
+function saveSettings()
+    print("[save] Saving settings")
+    
+    -- Make sure music is enabled
+    if settings.playMusic == nil then
+        settings.playMusic = 1
+        print("[save] Enabled music (was nil)")
+    end
+    
+    -- Set music volume if not set
+    if settings.musicVolume == nil or settings.musicVolume == 0 then
+        settings.musicVolume = 0.8
+        print("[save] Set music volume to 0.8")
+    end
+    
+    -- Update audio volume
+    if c_update_audio_volume then
+        c_update_audio_volume()
+    end
+    
+    -- Try to play music if it's not already playing
+    if settings.playMusic == 1 and settings.current_track == nil then
+        print("[save] No current track set, trying to play music")
+        if nextTrack then
+            nextTrack()
+        end
+    end
+    
+    -- Save all settings
+    save()
+    
+    return 1
+end
+
+-- Function to load settings
+function loadSettings()
+    print("[save] Loading settings")
+    
+    -- Make sure music is enabled
+    if settings.playMusic == nil then
+        settings.playMusic = 1
+        print("[save] Enabled music (was nil)")
+    end
+    
+    -- Set music volume if not set
+    if settings.musicVolume == nil or settings.musicVolume == 0 then
+        settings.musicVolume = 0.8
+        print("[save] Set music volume to 0.8")
+    end
+    
+    -- Update audio volume
+    if c_update_audio_volume then
+        c_update_audio_volume()
+    end
+    
+    -- Try to play music if it's not already playing
+    if settings.playMusic == 1 and settings.current_track == nil then
+        print("[save] No current track set, trying to play music")
+        if nextTrack then
+            nextTrack()
+        end
+    elseif settings.playMusic == 1 and settings.current_track then
+        print("[save] Current track is set to: " .. settings.current_track)
+        if c_reloadTrack then
+            print("[save] Calling c_reloadTrack()")
+            c_reloadTrack()
+        end
+    end
+    
+    return 1
+end
+
+-- Call loadSettings to initialize
+loadSettings()
+
+print("[save] Save script loaded")
+
+return 1
