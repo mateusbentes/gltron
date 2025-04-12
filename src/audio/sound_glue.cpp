@@ -632,10 +632,10 @@ extern "C" {
 
   void Audio_Init(void) {
     printf("[audio] Audio_Init called (audio disabled)\n");
-    // Set the playMusic setting to 0 to prevent the game from trying to play music
-    scripting_Run("if settings then settings.playMusic = 0 end");
+    // Don't try to use Lua to set playMusic
+    // scripting_Run("if settings then settings.playMusic = 0 end");
   }
-
+  
   void Audio_Start(void) {
     printf("[audio] Audio_Start called (audio disabled)\n");
   }

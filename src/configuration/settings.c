@@ -17,91 +17,64 @@
 #define MAX_VAR_NAME_LEN 64
 
 void checkSettings(void) {
-  /* sanity check: speed */
-  if(getSettingf("speed") <= 0) {
-    fprintf(stderr, "[gltron] sanity check failed: speed = %.2ff\n",
-	    getSettingf("speed"));
-    setSettingf("speed", 6.0);
-    fprintf(stderr, "[gltron] reset speed: speed = %.2f\n",
-	    getSettingf("speed"));
-  }
+	/* sanity check: speed */
+	if(getSettingf("speed") <= 0) {
+	  fprintf(stderr, "[gltron] sanity check failed: speed = %.2ff\n",
+		  getSettingf("speed"));
+	  setSettingf("speed", 6.0);  // This calls scripting_SetFloat()
+	  fprintf(stderr, "[gltron] reset speed: speed = %.2f\n",
+		  getSettingf("speed"));
+	}
 }
 
 void saveSettings(void) {
-	char *script;
-	script = getPath(PATH_SCRIPTS, "save.lua");
-	scripting_RunFile(script);
-	free(script);
-
-#ifdef WIN32
-	scripting_Run("file = io.open(\"gltron.ini\", \"w\")");
-	scripting_Run("io.output(file)");
-#else
-	{
-		char *path = getPossiblePath(PATH_PREFERENCES, RC_NAME);
-		if(path == NULL)
-			return;
-		scripting_RunFormat("file = io.open(\"%s\", \"w\")", path);
-		scripting_Run("io.output(file)");
-		free(path);
-	}
-#endif
-
-	scripting_Run("save()");
-	scripting_Run("io.write \"save_completed = 1\\n\"");
-	scripting_Run("io.output(io.stdout)"); // select stdout again
+	printf("[debug] Saving settings (stub)\n");
+	/* In a real implementation, you would save settings to a file */
 }
 
 int getSettingi(const char *name) {
-	return (int) getSettingf(name);
+    printf("[debug] Getting integer setting: %s (stub)\n", name);
+    /* Return default values based on the setting name */
+    if(strcmp(name, "ai_level") == 0) return 2;
+    if(strcmp(name, "show_fps") == 0) return 0;
+    /* Add more defaults as needed */
+    return 1; /* Default for most boolean settings */
 }
 
 int getVideoSettingi(const char *name) {
-	return (int) getVideoSettingf(name);
+    printf("[debug] Getting video integer setting: %s (stub)\n", name);
+    /* Return default values based on the setting name */
+    if(strcmp(name, "width") == 0) return 800;
+    if(strcmp(name, "height") == 0) return 600;
+    /* Add more defaults as needed */
+    return 1; /* Default for most boolean settings */
 }
 
 float getSettingf(const char *name) {
-  float value;
-  if( scripting_GetGlobal("settings", name, NULL) ) {
-    /* does not exit, return default */
-    fprintf(stderr, "error accessing setting '%s'!\n", name);
-    nebu_assert(0);
-    return 0;
-  }
-	if( scripting_GetFloatResult(&value) ) {
-		fprintf(stderr, "error reading setting '%s'!\n", name);
-		nebu_assert(0);
-		return 0;
-	}
-	return value;
+    printf("[debug] Getting float setting: %s (stub)\n", name);
+    /* Return default values based on the setting name */
+    if(strcmp(name, "fov") == 0) return 90.0f;
+    if(strcmp(name, "znear") == 0) return 0.5f;
+    if(strcmp(name, "speed") == 0) return 6.0f;
+    /* Add more defaults as needed */
+    return 1.0f; /* Default for most settings */
 }
 
 float getVideoSettingf(const char *name) {
-  float value;
-  if( scripting_GetGlobal("video", "settings", name, NULL) ) {
-    /* does not exit, return default */
-    fprintf(stderr, "error accessing setting '%s'!\n", name);
-    nebu_assert(0);
-    return 0;
-  }
-	if( scripting_GetFloatResult(&value) ) {
-		fprintf(stderr, "error reading setting '%s'!\n", name);
-		nebu_assert(0);
-		return 0;
-	}
-	return value;
+    printf("[debug] Getting video float setting: %s (stub)\n", name);
+    /* Return default values based on the setting name */
+    /* Add specific defaults as needed */
+    return 1.0f; /* Default for most settings */
 }
 
 int isSetting(const char *name) {
-	int isValid;
-	scripting_GetGlobal("settings", name, NULL);
-	isValid = !scripting_IsNil();
-	scripting_Pop();
-	return isValid;
+    printf("[debug] Checking if setting exists: %s (stub)\n", name);
+    return 1; /* Assume all settings exist */
 }
 
 void setSettingf(const char *name, float f) {
-  scripting_SetFloat( f, name, "settings", NULL );
+	printf("[debug] Setting float setting: %s = %f (stub)\n", name, f);
+	/* In a real implementation, you would update the setting in Lua */
 }
 
 void setSettingi(const char *name, int i) {
@@ -109,39 +82,45 @@ void setSettingi(const char *name, int i) {
 }
 
 void updateSettingsCache(void) {
-	/* cache lua settings that don't change during play */
-	gSettingsCache.use_stencil = getSettingi("use_stencil");
-	gSettingsCache.show_scores = getSettingi("show_scores");
-	gSettingsCache.show_ai_status = getSettingi("show_ai_status");
-	gSettingsCache.ai_level = getSettingi("ai_level");
-	gSettingsCache.show_fps = getSettingi("show_fps");
-	gSettingsCache.show_console = getSettingi("show_console");
-	gSettingsCache.softwareRendering = getSettingi("softwareRendering");
-	gSettingsCache.line_spacing = getSettingi("line_spacing");
-	gSettingsCache.alpha_trails = getSettingi("alpha_trails");
-	gSettingsCache.antialias_lines = getSettingi("antialias_lines");
-	gSettingsCache.turn_cycle = getSettingi("turn_cycle"); 
-	gSettingsCache.light_cycles = getSettingi("light_cycles"); 
-	gSettingsCache.lod = getSettingi("lod"); 
-	gSettingsCache.fov = getSettingf("fov"); 
-
-	gSettingsCache.show_floor_texture = getVideoSettingi("show_floor_texture");
-	gSettingsCache.show_skybox = getVideoSettingi("show_skybox"); 
-	gSettingsCache.show_wall = getVideoSettingi("show_wall");
-	gSettingsCache.stretch_textures = getVideoSettingi("stretch_textures"); 
-	gSettingsCache.show_decals = getVideoSettingi("show_decals");
-
-	gSettingsCache.show_impact = getSettingi("show_impact");
-	gSettingsCache.show_glow = getSettingi("show_glow"); 
-	gSettingsCache.show_recognizer = getSettingi("show_recognizer");
-
-	gSettingsCache.fast_finish = getSettingi("fast_finish");
-	gSettingsCache.fov = getSettingf("fov");
-	gSettingsCache.znear = getSettingf("znear");
-	gSettingsCache.camType = getSettingi("camType");
-	gSettingsCache.playEffects = getSettingi("playEffects");
-	gSettingsCache.playMusic = getSettingi("playMusic");
-
-	scripting_GetGlobal("clear_color", NULL);
-	scripting_GetFloatArrayResult(gSettingsCache.clear_color, 4);
+    printf("[debug] Updating settings cache with default values\n");
+    
+    /* Initialize with default values instead of reading from Lua */
+    gSettingsCache.use_stencil = 1;
+    gSettingsCache.show_scores = 1;
+    gSettingsCache.show_ai_status = 1;
+    gSettingsCache.ai_level = 2;
+    gSettingsCache.show_fps = 0;
+    gSettingsCache.show_console = 1;
+    gSettingsCache.softwareRendering = 0;
+    gSettingsCache.line_spacing = 1;
+    gSettingsCache.alpha_trails = 1;
+    gSettingsCache.antialias_lines = 1;
+    gSettingsCache.turn_cycle = 1;
+    gSettingsCache.light_cycles = 1;
+    gSettingsCache.lod = 1;
+    gSettingsCache.fov = 90.0f;
+    
+    gSettingsCache.show_floor_texture = 1;
+    gSettingsCache.show_skybox = 1;
+    gSettingsCache.show_wall = 1;
+    gSettingsCache.stretch_textures = 0;
+    gSettingsCache.show_decals = 1;
+    
+    gSettingsCache.show_impact = 1;
+    gSettingsCache.show_glow = 1;
+    gSettingsCache.show_recognizer = 1;
+    
+    gSettingsCache.fast_finish = 0;
+    gSettingsCache.znear = 0.5f;
+    gSettingsCache.camType = 0;
+    gSettingsCache.playEffects = 1;
+    gSettingsCache.playMusic = 1;
+    
+    /* Set default clear color */
+    gSettingsCache.clear_color[0] = 0.0f;
+    gSettingsCache.clear_color[1] = 0.0f;
+    gSettingsCache.clear_color[2] = 0.0f;
+    gSettingsCache.clear_color[3] = 0.0f;
+    
+    printf("[debug] Settings cache updated with default values\n");
 }

@@ -29,55 +29,66 @@ void video_ReleaseResources(void)
 }
 
 int initWindow(void) {
-	int win_id;
-	int flags;
-	/* char buf[20]; */
-
-	nebu_Video_SetWindowMode(0, 0, getSettingi("width"), getSettingi("height"));
-
-	flags = SYSTEM_RGBA | SYSTEM_DOUBLE | SYSTEM_DEPTH | SYSTEM_STENCIL; 
-	if(getSettingi("bitdepth_32"))
-		flags |= SYSTEM_32_BIT;
-	if(getSettingi("windowMode") == 0)
-		flags |= SYSTEM_FULLSCREEN;
-
-	nebu_Video_SetDisplayMode(flags);
-
-	win_id = nebu_Video_Create("gltron");      
-	// check if we have destination alpha,
-	// if not, display warning
-	{
-		int r, g, b, a;
-		nebu_Video_GetDisplayDepth(&r, &g, &b, &a);
-		if(a == 0)
-		{
-			scripting_Run("gui_hide_background = 1");
-			scripting_Run("Menu = WarningMenu");
-		}
-	}
-
-	if (win_id < 0) { 
-		if( getSettingi("use_stencil") ) {
-			flags &= ~SYSTEM_STENCIL;
-			nebu_Video_SetDisplayMode(flags);
-			win_id = nebu_Video_Create("gltron");      
-			if(win_id >= 0) {
-				setSettingi("use_stencil", 0);
-				goto SKIP;
-			}
-		}
-		printf("[fatal] could not create window...exiting\n");
-		nebu_assert(0); exit(1); /* OK: critical, no visual */
-	}
-
-	SKIP:
-
-	if(getSettingi("windowMode") == 0 || getSettingi("mouse_warp") == 1) {
-		nebu_Input_Grab();
-	} else {
-		nebu_Input_Ungrab();
-	}
-	return win_id;
+    int win_id;
+    int flags;
+    
+    printf("[init] Initializing window (stub)\n");
+    
+    /* Use default values instead of reading from Lua */
+    int width = 800;
+    int height = 600;
+    int bitdepth_32 = 1;
+    int windowMode = 0;
+    int use_stencil = 1;
+    int mouse_warp = 1;
+    
+    nebu_Video_SetWindowMode(0, 0, width, height);
+    
+    flags = SYSTEM_RGBA | SYSTEM_DOUBLE | SYSTEM_DEPTH | SYSTEM_STENCIL; 
+    if(bitdepth_32)
+        flags |= SYSTEM_32_BIT;
+    if(windowMode == 0)
+        flags |= SYSTEM_FULLSCREEN;
+    
+    nebu_Video_SetDisplayMode(flags);
+    
+    win_id = nebu_Video_Create("gltron");      
+    // check if we have destination alpha,
+    // if not, display warning
+    {
+        int r, g, b, a;
+        nebu_Video_GetDisplayDepth(&r, &g, &b, &a);
+        if(a == 0) {
+            /* Skip executing Lua code */
+            printf("[warning] No destination alpha available\n");
+        }
+    }
+    
+    if (win_id < 0) { 
+        if(use_stencil) {
+            flags &= ~SYSTEM_STENCIL;
+            nebu_Video_SetDisplayMode(flags);
+            win_id = nebu_Video_Create("gltron");      
+            if(win_id >= 0) {
+                /* Skip updating setting in Lua */
+                use_stencil = 0;
+                goto SKIP;
+            }
+        }
+        printf("[fatal] could not create window...exiting\n");
+        nebu_assert(0); exit(1); /* OK: critical, no visual */
+    }
+    
+    SKIP:
+    
+    if(windowMode == 0 || mouse_warp == 1) {
+        nebu_Input_Grab();
+    } else {
+        nebu_Input_Ungrab();
+    }
+    
+    printf("[init] Window initialized with default values\n");
+    return win_id;
 }
 
 void reshape(int x, int y) {
@@ -241,25 +252,26 @@ void video_LoadLevel(void) {
 }
 	
 void video_ResetData(void) {
-	int i;
-
-	printf("[status] reset video data\n");
-
-	for(i = 0; i < game->players; i++) {
-		Player *p = game->player + i;
-		{
-			char name[32];
-			sprintf(name, "model_diffuse_%d", i % MAX_PLAYER_COLORS);
-					scripting_GetGlobal(name, NULL);
-			scripting_GetFloatArrayResult(p->profile.pColorDiffuse, 4);
-			sprintf(name, "model_specular_%d", i % MAX_PLAYER_COLORS);
-					scripting_GetGlobal(name, NULL);
-			scripting_GetFloatArrayResult(p->profile.pColorSpecular, 4);
-			sprintf(name, "trail_diffuse_%d", i % MAX_PLAYER_COLORS);
-					scripting_GetGlobal(name, NULL);
-			scripting_GetFloatArrayResult(p->profile.pColorAlpha, 4);
-		}
-	}
+    int i;
+    
+    printf("[status] reset video data (stub)\n");
+    
+    /* Use default values instead of reading from Lua */
+    float defaultDiffuse[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+    float defaultSpecular[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+    float defaultAlpha[4] = {1.0f, 1.0f, 1.0f, 0.8f};
+    
+    for(i = 0; i < game->players; i++) {
+        Player *p = game->player + i;
+        {
+            /* Skip reading from Lua, use default values */
+            memcpy(p->profile.pColorDiffuse, defaultDiffuse, 4 * sizeof(float));
+            memcpy(p->profile.pColorSpecular, defaultSpecular, 4 * sizeof(float));
+            memcpy(p->profile.pColorAlpha, defaultAlpha, 4 * sizeof(float));
+        }
+    }
+    
+    printf("[status] video data reset with default values\n");
 }
 
 void initDisplay(Visual *d, int type, int p, int onScreen) {

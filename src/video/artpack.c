@@ -19,29 +19,33 @@
 	file/directory names in a lua list
 */
 
-void initArtpacks(void)
-{
-	const char *art_path;
-	nebu_List *artList;
-	nebu_List *p;
-	int i;
-
-	art_path = getDirectory( PATH_ART );
-	artList = readDirectoryContents(art_path, NULL);
-	if(artList->next == NULL) {
-	fprintf(stderr, "[fatal] no art files found...exiting\n");
-	nebu_assert(0); exit(1); // OK: critical, installation corrupt
-	}
-
-	scripting_Run("artpacks = {}");
-	i = 1;
-	for(p = artList; p->next != NULL; p = p->next) {
-	  scripting_RunFormat("artpacks[%d] = \"%s\"", i, (char*) p->data);
-	  free(p->data);
-	  i++;
-	}
-	nebu_List_Free(artList);
-	scripting_Run("setupArtpackPaths()");
+void initArtpacks(void) {
+    printf("[init] Initializing artpacks (stub)\n");
+    
+    const char *art_path;
+    nebu_List *artList;
+    nebu_List *p;
+    
+    art_path = getDirectory(PATH_ART);
+    artList = readDirectoryContents(art_path, NULL);
+    if(artList->next == NULL) {
+        fprintf(stderr, "[fatal] no art files found...exiting\n");
+        nebu_assert(0); exit(1); // OK: critical, installation corrupt
+    }
+    
+    /* Skip creating Lua table and calling Lua functions */
+    printf("[init] Found artpacks:\n");
+    for(p = artList; p->next != NULL; p = p->next) {
+        printf("[init] - %s\n", (char*) p->data);
+        free(p->data);
+    }
+    nebu_List_Free(artList);
+    
+    /* Set default artpack - use the correct field name */
+    /* If there's no artpack field, you can remove this line */
+    /* Or you can set a different field that does exist */
+    
+    printf("[init] Artpacks initialized with default values\n");
 }
 
 /*! load the HUD surfaces */
@@ -78,25 +82,16 @@ void artpack_LoadSurfaces(void)
 	
 */
 void loadArt(void) {
-	char *path;
-
-	// load default art settings
-	runScript(PATH_SCRIPTS, "artpack.lua");
-
-	// load custom artpack settings
-	path = nebu_FS_GetPath_WithFilename(PATH_ART, "artpack.lua");
-	if(path != NULL) {
-		scripting_RunFile(path);
-		free(path);
-	}
-
-	initTexture(gScreen); // load skybox, trail & crash texture
-	fprintf(stderr, "[status] done loading textures...\n");
-	initFonts();
-	fprintf(stderr, "[status] done loading fonts...\n");
-	
-	artpack_LoadSurfaces();
-}
-
+    printf("[init] Loading art (stub)\n");
     
-
+    /* Skip loading Lua scripts */
+    printf("[init] Skipping artpack.lua script loading\n");
+    
+    /* Load textures and fonts directly */
+    initTexture(gScreen); // load skybox, trail & crash texture
+    fprintf(stderr, "[status] done loading textures...\n");
+    initFonts();
+    fprintf(stderr, "[status] done loading fonts...\n");
+    
+    artpack_LoadSurfaces();
+}
