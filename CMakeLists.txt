@@ -218,9 +218,8 @@ target_link_libraries(sdl_compat PUBLIC ${SDL2_LIBRARIES})
 
 # Copy resources to build directory for LOCAL_DATA mode
 # Do this before building any targets to ensure resources are available
-if(LOCAL_DATA AND NOT USE_EMBEDDED_SCRIPTS)
+if(LOCAL_DATA)
   # Create directories
-  file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/scripts)
   file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/art)
   file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/data)
   file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/music)
@@ -228,12 +227,17 @@ if(LOCAL_DATA AND NOT USE_EMBEDDED_SCRIPTS)
   file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/sounds)
   
   # Copy resources immediately during configure step
-  file(COPY ${CMAKE_SOURCE_DIR}/scripts/ DESTINATION ${CMAKE_BINARY_DIR}/scripts)
   file(COPY ${CMAKE_SOURCE_DIR}/art/ DESTINATION ${CMAKE_BINARY_DIR}/art)
   file(COPY ${CMAKE_SOURCE_DIR}/data/ DESTINATION ${CMAKE_BINARY_DIR}/data)
   file(COPY ${CMAKE_SOURCE_DIR}/music/ DESTINATION ${CMAKE_BINARY_DIR}/music)
   file(COPY ${CMAKE_SOURCE_DIR}/levels/ DESTINATION ${CMAKE_BINARY_DIR}/levels)
   file(COPY ${CMAKE_SOURCE_DIR}/sounds/ DESTINATION ${CMAKE_BINARY_DIR}/sounds)
+  
+  # Only copy scripts if not using embedded scripts
+  if(NOT USE_EMBEDDED_SCRIPTS)
+    file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/scripts)
+    file(COPY ${CMAKE_SOURCE_DIR}/scripts/ DESTINATION ${CMAKE_BINARY_DIR}/scripts)
+  endif()
   
   message(STATUS "Resources copied to build directory")
 endif()
@@ -320,13 +324,7 @@ if(ENABLE_SOUND)
 endif()
 
 # Also copy resources as a post-build step to ensure they're updated if changed
-if(LOCAL_DATA AND NOT USE_EMBEDDED_SCRIPTS)
-  add_custom_command(TARGET gltron POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-    ${CMAKE_SOURCE_DIR}/scripts ${CMAKE_BINARY_DIR}/scripts
-    COMMENT "Copying scripts to build directory"
-  )
-  
+if(LOCAL_DATA)
   add_custom_command(TARGET gltron POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
     ${CMAKE_SOURCE_DIR}/art ${CMAKE_BINARY_DIR}/art
@@ -356,17 +354,26 @@ if(LOCAL_DATA AND NOT USE_EMBEDDED_SCRIPTS)
     ${CMAKE_SOURCE_DIR}/sounds ${CMAKE_BINARY_DIR}/sounds
     COMMENT "Copying sounds to build directory"
   )
+  
+  # Only copy scripts if not using embedded scripts
+  if(NOT USE_EMBEDDED_SCRIPTS)
+    add_custom_command(TARGET gltron POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_directory
+      ${CMAKE_SOURCE_DIR}/scripts ${CMAKE_BINARY_DIR}/scripts
+      COMMENT "Copying scripts to build directory"
+    )
+  endif()
 endif()
 
 # Installation rules - only install resources if not using embedded scripts
 install(TARGETS gltron DESTINATION bin)
+install(DIRECTORY art/ DESTINATION share/gltron/art)
+install(DIRECTORY data/ DESTINATION share/gltron/data)
+install(DIRECTORY music/ DESTINATION share/gltron/music)
+install(DIRECTORY levels/ DESTINATION share/gltron/levels)
+install(DIRECTORY sounds/ DESTINATION share/gltron/sounds)
 if(NOT USE_EMBEDDED_SCRIPTS)
-  install(DIRECTORY art/ DESTINATION share/gltron/art)
-  install(DIRECTORY data/ DESTINATION share/gltron/data)
-  install(DIRECTORY music/ DESTINATION share/gltron/music)
   install(DIRECTORY scripts/ DESTINATION share/gltron/scripts)
-  install(DIRECTORY levels/ DESTINATION share/gltron/levels)
-  install(DIRECTORY sounds/ DESTINATION share/gltron/sounds)
 endif()
 
 # Generate tags (similar to the original Makefile.am)
