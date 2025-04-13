@@ -1,3 +1,4 @@
+# Collect all source and header files
 file(GLOB SOURCES "*.c")
 file(GLOB HEADERS "*.h")
 
@@ -19,12 +20,12 @@ target_include_directories(game PUBLIC
 
 # Link libraries - Order matters for static linking
 target_link_libraries(game PUBLIC
-  nebu_scripting  # For scripting_GetLuaState
-  lua5  # For luaL_loadstring
-  lualib5  # For lua_pcall
-  nebu_filesystem  # For nebu_FS_Test
+  nebu_scripting  # Ensure this library contains scripting_SetLuaState
+  lua5  # Ensure this is the correct Lua library
+  lualib5  # Ensure this is the correct Lua auxiliary library
+  nebu_filesystem
   nebu_input
   nebu_video
-  nebu_base  # For basic functions
+  nebu_base
   sdl_compat
 )

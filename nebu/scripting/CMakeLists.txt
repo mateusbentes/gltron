@@ -2,6 +2,9 @@
 file(GLOB SOURCES "*.c" "*.cpp")
 file(GLOB HEADERS "*.h")
 
+# Ensure the source file containing scripting_SetLuaState is included
+# Double-check the directory for the correct source file
+
 # Create the library
 add_library(nebu_scripting STATIC ${SOURCES} ${HEADERS})
 

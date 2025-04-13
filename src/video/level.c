@@ -17,6 +17,10 @@
 
 #include "base/nebu_debug_memory.h"
 
+#include <lua.h>
+#include <lauxlib.h>
+#include <lualib.h>
+
 gltron_Mesh* loadMesh(void);
 
 void video_FreeLevel(video_level *l) {
@@ -266,41 +270,80 @@ void loadModel(gltron_Mesh **ppMesh, int *pToken)
 }
 
 video_level* video_CreateLevel(void) {
-    video_level *l;
-
-    printf("[debug] video_CreateLevel: creating level\n");
-    
-    l = malloc(sizeof(video_level));
+    video_level *l = malloc(sizeof(video_level));
     if (!l) {
-        printf("[error] video_CreateLevel: failed to allocate memory for level\n");
+        fprintf(stderr, "[error] Memory allocation failed for video_level\n");
         return NULL;
     }
-    
     memset(l, 0, sizeof(video_level));
-    
-    /* Skip Lua-dependent code */
-    printf("[debug] video_CreateLevel: skipping Lua-dependent code\n");
-    
-    /* Skip mesh creation for simplicity */
-    l->floor = NULL;
-    l->arena = NULL;
-    
-    /* Initialize floor shader with default values */
-    l->floor_shader.lit = 1;
-    l->floor_shader.passes = 1;
-    l->floor_shader.ridTexture = 0;
-    l->floor_shader.idTexture = 0;
-    l->floor_shader.fDiffuseTextureScale = 1.0f;
-    
-    /* Initialize arena shader with default values */
-    l->arena_shader.lit = 1;
-    l->arena_shader.passes = 1;
-    l->arena_shader.ridTexture = 0;
-    l->arena_shader.idTexture = 0;
-    l->arena_shader.fDiffuseTextureScale = 1.0f;
-    
-    printf("[debug] video_CreateLevel: level created successfully\n");
-    
+
+    int iPos = scripting_StackGuardStart();
+    lua_State *L = scripting_GetLuaState();
+    if (!L) {
+        fprintf(stderr, "[error] Lua state is NULL\n");
+        free(l);
+        return NULL;
+    }
+
+    // Load level script
+    const char *levelScript = get_embedded_script("level.lua");
+    if (levelScript) {
+        if (luaL_loadbuffer(L, levelScript, strlen(levelScript), "level.lua") != 0 ||  // Use 0 for success
+            lua_pcall(L, 0, 0, 0) != 0) {  // Use 0 for success
+            fprintf(stderr, "[error] Failed to execute embedded level script: %s\n", lua_tostring(L, -1));
+            lua_pop(L, 1);
+            free(l);
+            scripting_StackGuardEnd(iPos);
+            return NULL;
+        }
+    } else if (!runScript(PATH_SCRIPTS, "level.lua")) {
+        fprintf(stderr, "[error] Failed to find script: level.lua\n");
+        free(l);
+        scripting_StackGuardEnd(iPos);
+        return NULL;
+    }
+
+    // Load floor script
+    const char *floorScript = get_embedded_script("floor.lua");
+    if (floorScript) {
+        if (luaL_loadbuffer(L, floorScript, strlen(floorScript), "floor.lua") != 0 ||  // Use 0 for success
+            lua_pcall(L, 0, 0, 0) != 0) {  // Use 0 for success
+            fprintf(stderr, "[error] Failed to execute embedded floor script: %s\n", lua_tostring(L, -1));
+            lua_pop(L, 1);
+            free(l);
+            scripting_StackGuardEnd(iPos);
+            return NULL;
+        }
+    } else if (!runScript(PATH_SCRIPTS, "floor.lua")) {
+        fprintf(stderr, "[error] Failed to find script: floor.lua\n");
+        free(l);
+        scripting_StackGuardEnd(iPos);
+        return NULL;
+    }
+    loadModel(&l->floor, &gpTokenCurrentFloor);
+    level_LoadShader(&l->floor_shader);
+
+    // Load arena script
+    const char *arenaScript = get_embedded_script("arena.lua");
+    if (arenaScript) {
+        if (luaL_loadbuffer(L, arenaScript, strlen(arenaScript), "arena.lua") != 0 ||  // Use 0 for success
+            lua_pcall(L, 0, 0, 0) != 0) {  // Use 0 for success
+            fprintf(stderr, "[error] Failed to execute embedded arena script: %s\n", lua_tostring(L, -1));
+            lua_pop(L, 1);
+            free(l);
+            scripting_StackGuardEnd(iPos);
+            return NULL;
+        }
+    } else if (!runScript(PATH_SCRIPTS, "arena.lua")) {
+        fprintf(stderr, "[error] Failed to find script: arena.lua\n");
+        free(l);
+        scripting_StackGuardEnd(iPos);
+        return NULL;
+    }
+    loadModel(&l->arena, &gpTokenCurrentLevel);
+    level_LoadShader(&l->arena_shader);
+
+    scripting_StackGuardEnd(iPos);
     return l;
 }
 

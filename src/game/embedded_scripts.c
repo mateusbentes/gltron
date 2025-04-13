@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h> // Include for printf
 #include "scripting/embedded_scripts.h"
 
 /* Structure to hold an embedded script */
@@ -1137,7 +1138,19 @@ const char* get_embedded_script(const char *name) {
     int i;
     for (i = 0; embedded_scripts[i].name != NULL; i++) {
         if (strcmp(embedded_scripts[i].name, name) == 0) {
-            return embedded_scripts[i].content;
+            const char* script = embedded_scripts[i].content;
+            if (script) {
+                // Check for null termination
+                size_t len = strlen(script);
+                if (script[len] != '\0') {
+                    fprintf(stderr, "[error] Embedded script '%s' is not null-terminated!\n", name);
+                }
+                
+                // Print script content and length
+                printf("[debug] Embedded script '%s' content:\n%s\n", name, script);
+                printf("[debug] Embedded script '%s' length: %zu\n", name, len);
+            }
+            return script;
         }
     }
     return NULL;

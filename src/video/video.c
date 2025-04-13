@@ -306,20 +306,21 @@ void video_UnloadLevel(void)
 }
 
 void video_LoadLevel(void) {
-    printf("[status] load/reload video data\n");
+    printf("[video] Loading level\n");
 
     if(gWorld) {
-        printf("[warning] video_LoadLevel: gWorld is not NULL, freeing it first\n");
+        printf("[video] Freeing existing world\n");
         video_FreeLevel(gWorld);
         gWorld = NULL;
     }
     
+    printf("[video] Creating new world\n");
     gWorld = video_CreateLevel();
     
     if(!gWorld) {
-        printf("[error] video_LoadLevel: failed to create level\n");
+        printf("[error] Failed to create world\n");
     } else {
-        printf("[debug] video_LoadLevel: successfully created level\n");
+        printf("[video] World created successfully\n");
     }
 }
 	

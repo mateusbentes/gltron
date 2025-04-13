@@ -2,7 +2,6 @@
 #include "scripting/nebu_scripting.h"
 #include "base/sdl_compat.h"
 
-#include "lua.h"
 #include "lualib.h"
 #include "lauxlib.h"
 
@@ -10,6 +9,11 @@
 #include <stdio.h>
 #include <string.h>
 #include "base/nebu_assert.h"
+
+#include <lua.h>
+
+// Global variable to store the Lua state
+static lua_State *lua_state = NULL;
 
 // static lua_State *L;
 lua_State *L;
@@ -402,31 +406,18 @@ void scripting_PushInteger(int iValue)
 static int piStackGuard[256];
 static int iStackGuardPosition = -1;
 
-int scripting_StackGuardStart(void)
-{
-	if(iStackGuardPosition == 255)
-	{
-		nebu_assert(0);
-		return -1;
-	}
-
-	iStackGuardPosition++;
-	piStackGuard[iStackGuardPosition] = lua_gettop(L);
-
-	return iStackGuardPosition;
+int scripting_StackGuardStart(void) {
+    lua_State *L = scripting_GetLuaState();
+    return lua_gettop(L);
 }
 
-void scripting_StackGuardEnd(int iPos)
-{
-	if(iStackGuardPosition == -1)
-	{
-		nebu_assert(0);
-		return;
-	}
-
-	nebu_assert(iPos == iStackGuardPosition);
-	nebu_assert(piStackGuard[iPos] == lua_gettop(L));
-	iStackGuardPosition--;
+void scripting_StackGuardEnd(int start) {
+    lua_State *L = scripting_GetLuaState();
+    int end = lua_gettop(L);
+    if (end != start) {
+        fprintf(stderr, "[lua] Stack imbalance: %d -> %d\n", start, end);
+        lua_settop(L, start);
+    }
 }
 
 int scripting_GetOptional_Float(const char *name, float *f, float fValue)

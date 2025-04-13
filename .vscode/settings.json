@@ -11,6 +11,7 @@
         "nebu_scripting.h": "c",
         "typeinfo": "cpp",
         "*.tcc": "cpp",
-        "stdlib.h": "c"
+        "stdlib.h": "c",
+        "cstdlib": "c"
     }
 }

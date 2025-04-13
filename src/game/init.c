@@ -29,6 +29,17 @@
 
 #include "base/nebu_assert.h"
 
+#include <lua.h>
+#include <lauxlib.h>
+#include <lualib.h>
+
+// Define LUA_OK for Lua 5.1 compatibility
+#ifndef LUA_OK
+#define LUA_OK 0
+#endif
+
+static lua_State *lua_state = NULL;
+
 /* Define DEBUG_SCRIPTING - set to 0 for production, 1 for debugging */
 #define DEBUG_SCRIPTING 0
 
@@ -82,25 +93,32 @@ void exitSubsystems(void)
 }
 
 void initSubsystems(int argc, const char *argv[]) {
-	nebu_Init();
+    nebu_Init();
 
-	resource_Init();
+    resource_Init();
 
-	initFilesystem(argc, argv);
-	initScripting();
+    initFilesystem(argc, argv);
+    
+    // Make sure initScripting() is called before initVideo()
+    printf("[init] Initializing scripting system\n");
+    initScripting();
+    
+    /* Initialize platform-specific settings before general configuration */
+    platform_InitSettings();
+    
+    initConfiguration(argc, argv);
+    initArtpacks(); // stores the artpack directory names in a lua table, so we can display it in the menu later on
 
-	/* Initialize platform-specific settings before general configuration */
-	platform_InitSettings();
-	
-	initConfiguration(argc, argv);
-	initArtpacks(); // stores the artpack directory names in a lua table, so we can display it in the menu later on
+    initGUIs();
+    
+    // initVideo() calls video_LoadLevel(), which calls video_CreateLevel()
+    printf("[init] Initializing video system\n");
+    initVideo();
+    
+    initAudio();
+    initInput();
 
-	initGUIs();
-	initVideo();
-	initAudio();  /* Uncommented to initialize audio */
-	initInput();
-
-	fprintf(stderr, "[status] done loading level...\n");
+    fprintf(stderr, "[status] done loading level...\n");
 }
 
 void initFilesystem(int argc, const char *argv[]) {
@@ -158,62 +176,67 @@ int l_mainLoop(lua_State *L) {
 }
 
 void initScripting(void) {
-    printf("[init] Initializing scripting system with Lua\n");
+    printf("[init] Initializing Lua VM\n");
     
-    /* Initialize Lua */
-    lua_State *L = lua_open();
+    lua_State *L = luaL_newstate();  // Use luaL_newstate instead of lua_open
     if (!L) {
-        fprintf(stderr, "[error] Failed to initialize Lua\n");
-        return;
+        fprintf(stderr, "[FATAL] Failed to create Lua state\n");
+        exit(EXIT_FAILURE);  // Exit on failure
     }
     
-    /* Open standard libraries */
-    luaL_openlibs(L);
-    
-    /* Register C functions for Lua */
-    lua_register(L, "c_setCallback", l_setCallback);
-    lua_register(L, "c_mainLoop", l_mainLoop);
-    /* Register other C functions as needed */
-    
-    /* Store Lua state for later use */
+    luaL_openlibs(L);  // Open standard libraries
     scripting_SetLuaState(L);
     
-    printf("[init] Lua initialized successfully\n");
+    printf("[init] Lua VM initialized successfully\n");
+    
+    // Register C functions
+    lua_register(L, "c_setCallback", l_setCallback);
+    lua_register(L, "c_mainLoop", l_mainLoop);
     
 #ifdef USE_EMBEDDED_SCRIPTS
-    /* Process embedded scripts */
-    process_embedded_config(get_embedded_script("basics.lua"), "basics");
-    process_embedded_joystick();
-    process_embedded_path();
-    process_embedded_video();
-    process_embedded_console();
-    process_embedded_menu();
-    process_embedded_hud();
-    process_embedded_gauge();
-    process_embedded_config_file();
-    process_embedded_save();
-    process_embedded_artpack();
-    process_embedded_game();
-#else
-    /* load basic scripting services */
-    runScript(PATH_SCRIPTS, "basics.lua");
-    runScript(PATH_SCRIPTS, "joystick.lua");
-    runScript(PATH_SCRIPTS, "path.lua");
-    runScript(PATH_SCRIPTS, "video.lua");
-    runScript(PATH_SCRIPTS, "console.lua");
+    printf("[init] Loading embedded scripts\n");
+    const char* scripts[] = {
+        "basics.lua", "joystick.lua", "path.lua", 
+        "video.lua", "console.lua", "menu.lua",
+        "hud.lua", "game.lua", NULL
+    };
     
-    /* load the main menu & hud stuff */
-    runScript(PATH_SCRIPTS, "menu_functions.lua");
-    runScript(PATH_SCRIPTS, "menu.lua");
-    runScript(PATH_SCRIPTS, "hud-config.lua");
-    runScript(PATH_SCRIPTS, "hud.lua");
-    runScript(PATH_SCRIPTS, "gauge.lua");
-    runScript(PATH_SCRIPTS, "config.lua");
-    runScript(PATH_SCRIPTS, "save.lua");
-    runScript(PATH_SCRIPTS, "artpack.lua");
-    runScript(PATH_SCRIPTS, "game.lua");
-    runScript(PATH_SCRIPTS, "main.lua");
+    for (int i = 0; scripts[i]; i++) {
+        const char* script = get_embedded_script(scripts[i]);
+        if (!script) {
+            fprintf(stderr, "[FATAL] Missing embedded script: %s\n", scripts[i]);
+            exit(EXIT_FAILURE);
+        }
+        
+        if (luaL_loadbuffer(lua_state, script, strlen(script), scripts[i]) != LUA_OK ||
+            lua_pcall(lua_state, 0, 0, 0) != LUA_OK) {
+            fprintf(stderr, "[FATAL] Failed to load %s: %s\n", 
+                    scripts[i], lua_tostring(lua_state, -1));
+            lua_pop(lua_state, 1);  // Pop error message
+            exit(EXIT_FAILURE);
+        }
+    }
+#else
+    const char* fs_scripts[] = {
+        "basics.lua", "joystick.lua", "path.lua",
+        "video.lua", "console.lua", "menu.lua",
+        "hud.lua", "game.lua", NULL
+    };
+    
+    for (int i = 0; fs_scripts[i]; i++) {
+        char path[256];
+        snprintf(path, sizeof(path), "scripts/%s", fs_scripts[i]);
+        
+        if (luaL_loadfile(lua_state, path) != LUA_OK || lua_pcall(lua_state, 0, 0, 0) != LUA_OK) {
+            fprintf(stderr, "[FATAL] Failed to load %s: %s\n",
+                    path, lua_tostring(lua_state, -1));
+            lua_pop(lua_state, 1);  // Pop error message
+            exit(EXIT_FAILURE);
+        }
+    }
 #endif
+
+    printf("[init] Scripting system ready\n");
 }
 
 void initConfiguration(int argc, const char *argv[])
@@ -425,13 +448,16 @@ void initAudio(void) {
 }
 
 void initVideo(void) {
-	nebu_Video_Init();
-	// this requuires the player data
-	initVideoData();
-	setupDisplay();
+    nebu_Video_Init();
+    // this requires the player data
+    initVideoData();
+    setupDisplay();
 
-	loadArt();
-	loadModels();
+    loadArt();
+    loadModels();
+    
+    // Add this line to initialize the game world
+    video_LoadLevel();
 }
 	
 void initGUIs(void)
