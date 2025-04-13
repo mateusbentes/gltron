@@ -47,8 +47,12 @@ int main(int argc, char *argv[] ) {
     displayGame();
     
     /* Add a delay to give the window time to appear */
-    printf("[main] Waiting for window to appear\n");
-    SDL_Delay(1000);  /* Wait for 1 second */
+	printf("[main] Forcing window refresh\n");
+	displayGame();
+	nebu_System_SwapBuffers();
+	SDL_Delay(100);  // Short delay
+	displayGame();
+	nebu_System_SwapBuffers();
     
     /* CHANGE: Directly call runGUI() to start the game */
     printf("[main] Directly calling runGUI() to start the game\n");

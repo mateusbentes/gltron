@@ -61,6 +61,23 @@ int initWindow(void) {
     win_id = nebu_Video_Create("gltron");
     printf("[init] Window created: win_id=%d\n", win_id);
     
+    // Check OpenGL initialization
+    const char* vendor = (const char*)glGetString(GL_VENDOR);
+    const char* renderer = (const char*)glGetString(GL_RENDERER);
+    const char* version = (const char*)glGetString(GL_VERSION);
+    
+    printf("[opengl] Vendor: %s\n", vendor ? vendor : "Unknown");
+    printf("[opengl] Renderer: %s\n", renderer ? renderer : "Unknown");
+    printf("[opengl] Version: %s\n", version ? version : "Unknown");
+    
+    // Check for OpenGL errors
+    GLenum error = glGetError();
+    if (error != GL_NO_ERROR) {
+        printf("[opengl] Error initializing OpenGL: %d\n", error);
+    } else {
+        printf("[opengl] OpenGL initialized successfully\n");
+    }
+    
     // check if we have destination alpha,
     // if not, display warning
     {
