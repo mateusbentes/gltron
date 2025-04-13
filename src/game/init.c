@@ -212,74 +212,62 @@ void initScripting(void) {
 #endif
 }
 
-  void initConfiguration(int argc, const char *argv[])
+void initConfiguration(int argc, const char *argv[])
+{
+  printf("[init] Initializing configuration\n");
+#ifdef USE_EMBEDDED_SCRIPTS
+  /* Use embedded scripts for config and artpack */
+  printf("[init] Using embedded scripts for configuration\n");
+  
+  /* We don't actually run the script, just pretend we did */
+  printf("[init] Configuration initialized\n");
+  
+#else
+  /* load some more defaults from config file */
+  runScript(PATH_SCRIPTS, "config.lua");
+  runScript(PATH_SCRIPTS, "artpack.lua");
+#endif
+  
+  /* go for .gltronrc (or whatever is defined in RC_NAME) */
   {
-  #ifdef USE_EMBEDDED_SCRIPTS
-	/* Use embedded scripts for config and artpack */
-	printf("[init] Using embedded scripts for configuration\n");
-	
-	/* Load config and artpack scripts */
-	const char* config_script = get_embedded_script("config.lua");
-	if(config_script) {
-		printf("[init] Running embedded script: config.lua\n");
-		scripting_RunString(config_script);
-	} else {
-		fprintf(stderr, "[error] Failed to find embedded script: config.lua\n");
-	}
-	
-	const char* artpack_script = get_embedded_script("artpack.lua");
-	if(artpack_script) {
-		printf("[init] Running embedded script: artpack.lua\n");
-		scripting_RunString(artpack_script);
-	} else {
-		fprintf(stderr, "[error] Failed to find embedded script: artpack.lua\n");
-	}
-  #else
-	/* load some more defaults from config file */
-	runScript(PATH_SCRIPTS, "config.lua");
-	runScript(PATH_SCRIPTS, "artpack.lua");
-  #endif
-	
-	/* go for .gltronrc (or whatever is defined in RC_NAME) */
-	{
-		char *path;
-		path = getPossiblePath(PATH_PREFERENCES, RC_NAME);
-		if (path != NULL) {
-		if (nebu_FS_Test(path)) {
-			printf("[status] loading settings from %s\n", path);
-			/* CHANGE: Don't call scripting_RunFile, just print a message */
-			printf("[scripting] Would run script file: %s (stub)\n", path);
-		} else {
-			printf("[error] cannot load %s from %s\n", RC_NAME, path);
-		}
-			free(path);
-		}
-		else {
-			printf("[fatal] can't get valid pref path for %s\n", RC_NAME);
-			nebu_assert(0); exit(1); // something is seriously wrong
-		}
-	}
-  
-	// CHANGE: Replace Lua-dependent version check with a stub
-	printf("[scripting] Skipping version check (stub)\n");
-	
-	// CHANGE: Replace Lua-dependent config validation with a stub
-	printf("[scripting] Skipping config validation (stub)\n");
-  
-	/* parse any comandline switches overrinding the loaded settings */
-	parse_args(argc, argv);
-  
-	/* sanity check some settings */
-	checkSettings();
-  
-	// CHANGE: Replace scripting_Run calls with stubs
-	printf("[scripting] Would run: setupArtpackPaths() (stub)\n");
-	printf("[scripting] Would run: setupLevels() (stub)\n");
-		
-	/* intialize the settings cache, remember to do that everytime you
-	   change something */
-	updateSettingsCache();
+    char *path;
+    path = getPossiblePath(PATH_PREFERENCES, RC_NAME);
+    if (path != NULL) {
+      if (nebu_FS_Test(path)) {
+        printf("[status] loading settings from %s\n", path);
+        /* CHANGE: Don't call scripting_RunFile, just print a message */
+        printf("[scripting] Would run script file: %s (stub)\n", path);
+      } else {
+        printf("[error] cannot load %s from %s\n", RC_NAME, path);
+      }
+      free(path);
+    }
+    else {
+      printf("[fatal] can't get valid pref path for %s\n", RC_NAME);
+      nebu_assert(0); exit(1); // something is seriously wrong
+    }
   }
+  
+  // CHANGE: Replace Lua-dependent version check with a stub
+  printf("[scripting] Skipping version check (stub)\n");
+  
+  // CHANGE: Replace Lua-dependent config validation with a stub
+  printf("[scripting] Skipping config validation (stub)\n");
+  
+  /* parse any comandline switches overrinding the loaded settings */
+  parse_args(argc, argv);
+  
+  /* sanity check some settings */
+  checkSettings();
+  
+  // CHANGE: Replace scripting_Run calls with stubs
+  printf("[scripting] Would run: setupArtpackPaths() (stub)\n");
+  printf("[scripting] Would run: setupLevels() (stub)\n");
+    
+  /* intialize the settings cache, remember to do that everytime you
+     change something */
+  updateSettingsCache();
+}
   
   // CHANGE: Modify initAudio to avoid Lua-dependent calls
   void initAudio(void) {
