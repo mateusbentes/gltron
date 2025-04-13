@@ -7,14 +7,61 @@
 #include "scripting/scripting.h" /* For function declarations */
 #include "scripting/embedded_scripts.h" /* For get_embedded_script */
 
+/* Global variable to store the Lua state */
+static void *lua_state = NULL;
+
+/* Get the Lua state */
+void *scripting_GetLuaState(void) {
+    return lua_state;
+}
+
+/* Set the Lua state */
+void scripting_SetLuaState(void *L) {
+    lua_state = L;
+}
+
+/* Stub implementation for luaL_dostring - renamed to avoid conflicts */
+int stub_luaL_dostring(void *L, const char *str) {
+    printf("[lua] Would execute: %s\n", str ? str : "(null)");
+    return 0;  /* Success */
+}
+
+/* Stub implementation for lua_tostring - renamed to avoid conflicts */
+const char *stub_lua_tostring(void *L, int index) {
+    printf("[lua] Would get string at index %d\n", index);
+    return "error message stub";
+}
+
+/* Stub implementation for lua_pop - renamed to avoid conflicts */
+void stub_lua_pop(void *L, int n) {
+    printf("[lua] Would pop %d elements from stack\n", n);
+}
+
+/* Stub implementation for lua_close - renamed to avoid conflicts */
+void stub_lua_close(void *L) {
+    printf("[lua] Would close Lua state\n");
+}
+
 void scripting_RunString(const char *script) {
+    void *L = scripting_GetLuaState();
+    if (!L) {
+        fprintf(stderr, "[error] scripting_RunString: Lua state is NULL\n");
+        return;
+    }
+    
     if (!script) {
         fprintf(stderr, "[error] scripting_RunString: script is NULL\n");
         return;
     }
     
-    /* Just print that we're executing the script */
-    printf("[scripting] Script executed (stub)\n");
+    /* Execute the script using our stub implementation */
+    printf("[scripting] Would run script: %s\n", script ? script : "(null)");
+    
+    /* We don't actually execute the script, just pretend we did */
+    /* if (stub_luaL_dostring(L, script) != 0) {
+        fprintf(stderr, "[error] scripting_RunString: %s\n", stub_lua_tostring(L, -1));
+        stub_lua_pop(L, 1);
+    } */
 }
 
 void runScript(int path, const char *name) {
@@ -137,16 +184,29 @@ void runScript(int path, const char *name) {
 
 /* Shutdown the scripting system - simplified version */
 void scripting_Shutdown(void) {
-    printf("[scripting] Simplified scripting system shutdown\n");
+    void *L = scripting_GetLuaState();
+    if (L) {
+        /* Use our stub implementation */
+        stub_lua_close(L);
+        lua_state = NULL;
+    }
+    printf("[scripting] Scripting system shutdown\n");
 }
 
 /* Execute a simple command - simplified version */
 int scripting_ExecuteCommand(const char *command) {
+    void *L = scripting_GetLuaState();
+    if (!L) {
+        fprintf(stderr, "[error] scripting_ExecuteCommand: Lua state is NULL\n");
+        return 0;
+    }
+    
     if (!command) {
         fprintf(stderr, "[error] scripting_ExecuteCommand: command is NULL\n");
         return 0;
     }
     
-    printf("[scripting] Would execute command: %s\n", command);
+    /* Execute the command using our stub implementation */
+    printf("[scripting] Would execute command: %s\n", command ? command : "(null)");
     return 1; /* Success */
 }

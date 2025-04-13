@@ -258,6 +258,15 @@ if(NOT USE_EMBEDDED_SCRIPTS)
   add_subdirectory(sounds)
 endif()
 
+# Create a library for the callback functions
+add_library(callbacks STATIC
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/game/callbacks.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/game/init_stubs.c  # Add this line
+)
+target_include_directories(callbacks PUBLIC
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/include
+)
+
 # Main executable
 add_executable(gltron ${CMAKE_CURRENT_SOURCE_DIR}/src/gltron.c)
 
@@ -269,6 +278,17 @@ if(USE_EMBEDDED_SCRIPTS)
   target_compile_definitions(gltron PRIVATE USE_EMBEDDED_SCRIPTS)
 endif()
 
+# Find Lua (optional)
+find_package(Lua)
+if(LUA_FOUND)
+  message(STATUS "Found Lua: ${LUA_LIBRARIES}")
+else()
+  message(STATUS "Lua not found, using stub implementations")
+  # Set empty variables to avoid errors
+  set(LUA_INCLUDE_DIR "")
+  set(LUA_LIBRARIES "")
+endif()
+
 # Link libraries - IMPORTANT: Order matters for static linking
 target_link_libraries(gltron PRIVATE
   sdl_compat  # Add the SDL compatibility library first
@@ -277,6 +297,7 @@ target_link_libraries(gltron PRIVATE
   nebu_scripting  # For scripting_GetLuaState - move this before game
   nebu_filesystem  # For nebu_FS_Test - move this before game
   nebu_base  # For basic functions - move this before game
+  callbacks  # Add this line to link against the callbacks library
   game
   input
   audio
@@ -293,11 +314,19 @@ target_link_libraries(gltron PRIVATE
   ${ZLIB_LIBRARIES}
   ${OPENGL_LIBRARIES}
   ${SDL2_LIBRARIES}
-  # Add math library for Unix-like systems
-  $<$<NOT:$<PLATFORM_ID:Windows>>:m>
   # Add dl library for dynamic loading on Unix-like systems
   $<$<NOT:$<PLATFORM_ID:Windows>>:dl>
 )
+
+# Conditionally add Lua libraries if found
+if(LUA_FOUND)
+  target_link_libraries(gltron PRIVATE ${LUA_LIBRARIES})
+endif()
+
+# Add math library only on non-Windows platforms
+if(NOT WIN32)
+  target_link_libraries(gltron PRIVATE m)
+endif()
 
 # Platform-specific configurations
 if(BUILD_ANDROID)
@@ -322,6 +351,8 @@ endif()
 if(ENABLE_SOUND)
   target_link_libraries(gltron PRIVATE ${SDL_SOUND_LIBRARY})
 endif()
+
+# Math library is already added with target_link_libraries above
 
 # Also copy resources as a post-build step to ensure they're updated if changed
 if(LOCAL_DATA)

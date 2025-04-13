@@ -25,11 +25,15 @@
 #include "video/video.h"
 
 #include <stdlib.h>
+#include <string.h>  /* Added for strncpy */
 
 #include "base/nebu_assert.h"
 
 /* Define DEBUG_SCRIPTING - set to 0 for production, 1 for debugging */
 #define DEBUG_SCRIPTING 0
+
+/* Define current_callback - used by l_setCallback and l_mainLoop */
+static char current_callback[256] = "gui";  /* Default callback is "gui" */
 
 void initFilesystem(int argc, const char *argv[]);
 void debug_print_paths(void);
@@ -108,67 +112,105 @@ void initFilesystem(int argc, const char *argv[]) {
 	nebu_assert(argc == 1);
 }
 
+/* Set the current callback */
+int l_setCallback(lua_State *L) {
+    const char *callback = luaL_checkstring(L, 1);
+    printf("[c] Setting callback: %s\n", callback);
+    
+    /* Store the callback for later use */
+    strncpy(current_callback, callback, sizeof(current_callback) - 1);
+    current_callback[sizeof(current_callback) - 1] = '\0';
+    
+    return 0;  /* No return values */
+}
+
+/* Run the main loop */
+int l_mainLoop(lua_State *L) {
+    int status = 0;
+    
+    printf("[c] Running main loop with callback: %s\n", current_callback);
+    
+    /* Run the appropriate callback */
+    if (strcmp(current_callback, "gui") == 0) {
+        status = runGUI();
+    } else if (strcmp(current_callback, "game") == 0) {
+        status = runGame();
+    } else if (strcmp(current_callback, "pause") == 0) {
+        status = runPause();
+    } else if (strcmp(current_callback, "credits") == 0) {
+        status = runCredits();
+    } else if (strcmp(current_callback, "configure") == 0) {
+        status = runConfigure();
+    } else if (strcmp(current_callback, "timedemo") == 0) {
+        status = runTimedemo();
+    } else {
+        printf("[c] Unknown callback: %s\n", current_callback);
+        status = 0;  /* Quit */
+    }
+    
+    /* Return the status to Lua */
+    lua_pushnumber(L, status);
+    return 1;  /* One return value */
+}
+
 void initScripting(void) {
-	printf("[init] Initializing scripting system (without Lua)\n");
-	
-  #ifdef USE_EMBEDDED_SCRIPTS
-	/* Use embedded scripts directly */
-	printf("[init] Using embedded scripts directly\n");
-	
-	/* Load basic scripting services */
-	const char* script;
-	
-	/* Load basics.lua */
-	printf("[init] Loading embedded basics configuration\n");
-	script = get_embedded_script("basics.lua");
-	if(script != NULL) {
-	  printf("[init] Got embedded script: basics.lua\n");
-	  printf("[init] Processing embedded configuration\n");
-	  
-	  /* Instead of executing the script with Lua, parse it directly */
-	  process_embedded_config(script, "basics");
-	  
-	  printf("[init] Finished processing basics configuration\n");
-	} else {
-	  fprintf(stderr, "[error] Failed to find embedded script: basics.lua\n");
-	  /* Skip the rest of the initialization if we can't find the basics script */
-	  return;
-	}
-	
-	/* Process other embedded configurations similarly */
-	process_embedded_joystick();
-	process_embedded_path();
-	process_embedded_video();
-	process_embedded_console();
-	process_embedded_menu();
-	process_embedded_hud();
-	process_embedded_gauge();
-	process_embedded_config_file();
-	process_embedded_save();
-	process_embedded_artpack();
-	process_embedded_game();
-	process_embedded_main();
-  #else
-	/* load basic scripting services */
-	runScript(PATH_SCRIPTS, "basics.lua");
-	runScript(PATH_SCRIPTS, "joystick.lua");
-	runScript(PATH_SCRIPTS, "path.lua");
-	runScript(PATH_SCRIPTS, "video.lua");
-	runScript(PATH_SCRIPTS, "console.lua");
-	
-	/* load the main menu & hud stuff */
-	runScript(PATH_SCRIPTS, "menu_functions.lua");
-	runScript(PATH_SCRIPTS, "menu.lua");
-	runScript(PATH_SCRIPTS, "hud-config.lua");
-	runScript(PATH_SCRIPTS, "hud.lua");
-	runScript(PATH_SCRIPTS, "gauge.lua");
-	runScript(PATH_SCRIPTS, "config.lua");
-	runScript(PATH_SCRIPTS, "save.lua");
-	runScript(PATH_SCRIPTS, "artpack.lua");
-	runScript(PATH_SCRIPTS, "game.lua");
-	runScript(PATH_SCRIPTS, "main.lua");
-  #endif
-  }
+    printf("[init] Initializing scripting system with Lua\n");
+    
+    /* Initialize Lua */
+    lua_State *L = lua_open();
+    if (!L) {
+        fprintf(stderr, "[error] Failed to initialize Lua\n");
+        return;
+    }
+    
+    /* Open standard libraries */
+    luaL_openlibs(L);
+    
+    /* Register C functions for Lua */
+    lua_register(L, "c_setCallback", l_setCallback);
+    lua_register(L, "c_mainLoop", l_mainLoop);
+    /* Register other C functions as needed */
+    
+    /* Store Lua state for later use */
+    scripting_SetLuaState(L);
+    
+    printf("[init] Lua initialized successfully\n");
+    
+#ifdef USE_EMBEDDED_SCRIPTS
+    /* Process embedded scripts */
+    process_embedded_config(get_embedded_script("basics.lua"), "basics");
+    process_embedded_joystick();
+    process_embedded_path();
+    process_embedded_video();
+    process_embedded_console();
+    process_embedded_menu();
+    process_embedded_hud();
+    process_embedded_gauge();
+    process_embedded_config_file();
+    process_embedded_save();
+    process_embedded_artpack();
+    process_embedded_game();
+#else
+    /* load basic scripting services */
+    runScript(PATH_SCRIPTS, "basics.lua");
+    runScript(PATH_SCRIPTS, "joystick.lua");
+    runScript(PATH_SCRIPTS, "path.lua");
+    runScript(PATH_SCRIPTS, "video.lua");
+    runScript(PATH_SCRIPTS, "console.lua");
+    
+    /* load the main menu & hud stuff */
+    runScript(PATH_SCRIPTS, "menu_functions.lua");
+    runScript(PATH_SCRIPTS, "menu.lua");
+    runScript(PATH_SCRIPTS, "hud-config.lua");
+    runScript(PATH_SCRIPTS, "hud.lua");
+    runScript(PATH_SCRIPTS, "gauge.lua");
+    runScript(PATH_SCRIPTS, "config.lua");
+    runScript(PATH_SCRIPTS, "save.lua");
+    runScript(PATH_SCRIPTS, "artpack.lua");
+    runScript(PATH_SCRIPTS, "game.lua");
+    runScript(PATH_SCRIPTS, "main.lua");
+#endif
+}
 
   void initConfiguration(int argc, const char *argv[])
   {
