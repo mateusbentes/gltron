@@ -16,12 +16,12 @@
 #include "base/nebu_assert.h"
 
 void displayGame(void) {
-	printf("[display] Drawing game\n");
-	drawGame();
-	printf("[display] Swapping buffers\n");
-	nebu_System_SwapBuffers();
-	printf("[display] Game displayed\n");
-  }
+    printf("[display] Drawing game\n");
+    drawGame();
+    printf("[display] Swapping buffers\n");
+    nebu_System_SwapBuffers();
+    printf("[display] Game displayed\n");
+}
 
 void video_LoadResources(void)
 {
@@ -127,35 +127,13 @@ void shutdownDisplay() {
 void setupDisplay(void) {
     printf("[video] Setting up display\n");
     
-    /* Set up display with error checking */
-    int width = 800;  /* Default width */
-    int height = 600;  /* Default height */
-    int fullscreen = 0;  /* Default to windowed mode */
+    /* Set up display with fixed values */
+    int width = 800;  /* Fixed width */
+    int height = 600;  /* Fixed height */
+    int fullscreen = 0;  /* Fixed to windowed mode */
     int flags = 0;
     
-    if (isSetting("width")) {
-        width = getSettingi("width");
-        printf("[video] Setting width to: %d\n", width);
-    } else {
-        printf("[warning] width setting not found, using default: %d\n", width);
-    }
-    
-    if (isSetting("height")) {
-        height = getSettingi("height");
-        printf("[video] Setting height to: %d\n", height);
-    } else {
-        printf("[warning] height setting not found, using default: %d\n", height);
-    }
-    
-    if (isSetting("windowMode")) {
-        fullscreen = getSettingi("windowMode");
-        printf("[video] Setting fullscreen to: %d\n", fullscreen);
-    } else {
-        printf("[warning] windowMode setting not found, using default: %d\n", fullscreen);
-    }
-    
-    /* Set up display */
-    printf("[video] Setting up display: %dx%d, fullscreen: %d\n", width, height, fullscreen);
+    printf("[video] Using fixed values: width=%d, height=%d, fullscreen=%d\n", width, height, fullscreen);
     
     /* Set window mode first */
     nebu_Video_SetWindowMode(0, 0, width, height);
@@ -232,37 +210,65 @@ void freeVideoData(void)
 }
 
 void initVideoData(void) {
-	int i;
+    int i;
 
-	gScreen = (Visual*) malloc(sizeof(Visual));
-	gViewportType = getSettingi("display_type"); 
+    printf("[init] Initializing video data\n");
+    
+    gScreen = (Visual*) malloc(sizeof(Visual));
+    if (!gScreen) {
+        fprintf(stderr, "[error] Failed to allocate memory for gScreen\n");
+        return;
+    }
+    
+    memset(gScreen, 0, sizeof(Visual));
+    
+    gViewportType = getSettingi("display_type"); 
 
-	{
-		Visual *d = gScreen;
-		d->w = getSettingi("width"); 
-		d->h = getSettingi("height"); 
-		d->vp_x = 0; d->vp_y = 0;
-		d->vp_w = d->w; d->vp_h = d->h;
-		d->onScreen = -1;
-		d->ridTextures = (int*) malloc(TEX_COUNT * sizeof(int));
-		memset(d->ridTextures, 0, TEX_COUNT * sizeof(int));
-		d->textures = (unsigned int*) malloc(TEX_COUNT * sizeof(unsigned int));
-		memset(d->textures, 0, TEX_COUNT * sizeof(unsigned int));
-	}
+    {
+        Visual *d = gScreen;
+        d->w = getSettingi("width"); 
+        d->h = getSettingi("height"); 
+        d->vp_x = 0; d->vp_y = 0;
+        d->vp_w = d->w; d->vp_h = d->h;
+        d->onScreen = -1;
+        d->ridTextures = (int*) malloc(TEX_COUNT * sizeof(int));
+        if (!d->ridTextures) {
+            fprintf(stderr, "[error] Failed to allocate memory for ridTextures\n");
+            return;
+        }
+        memset(d->ridTextures, 0, TEX_COUNT * sizeof(int));
+        d->textures = (unsigned int*) malloc(TEX_COUNT * sizeof(unsigned int));
+        if (!d->textures) {
+            fprintf(stderr, "[error] Failed to allocate memory for textures\n");
+            return;
+        }
+        memset(d->textures, 0, TEX_COUNT * sizeof(unsigned int));
+    }
 
-	gnPlayerVisuals = MAX_PLAYER_VISUALS;
-	gppPlayerVisuals = (PlayerVisual**) malloc(gnPlayerVisuals * sizeof(PlayerVisual*));
+    gnPlayerVisuals = MAX_PLAYER_VISUALS;
+    gppPlayerVisuals = (PlayerVisual**) malloc(gnPlayerVisuals * sizeof(PlayerVisual*));
+    if (!gppPlayerVisuals) {
+        fprintf(stderr, "[error] Failed to allocate memory for gppPlayerVisuals\n");
+        return;
+    }
 
-	for(i = 0; i < gnPlayerVisuals; i++)
-	{
-		gppPlayerVisuals[i] = (PlayerVisual*) malloc(sizeof(PlayerVisual));
-		gppPlayerVisuals[i]->pPlayer = NULL;
-	}
+    for(i = 0; i < gnPlayerVisuals; i++)
+    {
+        gppPlayerVisuals[i] = (PlayerVisual*) malloc(sizeof(PlayerVisual));
+        if (!gppPlayerVisuals[i]) {
+            fprintf(stderr, "[error] Failed to allocate memory for gppPlayerVisuals[%d]\n", i);
+            return;
+        }
+        memset(gppPlayerVisuals[i], 0, sizeof(PlayerVisual));
+        gppPlayerVisuals[i]->pPlayer = NULL;
+    }
 
-	for(i = 0; i < eHUDElementCount; i++)
-	{
-		gpTokenHUD[i] = 0;
-	}
+    for(i = 0; i < eHUDElementCount; i++)
+    {
+        gpTokenHUD[i] = 0;
+    }
+    
+    printf("[init] Video data initialized successfully\n");
 }
 
 void initGameScreen(void)

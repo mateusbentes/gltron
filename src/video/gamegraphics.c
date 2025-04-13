@@ -101,28 +101,6 @@ void drawGame(void) {
 
     if (!gWorld) {
         fprintf(stderr, "[error] drawGame: gWorld is NULL\n");
-        
-        // Draw a simple colored screen to show that rendering is working
-        glClearColor(0.5, 0.0, 0.0, 1.0);  // Red background
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        
-        // Draw a simple triangle to test if rendering works
-        glMatrixMode(GL_PROJECTION);
-        glLoadIdentity();
-        glOrtho(-1, 1, -1, 1, -1, 1);
-        
-        glMatrixMode(GL_MODELVIEW);
-        glLoadIdentity();
-        
-        glBegin(GL_TRIANGLES);
-        glColor3f(1.0, 0.0, 0.0);
-        glVertex3f(-0.5, -0.5, 0.0);
-        glColor3f(0.0, 1.0, 0.0);
-        glVertex3f(0.5, -0.5, 0.0);
-        glColor3f(0.0, 0.0, 1.0);
-        glVertex3f(0.0, 0.5, 0.0);
-        glEnd();
-        
         return;
     }
 
