@@ -97,13 +97,39 @@ void initFrameResources(void)
 void drawGame(void) {
     GLint i;
 
+    printf("[draw] Starting drawGame()\n");
+
     if (!gWorld) {
         fprintf(stderr, "[error] drawGame: gWorld is NULL\n");
+        
+        // Draw a simple colored screen to show that rendering is working
+        glClearColor(0.5, 0.0, 0.0, 1.0);  // Red background
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        
+        // Draw a simple triangle to test if rendering works
+        glMatrixMode(GL_PROJECTION);
+        glLoadIdentity();
+        glOrtho(-1, 1, -1, 1, -1, 1);
+        
+        glMatrixMode(GL_MODELVIEW);
+        glLoadIdentity();
+        
+        glBegin(GL_TRIANGLES);
+        glColor3f(1.0, 0.0, 0.0);
+        glVertex3f(-0.5, -0.5, 0.0);
+        glColor3f(0.0, 1.0, 0.0);
+        glVertex3f(0.5, -0.5, 0.0);
+        glColor3f(0.0, 0.0, 1.0);
+        glVertex3f(0.0, 0.5, 0.0);
+        glEnd();
+        
         return;
     }
 
+    printf("[draw] Initializing frame resources\n");
     initFrameResources();
 
+    printf("[draw] Clearing screen\n");
     clearScreen();
 
     glShadeModel(GL_SMOOTH);
@@ -117,10 +143,22 @@ void drawGame(void) {
 #endif
     }
 
+    printf("[draw] Drawing viewports: %d\n", vp_max[gViewportType]);
     for(i = 0; i < vp_max[gViewportType]; i++) {
+        if (!gppPlayerVisuals) {
+            fprintf(stderr, "[error] drawGame: gppPlayerVisuals is NULL\n");
+            continue;
+        }
+        if (!gppPlayerVisuals[i]) {
+            fprintf(stderr, "[error] drawGame: gppPlayerVisuals[%d] is NULL\n", i);
+            continue;
+        }
+        
         Visual *d = &gppPlayerVisuals[i]->display;
 
         if(d->onScreen == 1) {
+            printf("[draw] Drawing viewport %d: %d,%d %dx%d\n", 
+                   i, d->vp_x, d->vp_y, d->vp_w, d->vp_h);
             glViewport(d->vp_x, d->vp_y, d->vp_w, d->vp_h);
             drawCam(gppPlayerVisuals[i]);
 
@@ -133,6 +171,8 @@ void drawGame(void) {
 #ifndef OPENGL_ES
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 #endif
+
+    printf("[draw] drawGame() completed\n");
 }
 
 /* 

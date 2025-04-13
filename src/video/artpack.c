@@ -82,16 +82,18 @@ void artpack_LoadSurfaces(void)
 	
 */
 void loadArt(void) {
-    printf("[init] Loading art (stub)\n");
+    printf("[video] Loading art files\n");
     
-    /* Skip loading Lua scripts */
-    printf("[init] Skipping artpack.lua script loading\n");
+    /* Check if art files exist before loading */
+    char *artpath = getPossiblePath(PATH_ART, "default");
+    if (artpath && nebu_FS_Test(artpath)) {
+        printf("[video] Loading art from: %s\n", artpath);
+        /* Load art files */
+        free(artpath);
+    } else {
+        fprintf(stderr, "[error] Failed to load art files\n");
+        if (artpath) free(artpath);
+    }
     
-    /* Load textures and fonts directly */
-    initTexture(gScreen); // load skybox, trail & crash texture
-    fprintf(stderr, "[status] done loading textures...\n");
-    initFonts();
-    fprintf(stderr, "[status] done loading fonts...\n");
-    
-    artpack_LoadSurfaces();
+    printf("[video] Art files loaded\n");
 }

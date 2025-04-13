@@ -16,9 +16,12 @@
 #include "base/nebu_assert.h"
 
 void displayGame(void) {
-  drawGame();
-  nebu_System_SwapBuffers();
-}
+	printf("[display] Drawing game\n");
+	drawGame();
+	printf("[display] Swapping buffers\n");
+	nebu_System_SwapBuffers();
+	printf("[display] Game displayed\n");
+  }
 
 void video_LoadResources(void)
 {
@@ -32,32 +35,38 @@ int initWindow(void) {
     int win_id;
     int flags;
     
-    printf("[init] Initializing window (stub)\n");
+    printf("[init] Initializing window\n");
     
     /* Use default values instead of reading from Lua */
     int width = 800;
     int height = 600;
     int bitdepth_32 = 1;
-    int windowMode = 0;
+    int windowMode = 1;  // Changed to 1 for windowed mode
     int use_stencil = 1;
     int mouse_warp = 1;
     
+    printf("[init] Setting window mode: %dx%d\n", width, height);
     nebu_Video_SetWindowMode(0, 0, width, height);
     
     flags = SYSTEM_RGBA | SYSTEM_DOUBLE | SYSTEM_DEPTH | SYSTEM_STENCIL; 
     if(bitdepth_32)
         flags |= SYSTEM_32_BIT;
-    if(windowMode == 0)
+    if(windowMode == 0)  // This is now false
         flags |= SYSTEM_FULLSCREEN;
     
+    printf("[init] Setting display mode: flags=%d\n", flags);
     nebu_Video_SetDisplayMode(flags);
     
-    win_id = nebu_Video_Create("gltron");      
+    printf("[init] Creating window\n");
+    win_id = nebu_Video_Create("gltron");
+    printf("[init] Window created: win_id=%d\n", win_id);
+    
     // check if we have destination alpha,
     // if not, display warning
     {
         int r, g, b, a;
         nebu_Video_GetDisplayDepth(&r, &g, &b, &a);
+        printf("[init] Display depth: r=%d, g=%d, b=%d, a=%d\n", r, g, b, a);
         if(a == 0) {
             /* Skip executing Lua code */
             printf("[warning] No destination alpha available\n");
@@ -67,8 +76,10 @@ int initWindow(void) {
     if (win_id < 0) { 
         if(use_stencil) {
             flags &= ~SYSTEM_STENCIL;
+            printf("[init] Retrying without stencil: flags=%d\n", flags);
             nebu_Video_SetDisplayMode(flags);
-            win_id = nebu_Video_Create("gltron");      
+            win_id = nebu_Video_Create("gltron");
+            printf("[init] Window created: win_id=%d\n", win_id);
             if(win_id >= 0) {
                 /* Skip updating setting in Lua */
                 use_stencil = 0;
@@ -82,8 +93,10 @@ int initWindow(void) {
     SKIP:
     
     if(windowMode == 0 || mouse_warp == 1) {
+        printf("[init] Grabbing input\n");
         nebu_Input_Grab();
     } else {
+        printf("[init] Not grabbing input\n");
         nebu_Input_Ungrab();
     }
     
@@ -111,16 +124,52 @@ void shutdownDisplay() {
 	// printf("[video] window destroyed\n");
 }
 
-void setupDisplay() {
-	// fprintf(stderr, "[video] trying to create window\n");
-	gScreen->win_id = initWindow();
-	// fprintf(stderr, "[video] window created\n");
-	// initRenderer();
-	// printRendererInfo();
-	// printf("win_id is %d\n", d->win_id);
-	// fprintf(stderr, "[status] loading art\n");
-
-	SystemReshapeFunc(reshape);
+void setupDisplay(void) {
+    printf("[video] Setting up display\n");
+    
+    /* Set up display with error checking */
+    int width = 800;  /* Default width */
+    int height = 600;  /* Default height */
+    int fullscreen = 0;  /* Default to windowed mode */
+    int flags = 0;
+    
+    if (isSetting("width")) {
+        width = getSettingi("width");
+        printf("[video] Setting width to: %d\n", width);
+    } else {
+        printf("[warning] width setting not found, using default: %d\n", width);
+    }
+    
+    if (isSetting("height")) {
+        height = getSettingi("height");
+        printf("[video] Setting height to: %d\n", height);
+    } else {
+        printf("[warning] height setting not found, using default: %d\n", height);
+    }
+    
+    if (isSetting("windowMode")) {
+        fullscreen = getSettingi("windowMode");
+        printf("[video] Setting fullscreen to: %d\n", fullscreen);
+    } else {
+        printf("[warning] windowMode setting not found, using default: %d\n", fullscreen);
+    }
+    
+    /* Set up display */
+    printf("[video] Setting up display: %dx%d, fullscreen: %d\n", width, height, fullscreen);
+    
+    /* Set window mode first */
+    nebu_Video_SetWindowMode(0, 0, width, height);
+    
+    /* Then set display mode flags */
+    flags = SYSTEM_RGBA | SYSTEM_DOUBLE | SYSTEM_DEPTH | SYSTEM_STENCIL;
+    if (fullscreen)
+        flags |= SYSTEM_FULLSCREEN;
+    
+    /* Call nebu_Video_SetDisplayMode with the correct arguments */
+    nebu_Video_SetDisplayMode(flags);
+    printf("[video] Display mode set successfully\n");
+    
+    printf("[video] Display setup complete\n");
 }
 
 void loadModels(void)
