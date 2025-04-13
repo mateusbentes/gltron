@@ -22,6 +22,13 @@ int main(int argc, char *argv[] ) {
     /* Process main.lua from embedded scripts */
     printf("[main] Processing embedded main.lua\n");
     process_embedded_main();
+    
+    /* CHANGE: Directly call runGUI() to start the game */
+    printf("[main] Directly calling runGUI() to start the game\n");
+    int status = 1;
+    while (status) {
+        status = runGUI();
+    }
 #else
     /* Run main.lua from file */
     runScript(PATH_SCRIPTS, "main.lua");

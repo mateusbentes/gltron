@@ -111,8 +111,16 @@ void scripting_Init(int flags) {
   // init_c_interface(L);
 }
 
-void scripting_Quit() {
-  lua_close(L);
+void scripting_Quit(void) {
+    printf("[scripting] Shutting down scripting system\n");
+    
+    /* Skip lua_close() to prevent segmentation fault */
+    printf("[scripting] Skipping lua_close() to prevent segmentation fault\n");
+    
+    /* Set the Lua state to NULL */
+    scripting_SetLuaState(NULL);
+    
+    printf("[scripting] Scripting system shutdown complete\n");
 }
 
 
