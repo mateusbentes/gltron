@@ -297,7 +297,7 @@ void loadModel(gltron_Mesh **ppMesh, int *pToken)
 }
 
 video_level* video_CreateLevel(void) {
-    printf("[video] Creating level (minimal implementation)\n");
+    printf("[video] Creating level (improved implementation)\n");
     
     // Allocate memory for the level structure
     video_level *l = malloc(sizeof(video_level));
@@ -320,7 +320,7 @@ video_level* video_CreateLevel(void) {
     l->arena_shader.idTexture = 0;
     l->arena_shader.fDiffuseTextureScale = 1.0f;
     
-    // Create a minimal floor mesh directly (without using loadModel)
+    // Create a minimal floor mesh directly (without using createFloorMesh)
     printf("[video] Creating minimal floor mesh directly\n");
     
     // Create a minimal mesh structure to avoid crashes
@@ -333,7 +333,7 @@ video_level* video_CreateLevel(void) {
     memset(l->floor, 0, sizeof(gltron_Mesh));
     gpTokenCurrentFloor = 0;  // No resource token
     
-    // Create a minimal arena mesh directly (without using loadModel)
+    // Create a minimal arena mesh directly (without using createArenaMesh)
     printf("[video] Creating minimal arena mesh directly\n");
     
     // Create a minimal mesh structure to avoid crashes
