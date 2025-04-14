@@ -15,12 +15,17 @@
 #include "video/nebu_mesh.h"
 
 #include <string.h>
+#include <math.h>  /* For sqrtf */
 
 #include "base/nebu_debug_memory.h"
 
 #include <lua.h>
 #include <lauxlib.h>
 #include <lualib.h>
+
+/* Forward declarations for functions used in video_CreateLevel */
+// gltron_Mesh* createFloorMesh(void);  // Commented out to avoid compilation errors
+// gltron_Mesh* createArenaMesh(void);  // Commented out to avoid compilation errors
 
 /*
  * Implementation of loadMesh function
@@ -292,7 +297,7 @@ void loadModel(gltron_Mesh **ppMesh, int *pToken)
 }
 
 video_level* video_CreateLevel(void) {
-    printf("[video] Creating level (stub implementation)\n");
+    printf("[video] Creating level (minimal implementation)\n");
     
     // Allocate memory for the level structure
     video_level *l = malloc(sizeof(video_level));
@@ -302,10 +307,7 @@ video_level* video_CreateLevel(void) {
     }
     memset(l, 0, sizeof(video_level));
     
-    // IMPORTANT: Skip the Lua-based level loading that's causing the segmentation fault
-    printf("[video] Skipping Lua-based level loading to avoid segmentation fault\n");
-    
-    // Set up minimal shader properties
+    // Set up shader properties
     l->floor_shader.lit = 1;  // Enable lighting
     l->floor_shader.passes = 1;
     l->floor_shader.ridTexture = 0;
@@ -349,3 +351,426 @@ video_level* video_CreateLevel(void) {
     
     return l;
 }
+
+/*
+// Create a floor mesh with actual geometry
+gltron_Mesh* createFloorMesh(void) {
+    printf("[video] Creating floor mesh\n");
+    
+    // Create a new mesh
+    gltron_Mesh* mesh = (gltron_Mesh*)malloc(sizeof(gltron_Mesh));
+    if(!mesh) {
+        fprintf(stderr, "[error] Failed to allocate memory for floor mesh\n");
+        return NULL;
+    }
+    memset(mesh, 0, sizeof(gltron_Mesh));
+    
+    // Set mesh flags
+    mesh->flags = NEBU_MESH_POSITION | NEBU_MESH_NORMAL | NEBU_MESH_TEXCOORD0;
+    
+    // Create vertex buffer
+    mesh->pVB = (nebu_VertexBuffer*)malloc(sizeof(nebu_VertexBuffer));
+    if(!mesh->pVB) {
+        fprintf(stderr, "[error] Failed to allocate vertex buffer for floor mesh\n");
+        free(mesh);
+        return NULL;
+    }
+    memset(mesh->pVB, 0, sizeof(nebu_VertexBuffer));
+    
+    // Set number of vertices (4 for a simple quad)
+    mesh->pVB->nVertices = 4;
+    
+    // Allocate memory for vertex positions
+    mesh->pVB->pVertices = (float*)malloc(3 * mesh->pVB->nVertices * sizeof(float));
+    if(!mesh->pVB->pVertices) {
+        fprintf(stderr, "[error] Failed to allocate vertex positions for floor mesh\n");
+        free(mesh->pVB);
+        free(mesh);
+        return NULL;
+    }
+    
+    // Allocate memory for vertex normals
+    mesh->pVB->pNormals = (float*)malloc(3 * mesh->pVB->nVertices * sizeof(float));
+    if(!mesh->pVB->pNormals) {
+        fprintf(stderr, "[error] Failed to allocate vertex normals for floor mesh\n");
+        free(mesh->pVB->pVertices);
+        free(mesh->pVB);
+        free(mesh);
+        return NULL;
+    }
+    
+    // Allocate memory for texture coordinates
+    mesh->pVB->pTexCoords = (float**)malloc(1 * sizeof(float*));
+    if(!mesh->pVB->pTexCoords) {
+        fprintf(stderr, "[error] Failed to allocate texture coordinate array for floor mesh\n");
+        free(mesh->pVB->pNormals);
+        free(mesh->pVB->pVertices);
+        free(mesh->pVB);
+        free(mesh);
+        return NULL;
+    }
+    
+    mesh->pVB->pTexCoords[0] = (float*)malloc(2 * mesh->pVB->nVertices * sizeof(float));
+    if(!mesh->pVB->pTexCoords[0]) {
+        fprintf(stderr, "[error] Failed to allocate texture coordinates for floor mesh\n");
+        free(mesh->pVB->pTexCoords);
+        free(mesh->pVB->pNormals);
+        free(mesh->pVB->pVertices);
+        free(mesh->pVB);
+        free(mesh);
+        return NULL;
+    }
+    
+    // Set up vertices for a simple quad (floor)
+    float size = 100.0f;
+    
+    // Vertex positions (x, y, z)
+    // Bottom-left
+    mesh->pVB->pVertices[0] = -size;
+    mesh->pVB->pVertices[1] = 0.0f;
+    mesh->pVB->pVertices[2] = -size;
+    
+    // Bottom-right
+    mesh->pVB->pVertices[3] = size;
+    mesh->pVB->pVertices[4] = 0.0f;
+    mesh->pVB->pVertices[5] = -size;
+    
+    // Top-right
+    mesh->pVB->pVertices[6] = size;
+    mesh->pVB->pVertices[7] = 0.0f;
+    mesh->pVB->pVertices[8] = size;
+    
+    // Top-left
+    mesh->pVB->pVertices[9] = -size;
+    mesh->pVB->pVertices[10] = 0.0f;
+    mesh->pVB->pVertices[11] = size;
+    
+    // Vertex normals (all pointing up)
+    for(int i = 0; i < mesh->pVB->nVertices; i++) {
+        mesh->pVB->pNormals[i*3 + 0] = 0.0f;
+        mesh->pVB->pNormals[i*3 + 1] = 1.0f;
+        mesh->pVB->pNormals[i*3 + 2] = 0.0f;
+    }
+    
+    // Texture coordinates
+    // Bottom-left
+    mesh->pVB->pTexCoords[0][0] = 0.0f;
+    mesh->pVB->pTexCoords[0][1] = 0.0f;
+    
+    // Bottom-right
+    mesh->pVB->pTexCoords[0][2] = 1.0f;
+    mesh->pVB->pTexCoords[0][3] = 0.0f;
+    
+    // Top-right
+    mesh->pVB->pTexCoords[0][4] = 1.0f;
+    mesh->pVB->pTexCoords[0][5] = 1.0f;
+    
+    // Top-left
+    mesh->pVB->pTexCoords[0][6] = 0.0f;
+    mesh->pVB->pTexCoords[0][7] = 1.0f;
+    
+    // Create index buffer
+    mesh->nIB = 1;
+    mesh->ppIB = (nebu_IndexBuffer**)malloc(mesh->nIB * sizeof(nebu_IndexBuffer*));
+    if(!mesh->ppIB) {
+        fprintf(stderr, "[error] Failed to allocate index buffer array for floor mesh\n");
+        free(mesh->pVB->pTexCoords[0]);
+        free(mesh->pVB->pTexCoords);
+        free(mesh->pVB->pNormals);
+        free(mesh->pVB->pVertices);
+        free(mesh->pVB);
+        free(mesh);
+        return NULL;
+    }
+    
+    mesh->ppIB[0] = (nebu_IndexBuffer*)malloc(sizeof(nebu_IndexBuffer));
+    if(!mesh->ppIB[0]) {
+        fprintf(stderr, "[error] Failed to allocate index buffer for floor mesh\n");
+        free(mesh->ppIB);
+        free(mesh->pVB->pTexCoords[0]);
+        free(mesh->pVB->pTexCoords);
+        free(mesh->pVB->pNormals);
+        free(mesh->pVB->pVertices);
+        free(mesh->pVB);
+        free(mesh);
+        return NULL;
+    }
+    
+    // Set up indices for two triangles (6 indices total)
+    mesh->ppIB[0]->nPrimitives = 2;  // Two triangles
+    mesh->ppIB[0]->pIndices = (int*)malloc(3 * mesh->ppIB[0]->nPrimitives * sizeof(int));
+    if(!mesh->ppIB[0]->pIndices) {
+        fprintf(stderr, "[error] Failed to allocate indices for floor mesh\n");
+        free(mesh->ppIB[0]);
+        free(mesh->ppIB);
+        free(mesh->pVB->pTexCoords[0]);
+        free(mesh->pVB->pTexCoords);
+        free(mesh->pVB->pNormals);
+        free(mesh->pVB->pVertices);
+        free(mesh->pVB);
+        free(mesh);
+        return NULL;
+    }
+    
+    // First triangle (bottom-left, bottom-right, top-right)
+    mesh->ppIB[0]->pIndices[0] = 0;
+    mesh->ppIB[0]->pIndices[1] = 1;
+    mesh->ppIB[0]->pIndices[2] = 2;
+    
+    // Second triangle (bottom-left, top-right, top-left)
+    mesh->ppIB[0]->pIndices[3] = 0;
+    mesh->ppIB[0]->pIndices[4] = 2;
+    mesh->ppIB[0]->pIndices[5] = 3;
+    
+    printf("[video] Floor mesh created successfully\n");
+    
+    return mesh;
+}
+
+// Create an arena mesh with actual geometry
+gltron_Mesh* createArenaMesh(void) {
+    printf("[video] Creating arena mesh\n");
+    
+    // Create a new mesh
+    gltron_Mesh* mesh = (gltron_Mesh*)malloc(sizeof(gltron_Mesh));
+    if(!mesh) {
+        fprintf(stderr, "[error] Failed to allocate memory for arena mesh\n");
+        return NULL;
+    }
+    memset(mesh, 0, sizeof(gltron_Mesh));
+    
+    // Set mesh flags
+    mesh->flags = NEBU_MESH_POSITION | NEBU_MESH_NORMAL | NEBU_MESH_TEXCOORD0;
+    
+    // Create vertex buffer
+    mesh->pVB = (nebu_VertexBuffer*)malloc(sizeof(nebu_VertexBuffer));
+    if(!mesh->pVB) {
+        fprintf(stderr, "[error] Failed to allocate vertex buffer for arena mesh\n");
+        free(mesh);
+        return NULL;
+    }
+    memset(mesh->pVB, 0, sizeof(nebu_VertexBuffer));
+    
+    // Set number of vertices (8 for a simple box)
+    mesh->pVB->nVertices = 8;
+    
+    // Allocate memory for vertex positions
+    mesh->pVB->pVertices = (float*)malloc(3 * mesh->pVB->nVertices * sizeof(float));
+    if(!mesh->pVB->pVertices) {
+        fprintf(stderr, "[error] Failed to allocate vertex positions for arena mesh\n");
+        free(mesh->pVB);
+        free(mesh);
+        return NULL;
+    }
+    
+    // Allocate memory for vertex normals
+    mesh->pVB->pNormals = (float*)malloc(3 * mesh->pVB->nVertices * sizeof(float));
+    if(!mesh->pVB->pNormals) {
+        fprintf(stderr, "[error] Failed to allocate vertex normals for arena mesh\n");
+        free(mesh->pVB->pVertices);
+        free(mesh->pVB);
+        free(mesh);
+        return NULL;
+    }
+    
+    // Allocate memory for texture coordinates
+    mesh->pVB->pTexCoords = (float**)malloc(1 * sizeof(float*));
+    if(!mesh->pVB->pTexCoords) {
+        fprintf(stderr, "[error] Failed to allocate texture coordinate array for arena mesh\n");
+        free(mesh->pVB->pNormals);
+        free(mesh->pVB->pVertices);
+        free(mesh->pVB);
+        free(mesh);
+        return NULL;
+    }
+    
+    mesh->pVB->pTexCoords[0] = (float*)malloc(2 * mesh->pVB->nVertices * sizeof(float));
+    if(!mesh->pVB->pTexCoords[0]) {
+        fprintf(stderr, "[error] Failed to allocate texture coordinates for arena mesh\n");
+        free(mesh->pVB->pTexCoords);
+        free(mesh->pVB->pNormals);
+        free(mesh->pVB->pVertices);
+        free(mesh->pVB);
+        free(mesh);
+        return NULL;
+    }
+    
+    // Set up vertices for a simple box (arena)
+    float size = 100.0f;
+    float height = 10.0f;
+    
+    // Vertex positions (x, y, z)
+    // Bottom vertices
+    // 0: Bottom-left-back
+    mesh->pVB->pVertices[0] = -size;
+    mesh->pVB->pVertices[1] = 0.0f;
+    mesh->pVB->pVertices[2] = -size;
+    
+    // 1: Bottom-right-back
+    mesh->pVB->pVertices[3] = size;
+    mesh->pVB->pVertices[4] = 0.0f;
+    mesh->pVB->pVertices[5] = -size;
+    
+    // 2: Bottom-right-front
+    mesh->pVB->pVertices[6] = size;
+    mesh->pVB->pVertices[7] = 0.0f;
+    mesh->pVB->pVertices[8] = size;
+    
+    // 3: Bottom-left-front
+    mesh->pVB->pVertices[9] = -size;
+    mesh->pVB->pVertices[10] = 0.0f;
+    mesh->pVB->pVertices[11] = size;
+    
+    // Top vertices
+    // 4: Top-left-back
+    mesh->pVB->pVertices[12] = -size;
+    mesh->pVB->pVertices[13] = height;
+    mesh->pVB->pVertices[14] = -size;
+    
+    // 5: Top-right-back
+    mesh->pVB->pVertices[15] = size;
+    mesh->pVB->pVertices[16] = height;
+    mesh->pVB->pVertices[17] = -size;
+    
+    // 6: Top-right-front
+    mesh->pVB->pVertices[18] = size;
+    mesh->pVB->pVertices[19] = height;
+    mesh->pVB->pVertices[20] = size;
+    
+    // 7: Top-left-front
+    mesh->pVB->pVertices[21] = -size;
+    mesh->pVB->pVertices[22] = height;
+    mesh->pVB->pVertices[23] = size;
+    
+    // Vertex normals (simplified - all pointing outward)
+    // This is a simplification; in a real implementation, each vertex would have the correct normal
+    for(int i = 0; i < mesh->pVB->nVertices; i++) {
+        // Calculate direction from center to vertex
+        float x = mesh->pVB->pVertices[i*3 + 0];
+        float y = mesh->pVB->pVertices[i*3 + 1] - height/2.0f;  // Center is at half height
+        float z = mesh->pVB->pVertices[i*3 + 2];
+        
+        // Normalize
+        float length = sqrtf(x*x + y*y + z*z);
+        if(length > 0.0001f) {
+            mesh->pVB->pNormals[i*3 + 0] = x / length;
+            mesh->pVB->pNormals[i*3 + 1] = y / length;
+            mesh->pVB->pNormals[i*3 + 2] = z / length;
+        } else {
+            // Fallback for center vertices
+            mesh->pVB->pNormals[i*3 + 0] = 0.0f;
+            mesh->pVB->pNormals[i*3 + 1] = 1.0f;
+            mesh->pVB->pNormals[i*3 + 2] = 0.0f;
+        }
+    }
+    
+    // Texture coordinates (simplified)
+    for(int i = 0; i < mesh->pVB->nVertices; i++) {
+        // Simple mapping based on vertex position
+        mesh->pVB->pTexCoords[0][i*2 + 0] = (mesh->pVB->pVertices[i*3 + 0] + size) / (2.0f * size);
+        mesh->pVB->pTexCoords[0][i*2 + 1] = (mesh->pVB->pVertices[i*3 + 2] + size) / (2.0f * size);
+    }
+    
+    // Create index buffer
+    mesh->nIB = 1;
+    mesh->ppIB = (nebu_IndexBuffer**)malloc(mesh->nIB * sizeof(nebu_IndexBuffer*));
+    if(!mesh->ppIB) {
+        fprintf(stderr, "[error] Failed to allocate index buffer array for arena mesh\n");
+        free(mesh->pVB->pTexCoords[0]);
+        free(mesh->pVB->pTexCoords);
+        free(mesh->pVB->pNormals);
+        free(mesh->pVB->pVertices);
+        free(mesh->pVB);
+        free(mesh);
+        return NULL;
+    }
+    
+    mesh->ppIB[0] = (nebu_IndexBuffer*)malloc(sizeof(nebu_IndexBuffer));
+    if(!mesh->ppIB[0]) {
+        fprintf(stderr, "[error] Failed to allocate index buffer for arena mesh\n");
+        free(mesh->ppIB);
+        free(mesh->pVB->pTexCoords[0]);
+        free(mesh->pVB->pTexCoords);
+        free(mesh->pVB->pNormals);
+        free(mesh->pVB->pVertices);
+        free(mesh->pVB);
+        free(mesh);
+        return NULL;
+    }
+    
+    // Set up indices for 12 triangles (36 indices total)
+    // 6 faces * 2 triangles per face * 3 indices per triangle
+    mesh->ppIB[0]->nPrimitives = 12;  // 12 triangles
+    mesh->ppIB[0]->pIndices = (int*)malloc(3 * mesh->ppIB[0]->nPrimitives * sizeof(int));
+    if(!mesh->ppIB[0]->pIndices) {
+        fprintf(stderr, "[error] Failed to allocate indices for arena mesh\n");
+        free(mesh->ppIB[0]);
+        free(mesh->ppIB);
+        free(mesh->pVB->pTexCoords[0]);
+        free(mesh->pVB->pTexCoords);
+        free(mesh->pVB->pNormals);
+        free(mesh->pVB->pVertices);
+        free(mesh->pVB);
+        free(mesh);
+        return NULL;
+    }
+    
+    // Front wall (2 triangles)
+    mesh->ppIB[0]->pIndices[0] = 2;
+    mesh->ppIB[0]->pIndices[1] = 3;
+    mesh->ppIB[0]->pIndices[2] = 7;
+    
+    mesh->ppIB[0]->pIndices[3] = 2;
+    mesh->ppIB[0]->pIndices[4] = 7;
+    mesh->ppIB[0]->pIndices[5] = 6;
+    
+    // Back wall (2 triangles)
+    mesh->ppIB[0]->pIndices[6] = 0;
+    mesh->ppIB[0]->pIndices[7] = 1;
+    mesh->ppIB[0]->pIndices[8] = 5;
+    
+    mesh->ppIB[0]->pIndices[9] = 0;
+    mesh->ppIB[0]->pIndices[10] = 5;
+    mesh->ppIB[0]->pIndices[11] = 4;
+    
+    // Left wall (2 triangles)
+    mesh->ppIB[0]->pIndices[12] = 0;
+    mesh->ppIB[0]->pIndices[13] = 4;
+    mesh->ppIB[0]->pIndices[14] = 7;
+    
+    mesh->ppIB[0]->pIndices[15] = 0;
+    mesh->ppIB[0]->pIndices[16] = 7;
+    mesh->ppIB[0]->pIndices[17] = 3;
+    
+    // Right wall (2 triangles)
+    mesh->ppIB[0]->pIndices[18] = 1;
+    mesh->ppIB[0]->pIndices[19] = 2;
+    mesh->ppIB[0]->pIndices[20] = 6;
+    
+    mesh->ppIB[0]->pIndices[21] = 1;
+    mesh->ppIB[0]->pIndices[22] = 6;
+    mesh->ppIB[0]->pIndices[23] = 5;
+    
+    // Top (2 triangles)
+    mesh->ppIB[0]->pIndices[24] = 4;
+    mesh->ppIB[0]->pIndices[25] = 5;
+    mesh->ppIB[0]->pIndices[26] = 6;
+    
+    mesh->ppIB[0]->pIndices[27] = 4;
+    mesh->ppIB[0]->pIndices[28] = 6;
+    mesh->ppIB[0]->pIndices[29] = 7;
+    
+    // Bottom (2 triangles)
+    mesh->ppIB[0]->pIndices[30] = 0;
+    mesh->ppIB[0]->pIndices[31] = 3;
+    mesh->ppIB[0]->pIndices[32] = 2;
+    
+    mesh->ppIB[0]->pIndices[33] = 0;
+    mesh->ppIB[0]->pIndices[34] = 2;
+    mesh->ppIB[0]->pIndices[35] = 1;
+    
+    printf("[video] Arena mesh created successfully\n");
+    
+    return mesh;
+}
+*/
