@@ -182,8 +182,8 @@ void drawGame(void) {
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
         
-        // Set up a simple camera
-        float cam[3] = { 0.0f, 50.0f, 0.0f };  // Position camera above the level
+        // Set up a better camera position to see the level
+        float cam[3] = { 100.0f, 100.0f, 50.0f };  // Position camera at an angle
         float target[3] = { 0.0f, 0.0f, 0.0f };  // Look at the center of the level
         float up[3] = { 0.0f, 0.0f, 1.0f };  // Up is along the z-axis
         doLookAt(cam, target, up);
@@ -194,7 +194,7 @@ void drawGame(void) {
         glEnable(GL_LIGHT0);
         
         // Set up a simple light
-        float lightPos[] = { 0.0f, 100.0f, 0.0f, 1.0f };  // Position light above the level
+        float lightPos[] = { 0.0f, 100.0f, 100.0f, 1.0f };  // Position light above the level
         float lightAmbient[] = { 0.2f, 0.2f, 0.2f, 1.0f };  // Soft ambient light
         float lightDiffuse[] = { 1.0f, 1.0f, 1.0f, 1.0f };  // Bright diffuse light
         float lightSpecular[] = { 1.0f, 1.0f, 1.0f, 1.0f };  // Bright specular highlights
@@ -227,16 +227,16 @@ void drawGame(void) {
                     glColor3f(0.5f, 0.5f, 0.5f);  // Gray
                     
                     // Bottom-left
-                    glVertex3f(-100.0f, 0.0f, -100.0f);
+                    glVertex3f(-100.0f, -100.0f, 0.0f);
                     
                     // Bottom-right
-                    glVertex3f(100.0f, 0.0f, -100.0f);
+                    glVertex3f(100.0f, -100.0f, 0.0f);
                     
                     // Top-right
-                    glVertex3f(100.0f, 0.0f, 100.0f);
+                    glVertex3f(100.0f, 100.0f, 0.0f);
                     
                     // Top-left
-                    glVertex3f(-100.0f, 0.0f, 100.0f);
+                    glVertex3f(-100.0f, 100.0f, 0.0f);
                     
                     glEnd();
                     
@@ -283,28 +283,28 @@ void drawGame(void) {
                     glColor3f(0.7f, 0.7f, 0.7f);  // Light gray
                     
                     // Front wall
-                    glVertex3f(-100.0f, 0.0f, 100.0f);
-                    glVertex3f(100.0f, 0.0f, 100.0f);
-                    glVertex3f(100.0f, 10.0f, 100.0f);
-                    glVertex3f(-100.0f, 10.0f, 100.0f);
+                    glVertex3f(-100.0f, 100.0f, 0.0f);
+                    glVertex3f(100.0f, 100.0f, 0.0f);
+                    glVertex3f(100.0f, 100.0f, 10.0f);
+                    glVertex3f(-100.0f, 100.0f, 10.0f);
                     
                     // Back wall
-                    glVertex3f(-100.0f, 0.0f, -100.0f);
-                    glVertex3f(100.0f, 0.0f, -100.0f);
-                    glVertex3f(100.0f, 10.0f, -100.0f);
-                    glVertex3f(-100.0f, 10.0f, -100.0f);
+                    glVertex3f(-100.0f, -100.0f, 0.0f);
+                    glVertex3f(100.0f, -100.0f, 0.0f);
+                    glVertex3f(100.0f, -100.0f, 10.0f);
+                    glVertex3f(-100.0f, -100.0f, 10.0f);
                     
                     // Left wall
-                    glVertex3f(-100.0f, 0.0f, -100.0f);
-                    glVertex3f(-100.0f, 0.0f, 100.0f);
-                    glVertex3f(-100.0f, 10.0f, 100.0f);
-                    glVertex3f(-100.0f, 10.0f, -100.0f);
+                    glVertex3f(-100.0f, -100.0f, 0.0f);
+                    glVertex3f(-100.0f, 100.0f, 0.0f);
+                    glVertex3f(-100.0f, 100.0f, 10.0f);
+                    glVertex3f(-100.0f, -100.0f, 10.0f);
                     
                     // Right wall
-                    glVertex3f(100.0f, 0.0f, -100.0f);
-                    glVertex3f(100.0f, 0.0f, 100.0f);
-                    glVertex3f(100.0f, 10.0f, 100.0f);
-                    glVertex3f(100.0f, 10.0f, -100.0f);
+                    glVertex3f(100.0f, -100.0f, 0.0f);
+                    glVertex3f(100.0f, 100.0f, 0.0f);
+                    glVertex3f(100.0f, 100.0f, 10.0f);
+                    glVertex3f(100.0f, -100.0f, 10.0f);
                     
                     glEnd();
                     
@@ -327,6 +327,42 @@ void drawGame(void) {
         } else {
             printf("[drawGame] Arena mesh is NULL\n");
         }
+        
+        // Draw a grid on the floor to help visualize the space
+        printf("[drawGame] Drawing grid\n");
+        glDisable(GL_LIGHTING);
+        glColor3f(0.3f, 0.3f, 0.3f);  // Dark gray
+        
+        glBegin(GL_LINES);
+        for (int i = -100; i <= 100; i += 20) {
+            // Lines along the x-axis
+            glVertex3f(i, -100.0f, 0.1f);
+            glVertex3f(i, 100.0f, 0.1f);
+            
+            // Lines along the y-axis
+            glVertex3f(-100.0f, i, 0.1f);
+            glVertex3f(100.0f, i, 0.1f);
+        }
+        glEnd();
+        
+        // Draw coordinate axes to help visualize the space
+        printf("[drawGame] Drawing coordinate axes\n");
+        glBegin(GL_LINES);
+        // X-axis (red)
+        glColor3f(1.0f, 0.0f, 0.0f);
+        glVertex3f(0.0f, 0.0f, 0.2f);
+        glVertex3f(50.0f, 0.0f, 0.2f);
+        
+        // Y-axis (green)
+        glColor3f(0.0f, 1.0f, 0.0f);
+        glVertex3f(0.0f, 0.0f, 0.2f);
+        glVertex3f(0.0f, 50.0f, 0.2f);
+        
+        // Z-axis (blue)
+        glColor3f(0.0f, 0.0f, 1.0f);
+        glVertex3f(0.0f, 0.0f, 0.2f);
+        glVertex3f(0.0f, 0.0f, 50.2f);
+        glEnd();
         
         // Disable lighting and depth testing
         glDisable(GL_LIGHTING);
