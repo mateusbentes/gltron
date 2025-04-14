@@ -320,13 +320,22 @@ video_level* video_CreateLevel(void) {
     
     // Create a minimal floor mesh
     printf("[video] Creating minimal floor mesh\n");
-    l->floor = NULL;  // Skip mesh creation to avoid type issues
-    gpTokenCurrentFloor = 0;  // No resource token
     
-    // Create a minimal arena mesh
+    // Instead of setting floor to NULL, create a minimal mesh
+    // This uses the loadModel function which has been modified to handle NULL returns from loadMesh
+    int token = 0;
+    gltron_Mesh *pMesh = NULL;
+    loadModel(&pMesh, &token);
+    l->floor = pMesh;
+    gpTokenCurrentFloor = token;
+    
+    // Create a minimal arena mesh using the same approach
     printf("[video] Creating minimal arena mesh\n");
-    l->arena = NULL;  // Skip mesh creation to avoid type issues
-    gpTokenCurrentLevel = 0;  // No resource token
+    token = 0;
+    pMesh = NULL;
+    loadModel(&pMesh, &token);
+    l->arena = pMesh;
+    gpTokenCurrentLevel = token;
     
     printf("[video] Level created with minimal state\n");
     
