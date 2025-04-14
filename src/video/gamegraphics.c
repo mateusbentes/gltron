@@ -151,19 +151,25 @@ void drawGame(void) {
         printf("[drawGame] Triangle drawn successfully\n");
     }
     
+    // Check if game2 is NULL
+    if (game2 == NULL) {
+        printf("[drawGame] game2 is NULL\n");
+    } else {
+        printf("[drawGame] game2 exists\n");
+    }
+    
+    // Check if gWorld is NULL
+    if (gWorld == NULL) {
+        printf("[drawGame] gWorld is NULL\n");
+    } else {
+        printf("[drawGame] gWorld exists\n");
+    }
+    
     // Try to draw the level
     printf("[drawGame] Attempting to draw level\n");
- 
-	if (game2 == NULL) {
-		printf("[drawGame] game2 is NULL\n");
-	} else if (gWorld == NULL) {
-		printf("[drawGame] gWorld is NULL\n");
-	} else {
-		printf("[drawGame] Both game2 and gWorld are non-NULL\n");
-	}	
-
+    
     if (gWorld) {
-        printf("[drawGame] Game2 and gWorld exist\n");
+        printf("[drawGame] gWorld exists\n");
         
         // Set up projection matrix for level rendering
         glMatrixMode(GL_PROJECTION);
@@ -201,21 +207,54 @@ void drawGame(void) {
         // Draw the floor
         printf("[drawGame] Drawing floor\n");
         if (gWorld->floor) {
-            // Set up floor shader
-            video_Shader_Setup(&gWorld->floor_shader, 0);
+            printf("[drawGame] Floor mesh exists\n");
             
-            // Draw floor geometry
-            video_Shader_Geometry(gWorld->floor, TRI_MESH, 0);
-            
-            // Clean up floor shader
-            video_Shader_Cleanup(&gWorld->floor_shader, 0);
-            
-            // Check for OpenGL errors
-            error = glGetError();
-            if (error != GL_NO_ERROR) {
-                printf("[drawGame] OpenGL error after drawing floor: 0x%x\n", error);
+            // Check if the floor mesh has a vertex buffer
+            if (gWorld->floor->pVB) {
+                printf("[drawGame] Floor mesh VB exists\n");
+                
+                // Check if the floor mesh has vertices
+                if (gWorld->floor->pVB->pVertices) {
+                    printf("[drawGame] Floor mesh vertices exist\n");
+                    
+                    // Set up floor shader
+                    video_Shader_Setup(&gWorld->floor_shader, 0);
+                    
+                    // Draw floor geometry using a simpler method
+                    printf("[drawGame] Drawing floor using glBegin/glEnd\n");
+                    
+                    glBegin(GL_QUADS);
+                    glColor3f(0.5f, 0.5f, 0.5f);  // Gray
+                    
+                    // Bottom-left
+                    glVertex3f(-100.0f, 0.0f, -100.0f);
+                    
+                    // Bottom-right
+                    glVertex3f(100.0f, 0.0f, -100.0f);
+                    
+                    // Top-right
+                    glVertex3f(100.0f, 0.0f, 100.0f);
+                    
+                    // Top-left
+                    glVertex3f(-100.0f, 0.0f, 100.0f);
+                    
+                    glEnd();
+                    
+                    // Clean up floor shader
+                    video_Shader_Cleanup(&gWorld->floor_shader, 0);
+                    
+                    // Check for OpenGL errors
+                    error = glGetError();
+                    if (error != GL_NO_ERROR) {
+                        printf("[drawGame] OpenGL error after drawing floor: 0x%x\n", error);
+                    } else {
+                        printf("[drawGame] Floor drawn successfully\n");
+                    }
+                } else {
+                    printf("[drawGame] Floor mesh vertices are NULL\n");
+                }
             } else {
-                printf("[drawGame] Floor drawn successfully\n");
+                printf("[drawGame] Floor mesh VB is NULL\n");
             }
         } else {
             printf("[drawGame] Floor mesh is NULL\n");
@@ -224,21 +263,66 @@ void drawGame(void) {
         // Draw the arena
         printf("[drawGame] Drawing arena\n");
         if (gWorld->arena) {
-            // Set up arena shader
-            video_Shader_Setup(&gWorld->arena_shader, 0);
+            printf("[drawGame] Arena mesh exists\n");
             
-            // Draw arena geometry
-            video_Shader_Geometry(gWorld->arena, TRI_MESH, 0);
-            
-            // Clean up arena shader
-            video_Shader_Cleanup(&gWorld->arena_shader, 0);
-            
-            // Check for OpenGL errors
-            error = glGetError();
-            if (error != GL_NO_ERROR) {
-                printf("[drawGame] OpenGL error after drawing arena: 0x%x\n", error);
+            // Check if the arena mesh has a vertex buffer
+            if (gWorld->arena->pVB) {
+                printf("[drawGame] Arena mesh VB exists\n");
+                
+                // Check if the arena mesh has vertices
+                if (gWorld->arena->pVB->pVertices) {
+                    printf("[drawGame] Arena mesh vertices exist\n");
+                    
+                    // Set up arena shader
+                    video_Shader_Setup(&gWorld->arena_shader, 0);
+                    
+                    // Draw arena geometry using a simpler method
+                    printf("[drawGame] Drawing arena using glBegin/glEnd\n");
+                    
+                    glBegin(GL_QUADS);
+                    glColor3f(0.7f, 0.7f, 0.7f);  // Light gray
+                    
+                    // Front wall
+                    glVertex3f(-100.0f, 0.0f, 100.0f);
+                    glVertex3f(100.0f, 0.0f, 100.0f);
+                    glVertex3f(100.0f, 10.0f, 100.0f);
+                    glVertex3f(-100.0f, 10.0f, 100.0f);
+                    
+                    // Back wall
+                    glVertex3f(-100.0f, 0.0f, -100.0f);
+                    glVertex3f(100.0f, 0.0f, -100.0f);
+                    glVertex3f(100.0f, 10.0f, -100.0f);
+                    glVertex3f(-100.0f, 10.0f, -100.0f);
+                    
+                    // Left wall
+                    glVertex3f(-100.0f, 0.0f, -100.0f);
+                    glVertex3f(-100.0f, 0.0f, 100.0f);
+                    glVertex3f(-100.0f, 10.0f, 100.0f);
+                    glVertex3f(-100.0f, 10.0f, -100.0f);
+                    
+                    // Right wall
+                    glVertex3f(100.0f, 0.0f, -100.0f);
+                    glVertex3f(100.0f, 0.0f, 100.0f);
+                    glVertex3f(100.0f, 10.0f, 100.0f);
+                    glVertex3f(100.0f, 10.0f, -100.0f);
+                    
+                    glEnd();
+                    
+                    // Clean up arena shader
+                    video_Shader_Cleanup(&gWorld->arena_shader, 0);
+                    
+                    // Check for OpenGL errors
+                    error = glGetError();
+                    if (error != GL_NO_ERROR) {
+                        printf("[drawGame] OpenGL error after drawing arena: 0x%x\n", error);
+                    } else {
+                        printf("[drawGame] Arena drawn successfully\n");
+                    }
+                } else {
+                    printf("[drawGame] Arena mesh vertices are NULL\n");
+                }
             } else {
-                printf("[drawGame] Arena drawn successfully\n");
+                printf("[drawGame] Arena mesh VB is NULL\n");
             }
         } else {
             printf("[drawGame] Arena mesh is NULL\n");
@@ -257,7 +341,7 @@ void drawGame(void) {
             printf("[drawGame] Level drawn successfully\n");
         }
     } else {
-        printf("[drawGame] Game2 or gWorld is NULL\n");
+        printf("[drawGame] gWorld is NULL\n");
     }
     
     // Swap buffers to display the rendered scene
