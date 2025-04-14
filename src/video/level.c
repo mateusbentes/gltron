@@ -318,24 +318,32 @@ video_level* video_CreateLevel(void) {
     l->arena_shader.idTexture = 0;
     l->arena_shader.fDiffuseTextureScale = 1.0f;
     
-    // Create a minimal floor mesh
-    printf("[video] Creating minimal floor mesh\n");
+    // Create a minimal floor mesh directly (without using loadModel)
+    printf("[video] Creating minimal floor mesh directly\n");
     
-    // Instead of setting floor to NULL, create a minimal mesh
-    // This uses the loadModel function which has been modified to handle NULL returns from loadMesh
-    int token = 0;
-    gltron_Mesh *pMesh = NULL;
-    loadModel(&pMesh, &token);
-    l->floor = pMesh;
-    gpTokenCurrentFloor = token;
+    // Create a minimal mesh structure to avoid crashes
+    l->floor = (gltron_Mesh*)malloc(sizeof(gltron_Mesh));
+    if(!l->floor) {
+        fprintf(stderr, "fatal: could not allocate memory for floor mesh - exiting...\n");
+        free(l);
+        return NULL;
+    }
+    memset(l->floor, 0, sizeof(gltron_Mesh));
+    gpTokenCurrentFloor = 0;  // No resource token
     
-    // Create a minimal arena mesh using the same approach
-    printf("[video] Creating minimal arena mesh\n");
-    token = 0;
-    pMesh = NULL;
-    loadModel(&pMesh, &token);
-    l->arena = pMesh;
-    gpTokenCurrentLevel = token;
+    // Create a minimal arena mesh directly (without using loadModel)
+    printf("[video] Creating minimal arena mesh directly\n");
+    
+    // Create a minimal mesh structure to avoid crashes
+    l->arena = (gltron_Mesh*)malloc(sizeof(gltron_Mesh));
+    if(!l->arena) {
+        fprintf(stderr, "fatal: could not allocate memory for arena mesh - exiting...\n");
+        free(l->floor);
+        free(l);
+        return NULL;
+    }
+    memset(l->arena, 0, sizeof(gltron_Mesh));
+    gpTokenCurrentLevel = 0;  // No resource token
     
     printf("[video] Level created with minimal state\n");
     
