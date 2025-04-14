@@ -175,6 +175,17 @@ int l_mainLoop(lua_State *L) {
     return 1;  /* One return value */
 }
 
+/* Helper function to load and execute scripts */
+void load_and_execute_script(lua_State *L, const char* script_name, const char* script_content) {
+    if (luaL_loadbuffer(L, script_content, strlen(script_content), script_name) != LUA_OK ||
+        lua_pcall(L, 0, 0, 0) != LUA_OK) {
+        fprintf(stderr, "[FATAL] Failed to load %s: %s\n", 
+                script_name, lua_tostring(L, -1));
+        lua_pop(L, 1);  // Pop error message
+        exit(EXIT_FAILURE);
+    }
+}
+
 void initScripting(void) {
     printf("[init] Initializing Lua VM\n");
     
@@ -183,9 +194,11 @@ void initScripting(void) {
         fprintf(stderr, "[FATAL] Failed to create Lua state\n");
         exit(EXIT_FAILURE);  // Exit on failure
     }
+
+    lua_state = L;  // Store the Lua state in the global variable
     
     luaL_openlibs(L);  // Open standard libraries
-    scripting_SetLuaState(L);
+    scripting_SetLuaState(L);  // Set the Lua state in the scripting module
     
     printf("[init] Lua VM initialized successfully\n");
     
@@ -207,12 +220,32 @@ void initScripting(void) {
             fprintf(stderr, "[FATAL] Missing embedded script: %s\n", scripts[i]);
             exit(EXIT_FAILURE);
         }
+
+        // Add these checks
+        printf("[debug] Script %s pointer: %p\n", scripts[i], (void*)script);
+        if (script == NULL) {
+            fprintf(stderr, "[FATAL] Script %s is NULL\n", scripts[i]);
+            exit(EXIT_FAILURE);
+        }
+
+        size_t len = strlen(script);
+        printf("[debug] Script %s length: %zu\n", scripts[i], len);
+        if (len == 0) {
+            fprintf(stderr, "[FATAL] Script %s has zero length\n", scripts[i]);
+            exit(EXIT_FAILURE);
+        }
+
+        // Check for valid memory access
+        if (len > 0) {
+            char firstChar = script[0]; // Try to access the first character
+            printf("[debug] First char of %s: %c\n", scripts[i], firstChar);
+        }
         
-        if (luaL_loadbuffer(lua_state, script, strlen(script), scripts[i]) != LUA_OK ||
-            lua_pcall(lua_state, 0, 0, 0) != LUA_OK) {
+        if (luaL_loadbuffer(L, script, len, scripts[i]) != LUA_OK ||
+            lua_pcall(L, 0, 0, 0) != LUA_OK) {
             fprintf(stderr, "[FATAL] Failed to load %s: %s\n", 
-                    scripts[i], lua_tostring(lua_state, -1));
-            lua_pop(lua_state, 1);  // Pop error message
+                    scripts[i], lua_tostring(L, -1));
+            lua_pop(L, 1);
             exit(EXIT_FAILURE);
         }
     }
@@ -227,12 +260,22 @@ void initScripting(void) {
         char path[256];
         snprintf(path, sizeof(path), "scripts/%s", fs_scripts[i]);
         
-        if (luaL_loadfile(lua_state, path) != LUA_OK || lua_pcall(lua_state, 0, 0, 0) != LUA_OK) {
-            fprintf(stderr, "[FATAL] Failed to load %s: %s\n",
-                    path, lua_tostring(lua_state, -1));
-            lua_pop(lua_state, 1);  // Pop error message
+        FILE *fp = fopen(path, "r");
+        if (!fp) {
+            fprintf(stderr, "[FATAL] Failed to open %s\n", path);
             exit(EXIT_FAILURE);
         }
+        fseek(fp, 0, SEEK_END);
+        long fsize = ftell(fp);
+        fseek(fp, 0, SEEK_SET);  /* same as rewind(f); */
+
+        char *script = (char*) malloc(fsize + 1);
+        fread(script, fsize, 1, fp);
+        fclose(fp);
+
+        script[fsize] = 0;
+        load_and_execute_script(L, path, script);
+        free(script);
     }
 #endif
 
