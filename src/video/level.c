@@ -297,7 +297,7 @@ void loadModel(gltron_Mesh **ppMesh, int *pToken)
 }
 
 video_level* video_CreateLevel(void) {
-    printf("[video] Creating level (improved implementation)\n");
+    printf("[video] Creating level (debug implementation)\n");
     
     // Allocate memory for the level structure
     video_level *l = malloc(sizeof(video_level));
@@ -320,34 +320,252 @@ video_level* video_CreateLevel(void) {
     l->arena_shader.idTexture = 0;
     l->arena_shader.fDiffuseTextureScale = 1.0f;
     
-    // Create a minimal floor mesh directly (without using createFloorMesh)
-    printf("[video] Creating minimal floor mesh directly\n");
+    // Create floor mesh
+    printf("[video] Creating floor mesh\n");
     
-    // Create a minimal mesh structure to avoid crashes
-    l->floor = (gltron_Mesh*)malloc(sizeof(gltron_Mesh));
+    // Create a simple floor mesh (a quad with 4 vertices and 2 triangles)
+    int floorPrimitives[] = {2};  // 2 triangles
+    l->floor = gltron_Mesh_Create(NEBU_MESH_POSITION | NEBU_MESH_NORMAL | NEBU_MESH_TEXCOORD0, 4, floorPrimitives, 1);
     if(!l->floor) {
-        fprintf(stderr, "fatal: could not allocate memory for floor mesh - exiting...\n");
+        fprintf(stderr, "fatal: could not create floor mesh - exiting...\n");
         free(l);
         return NULL;
     }
-    memset(l->floor, 0, sizeof(gltron_Mesh));
+    
+    printf("[video] Floor mesh created: %p\n", (void*)l->floor);
+    printf("[video] Floor mesh VB: %p\n", (void*)l->floor->pVB);
+    printf("[video] Floor mesh IB: %p\n", (void*)l->floor->ppIB);
+    
+    if(l->floor->pVB) {
+        printf("[video] Floor mesh vertices: %p\n", (void*)l->floor->pVB->pVertices);
+        printf("[video] Floor mesh normals: %p\n", (void*)l->floor->pVB->pNormals);
+        printf("[video] Floor mesh texcoords: %p\n", (void*)l->floor->pVB->pTexCoords);
+    }
+    
+    if(l->floor->ppIB && l->floor->ppIB[0]) {
+        printf("[video] Floor mesh indices: %p\n", (void*)l->floor->ppIB[0]->pIndices);
+        printf("[video] Floor mesh primitives: %d\n", l->floor->ppIB[0]->nPrimitives);
+    }
+    
+    // Set up floor mesh vertices (a simple quad)
+    float size = 100.0f;
+    
+    // Bottom-left
+    l->floor->pVB->pVertices[0] = -size;
+    l->floor->pVB->pVertices[1] = 0.0f;
+    l->floor->pVB->pVertices[2] = -size;
+    
+    // Bottom-right
+    l->floor->pVB->pVertices[3] = size;
+    l->floor->pVB->pVertices[4] = 0.0f;
+    l->floor->pVB->pVertices[5] = -size;
+    
+    // Top-right
+    l->floor->pVB->pVertices[6] = size;
+    l->floor->pVB->pVertices[7] = 0.0f;
+    l->floor->pVB->pVertices[8] = size;
+    
+    // Top-left
+    l->floor->pVB->pVertices[9] = -size;
+    l->floor->pVB->pVertices[10] = 0.0f;
+    l->floor->pVB->pVertices[11] = size;
+    
+    // Set up normals (all pointing up)
+    for(int i = 0; i < 4; i++) {
+        l->floor->pVB->pNormals[i*3 + 0] = 0.0f;
+        l->floor->pVB->pNormals[i*3 + 1] = 1.0f;
+        l->floor->pVB->pNormals[i*3 + 2] = 0.0f;
+    }
+    
+    // Set up texture coordinates
+    // Bottom-left
+    l->floor->pVB->pTexCoords[0][0] = 0.0f;
+    l->floor->pVB->pTexCoords[0][1] = 0.0f;
+    
+    // Bottom-right
+    l->floor->pVB->pTexCoords[0][2] = 1.0f;
+    l->floor->pVB->pTexCoords[0][3] = 0.0f;
+    
+    // Top-right
+    l->floor->pVB->pTexCoords[0][4] = 1.0f;
+    l->floor->pVB->pTexCoords[0][5] = 1.0f;
+    
+    // Top-left
+    l->floor->pVB->pTexCoords[0][6] = 0.0f;
+    l->floor->pVB->pTexCoords[0][7] = 1.0f;
+    
+    // Set up indices for two triangles
+    // First triangle (bottom-left, bottom-right, top-right)
+    l->floor->ppIB[0]->pIndices[0] = 0;
+    l->floor->ppIB[0]->pIndices[1] = 1;
+    l->floor->ppIB[0]->pIndices[2] = 2;
+    
+    // Second triangle (bottom-left, top-right, top-left)
+    l->floor->ppIB[0]->pIndices[3] = 0;
+    l->floor->ppIB[0]->pIndices[4] = 2;
+    l->floor->ppIB[0]->pIndices[5] = 3;
+    
     gpTokenCurrentFloor = 0;  // No resource token
     
-    // Create a minimal arena mesh directly (without using createArenaMesh)
-    printf("[video] Creating minimal arena mesh directly\n");
+    // Create arena mesh (walls)
+    printf("[video] Creating arena mesh\n");
     
-    // Create a minimal mesh structure to avoid crashes
-    l->arena = (gltron_Mesh*)malloc(sizeof(gltron_Mesh));
+    // Create a simple arena mesh (a box with 8 vertices and 12 triangles)
+    int arenaPrimitives[] = {12};  // 12 triangles
+    l->arena = gltron_Mesh_Create(NEBU_MESH_POSITION | NEBU_MESH_NORMAL | NEBU_MESH_TEXCOORD0, 8, arenaPrimitives, 1);
     if(!l->arena) {
-        fprintf(stderr, "fatal: could not allocate memory for arena mesh - exiting...\n");
-        free(l->floor);
+        fprintf(stderr, "fatal: could not create arena mesh - exiting...\n");
+        gltron_Mesh_Free(l->floor);
         free(l);
         return NULL;
     }
-    memset(l->arena, 0, sizeof(gltron_Mesh));
+    
+    printf("[video] Arena mesh created: %p\n", (void*)l->arena);
+    printf("[video] Arena mesh VB: %p\n", (void*)l->arena->pVB);
+    printf("[video] Arena mesh IB: %p\n", (void*)l->arena->ppIB);
+    
+    if(l->arena->pVB) {
+        printf("[video] Arena mesh vertices: %p\n", (void*)l->arena->pVB->pVertices);
+        printf("[video] Arena mesh normals: %p\n", (void*)l->arena->pVB->pNormals);
+        printf("[video] Arena mesh texcoords: %p\n", (void*)l->arena->pVB->pTexCoords);
+    }
+    
+    if(l->arena->ppIB && l->arena->ppIB[0]) {
+        printf("[video] Arena mesh indices: %p\n", (void*)l->arena->ppIB[0]->pIndices);
+        printf("[video] Arena mesh primitives: %d\n", l->arena->ppIB[0]->nPrimitives);
+    }
+    
+    // Set up arena mesh vertices (a simple box)
+    float height = 10.0f;
+    
+    // Bottom vertices
+    // 0: Bottom-left-back
+    l->arena->pVB->pVertices[0] = -size;
+    l->arena->pVB->pVertices[1] = 0.0f;
+    l->arena->pVB->pVertices[2] = -size;
+    
+    // 1: Bottom-right-back
+    l->arena->pVB->pVertices[3] = size;
+    l->arena->pVB->pVertices[4] = 0.0f;
+    l->arena->pVB->pVertices[5] = -size;
+    
+    // 2: Bottom-right-front
+    l->arena->pVB->pVertices[6] = size;
+    l->arena->pVB->pVertices[7] = 0.0f;
+    l->arena->pVB->pVertices[8] = size;
+    
+    // 3: Bottom-left-front
+    l->arena->pVB->pVertices[9] = -size;
+    l->arena->pVB->pVertices[10] = 0.0f;
+    l->arena->pVB->pVertices[11] = size;
+    
+    // Top vertices
+    // 4: Top-left-back
+    l->arena->pVB->pVertices[12] = -size;
+    l->arena->pVB->pVertices[13] = height;
+    l->arena->pVB->pVertices[14] = -size;
+    
+    // 5: Top-right-back
+    l->arena->pVB->pVertices[15] = size;
+    l->arena->pVB->pVertices[16] = height;
+    l->arena->pVB->pVertices[17] = -size;
+    
+    // 6: Top-right-front
+    l->arena->pVB->pVertices[18] = size;
+    l->arena->pVB->pVertices[19] = height;
+    l->arena->pVB->pVertices[20] = size;
+    
+    // 7: Top-left-front
+    l->arena->pVB->pVertices[21] = -size;
+    l->arena->pVB->pVertices[22] = height;
+    l->arena->pVB->pVertices[23] = size;
+    
+    // Set up normals (simplified - all pointing outward)
+    for(int i = 0; i < 8; i++) {
+        // Calculate direction from center to vertex
+        float x = l->arena->pVB->pVertices[i*3 + 0];
+        float y = l->arena->pVB->pVertices[i*3 + 1] - height/2.0f;  // Center is at half height
+        float z = l->arena->pVB->pVertices[i*3 + 2];
+        
+        // Normalize
+        float length = sqrtf(x*x + y*y + z*z);
+        if(length > 0.0001f) {
+            l->arena->pVB->pNormals[i*3 + 0] = x / length;
+            l->arena->pVB->pNormals[i*3 + 1] = y / length;
+            l->arena->pVB->pNormals[i*3 + 2] = z / length;
+        } else {
+            // Fallback for center vertices
+            l->arena->pVB->pNormals[i*3 + 0] = 0.0f;
+            l->arena->pVB->pNormals[i*3 + 1] = 1.0f;
+            l->arena->pVB->pNormals[i*3 + 2] = 0.0f;
+        }
+    }
+    
+    // Set up texture coordinates (simplified)
+    for(int i = 0; i < 8; i++) {
+        // Simple mapping based on vertex position
+        l->arena->pVB->pTexCoords[0][i*2 + 0] = (l->arena->pVB->pVertices[i*3 + 0] + size) / (2.0f * size);
+        l->arena->pVB->pTexCoords[0][i*2 + 1] = (l->arena->pVB->pVertices[i*3 + 2] + size) / (2.0f * size);
+    }
+    
+    // Set up indices for 12 triangles (36 indices total)
+    // Front wall (2 triangles)
+    l->arena->ppIB[0]->pIndices[0] = 2;
+    l->arena->ppIB[0]->pIndices[1] = 3;
+    l->arena->ppIB[0]->pIndices[2] = 7;
+    
+    l->arena->ppIB[0]->pIndices[3] = 2;
+    l->arena->ppIB[0]->pIndices[4] = 7;
+    l->arena->ppIB[0]->pIndices[5] = 6;
+    
+    // Back wall (2 triangles)
+    l->arena->ppIB[0]->pIndices[6] = 0;
+    l->arena->ppIB[0]->pIndices[7] = 1;
+    l->arena->ppIB[0]->pIndices[8] = 5;
+    
+    l->arena->ppIB[0]->pIndices[9] = 0;
+    l->arena->ppIB[0]->pIndices[10] = 5;
+    l->arena->ppIB[0]->pIndices[11] = 4;
+    
+    // Left wall (2 triangles)
+    l->arena->ppIB[0]->pIndices[12] = 0;
+    l->arena->ppIB[0]->pIndices[13] = 4;
+    l->arena->ppIB[0]->pIndices[14] = 7;
+    
+    l->arena->ppIB[0]->pIndices[15] = 0;
+    l->arena->ppIB[0]->pIndices[16] = 7;
+    l->arena->ppIB[0]->pIndices[17] = 3;
+    
+    // Right wall (2 triangles)
+    l->arena->ppIB[0]->pIndices[18] = 1;
+    l->arena->ppIB[0]->pIndices[19] = 2;
+    l->arena->ppIB[0]->pIndices[20] = 6;
+    
+    l->arena->ppIB[0]->pIndices[21] = 1;
+    l->arena->ppIB[0]->pIndices[22] = 6;
+    l->arena->ppIB[0]->pIndices[23] = 5;
+    
+    // Top (2 triangles)
+    l->arena->ppIB[0]->pIndices[24] = 4;
+    l->arena->ppIB[0]->pIndices[25] = 5;
+    l->arena->ppIB[0]->pIndices[26] = 6;
+    
+    l->arena->ppIB[0]->pIndices[27] = 4;
+    l->arena->ppIB[0]->pIndices[28] = 6;
+    l->arena->ppIB[0]->pIndices[29] = 7;
+    
+    // Bottom (2 triangles)
+    l->arena->ppIB[0]->pIndices[30] = 0;
+    l->arena->ppIB[0]->pIndices[31] = 3;
+    l->arena->ppIB[0]->pIndices[32] = 2;
+    
+    l->arena->ppIB[0]->pIndices[33] = 0;
+    l->arena->ppIB[0]->pIndices[34] = 2;
+    l->arena->ppIB[0]->pIndices[35] = 1;
+    
     gpTokenCurrentLevel = 0;  // No resource token
     
-    printf("[video] Level created with minimal state\n");
+    printf("[video] Level created successfully\n");
     
     return l;
 }
