@@ -5,6 +5,7 @@
 #include "game/init.h"
 #include "game/gltron.h"
 #include "game/game.h"
+#include <string.h> /* For memset */
 #include "game/resource.h"
 #include "base/nebu_resource.h"
 #include "input/input.h"
@@ -50,6 +51,7 @@ static char current_callback[256] = "gui";  /* Default callback is "gui" */
 void initFilesystem(int argc, const char *argv[]);
 void debug_print_paths(void);
 void initGUIs(void);
+void initGame2(void);
 
 /* Debug function to print out the current paths */
 void debug_print_paths(void) {
@@ -118,6 +120,9 @@ void initSubsystems(int argc, const char *argv[]) {
     
     initAudio();
     initInput();
+    
+    // Initialize game2 structure
+    initGame2();
 
     fprintf(stderr, "[status] done loading level...\n");
 }
@@ -644,4 +649,38 @@ void initInput(void) {
 
 	gInput.mouse1 = 0;
 	gInput.mouse2 = 0;
+}
+
+void initGame2(void) {
+    printf("[init] Initializing game2\n");
+    
+    // Allocate memory for the game2 structure
+    game2 = (Game2*) malloc(sizeof(Game2));
+    if (!game2) {
+        fprintf(stderr, "[error] Memory allocation failed for game2\n");
+        exit(EXIT_FAILURE);
+    }
+    memset(game2, 0, sizeof(Game2));
+    
+    // Initialize minimal game state
+    game2->level = (game_level*) malloc(sizeof(game_level));
+    if (!game2->level) {
+        fprintf(stderr, "[error] Memory allocation failed for game2->level\n");
+        free(game2);
+        exit(EXIT_FAILURE);
+    }
+    memset(game2->level, 0, sizeof(game_level));
+    
+    // Set up bounding box
+    game2->level->boundingBox.vMin.v[0] = -100.0f;
+    game2->level->boundingBox.vMin.v[1] = -100.0f;
+    game2->level->boundingBox.vMin.v[2] = 0.0f;
+    game2->level->boundingBox.vMax.v[0] = 100.0f;
+    game2->level->boundingBox.vMax.v[1] = 100.0f;
+    game2->level->boundingBox.vMax.v[2] = 10.0f;
+    
+    // Initialize time
+    game2->time.current = 0;
+    
+    printf("[init] game2 initialized successfully\n");
 }

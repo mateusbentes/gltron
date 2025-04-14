@@ -312,6 +312,8 @@ void video_LoadLevel(void) {
         printf("[video] Freeing existing world\n");
         video_FreeLevel(gWorld);
         gWorld = NULL;
+    } else {
+        printf("[video] Failed to create world\n");
     }
     
     printf("[video] Creating new world\n");

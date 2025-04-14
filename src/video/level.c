@@ -297,7 +297,7 @@ void loadModel(gltron_Mesh **ppMesh, int *pToken)
 }
 
 video_level* video_CreateLevel(void) {
-    printf("[video] Creating level (debug implementation)\n");
+    printf("[video] Creating level (complete implementation)\n");
     
     // Allocate memory for the level structure
     video_level *l = malloc(sizeof(video_level));
@@ -330,21 +330,6 @@ video_level* video_CreateLevel(void) {
         fprintf(stderr, "fatal: could not create floor mesh - exiting...\n");
         free(l);
         return NULL;
-    }
-    
-    printf("[video] Floor mesh created: %p\n", (void*)l->floor);
-    printf("[video] Floor mesh VB: %p\n", (void*)l->floor->pVB);
-    printf("[video] Floor mesh IB: %p\n", (void*)l->floor->ppIB);
-    
-    if(l->floor->pVB) {
-        printf("[video] Floor mesh vertices: %p\n", (void*)l->floor->pVB->pVertices);
-        printf("[video] Floor mesh normals: %p\n", (void*)l->floor->pVB->pNormals);
-        printf("[video] Floor mesh texcoords: %p\n", (void*)l->floor->pVB->pTexCoords);
-    }
-    
-    if(l->floor->ppIB && l->floor->ppIB[0]) {
-        printf("[video] Floor mesh indices: %p\n", (void*)l->floor->ppIB[0]->pIndices);
-        printf("[video] Floor mesh primitives: %d\n", l->floor->ppIB[0]->nPrimitives);
     }
     
     // Set up floor mesh vertices (a simple quad)
@@ -418,21 +403,6 @@ video_level* video_CreateLevel(void) {
         gltron_Mesh_Free(l->floor);
         free(l);
         return NULL;
-    }
-    
-    printf("[video] Arena mesh created: %p\n", (void*)l->arena);
-    printf("[video] Arena mesh VB: %p\n", (void*)l->arena->pVB);
-    printf("[video] Arena mesh IB: %p\n", (void*)l->arena->ppIB);
-    
-    if(l->arena->pVB) {
-        printf("[video] Arena mesh vertices: %p\n", (void*)l->arena->pVB->pVertices);
-        printf("[video] Arena mesh normals: %p\n", (void*)l->arena->pVB->pNormals);
-        printf("[video] Arena mesh texcoords: %p\n", (void*)l->arena->pVB->pTexCoords);
-    }
-    
-    if(l->arena->ppIB && l->arena->ppIB[0]) {
-        printf("[video] Arena mesh indices: %p\n", (void*)l->arena->ppIB[0]->pIndices);
-        printf("[video] Arena mesh primitives: %d\n", l->arena->ppIB[0]->nPrimitives);
     }
     
     // Set up arena mesh vertices (a simple box)

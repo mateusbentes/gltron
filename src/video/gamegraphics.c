@@ -95,39 +95,175 @@ void initFrameResources(void)
 }
 
 void drawGame(void) {
-	GLint i;
+    printf("[drawGame] Starting to draw game\n");
+    
+    // Initialize frame resources
+    printf("[drawGame] Initializing frame resources\n");
+    initFrameResources();
+    
+    // Clear the screen with a bright color to verify rendering is working
+    printf("[drawGame] Clearing screen with bright color\n");
+    glClearColor(0.2f, 0.0f, 0.4f, 1.0f);  // Purple color
+    
+    if(gSettingsCache.use_stencil) {
+        glStencilMask(~0);
+        glClearStencil(0);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+    } else {
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    }
+    
+    // Check for OpenGL errors
+    GLenum error = glGetError();
+    if (error != GL_NO_ERROR) {
+        printf("[drawGame] OpenGL error after clearing screen: 0x%x\n", error);
+    } else {
+        printf("[drawGame] Screen cleared successfully\n");
+    }
+    
+    // Draw a simple triangle to verify rendering is working
+    printf("[drawGame] Drawing a simple triangle\n");
+    
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    glOrtho(-1.0, 1.0, -1.0, 1.0, -1.0, 1.0);
+    
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+    
+    glDisable(GL_LIGHTING);
+    glDisable(GL_DEPTH_TEST);
+    
+    glBegin(GL_TRIANGLES);
+    glColor3f(1.0f, 0.0f, 0.0f);  // Red
+    glVertex3f(-0.5f, -0.5f, 0.0f);
+    glColor3f(0.0f, 1.0f, 0.0f);  // Green
+    glVertex3f(0.5f, -0.5f, 0.0f);
+    glColor3f(0.0f, 0.0f, 1.0f);  // Blue
+    glVertex3f(0.0f, 0.5f, 0.0f);
+    glEnd();
+    
+    // Check for OpenGL errors
+    error = glGetError();
+    if (error != GL_NO_ERROR) {
+        printf("[drawGame] OpenGL error after drawing triangle: 0x%x\n", error);
+    } else {
+        printf("[drawGame] Triangle drawn successfully\n");
+    }
+    
+    // Try to draw the level
+    printf("[drawGame] Attempting to draw level\n");
+ 
+	if (game2 == NULL) {
+		printf("[drawGame] game2 is NULL\n");
+	} else if (gWorld == NULL) {
+		printf("[drawGame] gWorld is NULL\n");
+	} else {
+		printf("[drawGame] Both game2 and gWorld are non-NULL\n");
+	}	
 
-	initFrameResources();
-
-	clearScreen();
-
-	glShadeModel( GL_SMOOTH );
-	glDepthMask(GL_TRUE);
-	glEnable(GL_DEPTH_TEST);
-
-	if(getSettingi("wireframe"))
-	{
-#ifndef OPENGL_ES
-		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-#endif
-	}
-
-	for(i = 0; i < vp_max[gViewportType]; i++) {
-		Visual *d = &gppPlayerVisuals[i]->display;
-
-		if(d->onScreen == 1) {
-			glViewport(d->vp_x, d->vp_y, d->vp_w, d->vp_h);
-			drawCam(gppPlayerVisuals[i]);
-
-			/* hud stuff for every player */
-			drawHUD(gppPlayerVisuals[i]->pPlayer,
-				gppPlayerVisuals[i]);
-		}
-	}
-
-#ifndef OPENGL_ES
-	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-#endif
+    if (gWorld) {
+        printf("[drawGame] Game2 and gWorld exist\n");
+        
+        // Set up projection matrix for level rendering
+        glMatrixMode(GL_PROJECTION);
+        glLoadIdentity();
+        
+        // Use a fixed size for the far clipping plane
+        float farClip = 1000.0f;
+        doPerspective(gSettingsCache.fov, 800.0f / 600.0f, gSettingsCache.znear, farClip);
+        
+        glMatrixMode(GL_MODELVIEW);
+        glLoadIdentity();
+        
+        // Set up a simple camera
+        float cam[3] = { 0.0f, 50.0f, 0.0f };  // Position camera above the level
+        float target[3] = { 0.0f, 0.0f, 0.0f };  // Look at the center of the level
+        float up[3] = { 0.0f, 0.0f, 1.0f };  // Up is along the z-axis
+        doLookAt(cam, target, up);
+        
+        // Enable depth testing and lighting for level rendering
+        glEnable(GL_DEPTH_TEST);
+        glEnable(GL_LIGHTING);
+        glEnable(GL_LIGHT0);
+        
+        // Set up a simple light
+        float lightPos[] = { 0.0f, 100.0f, 0.0f, 1.0f };  // Position light above the level
+        float lightAmbient[] = { 0.2f, 0.2f, 0.2f, 1.0f };  // Soft ambient light
+        float lightDiffuse[] = { 1.0f, 1.0f, 1.0f, 1.0f };  // Bright diffuse light
+        float lightSpecular[] = { 1.0f, 1.0f, 1.0f, 1.0f };  // Bright specular highlights
+        
+        glLightfv(GL_LIGHT0, GL_POSITION, lightPos);
+        glLightfv(GL_LIGHT0, GL_AMBIENT, lightAmbient);
+        glLightfv(GL_LIGHT0, GL_DIFFUSE, lightDiffuse);
+        glLightfv(GL_LIGHT0, GL_SPECULAR, lightSpecular);
+        
+        // Draw the floor
+        printf("[drawGame] Drawing floor\n");
+        if (gWorld->floor) {
+            // Set up floor shader
+            video_Shader_Setup(&gWorld->floor_shader, 0);
+            
+            // Draw floor geometry
+            video_Shader_Geometry(gWorld->floor, TRI_MESH, 0);
+            
+            // Clean up floor shader
+            video_Shader_Cleanup(&gWorld->floor_shader, 0);
+            
+            // Check for OpenGL errors
+            error = glGetError();
+            if (error != GL_NO_ERROR) {
+                printf("[drawGame] OpenGL error after drawing floor: 0x%x\n", error);
+            } else {
+                printf("[drawGame] Floor drawn successfully\n");
+            }
+        } else {
+            printf("[drawGame] Floor mesh is NULL\n");
+        }
+        
+        // Draw the arena
+        printf("[drawGame] Drawing arena\n");
+        if (gWorld->arena) {
+            // Set up arena shader
+            video_Shader_Setup(&gWorld->arena_shader, 0);
+            
+            // Draw arena geometry
+            video_Shader_Geometry(gWorld->arena, TRI_MESH, 0);
+            
+            // Clean up arena shader
+            video_Shader_Cleanup(&gWorld->arena_shader, 0);
+            
+            // Check for OpenGL errors
+            error = glGetError();
+            if (error != GL_NO_ERROR) {
+                printf("[drawGame] OpenGL error after drawing arena: 0x%x\n", error);
+            } else {
+                printf("[drawGame] Arena drawn successfully\n");
+            }
+        } else {
+            printf("[drawGame] Arena mesh is NULL\n");
+        }
+        
+        // Disable lighting and depth testing
+        glDisable(GL_LIGHTING);
+        glDisable(GL_LIGHT0);
+        glDisable(GL_DEPTH_TEST);
+        
+        // Check for OpenGL errors
+        error = glGetError();
+        if (error != GL_NO_ERROR) {
+            printf("[drawGame] OpenGL error after drawing level: 0x%x\n", error);
+        } else {
+            printf("[drawGame] Level drawn successfully\n");
+        }
+    } else {
+        printf("[drawGame] Game2 or gWorld is NULL\n");
+    }
+    
+    // Swap buffers to display the rendered scene
+    printf("[drawGame] Swapping buffers\n");
+    
+    printf("[drawGame] Game drawing complete\n");
 }
 
 /* 
