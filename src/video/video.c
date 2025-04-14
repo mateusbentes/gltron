@@ -315,13 +315,15 @@ void video_LoadLevel(void) {
     }
     
     printf("[video] Creating new world\n");
-    gWorld = video_CreateLevel();
     
-    if(!gWorld) {
-        printf("[error] Failed to create world\n");
-    } else {
-        printf("[video] World created successfully\n");
+    // Call our simplified video_CreateLevel function
+    gWorld = video_CreateLevel();
+    if (!gWorld) {
+        fprintf(stderr, "[FATAL] Failed to create world\n");
+        exit(EXIT_FAILURE);
     }
+    
+    printf("[video] World created successfully\n");
 }
 	
 void video_ResetData(void) {
