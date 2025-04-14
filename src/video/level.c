@@ -22,11 +22,6 @@
 #include <lauxlib.h>
 #include <lualib.h>
 
-/* 
- * Note: The structures nebu_IndexBuffer, nebu_VertexBuffer, and gltron_Mesh
- * are already defined in the included headers, so we don't need to define them again.
- */
-
 /*
  * Implementation of loadMesh function
  * This function is referenced in loadModel but not defined
