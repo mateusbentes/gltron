@@ -3,14 +3,8 @@
 #include <stdio.h> // Include for printf
 #include "scripting/embedded_scripts.h"
 
-/* Structure to hold an embedded script */
-typedef struct {
-    const char *name;
-    const char *content;
-} EmbeddedScript;
-
 /* Array of embedded scripts */
-static const EmbeddedScript embedded_scripts[] = {
+const EmbeddedScript embedded_scripts[] = {
     /* main.lua */
     {
         "main.lua",
@@ -1146,12 +1140,15 @@ const char* get_embedded_script(const char *name) {
                     fprintf(stderr, "[error] Embedded script '%s' is not null-terminated!\n", name);
                 }
                 
-                // Print script content and length
+                // Print debug information if needed
+                #ifdef DEBUG_EMBEDDED_SCRIPTS
                 printf("[debug] Embedded script '%s' content:\n%s\n", name, script);
                 printf("[debug] Embedded script '%s' length: %zu\n", name, len);
+                #endif
             }
             return script;
         }
     }
+    fprintf(stderr, "[error] Embedded script '%s' not found!\n", name);
     return NULL;
 }

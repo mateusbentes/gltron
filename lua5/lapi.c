@@ -7,6 +7,7 @@
 
 #include <assert.h>
 #include <string.h>
+#include <stdio.h>  /* Added for fprintf and stderr */
 
 #define lapi_c
 
@@ -412,10 +413,17 @@ LUA_API void lua_pushlstring (lua_State *L, const char *s, size_t len) {
 
 
 LUA_API void lua_pushstring (lua_State *L, const char *s) {
-  if (s == NULL)
+  if (s == NULL) {
+    fprintf(stderr, "[DEBUG] lua_pushstring received NULL, pushing nil\n");
     lua_pushnil(L);
-  else
-    lua_pushlstring(L, s, strlen(s));
+  } else {
+    fprintf(stderr, "[DEBUG] lua_pushstring pushing string: %s\n", s);
+    lua_lock(L);
+    luaC_checkGC(L);
+    setsvalue2s(L->top, luaS_newlstr(L, s, strlen(s)));
+    api_incr_top(L);
+    lua_unlock(L);
+  }
 }
 
 

@@ -12,6 +12,7 @@
         "typeinfo": "cpp",
         "*.tcc": "cpp",
         "stdlib.h": "c",
-        "cstdlib": "c"
+        "cstdlib": "c",
+        "settings.h": "c"
     }
 }

@@ -4,8 +4,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "scripting/scripting.h"
-#include "scripting/embedded_scripts.h"
+#include "scripting/embedded_scripts.h"  // For embedded_scripts array and get_embedded_script function
+#include "scripting/embedded_processing.h"  // For function declaration
 #include "configuration/settings.h"
 
 /* Process embedded configuration script */

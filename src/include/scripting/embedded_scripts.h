@@ -1,4 +1,5 @@
-/* 
+/*
+ * embedded_scripts.h
  * Header file for embedded scripts
  */
 #ifndef EMBEDDED_SCRIPTS_H
@@ -8,8 +9,17 @@
 extern "C" {
 #endif
 
+/* Structure to hold an embedded script */
+typedef struct {
+    const char *name;
+    const char *content;
+} EmbeddedScript;
+
+/* Array of embedded scripts (defined in embedded_scripts.c) */
+extern const EmbeddedScript embedded_scripts[];
+
 /* Function to get an embedded script by name */
-const char* get_embedded_script(const char *name);
+const char* get_embedded_script(const char* script_name);
 
 #ifdef __cplusplus
 }

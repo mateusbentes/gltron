@@ -1,3 +1,7 @@
+/*
+ * embedded_processing.h
+ * Header file for embedded script processing functions
+ */
 #ifndef EMBEDDED_PROCESSING_H
 #define EMBEDDED_PROCESSING_H
 
@@ -25,7 +29,7 @@ void process_embedded_hud(void);
 /* Process gauge configuration */
 void process_embedded_gauge(void);
 
-/* Process config configuration - renamed to avoid duplicate definition */
+/* Process config configuration */
 void process_embedded_config_file(void);
 
 /* Process save configuration */
@@ -39,5 +43,10 @@ void process_embedded_game(void);
 
 /* Process main configuration */
 void process_embedded_main(void);
+
+/* 
+ * Note: get_embedded_script is declared in embedded_scripts.h
+ * and implemented in embedded_scripts.c
+ */
 
 #endif /* EMBEDDED_PROCESSING_H */
