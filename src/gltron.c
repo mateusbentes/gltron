@@ -13,10 +13,19 @@
 #include "video/video.h"  // For video_LoadLevel and displayGame
 #include "game/game.h"    // For gWorld
 #include "game/game_level.h" // For game level functions
+#include "game/menu.h"    // For menu functions
 
 #include "base/nebu_assert.h"
+#include "input/input.h"  // For input handling
 
 /* No need to declare gWorld here, it's already declared in video.h */
+
+// Function prototypes
+void mainDisplay(void);
+void mainIdle(void);
+void mainKeyboard(int state, int key, int x, int y);
+void mainMouse(int button, int state, int x, int y);
+void mainMouseMotion(int x, int y);
 
 int main(int argc, char *argv[] ) {
     nebu_debug_memory_CheckLeaksOnExit();
@@ -30,7 +39,7 @@ int main(int argc, char *argv[] ) {
     printf("[main] Processing embedded main.lua\n");
     process_embedded_main();
     
-    /* CHANGE: Initialize the game world before rendering */
+    /* Initialize the game world before rendering */
     printf("[main] Initializing game world\n");
     if (!gWorld) {
         printf("[main] Creating game world\n");
@@ -42,7 +51,7 @@ int main(int argc, char *argv[] ) {
         }
     }
     
-    /* CHANGE: Initialize game before game2 */
+    /* Initialize game before game2 */
     printf("[main] Initializing game\n");
     if (!game) {
         printf("[main] Creating game\n");
@@ -54,7 +63,7 @@ int main(int argc, char *argv[] ) {
         printf("[main] Game initialized successfully\n");
     }
     
-    /* CHANGE: Initialize game2 before calling displayGame */
+    /* Initialize game2 */
     printf("[main] Initializing game2\n");
     if (!game2) {
         printf("[main] Creating game2\n");
@@ -66,36 +75,32 @@ int main(int argc, char *argv[] ) {
         printf("[main] game2 initialized successfully\n");
     }
     
-    /* CHANGE: Initialize players */
+    /* Initialize players */
     printf("[main] Initializing players\n");
     initPlayers();
     
-    /* CHANGE: Set game2->play to 1 to indicate the game is playing */
+    /* Set game2->play to 1 to indicate the game is playing */
     if (game2) {
         printf("[main] Setting game2->play to 1\n");
         game2->play = 1;
     }
     
-    /* CHANGE: Directly call displayGame() to render the game */
-    printf("[main] Directly calling displayGame() to render the game\n");
-    displayGame();
+    /* Initialize menu system */
+    printf("[main] Initializing menu system\n");
+    initMenu();
     
-    /* Add a delay to give the window time to appear */
-    printf("[main] Forcing window refresh\n");
-    displayGame();
-    nebu_System_SwapBuffers();
-    SDL_Delay(100);  // Short delay
-    displayGame();
-    nebu_System_SwapBuffers();
+    /* Set up callbacks */
+    printf("[main] Setting up callbacks\n");
+    nebu_System_SetCallback_Display(mainDisplay);
+    nebu_System_SetCallback_Idle(mainIdle);
+    nebu_System_SetCallback_Key(mainKeyboard);
+    nebu_System_SetCallback_Mouse(mainMouse);
+    nebu_System_SetCallback_MouseMotion(mainMouseMotion);
     
-    /* CHANGE: Directly call runGUI() to start the game */
-    printf("[main] Directly calling runGUI() to start the game\n");
-    int status = 1;
-    while (status) {
-        status = runGUI();
-        /* Add a small delay to avoid 100% CPU usage */
-        SDL_Delay(10);
-    }
+    /* Enter main loop */
+    printf("[main] Entering main loop\n");
+    nebu_System_MainLoop();
+    
 #else
     /* Run main.lua from file */
     runScript(PATH_SCRIPTS, "main.lua");
@@ -105,4 +110,64 @@ int main(int argc, char *argv[] ) {
     exitSubsystems();
     
     return 0;
+}
+
+/* Display callback */
+void mainDisplay(void) {
+    if (isMenuActive()) {
+        /* Menu is active, draw menu */
+        drawMenu();
+    } else {
+        /* Game is active, draw game */
+        displayGame();
+    }
+}
+
+/* Idle callback */
+void mainIdle(void) {
+    if (isMenuActive()) {
+        /* Menu is active, update menu */
+        menuIdle();
+    } else {
+        /* Game is active, update game */
+        int status = runGUI();
+        if (status == 0) {
+            /* Game ended, return to menu */
+            printf("[main] Game ended, returning to menu\n");
+            initMenu();
+        }
+    }
+}
+
+/* Keyboard callback */
+void mainKeyboard(int state, int key, int x, int y) {
+    if (isMenuActive()) {
+        /* Menu is active, handle menu input */
+        keyMenu(state, key, x, y);
+    } else {
+        /* Game is active, handle game input */
+        keyGame(state, key, x, y);
+    }
+}
+
+/* Mouse callback */
+void mainMouse(int button, int state, int x, int y) {
+    if (isMenuActive()) {
+        /* Menu is active, handle menu input */
+        mouseMenu(button, state, x, y);
+    } else {
+        /* Game is active, handle game input */
+        gameMouse(button, state, x, y);
+    }
+}
+
+/* Mouse motion callback */
+void mainMouseMotion(int x, int y) {
+    if (isMenuActive()) {
+        /* Menu is active, handle menu input */
+        /* TODO: Implement menu mouse motion handling */
+    } else {
+        /* Game is active, handle game input */
+        /* TODO: Implement game mouse motion handling */
+    }
 }

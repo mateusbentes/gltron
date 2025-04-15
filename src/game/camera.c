@@ -122,27 +122,63 @@ static void initOffsetCamera(Camera *cam) {
 	cam->type.freedom[CAM_FREE_CHI] = 1;
 }
 
+void initCamerasForAllPlayers(void) {
+    int i;
+    int camType;
+
+    if(!game)
+        return;
+
+    if (getSettingi("debug_output")) {
+        displayMessage(TO_CONSOLE, "[camera] Initializing cameras for all players");
+    }
+
+    for(i = 0; i < gnPlayerVisuals; i++) {
+        if (gppPlayerVisuals[i]) {
+            Player *pPlayer = gppPlayerVisuals[i]->pPlayer;
+            camType = (pPlayer->ai.active == AI_COMPUTER) ? 
+                0 : getSettingi("camType");
+            
+            if (getSettingi("debug_output")) {
+                displayMessage(TO_CONSOLE, "[camera] Initializing camera for player %d", i);
+            }
+            
+            initCamera(gppPlayerVisuals[i], camType);
+        }
+    }
+
+    if (getSettingi("debug_output")) {
+        displayMessage(TO_CONSOLE, "[camera] All cameras initialized");
+    }
+}
+
 void camera_ResetAll(void)
 {
-	int i;
-	int camType;
-
-	if(!game)
-		return;
-
-	for(i = 0; i < gnPlayerVisuals; i++) {
-		Player *pPlayer = gppPlayerVisuals[i]->pPlayer;
-		camType = (pPlayer->ai.active == AI_COMPUTER) ? 
-			0 : getSettingi("camType");
-		initCamera(gppPlayerVisuals[i], camType);
-	}
+    initCamerasForAllPlayers();
 }
 
 void initCamera(PlayerVisual *pV, int type) {
 	float x,y;
-	Camera *cam = &pV->camera;
-
-	getPositionFromData(&x, &y, &pV->pPlayer->data);
+	Camera *cam;
+	
+	if (!pV) {
+		if (getSettingi("debug_output")) {
+			displayMessage(TO_CONSOLE, "[camera] Cannot initialize camera: PlayerVisual is NULL");
+		}
+		return;
+	}
+	
+	cam = &pV->camera;
+	
+	if (pV->pPlayer) {
+		getPositionFromData(&x, &y, &pV->pPlayer->data);
+	} else {
+		x = 0.0f;
+		y = 0.0f;
+		if (getSettingi("debug_output")) {
+			displayMessage(TO_CONSOLE, "[camera] Warning: Player is NULL, using default position");
+		}
+	}
 
 	cam->type.type = type;
 
@@ -165,6 +201,11 @@ void initCamera(PlayerVisual *pV, int type) {
 
 	memset(cam->pUser, 0, sizeof(cam->pUser));
 	cam->pUserData = NULL;
+	
+	if (getSettingi("debug_output")) {
+		displayMessage(TO_CONSOLE, "[camera] Camera initialized at position (%f, %f, %f)", 
+			cam->cam[0], cam->cam[1], cam->cam[2]);
+	}
 }
 
 /* place user into recognizer */

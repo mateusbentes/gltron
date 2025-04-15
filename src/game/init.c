@@ -24,12 +24,15 @@
 #include "filesystem/nebu_filesystem.h"
 #include "scripting/nebu_scripting.h"
 #include "input/nebu_input_system.h"
-#include "video/video.h"
+#include "video/video.h"  /* This should define PlayerVisual */
 
 #include <stdlib.h>
 #include <string.h>  /* Added for strncpy */
 
 #include "base/nebu_assert.h"
+
+/* Now that we've included all necessary headers, we can declare the function prototype */
+void initPlayerCamera(PlayerVisual *pV, int type);
 
 #include <lua.h>
 #include <lauxlib.h>
@@ -45,6 +48,9 @@ static lua_State *lua_state = NULL;
 
 /* Define DEBUG_SCRIPTING - set to 0 for production, 1 for debugging */
 #define DEBUG_SCRIPTING 0
+
+// External function declarations
+extern int isMenuActive(void);
 
 /* Define current_callback - used by l_setCallback and l_mainLoop */
 static char current_callback[256] = "gui";  /* Default callback is "gui" */
@@ -98,36 +104,110 @@ void exitSubsystems(void)
     resource_Shutdown();
 }
 
+// Initialize the game
 void initGame(void) {
     printf("[init] Initializing game\n");
     
-    // Allocate memory for the game structure
-    game = (Game*) malloc(sizeof(Game));
+    // Initialize game data structures
+    printf("[init] Initializing game data structures\n");
+    game = (Game*)malloc(sizeof(Game));
     if (!game) {
         fprintf(stderr, "[init] Failed to allocate memory for game\n");
         exit(EXIT_FAILURE);
     }
-    
-    // Initialize the game structure
     memset(game, 0, sizeof(Game));
     
-    // Set default values
-    game->pauseflag = PAUSE_GAME_RUNNING;
-    game->players = 4;  // Default to 4 players
-    
-    // Allocate memory for players
-    game->player = (Player*) malloc(game->players * sizeof(Player));
-    if (!game->player) {
-        fprintf(stderr, "[init] Failed to allocate memory for players\n");
-        free(game);
-        game = NULL;
+    game2 = (Game2*)malloc(sizeof(Game2));
+    if (!game2) {
+        fprintf(stderr, "[init] Failed to allocate memory for game2\n");
         exit(EXIT_FAILURE);
     }
+    memset(game2, 0, sizeof(Game2));
+    
+    // Initialize game settings
+    printf("[init] Initializing game settings\n");
+    updateSettingsCache();
+    
+    // Initialize game level
+    printf("[init] Initializing game level\n");
+    game2->level = (game_level*)malloc(sizeof(game_level));  // Use game_level instead of Level
+    if (!game2->level) {
+        fprintf(stderr, "[init] Failed to allocate memory for level\n");
+        exit(EXIT_FAILURE);
+    }
+    memset(game2->level, 0, sizeof(game_level));
+    
+    // Set up level boundaries
+    game2->level->boundingBox.vMin.v[0] = -100.0f;
+    game2->level->boundingBox.vMin.v[1] = -100.0f;
+    game2->level->boundingBox.vMax.v[0] = 100.0f;
+    game2->level->boundingBox.vMax.v[1] = 100.0f;
+    
+    // Initialize world - use the correct type or just set gWorld directly
+    printf("[init] Initializing world\n");
+    // Instead of allocating a new World, we'll let video_LoadLevel create it
+    gWorld = NULL;  // Will be initialized by video_LoadLevel
     
     // Initialize players
-    memset(game->player, 0, game->players * sizeof(Player));
+    printf("[init] Initializing players\n");
+    initPlayers();
     
-    printf("[init] Game initialized successfully\n");
+    // Initialize camera - this needs to be done after player visuals are initialized
+    printf("[init] Initializing camera\n");
+    // We'll initialize cameras for each player in initPlayers instead
+    
+    // Initialize scripting
+    printf("[init] Initializing scripting\n");
+    initScripting();
+    
+    // Set game state
+    printf("[init] Setting game state\n");
+    game2->time.current = 0;
+    game2->time.lastFrame = 0;
+    game2->time.dt = 0;
+    // game2 doesn't have pauseflag, it's in the game structure
+    game->pauseflag = PAUSE_GAME_RUNNING;
+    game2->play = 1;
+    
+    printf("[init] Game initialized\n");
+}
+
+// Enter game mode
+void enterGame(void) {
+    printf("[init] Entering game mode\n");
+    
+    // Update settings cache
+    updateSettingsCache();
+    
+    // Hide mouse pointer
+    nebu_Input_HidePointer();
+    
+    // Reset game time
+    game2->time.offset = nebu_Time_GetElapsed() - game2->time.current;
+    
+    // Enable audio
+    Audio_EnableEngine();
+    
+    // Disable booster & wallbuster for all players
+    for (int i = 0; i < game->players; i++) {
+        game->player[i].data.boost_enabled = 0;
+        game->player[i].data.wall_buster_enabled = 0;
+    }
+    
+    printf("[init] Game mode entered\n");
+}
+
+// Exit game mode
+void exitGame(void) {
+    printf("[init] Exiting game mode\n");
+    
+    // Disable audio
+    Audio_DisableEngine();
+    
+    // Show mouse pointer
+    nebu_Input_ShowPointer();
+    
+    printf("[init] Game mode exited\n");
 }
 
 void initSubsystems(int argc, const char *argv[]) {
@@ -734,6 +814,49 @@ void initGame2(void) {
     printf("[init] game2 initialized successfully\n");
 }
 
+void initPlayerCamera(PlayerVisual *pV, int type) {
+    Camera *c = &pV->camera;
+    Player *p = pV->pPlayer;
+    
+    // Initialize camera based on type
+    // type 0 = follow camera
+    
+    // Set camera target to player position
+    c->target[0] = p->data.posx;
+    c->target[1] = p->data.posy;
+    c->target[2] = 0.0f;
+    
+    // Get direction from player
+    int direction = p->data.dir;
+    
+    // Set camera position based on player direction
+    switch (direction) {
+        case 0:  // Right
+            c->cam[0] = c->target[0] - 20.0f;
+            c->cam[1] = c->target[1];
+            c->cam[2] = 10.0f;
+            break;
+        case 1:  // Up
+            c->cam[0] = c->target[0];
+            c->cam[1] = c->target[1] - 20.0f;
+            c->cam[2] = 10.0f;
+            break;
+        case 2:  // Left
+            c->cam[0] = c->target[0] + 20.0f;
+            c->cam[1] = c->target[1];
+            c->cam[2] = 10.0f;
+            break;
+        case 3:  // Down
+            c->cam[0] = c->target[0];
+            c->cam[1] = c->target[1] + 20.0f;
+            c->cam[2] = 10.0f;
+            break;
+    }
+    
+    printf("[init] Initialized camera at (%f, %f, %f) targeting (%f, %f, %f)\n", 
+           c->cam[0], c->cam[1], c->cam[2], c->target[0], c->target[1], c->target[2]);
+}
+
 void initPlayers(void) {
     printf("[init] Initializing players\n");
     
@@ -894,51 +1017,10 @@ void initPlayers(void) {
         // Set viewport to be on screen
         d->onScreen = 1;
         
-        // Set up camera
-        Camera *c = &gppPlayerVisuals[i]->camera;
+        // Initialize camera for this player
+        initPlayerCamera(gppPlayerVisuals[i], 0);  // 0 = follow camera
         
-        // Since CameraType is a non-scalar type (likely a struct), we can't cast an integer to it
-        // Instead, we'll initialize it with memset to zero and then set specific fields if needed
-        memset(&c->type, 0, sizeof(c->type));
-        
-        // Get position from player data
-        float pos_x = game->player[i].data.posx;
-        float pos_y = game->player[i].data.posy;
-        
-        // Set camera target to player position
-        c->target[0] = pos_x;
-        c->target[1] = pos_y;
-        c->target[2] = 0.0f;
-        
-        // Get direction from player
-        int direction = game->player[i].data.dir;
-        
-        // Set camera position based on player direction
-        switch (direction) {
-            case 0:  // Right
-                c->cam[0] = c->target[0] - 20.0f;
-                c->cam[1] = c->target[1];
-                c->cam[2] = 10.0f;
-                break;
-            case 1:  // Up
-                c->cam[0] = c->target[0];
-                c->cam[1] = c->target[1] - 20.0f;
-                c->cam[2] = 10.0f;
-                break;
-            case 2:  // Left
-                c->cam[0] = c->target[0] + 20.0f;
-                c->cam[1] = c->target[1];
-                c->cam[2] = 10.0f;
-                break;
-            case 3:  // Down
-                c->cam[0] = c->target[0];
-                c->cam[1] = c->target[1] + 20.0f;
-                c->cam[2] = 10.0f;
-                break;
-        }
-        
-        printf("[init] Initialized player visual %d with camera at (%f, %f, %f)\n", 
-               i, c->cam[0], c->cam[1], c->cam[2]);
+        printf("[init] Initialized player visual %d\n", i);
     }
     
     printf("[init] Players initialized\n");
