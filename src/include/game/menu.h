@@ -55,7 +55,7 @@ extern int menutime;
 
 /* Function prototypes */
 void initMenu(void);
-void drawMenu(void);
+void drawMenu(void);  // No parameters - this is the main menu drawing function
 void handleMenuInput(int key);
 void startGame(void);
 void showSettings(void);

@@ -3,6 +3,9 @@
 #include <stdio.h> // Include for printf
 #include "scripting/embedded_scripts.h"
 
+/* Define DEBUG_EMBEDDED_SCRIPTS - set to 0 for production, 1 for debugging */
+#define DEBUG_EMBEDDED_SCRIPTS 0
+
 /* Array of embedded scripts */
 const EmbeddedScript embedded_scripts[] = {
     /* main.lua */

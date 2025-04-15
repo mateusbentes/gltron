@@ -1,3 +1,4 @@
+# Main CMakeLists.txt
 cmake_minimum_required(VERSION 3.10)
 project(gltron VERSION 0.71 LANGUAGES C CXX)
 
@@ -67,7 +68,7 @@ endif()
 
 if(NOT BUILD_ANDROID)
   find_package(OpenGL REQUIRED)
-  
+
   # Find SDL_sound if sound is enabled
   if(ENABLE_SOUND)
     find_path(SDL_SOUND_INCLUDE_DIR SDL_sound.h
@@ -91,7 +92,7 @@ if(NOT BUILD_ANDROID)
       /opt/include/SDL
       /opt/include
     )
-    
+
     find_library(SDL_SOUND_LIBRARY
       NAMES SDL_sound
       HINTS
@@ -108,7 +109,7 @@ if(NOT BUILD_ANDROID)
       /opt/csw
       /opt
     )
-    
+
     if(SDL_SOUND_INCLUDE_DIR AND SDL_SOUND_LIBRARY)
       include_directories(${SDL_SOUND_INCLUDE_DIR})
       message(STATUS "Found SDL_sound: ${SDL_SOUND_LIBRARY}")
@@ -124,7 +125,7 @@ endif()
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 # Generate config.h.in file
-file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/config.h.in 
+file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/config.h.in
 "#ifndef CONFIG_H
 #define CONFIG_H
 
@@ -155,7 +156,7 @@ file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/src/include/gltron-config.h
 #define PREF_DIR \"~/.gltronrc\"
 #define SNAP_DIR \"~/gltron-snapshots\"
 #define DATA_DIR \"/usr/local/share/gltron\"
-#define VERSION \"0.71\"
+#define VERSION \"0.7.1\"
 
 /* Platform-specific function replacements */
 #ifdef __APPLE__
@@ -181,6 +182,12 @@ file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/src/include/scripting/embedded_scripts.h
 #ifdef __cplusplus
 extern \"C\" {
 #endif
+
+/* Structure to hold embedded script data */
+typedef struct {
+    const char* name;    /* Script filename */
+    const char* content; /* Script content */
+} EmbeddedScript;
 
 /* Function to get an embedded script by name */
 const char* get_embedded_script(const char *name);
@@ -225,20 +232,20 @@ if(LOCAL_DATA)
   file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/music)
   file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/levels)
   file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/sounds)
-  
+
   # Copy resources immediately during configure step
   file(COPY ${CMAKE_SOURCE_DIR}/art/ DESTINATION ${CMAKE_BINARY_DIR}/art)
   file(COPY ${CMAKE_SOURCE_DIR}/data/ DESTINATION ${CMAKE_BINARY_DIR}/data)
   file(COPY ${CMAKE_SOURCE_DIR}/music/ DESTINATION ${CMAKE_BINARY_DIR}/music)
   file(COPY ${CMAKE_SOURCE_DIR}/levels/ DESTINATION ${CMAKE_BINARY_DIR}/levels)
   file(COPY ${CMAKE_SOURCE_DIR}/sounds/ DESTINATION ${CMAKE_BINARY_DIR}/sounds)
-  
+
   # Only copy scripts if not using embedded scripts
   if(NOT USE_EMBEDDED_SCRIPTS)
     file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/scripts)
     file(COPY ${CMAKE_SOURCE_DIR}/scripts/ DESTINATION ${CMAKE_BINARY_DIR}/scripts)
   endif()
-  
+
   message(STATUS "Resources copied to build directory")
 endif()
 
@@ -294,9 +301,13 @@ target_link_libraries(gltron PRIVATE
   sdl_compat  # Add the SDL compatibility library first
   lua5  # For luaL_loadstring - move this before nebu_scripting
   lualib5  # For lua_pcall - move this before nebu_scripting
+  nebu_system  # Add nebu_system before nebu_video
+  nebu_video  # Add nebu_video before nebu_scripting
+  nebu_input  # Add nebu_input before nebu_scripting
   nebu_scripting  # For scripting_GetLuaState - move this before game
   nebu_filesystem  # For nebu_FS_Test - move this before game
   nebu_base  # For basic functions - move this before game
+  nebu_audio  # Move nebu_audio up in the linking order
   callbacks  # Add this line to link against the callbacks library
   game
   input
@@ -305,9 +316,6 @@ target_link_libraries(gltron PRIVATE
   configuration
   base
   filesystem
-  nebu_input
-  nebu_audio
-  nebu_video
   lib3ds
   ${GLEW_LIBRARIES}
   ${PNG_LIBRARIES}
@@ -333,13 +341,13 @@ if(BUILD_ANDROID)
   # Android-specific setup
   set(CMAKE_ANDROID_API 21)
   set(CMAKE_ANDROID_ARCH_ABI armeabi-v7a arm64-v8a x86 x86_64)
-  
+
   # Include Android-specific libraries
   find_library(ANDROID_LIB android)
   find_library(LOG_LIB log)
   find_library(EGL_LIB EGL)
   find_library(GLES_LIB GLESv2)
-  
+
   target_link_libraries(gltron PRIVATE
     ${ANDROID_LIB}
     ${LOG_LIB}
@@ -361,31 +369,31 @@ if(LOCAL_DATA)
     ${CMAKE_SOURCE_DIR}/art ${CMAKE_BINARY_DIR}/art
     COMMENT "Copying art to build directory"
   )
-  
+
   add_custom_command(TARGET gltron POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
     ${CMAKE_SOURCE_DIR}/data ${CMAKE_BINARY_DIR}/data
     COMMENT "Copying data to build directory"
   )
-  
+
   add_custom_command(TARGET gltron POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
     ${CMAKE_SOURCE_DIR}/music ${CMAKE_BINARY_DIR}/music
     COMMENT "Copying music to build directory"
   )
-  
+
   add_custom_command(TARGET gltron POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
     ${CMAKE_SOURCE_DIR}/levels ${CMAKE_BINARY_DIR}/levels
     COMMENT "Copying levels to build directory"
   )
-  
+
   add_custom_command(TARGET gltron POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
     ${CMAKE_SOURCE_DIR}/sounds ${CMAKE_BINARY_DIR}/sounds
     COMMENT "Copying sounds to build directory"
   )
-  
+
   # Only copy scripts if not using embedded scripts
   if(NOT USE_EMBEDDED_SCRIPTS)
     add_custom_command(TARGET gltron POST_BUILD

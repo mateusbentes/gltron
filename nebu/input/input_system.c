@@ -12,10 +12,23 @@
 #include "video/nebu_video_system.h"
 #include "scripting/nebu_scripting.h"
 
+/* Include the KeySet structure definition */
+#include "input/nebu_system_keynames.h"
+
 #include <SDL2/SDL.h>
 #include <errno.h>
 
 #include "base/nebu_debug_memory.h"
+
+/* Define the input handler structure */
+typedef struct {
+    void (*keyboard)(int state, int key, int x, int y);
+    void (*mouse)(int buttons, int state, int x, int y);
+    void (*mouseMotion)(int x, int y);
+} InputHandler;
+
+/* Define the current input handler */
+static InputHandler *current = NULL;
 
 static float joystick_threshold = 0;
 static int mouse_x = -1;
@@ -122,6 +135,37 @@ void nebu_Input_UnhidePointer(void) {
 	SDL_ShowCursor(SDL_ENABLE);
 }
 
+/* Function to set the current input handler */
+void nebu_Input_SetHandler(void *handler) {
+    current = (InputHandler*)handler;
+}
+
+/* Function to create a new input handler */
+void* nebu_Input_CreateHandler(
+    void (*keyboard)(int state, int key, int x, int y),
+    void (*mouse)(int buttons, int state, int x, int y),
+    void (*mouseMotion)(int x, int y)
+) {
+    InputHandler *handler = (InputHandler*)malloc(sizeof(InputHandler));
+    if (!handler) {
+        fprintf(stderr, "[input] Failed to allocate memory for input handler\n");
+        return NULL;
+    }
+    
+    handler->keyboard = keyboard;
+    handler->mouse = mouse;
+    handler->mouseMotion = mouseMotion;
+    
+    return handler;
+}
+
+/* Function to destroy an input handler */
+void nebu_Input_DestroyHandler(void *handler) {
+    if (handler) {
+        free(handler);
+    }
+}
+
 void SystemMouse(int buttons, int state, int x, int y) {
 	if(current && current->mouse)
 		current->mouse(buttons, state, x, y);
@@ -169,6 +213,9 @@ const char* nebu_Input_GetKeyname(int key) {
 		return "unknown custom key";
 	}
 }
+
+/* Include the external declaration for custom_keys */
+extern custom_keynames custom_keys;
 
 /* Process touch input based on the current touch mode */
 static void processTouchInput(int x, int y, int is_down) {
@@ -473,4 +520,16 @@ void nebu_Input_SetTouchSwipeThreshold(int threshold) {
     if (threshold > 0) {
         touch_swipe_threshold = threshold;
     }
+}
+
+/* Quit the input system */
+void nebu_Input_Quit(void) {
+    /* Free the current input handler if it exists */
+    if (current) {
+        free(current);
+        current = NULL;
+    }
+    
+    /* Close all joysticks */
+    SDL_QuitSubSystem(SDL_INIT_JOYSTICK);
 }

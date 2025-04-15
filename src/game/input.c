@@ -98,7 +98,7 @@ TouchRegion getTouchRegion(int x, int y, int screenWidth, int screenHeight) {
 }
 
 // Function to handle touch input
-void touchGame(int state, int x, int y, int screenWidth, int screenHeight) {
+void inputTouchGame(int state, int x, int y, int screenWidth, int screenHeight) {
     // Check if game is NULL
     if (!game) {
         fprintf(stderr, "[input] game is NULL, cannot process touch input\n");
@@ -267,150 +267,8 @@ void touchGame(int state, int x, int y, int screenWidth, int screenHeight) {
     }
 }
 
-void keyGame(int state, int k, int x, int y) {
-    // Check if game is NULL
-    if (!game) {
-        fprintf(stderr, "[input] game is NULL, cannot process input\n");
-        return;
-    }
-    
-    // Check if game2 is NULL
-    if (!game2) {
-        fprintf(stderr, "[input] game2 is NULL, cannot process input\n");
-        return;
-    }
-    
-    // Check if player array exists
-    if (!game->player) {
-        fprintf(stderr, "[input] game->player is NULL, cannot process input\n");
-        return;
-    }
-    
-    // Check if there are any players
-    if (game->players <= 0) {
-        fprintf(stderr, "[input] No players available (game->players = %d)\n", game->players);
-        return;
-    }
-    
-    // Only process key press events (state == SYSTEM_KEYPRESS)
-    if (state != SYSTEM_KEYPRESS) {
-        return;
-    }
-    
-    // Get the human player (player 0)
-    Player *player = &game->player[0];
-    
-    // Check if player is active
-    if (player->data.speed <= 0) {
-        fprintf(stderr, "[input] Player is inactive (speed = %f), ignoring input\n", player->data.speed);
-        return;  // Player is inactive, ignore input
-    }
-    
-    // Print the key code for debugging
-    printf("[input] Key pressed: %d\n", k);
-    
-    // Handle direction changes
-    switch (k) {
-        case SYSTEM_KEY_LEFT:
-            // Turn left (counter-clockwise)
-            player->data.last_dir = player->data.dir;
-            player->data.dir = (player->data.dir + 1) % 4;
-            player->data.turn_time = game2->time.current;
-            printf("[input] Player turned left to direction %d\n", player->data.dir);
-            break;
-            
-        case SYSTEM_KEY_RIGHT:
-            // Turn right (clockwise)
-            player->data.last_dir = player->data.dir;
-            player->data.dir = (player->data.dir + 3) % 4;  // +3 is equivalent to -1 in modulo 4
-            player->data.turn_time = game2->time.current;
-            printf("[input] Player turned right to direction %d\n", player->data.dir);
-            break;
-            
-        case SYSTEM_KEY_UP:
-            // Increase speed
-            player->data.speed += 2.0f;
-            if (player->data.speed > 20.0f) {
-                player->data.speed = 20.0f;  // Cap speed
-            }
-            printf("[input] Player speed increased to %f\n", player->data.speed);
-            break;
-            
-        case SYSTEM_KEY_DOWN:
-            // Decrease speed
-            player->data.speed -= 2.0f;
-            if (player->data.speed < 5.0f) {
-                player->data.speed = 5.0f;  // Minimum speed
-            }
-            printf("[input] Player speed decreased to %f\n", player->data.speed);
-            break;
-            
-        case SYSTEM_KEY_SPACE:
-            // Toggle boost
-            player->data.boost_enabled = !player->data.boost_enabled;
-            if (player->data.boost_enabled) {
-                player->data.speed *= 1.5f;  // Boost speed
-                printf("[input] Boost enabled, speed: %f\n", player->data.speed);
-            } else {
-                player->data.speed /= 1.5f;  // Return to normal speed
-                printf("[input] Boost disabled, speed: %f\n", player->data.speed);
-            }
-            break;
-            
-        case 27:  // ESC key
-            // Pause game
-            game->pauseflag = PAUSE_GAME_SUSPENDED;
-            printf("[input] Game paused\n");
-            break;
-            
-        // Add alternative key bindings for WASD controls
-        case 'a':
-        case 'A':
-            // Turn left (counter-clockwise)
-            player->data.last_dir = player->data.dir;
-            player->data.dir = (player->data.dir + 1) % 4;
-            player->data.turn_time = game2->time.current;
-            printf("[input] Player turned left to direction %d\n", player->data.dir);
-            break;
-            
-        case 'd':
-        case 'D':
-            // Turn right (clockwise)
-            player->data.last_dir = player->data.dir;
-            player->data.dir = (player->data.dir + 3) % 4;  // +3 is equivalent to -1 in modulo 4
-            player->data.turn_time = game2->time.current;
-            printf("[input] Player turned right to direction %d\n", player->data.dir);
-            break;
-            
-        case 'w':
-        case 'W':
-            // Increase speed
-            player->data.speed += 2.0f;
-            if (player->data.speed > 20.0f) {
-                player->data.speed = 20.0f;  // Cap speed
-            }
-            printf("[input] Player speed increased to %f\n", player->data.speed);
-            break;
-            
-        case 's':
-        case 'S':
-            // Decrease speed
-            player->data.speed -= 2.0f;
-            if (player->data.speed < 5.0f) {
-                player->data.speed = 5.0f;  // Minimum speed
-            }
-            printf("[input] Player speed decreased to %f\n", player->data.speed);
-            break;
-            
-        default:
-            // Other keys
-            printf("[input] Unhandled key: %d\n", k);
-            break;
-    }
-}
-
 // Function to draw touch control overlay
-void drawTouchControls(int screenWidth, int screenHeight) {
+void inputDrawTouchControls(int screenWidth, int screenHeight) {
     // Enable blending for transparency
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);

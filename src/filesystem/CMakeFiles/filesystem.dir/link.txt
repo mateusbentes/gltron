@@ -1,0 +1,2 @@
+/usr/bin/ar qc libfilesystem.a CMakeFiles/filesystem.dir/dirsetup.c.o CMakeFiles/filesystem.dir/installpath.c.o CMakeFiles/filesystem.dir/path.c.o
+/usr/bin/ranlib libfilesystem.a

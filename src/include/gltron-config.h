@@ -6,7 +6,7 @@
 #define PREF_DIR "~/.gltronrc"
 #define SNAP_DIR "~/gltron-snapshots"
 #define DATA_DIR "/usr/local/share/gltron"
-#define VERSION "0.71"
+#define VERSION "0.7.1"
 
 /* Platform-specific function replacements */
 #ifdef __APPLE__

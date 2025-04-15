@@ -1,15 +1,6 @@
 #ifndef NEBU_VIDEO_SYSTEM_H
 #define NEBU_VIDEO_SYSTEM_H
 
-#define SYSTEM_RGB 1
-#define SYSTEM_DOUBLE 2
-#define SYSTEM_DEPTH 4
-#define SYSTEM_FULLSCREEN 8
-#define SYSTEM_32_BIT 16
-#define SYSTEM_STENCIL 32
-#define SYSTEM_ALPHA 64
-#define SYSTEM_RGBA (SYSTEM_RGB | SYSTEM_ALPHA)
-
 /* Include SDL2 header */
 #include <SDL2/SDL.h>
 
@@ -31,5 +22,10 @@ void nebu_Video_SwapBuffers(void);
 
 // Get the screen size (primarily for mobile devices)
 void nebu_Video_GetScreenSize(int *width, int *height);
+
+/* Screen dimension functions */
+void nebu_Video_SetDimension(int width, int height);
+int nebu_Video_GetWidth(void);
+int nebu_Video_GetHeight(void);
 
 #endif

@@ -61,6 +61,8 @@ void initGUIs(void);
 void initGame(void);
 void initGame2(void);
 void initPlayers(void);
+void initEnterGame(void);
+void initExitGame(void);
 
 /* Debug function to print out the current paths */
 void debug_print_paths(void) {
@@ -173,14 +175,20 @@ void initGame(void) {
 }
 
 // Enter game mode
-void enterGame(void) {
+void initEnterGame(void) {
     printf("[init] Entering game mode\n");
     
     // Update settings cache
     updateSettingsCache();
     
     // Hide mouse pointer
+    // Use nebu_Input_HidePointer only if it's defined
+#ifdef HAVE_NEBU_INPUT_HIDEPOINTER
     nebu_Input_HidePointer();
+#else
+    // Fallback if the function isn't available
+    printf("[init] nebu_Input_HidePointer not available\n");
+#endif
     
     // Reset game time
     game2->time.offset = nebu_Time_GetElapsed() - game2->time.current;
@@ -198,14 +206,20 @@ void enterGame(void) {
 }
 
 // Exit game mode
-void exitGame(void) {
+void initExitGame(void) {
     printf("[init] Exiting game mode\n");
     
     // Disable audio
     Audio_DisableEngine();
     
     // Show mouse pointer
+    // Use nebu_Input_ShowPointer only if it's defined
+#ifdef HAVE_NEBU_INPUT_SHOWPOINTER
     nebu_Input_ShowPointer();
+#else
+    // Alternative implementation if nebu_Input_ShowPointer is not available
+    printf("[init] nebu_Input_ShowPointer not available\n");
+#endif
     
     printf("[init] Game mode exited\n");
 }

@@ -12,6 +12,16 @@
 #include "video/model.h" // gltron_Mesh
 #include "base/nebu_png_texture.h" // png_texture
 
+/* Display mode flags */
+#define SYSTEM_RGB        0x0001  /* RGB color mode */
+#define SYSTEM_RGBA       (SYSTEM_RGB | SYSTEM_ALPHA)
+#define SYSTEM_DOUBLE     0x0002  /* Double buffering */
+#define SYSTEM_DEPTH      0x0004  /* Depth buffer */
+#define SYSTEM_FULLSCREEN 0x0008  /* Fullscreen mode */
+#define SYSTEM_32_BIT     0x0010  /* 32-bit color depth */
+#define SYSTEM_STENCIL    0x0020  /* Stencil buffer */
+#define SYSTEM_ALPHA      0x0040  /* Alpha channel */
+
 typedef struct Artpack {
   char *path;
   /* char *name; currently ignored */

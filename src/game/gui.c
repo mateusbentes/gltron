@@ -21,11 +21,24 @@
 
 #include "base/nebu_debug_memory.h"
 
+// Define the Callbacks structure
+typedef struct {
+  void (*display)(void);
+  void (*idle)(void);
+  void (*keyboard)(int state, int key, int x, int y);
+  void (*init)(void);
+  void (*exit)(void);
+  void (*mouse)(int buttons, int state, int x, int y);
+  void (*mouseMotion)(int x, int y);
+  void (*reshape)(int width, int height);
+  const char *name;
+} Callbacks;
+
 // local resources
 nebu_2d *pBackground = NULL;
 nebu_Font *pFont = NULL;
 
-void drawMenu(Visual *d);
+void drawGuiMenu(Visual *d);
 
 void drawGuiBackground(void) {
   nebu_Video_CheckErrors("gui background start");
@@ -55,7 +68,7 @@ void displayGui(void) {
   glClearColor(0.0, 0.0, 0.0, 0.0);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   drawGuiBackground();
-  drawMenu(gScreen);
+  drawGuiMenu(gScreen);
 
   nebu_System_SwapBuffers();  
 }
@@ -63,7 +76,7 @@ void displayGui(void) {
 void displayConfigure(void) {
   char message[] = "Press a key for this action!";
   drawGuiBackground();
-  drawMenu(gScreen);
+  drawGuiMenu(gScreen);
 
   rasonly(gScreen);
   glColor4f(1.0, 1.0, 1.0, 1.0f);
@@ -243,7 +256,7 @@ void guiMouseMotion(int mx, int my) {
   /* TODO: add mouse cursor, highlighted areas, etc. */
 }
 
-int runGUI(void) {
+int guiMainLoop(void) {
   int status = 0;
   
   printf("[game] Running GUI callback\n");
@@ -263,7 +276,7 @@ int runGUI(void) {
   return 1;  // Continue
 }
 
-void drawMenu(Visual *d) {
+void drawGuiMenu(Visual *d) {
   /* draw Menu pCurrent */
 
   int i;

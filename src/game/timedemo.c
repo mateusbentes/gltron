@@ -14,6 +14,19 @@
 #include "base/nebu_random.h"
 #include "scripting/scripting.h"
 
+// Define the Callbacks structure
+typedef struct {
+    void (*display)(void);
+    void (*idle)(void);
+    void (*keyboard)(int state, int key, int x, int y);
+    void (*init)(void);
+    void (*exit)(void);
+    void (*mouse)(int buttons, int state, int x, int y);
+    void (*mouseMotion)(int x, int y);
+    void (*reshape)(int width, int height);
+    const char *name;
+} Callbacks;
+
 static int startTime = 0;
 static int frames = 0;
 

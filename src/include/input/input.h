@@ -1,6 +1,10 @@
 #ifndef INPUT_H
 #define INPUT_H
 
+// Function prototypes
+void initInput(void);
+void shutdownInput(void);
+
 typedef struct Input {
   int mouse1;
   int mouse2;
@@ -58,8 +62,8 @@ void keyMenu(int state, int key, int x, int y);
 void mouseMenu(int button, int state, int x, int y);
 
 // Touch input functions
-void touchGame(int state, int x, int y, int screenWidth, int screenHeight);
-void drawTouchControls(int screenWidth, int screenHeight);
+void inputTouchGame(int state, int x, int y, int screenWidth, int screenHeight);
+void inputDrawTouchControls(int screenWidth, int screenHeight);
 
 void Input_Idle();
 

@@ -51,6 +51,7 @@ static const char* gMenuOptionText[MENU_OPTION_COUNT] = {
 // Function prototypes
 void drawMenu(void);
 void handleMenuInput(int key);
+void touchMenu(int state, int x, int y, int screenWidth, int screenHeight);
 void startGame(void);
 void showSettings(void);
 void showHelp(void);
@@ -296,7 +297,47 @@ void keyMenu(int state, int key, int x, int y) {
 
 // Menu mouse handler
 void mouseMenu(int button, int state, int x, int y) {
-    // TODO: Implement menu mouse handling
+    int screenWidth, screenHeight;
+    nebu_Video_GetDimension(&screenWidth, &screenHeight);
+    
+    // Convert mouse click to touch event
+    if (button == 0) { // Left mouse button
+        touchMenu(state == SYSTEM_MOUSEPRESSED ? 1 : 0, x, y, screenWidth, screenHeight);
+    }
+}
+
+// Menu touch handler
+void touchMenu(int state, int x, int y, int screenWidth, int screenHeight) {
+    printf("[menu] Touch event: state=%d, position=(%d, %d)\n", state, x, y);
+    
+    // Only process touch down events (state == 1)
+    if (state != 1) {
+        return;
+    }
+    
+    // Calculate menu item positions
+    int menuStartY = 300;
+    int menuItemHeight = 50;
+    int menuItemCount = MENU_OPTION_COUNT;
+    
+    // Check if touch is within menu area
+    for (int i = 0; i < menuItemCount; i++) {
+        int itemY = menuStartY + i * menuItemHeight;
+        
+        // Check if touch is within this menu item
+        if (x >= screenWidth/2 - 150 && x <= screenWidth/2 + 150 &&
+            y >= itemY - 5 && y <= itemY + 35) {
+            
+            // Select this menu item
+            gSelectedOption = i;
+            printf("[menu] Selected option: %s\n", gMenuOptionText[i]);
+            
+            // Simulate Enter key press to activate the option
+            handleMenuInput(SYSTEM_KEY_RETURN);
+            
+            break;
+        }
+    }
 }
 
 // Menu idle function

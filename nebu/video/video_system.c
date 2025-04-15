@@ -1,9 +1,34 @@
+#include "video/nebu_video_system.h"  // Include this header first to get the SYSTEM_* constants
 #include "video/nebu_renderer_gl.h"
-#include "video/nebu_video_system.h"
 #include "base/nebu_system.h"
 #include "base/nebu_assert.h"
 #include "base/nebu_debug_memory.h"
 #include "base/sdl_compat.h"
+
+/* Define constants directly in this file to avoid include issues */
+#ifndef SYSTEM_DOUBLE
+#define SYSTEM_DOUBLE     0x0001  /* Double buffering */
+#endif
+
+#ifndef SYSTEM_32_BIT
+#define SYSTEM_32_BIT     0x0002  /* 32-bit color depth */
+#endif
+
+#ifndef SYSTEM_ALPHA
+#define SYSTEM_ALPHA      0x0004  /* Alpha channel */
+#endif
+
+#ifndef SYSTEM_DEPTH
+#define SYSTEM_DEPTH      0x0008  /* Depth buffer */
+#endif
+
+#ifndef SYSTEM_STENCIL
+#define SYSTEM_STENCIL    0x0010  /* Stencil buffer */
+#endif
+
+#ifndef SYSTEM_FULLSCREEN
+#define SYSTEM_FULLSCREEN 0x0020  /* Fullscreen mode */
+#endif
 
 /* Include SDL2 header */
 #include <SDL2/SDL.h>
@@ -163,24 +188,19 @@ int nebu_Video_Create(char *name) {
 }
 
 void nebu_Video_Destroy(int id) {
-  /* quit the video subsytem
-	 * otherwise SDL can't create a new context on win32, if the stencil
-	 * bits change 
-	 */
-	/* there used to be some problems (memory leaks, unproper driver unloading)
-	 * caused by this, but I can't remember what they where
-	 */
-  if(id == window_id) {
-    SDL_DestroyWindow_Compat();
-    SDL_QuitSubSystem(SDL_INIT_VIDEO);
-    gScreen = NULL;
-    window = NULL;
-    context = NULL;
-  } else {
-    nebu_assert(0);
-  }
-  video_initialized = 0;
-  window_id = 0;
+	nebu_assert(id == window_id);
+	window_id = 0;
+	if(context)
+	{
+		SDL_GL_DeleteContext(context);
+		context = NULL;
+	}
+	if(window)
+	{
+		SDL_DestroyWindow(window);
+		window = NULL;
+	}
+	video_initialized = 0;
 }
 
 void SystemReshapeFunc(void(*reshape)(int w, int h)) {
@@ -188,19 +208,17 @@ void SystemReshapeFunc(void(*reshape)(int w, int h)) {
 }
 
 void nebu_Video_WarpPointer(int x, int y) {
-  // SDL_WarpMouse( (Uint16)x, (Uint16)y);
+  SDL_WarpMouseInWindow(window, x, y);
 }
 
 void nebu_Video_CheckErrors(const char *where) {
-	int error;
-	error = glGetError();
-	if(error != GL_NO_ERROR)
+	GLenum error;
+	while((error = glGetError()) != GL_NO_ERROR)
 	{
-		fprintf(stderr, "[glError: %s] - %d\n", where, error);
-		nebu_assert(0);
+		fprintf(stderr, "[system] GL error near %s: %d\n", where, (int)error);
 	}
 }
 
 void nebu_Video_SwapBuffers(void) {
-	SDL_GL_SwapWindow_Compat();
+	SDL_GL_SwapWindow(window);
 }

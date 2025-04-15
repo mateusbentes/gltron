@@ -86,4 +86,5 @@ void initWalls(void);
 
 void getPositionFromIndex(float *x, float *y, int player);
 void getPositionFromData(float *x, float *y, Data *data);
+void updateGame(void);
 #endif
