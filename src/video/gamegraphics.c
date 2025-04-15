@@ -7,6 +7,7 @@
 #include "game/camera.h"
 #include "game/game_level.h"
 #include "game/resource.h"
+#include "game/data.h"
 #include "base/nebu_resource.h"
 #include "video/graphics_lights.h"
 #include "video/graphics_utility.h"
@@ -1405,6 +1406,124 @@ void drawCam(PlayerVisual *pV) {
     glVertex3f(0.0f, 0.0f, 0.2f);
     glVertex3f(0.0f, 0.0f, 50.2f);
     glEnd();
+    
+    // Draw players
+    printf("[drawCam] Drawing players\n");
+    
+    // Changed from game2->players to game2->play to match the correct structure
+    if (game2 && game2->play) {
+        printf("[drawCam] Drawing players from game2\n");
+        
+        for (i = 0; i < game->players; i++) {
+            Player *player = game->player + i;
+            
+            if (player) {
+                printf("[drawCam] Drawing player %d\n", i);
+                
+                // Draw player as a simple cube
+                glPushMatrix();
+                
+                // Get player position
+                float x, y;
+                getPositionFromData(&x, &y, &player->data);
+                
+                // Move to player position
+                glTranslatef(x, y, 1.0f);
+                
+                // Rotate based on player direction
+                glRotatef(-getAngle(player->data.dir) * 180.0f / M_PI, 0.0f, 0.0f, 1.0f);
+                
+                // Set player color
+                glColor4f(
+                    player->profile.pColorDiffuse[0], 
+                    player->profile.pColorDiffuse[1], 
+                    player->profile.pColorDiffuse[2], 
+                    1.0f
+                );
+                
+                // Draw player cube
+                glBegin(GL_QUADS);
+                
+                // Front face
+                glVertex3f(-2.0f, -4.0f, 0.0f);
+                glVertex3f(2.0f, -4.0f, 0.0f);
+                glVertex3f(2.0f, -4.0f, 2.0f);
+                glVertex3f(-2.0f, -4.0f, 2.0f);
+                
+                // Back face
+                glVertex3f(-2.0f, 4.0f, 0.0f);
+                glVertex3f(2.0f, 4.0f, 0.0f);
+                glVertex3f(2.0f, 4.0f, 2.0f);
+                glVertex3f(-2.0f, 4.0f, 2.0f);
+                
+                // Left face
+                glVertex3f(-2.0f, -4.0f, 0.0f);
+                glVertex3f(-2.0f, 4.0f, 0.0f);
+                glVertex3f(-2.0f, 4.0f, 2.0f);
+                glVertex3f(-2.0f, -4.0f, 2.0f);
+                
+                // Right face
+                glVertex3f(2.0f, -4.0f, 0.0f);
+                glVertex3f(2.0f, 4.0f, 0.0f);
+                glVertex3f(2.0f, 4.0f, 2.0f);
+                glVertex3f(2.0f, -4.0f, 2.0f);
+                
+                // Top face
+                glVertex3f(-2.0f, -4.0f, 2.0f);
+                glVertex3f(2.0f, -4.0f, 2.0f);
+                glVertex3f(2.0f, 4.0f, 2.0f);
+                glVertex3f(-2.0f, 4.0f, 2.0f);
+                
+                glEnd();
+                
+                glPopMatrix();
+                
+                // Draw player trail if it exists
+                if (player->data.trail_height > 0) {
+                    printf("[drawCam] Drawing player %d trail\n", i);
+                    
+                    glColor4f(
+                        player->profile.pColorDiffuse[0], 
+                        player->profile.pColorDiffuse[1], 
+                        player->profile.pColorDiffuse[2], 
+                        0.8f
+                    );
+                    
+                    // Draw trail segments
+                    segment2 *s = player->data.trails;
+                    if (s) {
+                        glBegin(GL_QUADS);
+                        // Just draw one segment for now to avoid traversal issues
+                        // Draw trail segment as a raised rectangle
+                        float height = player->data.trail_height;
+                        
+                        // Using correct segment2 structure members based on nebu_vector.h
+                        // Bottom vertices - start point
+                        glVertex3f(s->vStart.v[0], s->vStart.v[1], 0.1f);
+                        
+                        // Bottom vertices - end point (start + direction)
+                        float endX = s->vStart.v[0] + s->vDirection.v[0];
+                        float endY = s->vStart.v[1] + s->vDirection.v[1];
+                        glVertex3f(endX, endY, 0.1f);
+                        
+                        // Top vertices - end point
+                        glVertex3f(endX, endY, height);
+                        
+                        // Top vertices - start point
+                        glVertex3f(s->vStart.v[0], s->vStart.v[1], height);
+                        
+                        glEnd();
+                    }
+                } else {
+                    printf("[drawCam] Player %d has no trail\n", i);
+                }
+            } else {
+                printf("[drawCam] Player %d is NULL\n", i);
+            }
+        }
+    } else {
+        printf("[drawCam] No players to draw (game2 or game2->play is NULL)\n");
+    }
 
     /* transparent stuff */
     printf("[drawCam] Drawing transparent stuff\n");

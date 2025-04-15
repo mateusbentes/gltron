@@ -5,6 +5,7 @@
 #include "game/init.h"
 #include "game/gltron.h"
 #include "game/game.h"
+#include "game/camera.h"
 #include <string.h> /* For memset */
 #include "game/resource.h"
 #include "base/nebu_resource.h"
@@ -52,6 +53,7 @@ void initFilesystem(int argc, const char *argv[]);
 void debug_print_paths(void);
 void initGUIs(void);
 void initGame2(void);
+void initPlayers(void);
 
 /* Debug function to print out the current paths */
 void debug_print_paths(void) {
@@ -123,6 +125,9 @@ void initSubsystems(int argc, const char *argv[]) {
     
     // Initialize game2 structure
     initGame2();
+    
+    // Initialize players
+    initPlayers();
 
     fprintf(stderr, "[status] done loading level...\n");
 }
@@ -683,4 +688,202 @@ void initGame2(void) {
     game2->time.current = 0;
     
     printf("[init] game2 initialized successfully\n");
+}
+
+void initPlayers(void) {
+    printf("[init] Initializing players\n");
+    
+    // Check if game is NULL
+    if (!game) {
+        printf("[init] game is NULL, cannot initialize players\n");
+        return;
+    }
+    
+    // Set up player count
+    int player_count = 4;  // Default to 4 players (1 human, 3 AI)
+    printf("[init] Setting up %d players\n", player_count);
+    
+    // Set player count
+    game->players = player_count;
+    
+    // Initialize each player
+    for (int i = 0; i < player_count; i++) {
+        // Set player type (0 = human, 1 = AI)
+        // Store the value directly in the ai field
+        // This assumes ai is an integer field, not an enum
+        *((int*)&game->player[i].ai) = (i == 0) ? 0 : 1;
+        
+        // Set player data fields
+        game->player[i].data.boost_enabled = 1;  // Enable boost
+        game->player[i].data.wall_buster_enabled = 0;  // Disable wall buster
+        game->player[i].data.speed = 10.0f;  // Set speed
+        
+        // Set player position and direction
+        float pos_x = 0.0f;
+        float pos_y = 0.0f;
+        int direction = 0;
+        
+        switch (i) {
+            case 0:  // Player 1 (bottom left)
+                pos_x = -50.0f;
+                pos_y = -50.0f;
+                direction = 0;  // Right
+                break;
+            case 1:  // Player 2 (bottom right)
+                pos_x = 50.0f;
+                pos_y = -50.0f;
+                direction = 1;  // Up
+                break;
+            case 2:  // Player 3 (top right)
+                pos_x = 50.0f;
+                pos_y = 50.0f;
+                direction = 2;  // Left
+                break;
+            case 3:  // Player 4 (top left)
+                pos_x = -50.0f;
+                pos_y = 50.0f;
+                direction = 3;  // Down
+                break;
+        }
+        
+        // Store position in a temporary variable for later use
+        // We'll use this for camera setup since we don't know where to store it in the Player struct
+        float player_positions[4][2];
+        player_positions[i][0] = pos_x;
+        player_positions[i][1] = pos_y;
+        
+        // Set direction
+        game->player[i].data.dir = direction;
+        
+        printf("[init] Initialized player %d\n", i);
+    }
+    
+    // Initialize player visuals
+    printf("[init] Initializing player visuals\n");
+    
+    // Allocate memory for player visuals
+    gppPlayerVisuals = (PlayerVisual**) malloc(player_count * sizeof(PlayerVisual*));
+    if (!gppPlayerVisuals) {
+        fprintf(stderr, "[init] Failed to allocate memory for player visuals\n");
+        return;
+    }
+    memset(gppPlayerVisuals, 0, player_count * sizeof(PlayerVisual*));
+    
+    // Set viewport type (1 = split screen)
+    gViewportType = 1;
+    
+    // Initialize each player visual
+    for (int i = 0; i < player_count; i++) {
+        // Allocate memory for player visual
+        gppPlayerVisuals[i] = (PlayerVisual*) malloc(sizeof(PlayerVisual));
+        if (!gppPlayerVisuals[i]) {
+            fprintf(stderr, "[init] Failed to allocate memory for player visual %d\n", i);
+            continue;
+        }
+        memset(gppPlayerVisuals[i], 0, sizeof(PlayerVisual));
+        
+        // Set player pointer
+        gppPlayerVisuals[i]->pPlayer = &game->player[i];
+        
+        // Set up display
+        Visual *d = &gppPlayerVisuals[i]->display;
+        
+        // Set viewport dimensions based on player index
+        switch (i) {
+            case 0:  // Player 1 (top left)
+                d->vp_x = 0;
+                d->vp_y = 300;
+                d->vp_w = 400;
+                d->vp_h = 300;
+                break;
+            case 1:  // Player 2 (top right)
+                d->vp_x = 400;
+                d->vp_y = 300;
+                d->vp_w = 400;
+                d->vp_h = 300;
+                break;
+            case 2:  // Player 3 (bottom left)
+                d->vp_x = 0;
+                d->vp_y = 0;
+                d->vp_w = 400;
+                d->vp_h = 300;
+                break;
+            case 3:  // Player 4 (bottom right)
+                d->vp_x = 400;
+                d->vp_y = 0;
+                d->vp_w = 400;
+                d->vp_h = 300;
+                break;
+        }
+        
+        // Set viewport to be on screen
+        d->onScreen = 1;
+        
+        // Set up camera
+        Camera *c = &gppPlayerVisuals[i]->camera;
+        
+        // Set camera type (0 = follow, 1 = cockpit, 2 = free)
+        // Store the value directly in the type field
+        // This assumes type is an integer field, not an enum
+        *((int*)&c->type) = 0;
+        
+        // Get position from the temporary variable we stored earlier
+        float pos_x = 0.0f;
+        float pos_y = 0.0f;
+        
+        switch (i) {
+            case 0:  // Player 1 (bottom left)
+                pos_x = -50.0f;
+                pos_y = -50.0f;
+                break;
+            case 1:  // Player 2 (bottom right)
+                pos_x = 50.0f;
+                pos_y = -50.0f;
+                break;
+            case 2:  // Player 3 (top right)
+                pos_x = 50.0f;
+                pos_y = 50.0f;
+                break;
+            case 3:  // Player 4 (top left)
+                pos_x = -50.0f;
+                pos_y = 50.0f;
+                break;
+        }
+        
+        // Set camera parameters using the position we calculated
+        c->target[0] = pos_x;
+        c->target[1] = pos_y;
+        c->target[2] = 0.0f;
+        
+        // Get direction from player
+        int direction = game->player[i].data.dir;
+        
+        // Set camera position based on player direction
+        switch (direction) {
+            case 0:  // Right
+                c->cam[0] = c->target[0] - 20.0f;
+                c->cam[1] = c->target[1];
+                c->cam[2] = 10.0f;
+                break;
+            case 1:  // Up
+                c->cam[0] = c->target[0];
+                c->cam[1] = c->target[1] - 20.0f;
+                c->cam[2] = 10.0f;
+                break;
+            case 2:  // Left
+                c->cam[0] = c->target[0] + 20.0f;
+                c->cam[1] = c->target[1];
+                c->cam[2] = 10.0f;
+                break;
+            case 3:  // Down
+                c->cam[0] = c->target[0];
+                c->cam[1] = c->target[1] + 20.0f;
+                c->cam[2] = 10.0f;
+                break;
+        }
+        
+        printf("[init] Initialized player visual %d\n", i);
+    }
+    
+    printf("[init] Players initialized\n");
 }

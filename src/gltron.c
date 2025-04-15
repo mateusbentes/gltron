@@ -78,6 +78,10 @@ int main(int argc, char *argv[] ) {
         printf("[main] game2 initialized successfully\n");
     }
     
+    /* CHANGE: Initialize players */
+    printf("[main] Initializing players\n");
+    initPlayers();
+    
     /* CHANGE: Directly call displayGame() to render the game */
     printf("[main] Directly calling displayGame() to render the game\n");
     displayGame();
@@ -97,9 +101,6 @@ int main(int argc, char *argv[] ) {
         status = runGUI();
         /* Add a small delay to avoid 100% CPU usage */
         SDL_Delay(10);
-        
-        /* Force a redraw every frame */
-        displayGame();
     }
 #else
     /* Run main.lua from file */
