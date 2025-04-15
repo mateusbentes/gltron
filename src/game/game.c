@@ -19,6 +19,21 @@
 
 #include "base/nebu_assert.h"
 
+void getPositionFromData(float *x, float *y, Data *data) {
+    if (!data) {
+        fprintf(stderr, "[getPositionFromData] Data is NULL\n");
+        *x = 0.0f;
+        *y = 0.0f;
+        return;
+    }
+    
+    // Get position from the data structure
+    *x = data->posx;
+    *y = data->posy;
+    
+    printf("[getPositionFromData] Position: (%f, %f)\n", *x, *y);
+}
+
 void Game_Update(void) {
     // Check if game2 is NULL
     if (!game2) {
@@ -45,17 +60,14 @@ void Game_Update(void) {
         float speed = 10.0f * dt;  // Using a fixed speed for now
         
         // Update position based on current direction
-        int direction = 0;  // Default to right
+        int direction = game->player[i].data.dir;  // Get the actual direction from player data
         
         // Store position in temporary variables
         float posx = 0.0f;
         float posy = 0.0f;
         
-        // Get current position from camera target
-        if (gppPlayerVisuals && gppPlayerVisuals[i]) {
-            posx = gppPlayerVisuals[i]->camera.target[0];
-            posy = gppPlayerVisuals[i]->camera.target[1];
-        }
+        // Get current position from player data
+        getPositionFromData(&posx, &posy, &game->player[i].data);
         
         // Update position based on direction
         switch(direction) {
@@ -72,6 +84,10 @@ void Game_Update(void) {
                 posy -= speed;
                 break;
         }
+        
+        // Update player position
+        game->player[i].data.posx = posx;
+        game->player[i].data.posy = posy;
         
         // Check for collisions with walls
         float grid_size = 95.0f; // Use a fixed grid size for now
@@ -210,6 +226,15 @@ void gameMouse(int buttons, int state, int x, int y) {
   /* fprintf(stderr, "new cam_r: %.2f\n", cam_r); */
 }
 
+// Function prototype for reshape callback
+void gameReshape(int x, int y);
+
 Callbacks gameCallbacks = { 
-  displayGame, GameMode_Idle, keyGame, enterGame, exitGame, gameMouse, NULL, "game"
+  displayGame, GameMode_Idle, keyGame, enterGame, exitGame, gameMouse, gameReshape, "game"
 };
+
+// Implementation of the reshape callback
+void gameReshape(int x, int y) {
+    // This function is called when the window is resized
+    printf("[game] Window resized to %dx%d\n", x, y);
+}

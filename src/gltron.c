@@ -42,45 +42,39 @@ int main(int argc, char *argv[] ) {
         }
     }
     
+    /* CHANGE: Initialize game before game2 */
+    printf("[main] Initializing game\n");
+    if (!game) {
+        printf("[main] Creating game\n");
+        initGame();
+        if (!game) {
+            fprintf(stderr, "[error] Failed to initialize game\n");
+            exit(EXIT_FAILURE);
+        }
+        printf("[main] Game initialized successfully\n");
+    }
+    
     /* CHANGE: Initialize game2 before calling displayGame */
     printf("[main] Initializing game2\n");
     if (!game2) {
         printf("[main] Creating game2\n");
-        
-        // Allocate memory for the game2 structure
-        game2 = (Game2*) malloc(sizeof(Game2));
+        initGame2();
         if (!game2) {
-            fprintf(stderr, "[error] Memory allocation failed for game2\n");
+            fprintf(stderr, "[error] Failed to initialize game2\n");
             exit(EXIT_FAILURE);
         }
-        memset(game2, 0, sizeof(Game2));
-        
-        // Initialize minimal game state
-        game2->level = (game_level*) malloc(sizeof(game_level));
-        if (!game2->level) {
-            fprintf(stderr, "[error] Memory allocation failed for game2->level\n");
-            free(game2);
-            exit(EXIT_FAILURE);
-        }
-        memset(game2->level, 0, sizeof(game_level));
-        
-        // Set up bounding box
-        game2->level->boundingBox.vMin.v[0] = -100.0f;
-        game2->level->boundingBox.vMin.v[1] = -100.0f;
-        game2->level->boundingBox.vMin.v[2] = 0.0f;
-        game2->level->boundingBox.vMax.v[0] = 100.0f;
-        game2->level->boundingBox.vMax.v[1] = 100.0f;
-        game2->level->boundingBox.vMax.v[2] = 10.0f;
-        
-        // Initialize time
-        game2->time.current = 0;
-        
         printf("[main] game2 initialized successfully\n");
     }
     
     /* CHANGE: Initialize players */
     printf("[main] Initializing players\n");
     initPlayers();
+    
+    /* CHANGE: Set game2->play to 1 to indicate the game is playing */
+    if (game2) {
+        printf("[main] Setting game2->play to 1\n");
+        game2->play = 1;
+    }
     
     /* CHANGE: Directly call displayGame() to render the game */
     printf("[main] Directly calling displayGame() to render the game\n");

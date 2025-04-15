@@ -68,6 +68,11 @@ typedef struct Data {
 	int nTrails; // segments currently in use
 	int maxTrails; // segments where memory is allocated for
 	// maxTrails is set to INITIAL_TRAIL_COUNT on creation
+	
+	// Position coordinates
+	float posx;
+	float posy;
+	float posz;
 } Data;
 
 typedef struct AI {

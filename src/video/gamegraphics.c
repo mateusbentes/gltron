@@ -1232,7 +1232,6 @@ void setupCamera(PlayerVisual *pV)
 	}
 
 }
-
 void drawCam(PlayerVisual *pV) {
     int i;
     float up[3] = { 0, 0, 1 };
@@ -1407,124 +1406,132 @@ void drawCam(PlayerVisual *pV) {
     glVertex3f(0.0f, 0.0f, 50.2f);
     glEnd();
     
-    // Draw players
+    /* Draw players */
     printf("[drawCam] Drawing players\n");
     
-    // Changed from game2->players to game2->play to match the correct structure
-    if (game2 && game2->play) {
+    // Check if game2 and game exist
+    if (!game2) {
+        printf("[drawCam] game2 is NULL, cannot draw players\n");
+        goto skip_players;
+    }
+    
+    if (!game) {
+        printf("[drawCam] game is NULL, cannot draw players\n");
+        goto skip_players;
+    }
+    
+    // Check if game2->play is set
+    if (game2->play) {
         printf("[drawCam] Drawing players from game2\n");
         
+        // Check if game->players is valid
+        if (game->players <= 0) {
+            printf("[drawCam] No players to draw (game->players = %d)\n", game->players);
+            goto skip_players;
+        }
+        
+        // Check if game->player is valid
+        if (!game->player) {
+            printf("[drawCam] game->player is NULL\n");
+            goto skip_players;
+        }
+        
+        // Draw each player
         for (i = 0; i < game->players; i++) {
-            Player *player = game->player + i;
+            printf("[drawCam] Drawing player %d\n", i);
             
-            if (player) {
-                printf("[drawCam] Drawing player %d\n", i);
-                
-                // Draw player as a simple cube
-                glPushMatrix();
-                
-                // Get player position
-                float x, y;
-                getPositionFromData(&x, &y, &player->data);
-                
-                // Move to player position
-                glTranslatef(x, y, 1.0f);
-                
-                // Rotate based on player direction
-                glRotatef(-getAngle(player->data.dir) * 180.0f / M_PI, 0.0f, 0.0f, 1.0f);
-                
-                // Set player color
+            // Draw player as a simple cube
+            glPushMatrix();
+            
+            // Get player position safely
+            float x = 0.0f, y = 0.0f;
+            
+            // Check if we can access player data
+            if (&game->player[i] && &game->player[i].data) {
+                x = game->player[i].data.posx;
+                y = game->player[i].data.posy;
+                printf("[drawCam] Player %d position: (%f, %f)\n", i, x, y);
+            } else {
+                printf("[drawCam] Cannot access player %d data\n", i);
+                glPopMatrix();
+                continue;
+            }
+            
+            // Move to player position
+            glTranslatef(x, y, 1.0f);
+            
+            // Rotate based on player direction
+            int direction = game->player[i].data.dir;
+            float angle = 0.0f;
+            
+            switch (direction) {
+                case 0: angle = 0.0f; break;   // Right
+                case 1: angle = 90.0f; break;  // Up
+                case 2: angle = 180.0f; break; // Left
+                case 3: angle = 270.0f; break; // Down
+                default: angle = 0.0f; break;
+            }
+            
+            glRotatef(angle, 0.0f, 0.0f, 1.0f);
+            
+            // Set player color
+            if (&game->player[i].profile) {
                 glColor4f(
-                    player->profile.pColorDiffuse[0], 
-                    player->profile.pColorDiffuse[1], 
-                    player->profile.pColorDiffuse[2], 
+                    game->player[i].profile.pColorDiffuse[0], 
+                    game->player[i].profile.pColorDiffuse[1], 
+                    game->player[i].profile.pColorDiffuse[2], 
                     1.0f
                 );
-                
-                // Draw player cube
-                glBegin(GL_QUADS);
-                
-                // Front face
-                glVertex3f(-2.0f, -4.0f, 0.0f);
-                glVertex3f(2.0f, -4.0f, 0.0f);
-                glVertex3f(2.0f, -4.0f, 2.0f);
-                glVertex3f(-2.0f, -4.0f, 2.0f);
-                
-                // Back face
-                glVertex3f(-2.0f, 4.0f, 0.0f);
-                glVertex3f(2.0f, 4.0f, 0.0f);
-                glVertex3f(2.0f, 4.0f, 2.0f);
-                glVertex3f(-2.0f, 4.0f, 2.0f);
-                
-                // Left face
-                glVertex3f(-2.0f, -4.0f, 0.0f);
-                glVertex3f(-2.0f, 4.0f, 0.0f);
-                glVertex3f(-2.0f, 4.0f, 2.0f);
-                glVertex3f(-2.0f, -4.0f, 2.0f);
-                
-                // Right face
-                glVertex3f(2.0f, -4.0f, 0.0f);
-                glVertex3f(2.0f, 4.0f, 0.0f);
-                glVertex3f(2.0f, 4.0f, 2.0f);
-                glVertex3f(2.0f, -4.0f, 2.0f);
-                
-                // Top face
-                glVertex3f(-2.0f, -4.0f, 2.0f);
-                glVertex3f(2.0f, -4.0f, 2.0f);
-                glVertex3f(2.0f, 4.0f, 2.0f);
-                glVertex3f(-2.0f, 4.0f, 2.0f);
-                
-                glEnd();
-                
-                glPopMatrix();
-                
-                // Draw player trail if it exists
-                if (player->data.trail_height > 0) {
-                    printf("[drawCam] Drawing player %d trail\n", i);
-                    
-                    glColor4f(
-                        player->profile.pColorDiffuse[0], 
-                        player->profile.pColorDiffuse[1], 
-                        player->profile.pColorDiffuse[2], 
-                        0.8f
-                    );
-                    
-                    // Draw trail segments
-                    segment2 *s = player->data.trails;
-                    if (s) {
-                        glBegin(GL_QUADS);
-                        // Just draw one segment for now to avoid traversal issues
-                        // Draw trail segment as a raised rectangle
-                        float height = player->data.trail_height;
-                        
-                        // Using correct segment2 structure members based on nebu_vector.h
-                        // Bottom vertices - start point
-                        glVertex3f(s->vStart.v[0], s->vStart.v[1], 0.1f);
-                        
-                        // Bottom vertices - end point (start + direction)
-                        float endX = s->vStart.v[0] + s->vDirection.v[0];
-                        float endY = s->vStart.v[1] + s->vDirection.v[1];
-                        glVertex3f(endX, endY, 0.1f);
-                        
-                        // Top vertices - end point
-                        glVertex3f(endX, endY, height);
-                        
-                        // Top vertices - start point
-                        glVertex3f(s->vStart.v[0], s->vStart.v[1], height);
-                        
-                        glEnd();
-                    }
-                } else {
-                    printf("[drawCam] Player %d has no trail\n", i);
-                }
             } else {
-                printf("[drawCam] Player %d is NULL\n", i);
+                // Default color if profile is not accessible
+                glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
             }
+            
+            // Draw player cube
+            glBegin(GL_QUADS);
+            
+            // Front face
+            glVertex3f(-2.0f, -4.0f, 0.0f);
+            glVertex3f(2.0f, -4.0f, 0.0f);
+            glVertex3f(2.0f, -4.0f, 2.0f);
+            glVertex3f(-2.0f, -4.0f, 2.0f);
+            
+            // Back face
+            glVertex3f(-2.0f, 4.0f, 0.0f);
+            glVertex3f(2.0f, 4.0f, 0.0f);
+            glVertex3f(2.0f, 4.0f, 2.0f);
+            glVertex3f(-2.0f, 4.0f, 2.0f);
+            
+            // Left face
+            glVertex3f(-2.0f, -4.0f, 0.0f);
+            glVertex3f(-2.0f, 4.0f, 0.0f);
+            glVertex3f(-2.0f, 4.0f, 2.0f);
+            glVertex3f(-2.0f, -4.0f, 2.0f);
+            
+            // Right face
+            glVertex3f(2.0f, -4.0f, 0.0f);
+            glVertex3f(2.0f, 4.0f, 0.0f);
+            glVertex3f(2.0f, 4.0f, 2.0f);
+            glVertex3f(2.0f, -4.0f, 2.0f);
+            
+            // Top face
+            glVertex3f(-2.0f, -4.0f, 2.0f);
+            glVertex3f(2.0f, -4.0f, 2.0f);
+            glVertex3f(2.0f, 4.0f, 2.0f);
+            glVertex3f(-2.0f, 4.0f, 2.0f);
+            
+            glEnd();
+            
+            glPopMatrix();
+            
+            // Skip trail drawing for now to avoid segmentation fault
+            printf("[drawCam] Skipping trail drawing for player %d to avoid segmentation fault\n", i);
         }
     } else {
-        printf("[drawCam] No players to draw (game2 or game2->play is NULL)\n");
+        printf("[drawCam] No players to draw (game2->play is not set)\n");
     }
-
+    
+skip_players:
     /* transparent stuff */
     printf("[drawCam] Drawing transparent stuff\n");
     

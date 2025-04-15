@@ -52,6 +52,7 @@ static char current_callback[256] = "gui";  /* Default callback is "gui" */
 void initFilesystem(int argc, const char *argv[]);
 void debug_print_paths(void);
 void initGUIs(void);
+void initGame(void);
 void initGame2(void);
 void initPlayers(void);
 
@@ -97,6 +98,38 @@ void exitSubsystems(void)
     resource_Shutdown();
 }
 
+void initGame(void) {
+    printf("[init] Initializing game\n");
+    
+    // Allocate memory for the game structure
+    game = (Game*) malloc(sizeof(Game));
+    if (!game) {
+        fprintf(stderr, "[init] Failed to allocate memory for game\n");
+        exit(EXIT_FAILURE);
+    }
+    
+    // Initialize the game structure
+    memset(game, 0, sizeof(Game));
+    
+    // Set default values
+    game->pauseflag = PAUSE_GAME_RUNNING;
+    game->players = 4;  // Default to 4 players
+    
+    // Allocate memory for players
+    game->player = (Player*) malloc(game->players * sizeof(Player));
+    if (!game->player) {
+        fprintf(stderr, "[init] Failed to allocate memory for players\n");
+        free(game);
+        game = NULL;
+        exit(EXIT_FAILURE);
+    }
+    
+    // Initialize players
+    memset(game->player, 0, game->players * sizeof(Player));
+    
+    printf("[init] Game initialized successfully\n");
+}
+
 void initSubsystems(int argc, const char *argv[]) {
     nebu_Init();
 
@@ -116,15 +149,18 @@ void initSubsystems(int argc, const char *argv[]) {
 
     initGUIs();
     
+    // Initialize game structure first
+    initGame();
+    
+    // Initialize game2 structure
+    initGame2();
+    
     // initVideo() calls video_LoadLevel(), which calls video_CreateLevel()
     printf("[init] Initializing video system\n");
     initVideo();
     
     initAudio();
     initInput();
-    
-    // Initialize game2 structure
-    initGame2();
     
     // Initialize players
     initPlayers();
@@ -662,15 +698,17 @@ void initGame2(void) {
     // Allocate memory for the game2 structure
     game2 = (Game2*) malloc(sizeof(Game2));
     if (!game2) {
-        fprintf(stderr, "[error] Memory allocation failed for game2\n");
+        fprintf(stderr, "[init] Failed to allocate memory for game2\n");
         exit(EXIT_FAILURE);
     }
+    
+    // Initialize the game2 structure
     memset(game2, 0, sizeof(Game2));
     
     // Initialize minimal game state
     game2->level = (game_level*) malloc(sizeof(game_level));
     if (!game2->level) {
-        fprintf(stderr, "[error] Memory allocation failed for game2->level\n");
+        fprintf(stderr, "[init] Failed to allocate memory for game2->level\n");
         free(game2);
         exit(EXIT_FAILURE);
     }
@@ -684,8 +722,14 @@ void initGame2(void) {
     game2->level->boundingBox.vMax.v[1] = 100.0f;
     game2->level->boundingBox.vMax.v[2] = 10.0f;
     
-    // Initialize time
+    // Set default time values
+    game2->time.dt = 0.0f;
+    game2->time.lastFrame = 0;
     game2->time.current = 0;
+    game2->time.offset = 0;
+    
+    // Initialize game2->play
+    game2->play = 1;  // Set to 1 to indicate that the game is playing
     
     printf("[init] game2 initialized successfully\n");
 }
@@ -709,53 +753,84 @@ void initPlayers(void) {
     // Initialize each player
     for (int i = 0; i < player_count; i++) {
         // Set player type (0 = human, 1 = AI)
-        // Store the value directly in the ai field
-        // This assumes ai is an integer field, not an enum
-        *((int*)&game->player[i].ai) = (i == 0) ? 0 : 1;
+        // AI is a struct, not an int, so we need to initialize it properly
+        game->player[i].ai.active = (i == 0) ? 0 : 1;  // Set active field to 0 for human, 1 for AI
+        game->player[i].ai.tdiff = 0;
+        game->player[i].ai.lasttime = 0;
         
-        // Set player data fields
-        game->player[i].data.boost_enabled = 1;  // Enable boost
-        game->player[i].data.wall_buster_enabled = 0;  // Disable wall buster
-        game->player[i].data.speed = 10.0f;  // Set speed
+        // Initialize player data
+        game->player[i].data.speed = 10.0f;
+        game->player[i].data.trail_height = 3.5f;
+        game->player[i].data.exp_radius = 0.0f;
+        game->player[i].data.turn_time = 0;
+        game->player[i].data.last_dir = -1;
+        game->player[i].data.dir = i;  // Each player starts facing a different direction
+        game->player[i].data.boost_enabled = 1;
+        game->player[i].data.wall_buster_enabled = 0;
         
-        // Set player position and direction
+        // Set player position based on direction
         float pos_x = 0.0f;
         float pos_y = 0.0f;
-        int direction = 0;
         
         switch (i) {
             case 0:  // Player 1 (bottom left)
                 pos_x = -50.0f;
                 pos_y = -50.0f;
-                direction = 0;  // Right
                 break;
             case 1:  // Player 2 (bottom right)
                 pos_x = 50.0f;
                 pos_y = -50.0f;
-                direction = 1;  // Up
                 break;
             case 2:  // Player 3 (top right)
                 pos_x = 50.0f;
                 pos_y = 50.0f;
-                direction = 2;  // Left
                 break;
             case 3:  // Player 4 (top left)
                 pos_x = -50.0f;
                 pos_y = 50.0f;
-                direction = 3;  // Down
                 break;
         }
         
-        // Store position in a temporary variable for later use
-        // We'll use this for camera setup since we don't know where to store it in the Player struct
-        float player_positions[4][2];
-        player_positions[i][0] = pos_x;
-        player_positions[i][1] = pos_y;
+        // Set player position in the data structure
+        game->player[i].data.posx = pos_x;
+        game->player[i].data.posy = pos_y;
         
-        // Set direction
-        game->player[i].data.dir = direction;
+        // Initialize player colors
+        switch (i) {
+            case 0:  // Player 1 (blue)
+                game->player[i].profile.pColorDiffuse[0] = 0.0f;
+                game->player[i].profile.pColorDiffuse[1] = 0.0f;
+                game->player[i].profile.pColorDiffuse[2] = 1.0f;
+                game->player[i].profile.pColorDiffuse[3] = 1.0f;
+                break;
+            case 1:  // Player 2 (red)
+                game->player[i].profile.pColorDiffuse[0] = 1.0f;
+                game->player[i].profile.pColorDiffuse[1] = 0.0f;
+                game->player[i].profile.pColorDiffuse[2] = 0.0f;
+                game->player[i].profile.pColorDiffuse[3] = 1.0f;
+                break;
+            case 2:  // Player 3 (green)
+                game->player[i].profile.pColorDiffuse[0] = 0.0f;
+                game->player[i].profile.pColorDiffuse[1] = 1.0f;
+                game->player[i].profile.pColorDiffuse[2] = 0.0f;
+                game->player[i].profile.pColorDiffuse[3] = 1.0f;
+                break;
+            case 3:  // Player 4 (yellow)
+                game->player[i].profile.pColorDiffuse[0] = 1.0f;
+                game->player[i].profile.pColorDiffuse[1] = 1.0f;
+                game->player[i].profile.pColorDiffuse[2] = 0.0f;
+                game->player[i].profile.pColorDiffuse[3] = 1.0f;
+                break;
+        }
         
-        printf("[init] Initialized player %d\n", i);
+        // Copy diffuse color to specular color with reduced intensity
+        for (int j = 0; j < 3; j++) {
+            game->player[i].profile.pColorSpecular[j] = game->player[i].profile.pColorDiffuse[j] * 0.5f;
+        }
+        game->player[i].profile.pColorSpecular[3] = 1.0f;
+        
+        printf("[init] Initialized player %d at position (%f, %f)\n", 
+               i, game->player[i].data.posx, game->player[i].data.posy);
     }
     
     // Initialize player visuals
@@ -822,35 +897,15 @@ void initPlayers(void) {
         // Set up camera
         Camera *c = &gppPlayerVisuals[i]->camera;
         
-        // Set camera type (0 = follow, 1 = cockpit, 2 = free)
-        // Store the value directly in the type field
-        // This assumes type is an integer field, not an enum
-        *((int*)&c->type) = 0;
+        // Since CameraType is a non-scalar type (likely a struct), we can't cast an integer to it
+        // Instead, we'll initialize it with memset to zero and then set specific fields if needed
+        memset(&c->type, 0, sizeof(c->type));
         
-        // Get position from the temporary variable we stored earlier
-        float pos_x = 0.0f;
-        float pos_y = 0.0f;
+        // Get position from player data
+        float pos_x = game->player[i].data.posx;
+        float pos_y = game->player[i].data.posy;
         
-        switch (i) {
-            case 0:  // Player 1 (bottom left)
-                pos_x = -50.0f;
-                pos_y = -50.0f;
-                break;
-            case 1:  // Player 2 (bottom right)
-                pos_x = 50.0f;
-                pos_y = -50.0f;
-                break;
-            case 2:  // Player 3 (top right)
-                pos_x = 50.0f;
-                pos_y = 50.0f;
-                break;
-            case 3:  // Player 4 (top left)
-                pos_x = -50.0f;
-                pos_y = 50.0f;
-                break;
-        }
-        
-        // Set camera parameters using the position we calculated
+        // Set camera target to player position
         c->target[0] = pos_x;
         c->target[1] = pos_y;
         c->target[2] = 0.0f;
@@ -882,7 +937,8 @@ void initPlayers(void) {
                 break;
         }
         
-        printf("[init] Initialized player visual %d\n", i);
+        printf("[init] Initialized player visual %d with camera at (%f, %f, %f)\n", 
+               i, c->cam[0], c->cam[1], c->cam[2]);
     }
     
     printf("[init] Players initialized\n");
