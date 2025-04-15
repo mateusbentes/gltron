@@ -96,11 +96,11 @@ float loadSkyboxMesh(void) {
     mesh->numIndices = 0; // Replace with actual number of indices
 
     // Initialize other members as needed
-    mesh->pVB = 0;
-    mesh->pSI = 0;
-    mesh->ppIB = 0;
+    mesh->pVB = NULL;
+    mesh->pSI = NULL;
+    mesh->ppIB = NULL;
     mesh->nMaterials = 0;
-    mesh->ppMaterials = 0;
+    mesh->ppMaterials = NULL;
     mesh->bIsBBoxValid = 0;
     mesh->skyboxMesh = 0.0f; // Assuming this is a placeholder
 

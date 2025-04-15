@@ -42,9 +42,9 @@ typedef struct gltron_Mesh {
 
 	// Add vertices, numVertices, indices, and numIndices
 	float *vertices;
-	float numVertices;
-	float *indices;
-	float numIndices;
+	int numVertices;
+	unsigned short *indices;
+	int numIndices;
 } gltron_Mesh;
 
 typedef enum gltron_MeshType {
