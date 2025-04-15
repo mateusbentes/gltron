@@ -1,2 +1,0 @@
-/usr/bin/ar qc libnebu_scripting.a CMakeFiles/nebu_scripting.dir/scripting.c.o
-/usr/bin/ranlib libnebu_scripting.a

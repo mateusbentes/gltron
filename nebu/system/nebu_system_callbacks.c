@@ -90,9 +90,9 @@ void nebu_System_SystemEvent(void *event) {
 }
 
 /* Main loop implementation */
-void nebu_System_MainLoop(void) {
+int nebu_System_MainLoop(void) {
     printf("[system] Entering main loop\n");
-    
+
     /* Simple main loop implementation */
     int running = 1;
     while (running) {
@@ -103,27 +103,27 @@ void nebu_System_MainLoop(void) {
                 case SDL_QUIT:
                     running = 0;
                     break;
-                    
+
                 case SDL_KEYDOWN:
                     nebu_System_Key(1, event.key.keysym.sym, 0, 0);
                     break;
-                    
+
                 case SDL_KEYUP:
                     nebu_System_Key(0, event.key.keysym.sym, 0, 0);
                     break;
-                    
+
                 case SDL_MOUSEBUTTONDOWN:
                     nebu_System_Mouse(event.button.button, 1, event.button.x, event.button.y);
                     break;
-                    
+
                 case SDL_MOUSEBUTTONUP:
                     nebu_System_Mouse(event.button.button, 0, event.button.x, event.button.y);
                     break;
-                    
+
                 case SDL_MOUSEMOTION:
                     nebu_System_MouseMotion(event.motion.x, event.motion.y);
                     break;
-                    
+
                 /* Add touch event handling for mobile platforms */
                 #if SDL_VERSION_ATLEAST(2,0,0)
                 case SDL_FINGERDOWN:
@@ -139,9 +139,9 @@ void nebu_System_MainLoop(void) {
                                 } tfinger;
                             };
                         } SystemEvent;
-                        
+
                         SystemEvent sysEvent;
-                        
+
                         if (event.type == SDL_FINGERDOWN) {
                             sysEvent.type = 1; /* SYSTEM_FINGERDOWN */
                         } else if (event.type == SDL_FINGERUP) {
@@ -149,32 +149,27 @@ void nebu_System_MainLoop(void) {
                         } else {
                             sysEvent.type = 3; /* SYSTEM_FINGERMOTION */
                         }
-                        
+
                         sysEvent.tfinger.x = event.tfinger.x;
                         sysEvent.tfinger.y = event.tfinger.y;
-                        
+
                         nebu_System_SystemEvent(&sysEvent);
                     }
                     break;
                 #endif
             }
         }
-        
+
         /* Call idle callback */
         nebu_System_Idle();
-        
+
         /* Call display callback */
         nebu_System_Display();
-        
+
         /* Limit frame rate */
         SDL_Delay(16); /* ~60 FPS */
     }
-    
-    printf("[system] Exiting main loop\n");
-}
 
-/* Exit function */
-void nebu_System_Exit(void) {
-    printf("[system] Exiting system\n");
-    exit(0);
+    printf("[system] Exiting main loop\n");
+    return 0; /* Return 0 to indicate successful exit */
 }

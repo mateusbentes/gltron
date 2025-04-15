@@ -122,10 +122,10 @@ if(NOT BUILD_ANDROID)
 endif()
 
 # Create the cmake directory if it doesn't exist
-file(MAKE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/cmake)
 
 # Generate config.h.in file
-file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/config.h.in
+file(WRITE ${CMAKE_BINARY_DIR}/cmake/config.h.in
 "#ifndef CONFIG_H
 #define CONFIG_H
 
@@ -139,15 +139,15 @@ file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/config.h.in
 
 # Generate configuration header
 configure_file(
-  ${CMAKE_CURRENT_SOURCE_DIR}/cmake/config.h.in
-  ${CMAKE_CURRENT_BINARY_DIR}/config.h
+  ${CMAKE_BINARY_DIR}/cmake/config.h.in
+  ${CMAKE_BINARY_DIR}/config.h
 )
-include_directories(${CMAKE_CURRENT_BINARY_DIR})
+include_directories(${CMAKE_BINARY_DIR})
 
 # Create gltron-config.h
-file(MAKE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/src/include)
-file(MAKE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/src/include/scripting)
-file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/src/include/gltron-config.h
+file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/src/include)
+file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/src/include/scripting)
+file(WRITE ${CMAKE_BINARY_DIR}/src/include/gltron-config.h
 "/* Platform-specific configuration for GLtron */
 #ifndef GLTRON_CONFIG_H
 #define GLTRON_CONFIG_H
@@ -172,7 +172,7 @@ file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/src/include/gltron-config.h
 ")
 
 # Create embedded_scripts.h
-file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/src/include/scripting/embedded_scripts.h
+file(WRITE ${CMAKE_BINARY_DIR}/src/include/scripting/embedded_scripts.h
 "/* 
  * Header file for embedded scripts
  */
@@ -201,12 +201,12 @@ const char* get_embedded_script(const char *name);
 
 # Include directories - IMPORTANT: Order matters!
 include_directories(
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/include  # This should be first to ensure our headers are found first
-  ${CMAKE_CURRENT_BINARY_DIR}  # For generated files like config.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/lua5/include
-  ${CMAKE_CURRENT_SOURCE_DIR}/nebu/include
-  ${CMAKE_CURRENT_SOURCE_DIR}/lib3ds/include  # Add lib3ds include directory
-  ${CMAKE_CURRENT_SOURCE_DIR}  # Add the root directory to include path
+  ${CMAKE_BINARY_DIR}/src/include  # This should be first to ensure our headers are found first
+  ${CMAKE_BINARY_DIR}  # For generated files like config.h
+  ${CMAKE_SOURCE_DIR}/lua5/include
+  ${CMAKE_SOURCE_DIR}/nebu/include
+  ${CMAKE_SOURCE_DIR}/lib3ds/include  # Add lib3ds include directory
+  ${CMAKE_SOURCE_DIR}/src/include  # Add the root directory to include path
   ${GLEW_INCLUDE_DIRS}
   ${PNG_INCLUDE_DIRS}
   ${ZLIB_INCLUDE_DIRS}
@@ -215,10 +215,11 @@ include_directories(
 
 # Create SDL compatibility library
 add_library(sdl_compat STATIC
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/base/sdl_compat.c
+  ${CMAKE_SOURCE_DIR}/src/base/sdl_compat.c
 )
 target_include_directories(sdl_compat PUBLIC
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/include
+  ${CMAKE_BINARY_DIR}/src/include
+  ${CMAKE_SOURCE_DIR}/src/include  # Ensure the source directory is included
   ${SDL2_INCLUDE_DIRS}
 )
 target_link_libraries(sdl_compat PUBLIC ${SDL2_LIBRARIES})
@@ -267,15 +268,16 @@ endif()
 
 # Create a library for the callback functions
 add_library(callbacks STATIC
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/game/callbacks.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/game/init_stubs.c  # Add this line
+  ${CMAKE_SOURCE_DIR}/src/game/callbacks.c
+  ${CMAKE_SOURCE_DIR}/src/game/init_stubs.c  # Add this line
 )
 target_include_directories(callbacks PUBLIC
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/include
+  ${CMAKE_BINARY_DIR}/src/include
+  ${CMAKE_SOURCE_DIR}/src/include  # Ensure the source directory is included
 )
 
 # Main executable
-add_executable(gltron ${CMAKE_CURRENT_SOURCE_DIR}/src/gltron.c)
+add_executable(gltron ${CMAKE_SOURCE_DIR}/src/gltron.c)
 
 # Add LOCAL_DATA definition specifically to the gltron target
 target_compile_definitions(gltron PRIVATE LOCAL_DATA)
