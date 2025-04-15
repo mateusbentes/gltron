@@ -13,6 +13,8 @@
         "*.tcc": "cpp",
         "stdlib.h": "c",
         "cstdlib": "c",
-        "settings.h": "c"
+        "settings.h": "c",
+        "nebu_matrix.h": "c",
+        "nebu_console.h": "c"
     }
 }

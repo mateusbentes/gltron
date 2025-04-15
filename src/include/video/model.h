@@ -36,6 +36,15 @@ typedef struct gltron_Mesh {
 	gltron_Mesh_Material** ppMaterials;
 	box3 BBox;
 	int bIsBBoxValid;
+
+	// Add the skybox structure
+	float skyboxMesh;
+
+	// Add vertices, numVertices, indices, and numIndices
+	float *vertices;
+	float numVertices;
+	float *indices;
+	float numIndices;
 } gltron_Mesh;
 
 typedef enum gltron_MeshType {

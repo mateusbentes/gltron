@@ -66,15 +66,15 @@ void handleSystemEvent(SystemEvent *event);
 int main(int argc, char *argv[] ) {
     nebu_debug_memory_CheckLeaksOnExit();
     // nebu_assert_config(NEBU_ASSERT_PRINT_STDERR);
-    
+
     /* Initialize subsystems */
     initSubsystems(argc, (const char**) argv);
-    
+
 #ifdef USE_EMBEDDED_SCRIPTS
     /* Process main.lua from embedded scripts */
     printf("[main] Processing embedded main.lua\n");
     process_embedded_main();
-    
+
     /* Initialize the game world before rendering */
     printf("[main] Initializing game world\n");
     if (!gWorld) {
@@ -86,7 +86,7 @@ int main(int argc, char *argv[] ) {
             printf("[main] Game world created successfully\n");
         }
     }
-    
+
     /* Initialize game */
     printf("[main] Initializing game\n");
     initGame();
@@ -95,16 +95,15 @@ int main(int argc, char *argv[] ) {
         exit(EXIT_FAILURE);
     }
     printf("[main] Game initialized successfully\n");
-    
+
     /* Initialize players */
     printf("[main] Initializing players\n");
     initPlayers();
-    
-    
+
     /* Initialize menu system */
     printf("[main] Initializing menu system\n");
     initMenu();
-    
+
     /* Set up callbacks */
     printf("[main] Setting up callbacks\n");
     nebu_System_SetCallback_Display(mainDisplay);
@@ -113,19 +112,19 @@ int main(int argc, char *argv[] ) {
     nebu_System_SetCallback_Mouse(mainMouse);
     nebu_System_SetCallback_MouseMotion(mainMouseMotion);
     nebu_System_SetCallback_SystemEvent(handleSystemEvent);
-    
+
     /* Enter main loop */
     printf("[main] Entering main loop\n");
     nebu_System_MainLoop();
-    
+
 #else
     /* Run main.lua from file */
     runScript(PATH_SCRIPTS, "main.lua");
 #endif
-    
+
     /* Exit subsystems */
     exitSubsystems();
-    
+
     return 0;
 }
 
@@ -133,12 +132,14 @@ int main(int argc, char *argv[] ) {
 void mainDisplay(void) {
     if (isMenuActive()) {
         /* Menu is active, draw menu */
+        printf("[mainDisplay] Drawing menu\n");
         // Call menuIdle instead of drawMenu directly, as menuIdle will handle drawing the menu
         menuIdle();
     } else {
         /* Game is active, draw game */
+        printf("[mainDisplay] Drawing game\n");
         displayGame();
-        
+
         /* Draw touch controls on mobile platforms */
         #if defined(ANDROID) || defined(__ANDROID__) || defined(IOS) || defined(__IOS__)
         inputDrawTouchControls(nebu_Video_GetWidth(), nebu_Video_GetHeight());
@@ -150,9 +151,11 @@ void mainDisplay(void) {
 void mainIdle(void) {
     if (isMenuActive()) {
         /* Menu is active, update menu */
+        printf("[mainIdle] Updating menu\n");
         menuIdle();
     } else {
         /* Game is active, update game */
+        printf("[mainIdle] Updating game\n");
         int status = guiMainLoop();
         if (status == 0) {
             /* Game ended, return to menu */
@@ -167,11 +170,13 @@ void mainIdle(void) {
 void mainKeyboard(int state, int key, int x, int y) {
     if (isMenuActive()) {
         /* Menu is active, handle menu input */
+        printf("[mainKeyboard] Handling menu input\n");
         keyMenu(state, key, x, y);
     } else {
         /* Game is active, handle game input */
+        printf("[mainKeyboard] Handling game input\n");
         keyGame(state, key, x, y);
-        
+
         /* Check for escape key to return to menu */
         if (state == SYSTEM_KEYPRESS && key == 27) { // 27 is ESC key
             printf("[main] ESC pressed, returning to menu\n");
@@ -185,9 +190,11 @@ void mainKeyboard(int state, int key, int x, int y) {
 void mainMouse(int button, int state, int x, int y) {
     if (isMenuActive()) {
         /* Menu is active, handle menu input */
+        printf("[mainMouse] Handling menu input\n");
         mouseMenu(button, state, x, y);
     } else {
         /* Game is active, handle game input */
+        printf("[mainMouse] Handling game input\n");
         gameMouse(button, state, x, y);
     }
 }
@@ -196,9 +203,11 @@ void mainMouse(int button, int state, int x, int y) {
 void mainMouseMotion(int x, int y) {
     if (isMenuActive()) {
         /* Menu is active, handle menu input */
+        printf("[mainMouseMotion] Handling menu input\n");
         /* TODO: Implement menu mouse motion handling */
     } else {
         /* Game is active, handle game input */
+        printf("[mainMouseMotion] Handling game input\n");
         /* TODO: Implement game mouse motion handling */
     }
 }
@@ -207,9 +216,11 @@ void mainMouseMotion(int x, int y) {
 void mainTouch(int state, int x, int y) {
     if (isMenuActive()) {
         /* Menu is active, handle menu touch input */
+        printf("[mainTouch] Handling menu touch input\n");
         touchMenu(state, x, y, nebu_Video_GetWidth(), nebu_Video_GetHeight());
     } else {
         /* Game is active, handle game touch input */
+        printf("[mainTouch] Handling game touch input\n");
         inputTouchGame(state, x, y, nebu_Video_GetWidth(), nebu_Video_GetHeight());
     }
 }
@@ -218,21 +229,21 @@ void mainTouch(int state, int x, int y) {
 void handleSystemEvent(SystemEvent *event) {
     int screenWidth = nebu_Video_GetWidth();
     int screenHeight = nebu_Video_GetHeight();
-    
+
     #if defined(ANDROID) || defined(__ANDROID__) || defined(IOS) || defined(__IOS__)
     switch (event->type) {
         case SYSTEM_FINGERDOWN:
-            mainTouch(1, (int)(event->tfinger.x * screenWidth), 
+            mainTouch(1, (int)(event->tfinger.x * screenWidth),
                      (int)(event->tfinger.y * screenHeight));
             break;
-            
+
         case SYSTEM_FINGERUP:
-            mainTouch(0, (int)(event->tfinger.x * screenWidth), 
+            mainTouch(0, (int)(event->tfinger.x * screenWidth),
                      (int)(event->tfinger.y * screenHeight));
             break;
-            
+
         case SYSTEM_FINGERMOTION:
-            mainTouch(2, (int)(event->tfinger.x * screenWidth), 
+            mainTouch(2, (int)(event->tfinger.x * screenWidth),
                      (int)(event->tfinger.y * screenHeight));
             break;
     }

@@ -63,6 +63,7 @@ void initGame2(void);
 void initPlayers(void);
 void initEnterGame(void);
 void initExitGame(void);
+void initSubsystems(int argc, const char *argv[]);
 
 /* Debug function to print out the current paths */
 void debug_print_paths(void) {
@@ -80,7 +81,7 @@ void exitSubsystems(void)
 {
     // Skip Sound_shutdown() to prevent segmentation fault
     printf("[audio] Skipping Sound_shutdown to prevent segmentation fault\n");
-    
+
     // Audio_Quit();  /* Commented out to prevent segmentation fault */
     printf("[audio] Skipping Audio_Quit to prevent segmentation fault\n");
 
@@ -100,7 +101,7 @@ void exitSubsystems(void)
 
     // Skip scripting_Quit() to prevent segmentation fault
     printf("[scripting] Skipping scripting_Quit() to prevent segmentation fault\n");
-    
+
     nebu_FS_ClearAllPaths();
     resource_FreeAll();
     resource_Shutdown();
@@ -109,7 +110,7 @@ void exitSubsystems(void)
 // Initialize the game
 void initGame(void) {
     printf("[init] Initializing game\n");
-    
+
     // Initialize game data structures
     printf("[init] Initializing game data structures\n");
     game = (Game*)malloc(sizeof(Game));
@@ -118,18 +119,18 @@ void initGame(void) {
         exit(EXIT_FAILURE);
     }
     memset(game, 0, sizeof(Game));
-    
+
     game2 = (Game2*)malloc(sizeof(Game2));
     if (!game2) {
         fprintf(stderr, "[init] Failed to allocate memory for game2\n");
         exit(EXIT_FAILURE);
     }
     memset(game2, 0, sizeof(Game2));
-    
+
     // Initialize game settings
     printf("[init] Initializing game settings\n");
     updateSettingsCache();
-    
+
     // Initialize game level
     printf("[init] Initializing game level\n");
     game2->level = (game_level*)malloc(sizeof(game_level));  // Use game_level instead of Level
@@ -138,30 +139,30 @@ void initGame(void) {
         exit(EXIT_FAILURE);
     }
     memset(game2->level, 0, sizeof(game_level));
-    
+
     // Set up level boundaries
     game2->level->boundingBox.vMin.v[0] = -100.0f;
     game2->level->boundingBox.vMin.v[1] = -100.0f;
     game2->level->boundingBox.vMax.v[0] = 100.0f;
     game2->level->boundingBox.vMax.v[1] = 100.0f;
-    
+
     // Initialize world - use the correct type or just set gWorld directly
     printf("[init] Initializing world\n");
     // Instead of allocating a new World, we'll let video_LoadLevel create it
     gWorld = NULL;  // Will be initialized by video_LoadLevel
-    
+
     // Initialize players
     printf("[init] Initializing players\n");
     initPlayers();
-    
+
     // Initialize camera - this needs to be done after player visuals are initialized
     printf("[init] Initializing camera\n");
     // We'll initialize cameras for each player in initPlayers instead
-    
+
     // Initialize scripting
     printf("[init] Initializing scripting\n");
     initScripting();
-    
+
     // Set game state
     printf("[init] Setting game state\n");
     game2->time.current = 0;
@@ -170,17 +171,17 @@ void initGame(void) {
     // game2 doesn't have pauseflag, it's in the game structure
     game->pauseflag = PAUSE_GAME_RUNNING;
     game2->play = 1;
-    
+
     printf("[init] Game initialized\n");
 }
 
 // Enter game mode
 void initEnterGame(void) {
     printf("[init] Entering game mode\n");
-    
+
     // Update settings cache
     updateSettingsCache();
-    
+
     // Hide mouse pointer
     // Use nebu_Input_HidePointer only if it's defined
 #ifdef HAVE_NEBU_INPUT_HIDEPOINTER
@@ -189,29 +190,29 @@ void initEnterGame(void) {
     // Fallback if the function isn't available
     printf("[init] nebu_Input_HidePointer not available\n");
 #endif
-    
+
     // Reset game time
     game2->time.offset = nebu_Time_GetElapsed() - game2->time.current;
-    
+
     // Enable audio
     Audio_EnableEngine();
-    
+
     // Disable booster & wallbuster for all players
     for (int i = 0; i < game->players; i++) {
         game->player[i].data.boost_enabled = 0;
         game->player[i].data.wall_buster_enabled = 0;
     }
-    
+
     printf("[init] Game mode entered\n");
 }
 
 // Exit game mode
 void initExitGame(void) {
     printf("[init] Exiting game mode\n");
-    
+
     // Disable audio
     Audio_DisableEngine();
-    
+
     // Show mouse pointer
     // Use nebu_Input_ShowPointer only if it's defined
 #ifdef HAVE_NEBU_INPUT_SHOWPOINTER
@@ -220,7 +221,7 @@ void initExitGame(void) {
     // Alternative implementation if nebu_Input_ShowPointer is not available
     printf("[init] nebu_Input_ShowPointer not available\n");
 #endif
-    
+
     printf("[init] Game mode exited\n");
 }
 

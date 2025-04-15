@@ -31,16 +31,22 @@
 
 #include "base/nebu_debug_memory.h"
 
+#include "video/skybox.h"
+
+// Define gCamera
+Camera gCamera;
+
 // static float arena[] = { 1.0, 1.2, 1, 0.0 };
 
 // Function prototypes
 static float getReflectivity(void);
-void setupCamera(PlayerVisual *pV);
+void setupCamera(Camera *pCamera);
 void drawSimple3DScene(void);
 void drawSimpleTrail(Player *pPlayer);
 void drawSimpleExplosion(Player *pPlayer);
 void drawSimplePlayer(Player *pPlayer);
 void drawSimplePlayerShadow(Player *pPlayer);
+//void drawSkybox(Skybox *skybox);
 
 #define MAX_LOD_LEVEL 3
 static int lod_dist[MAX_LOD_LEVEL + 1][LC_LOD + 1] = { 
@@ -178,123 +184,90 @@ void drawHUD(Player *pPlayer, PlayerVisual *pV) {
     printf("[drawHUD] HUD drawing complete\n");
 }
 
-void drawGame(void) {
-    GLint i;
-    
+
+void drawGame() {
     printf("[drawGame] Starting to draw game\n");
-    
-    // Initialize frame resources
-    printf("[drawGame] Initializing frame resources\n");
-    initFrameResources();
-    
-    // Clear the screen
-    printf("[drawGame] Clearing screen\n");
-    clearScreen();
-    
-    glShadeModel(GL_SMOOTH);
-    glDepthMask(GL_TRUE);
-    glEnable(GL_DEPTH_TEST);
-    
-    if(getSettingi("wireframe")) {
-        #ifndef OPENGL_ES
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-        #endif
+
+    // Ensure gWorld is valid
+    if (!gWorld) {
+        printf("[drawGame] gWorld is NULL\n");
+        return;
     }
-    
-    // Check if game2 is NULL
-    if (game2 == NULL) {
-        printf("[drawGame] game2 is NULL\n");
-        
-        // Draw a simple triangle to verify rendering is working
-        printf("[drawGame] Drawing a simple triangle\n");
-        
-        glMatrixMode(GL_PROJECTION);
-        glLoadIdentity();
-        glOrtho(-1.0, 1.0, -1.0, 1.0, -1.0, 1.0);
-        
-        glMatrixMode(GL_MODELVIEW);
-        glLoadIdentity();
-        
-        glDisable(GL_LIGHTING);
-        glDisable(GL_DEPTH_TEST);
-        
-        glBegin(GL_TRIANGLES);
-        glColor3f(0.0f, 1.0f, 0.0f);  // Green
-        glVertex3f(-0.5f, -0.5f, 0.0f);
-        glColor3f(0.0f, 0.0f, 1.0f);  // Blue
-        glVertex3f(0.5f, -0.5f, 0.0f);
-        glColor3f(1.0f, 1.0f, 1.0f);  // White
-        glVertex3f(0.0f, 0.5f, 0.0f);
-        glEnd();
-        
-        glEnable(GL_DEPTH_TEST);
+
+    // Draw the skybox
+    printf("[drawGame] Drawing skybox\n");
+    if (gWorld->skybox) {
+        drawSkybox(gWorld->Skybox);
     } else {
-        printf("[drawGame] game2 exists\n");
-        
-        // Check if gppPlayerVisuals is NULL or if there are no viewports
-        if (gppPlayerVisuals == NULL || gViewportType < 0 || gViewportType >= 4 || vp_max[gViewportType] <= 0) {
-            printf("[drawGame] No valid viewports, drawing fallback scene\n");
-            
-            // Draw a fallback scene
-            glMatrixMode(GL_PROJECTION);
-            glLoadIdentity();
-            doPerspective(gSettingsCache.fov, 800.0f / 600.0f, gSettingsCache.znear, 1000.0f);
-            
-            glMatrixMode(GL_MODELVIEW);
-            glLoadIdentity();
-            
-            // Set up a simple camera
-            float cam[3] = { 100.0f, 100.0f, 50.0f };  // Position camera at an angle
-            float target[3] = { 0.0f, 0.0f, 0.0f };  // Look at the center of the level
-            float up[3] = { 0.0f, 0.0f, 1.0f };  // Up is along the z-axis
-            doLookAt(cam, target, up);
-            
-            // Draw a simple 3D scene
-            drawSimple3DScene();
-        } else {
-            printf("[drawGame] Drawing game for each viewport\n");
-            
-            // Draw the game for each viewport
-            for(i = 0; i < vp_max[gViewportType]; i++) {
-                printf("[drawGame] Drawing viewport %d\n", i);
-                
-                if (gppPlayerVisuals[i] != NULL) {
-                    Visual *d = &gppPlayerVisuals[i]->display;
-                    
-                    // CHANGE: Force onScreen to be 1
-                    printf("[drawGame] Forcing viewport %d to be on screen\n", i);
-                    d->onScreen = 1;
-                    
-                    if(d->onScreen == 1) {
-                        printf("[drawGame] Viewport %d is on screen\n", i);
-                        
-                        // Set up viewport
-                        glViewport(d->vp_x, d->vp_y, d->vp_w, d->vp_h);
-                        
-                        // Draw camera view
-                        drawCam(gppPlayerVisuals[i]);
-                        
-                        // Check if pPlayer is NULL before drawing HUD
-                        if (gppPlayerVisuals[i]->pPlayer != NULL) {
-                            printf("[drawGame] Drawing HUD for viewport %d\n", i);
-                            drawHUD(gppPlayerVisuals[i]->pPlayer, gppPlayerVisuals[i]);
-                        } else {
-                            printf("[drawGame] Skipping HUD for viewport %d (pPlayer is NULL)\n", i);
-                        }
-                    } else {
-                        printf("[drawGame] Viewport %d is not on screen\n", i);
-                    }
-                } else {
-                    printf("[drawGame] gppPlayerVisuals[%d] is NULL\n", i);
-                }
-            }
-        }
+        printf("[drawGame] Skybox not available\n");
     }
-    
-    #ifndef OPENGL_ES
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-    #endif
-    
+
+    // Draw the floor
+    printf("[drawGame] Drawing floor\n");
+    if (gWorld->floor) {
+        // Draw floor to fb, z and stencil, using alpha-blending
+        // TODO: draw floor alpha to fb
+        printf("[drawGame] Setting up floor shader\n");
+        video_Shader_Setup(&gWorld->floor_shader, 0);
+
+        glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+        glStencilMask(gFloorStencilRef);
+        glStencilFunc(GL_ALWAYS, gFloorStencilRef, ~0);
+        glEnable(GL_STENCIL_TEST);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+        glEnable(GL_ALPHA_TEST);
+        glAlphaFunc(GL_GREATER, 0.1f);
+
+        printf("[drawGame] Drawing floor mesh\n");
+
+        // Skip gltron_Mesh_Draw for now
+        printf("[drawGame] Skipping gltron_Mesh_Draw to avoid segmentation fault\n");
+
+        // Draw a simple floor instead
+        printf("[drawGame] Drawing a simple floor\n");
+
+        glBegin(GL_QUADS);
+        glColor4f(0.5f, 0.5f, 0.5f, 1.0f);  // Gray
+
+        // Bottom-left
+        glVertex3f(-100.0f, -100.0f, 0.0f);
+
+        // Bottom-right
+        glVertex3f(100.0f, -100.0f, 0.0f);
+
+        // Top-right
+        glVertex3f(100.0f, 100.0f, 0.0f);
+
+        // Top-left
+        glVertex3f(-100.0f, 100.0f, 0.0f);
+
+        glEnd();
+
+        glDisable(GL_ALPHA_TEST);
+        glDisable(GL_BLEND);
+        glDisable(GL_STENCIL_TEST);
+
+        printf("[drawGame] Cleaning up floor shader\n");
+        video_Shader_Cleanup(&gWorld->floor_shader, 0);
+    } else {
+        printf("[drawGame] Floor not available\n");
+    }
+
+    // Draw planar shadows
+    printf("[drawGame] Drawing planar shadows\n");
+    drawPlanarShadows(&gCamera);
+
+    // Draw the world
+    printf("[drawGame] Drawing world\n");
+    drawWorld(&gCamera);
+
+    // Draw transparent stuff
+    printf("[drawGame] Drawing transparent stuff\n");
+    // Skip transparent stuff for now
+    printf("[drawGame] Skipping transparent stuff to avoid segmentation fault\n");
+
     printf("[drawGame] Game drawing complete\n");
 }
 
@@ -623,300 +596,225 @@ void drawSharpEdges(gltron_Mesh *pMesh)
 }
 
 void drawCycle(int player, int lod, int drawTurn) {
-	Player *p = game->player + player;
+    Player *p = game->player + player;
 
-	gltron_Mesh *cycle = (gltron_Mesh*)resource_Get(gpTokenLightcycles[lod], eRT_GLtronTriMesh);
+    printf("[drawCycle] Drawing cycle for player %d with LOD %d\n", player, lod);
 
-	nebu_Matrix4D matCycleToWorld; // from the cycle's model-space to world space
-	nebu_Matrix4D matCycleToWorldInvInvT; // light from world space to model space
+    gltron_Mesh *cycle = (gltron_Mesh*)resource_Get(gpTokenLightcycles[lod], eRT_GLtronTriMesh);
 
-	unsigned int spoke_time = game2->time.current - gSpoke_time;
-	int turn_time = game2->time.current - p->data.turn_time;
+    nebu_Matrix4D matCycleToWorld; // from the cycle's model-space to world space
+    nebu_Matrix4D matCycleToWorldInvInvT; // light from world space to model space
 
-	if(turn_time < TURN_LENGTH && !drawTurn)
-		return;
+    unsigned int spoke_time = game2->time.current - gSpoke_time;
+    int turn_time = game2->time.current - p->data.turn_time;
 
-	getCycleTransformation(&matCycleToWorld, p, lod);
+    if(turn_time < TURN_LENGTH && !drawTurn)
+        return;
 
-	if(p->data.wall_buster_enabled) {
-		float black[] = { 0, 0, 0, 1};
-		float white[] = { 1, 1, 1, 1};
-		gltron_Mesh_Material_SetColor(cycle, "Hull", eDiffuse, black);
-		// gltron_Mesh_Material_SetColor(cycle, "Hull", eAmbient, black);
-		gltron_Mesh_Material_SetColor(cycle, "Hull", eSpecular, white); 
-	} else {
-		gltron_Mesh_Material_SetColor(cycle, "Hull", eDiffuse, p->profile.pColorDiffuse); 
-		gltron_Mesh_Material_SetColor(cycle, "Hull", eSpecular, p->profile.pColorSpecular); 
-	}
+    getCycleTransformation(&matCycleToWorld, p, lod);
 
-	if (p->data.exp_radius == 0)
-	{
-		nebu_Video_CheckErrors("before bike drawing");
+    if(p->data.wall_buster_enabled) {
+        float black[] = { 0, 0, 0, 1};
+        float white[] = { 1, 1, 1, 1};
+        gltron_Mesh_Material_SetColor(cycle, "Hull", eDiffuse, black);
+        gltron_Mesh_Material_SetColor(cycle, "Hull", eSpecular, white);
+    } else {
+        gltron_Mesh_Material_SetColor(cycle, "Hull", eDiffuse, p->profile.pColorDiffuse);
+        gltron_Mesh_Material_SetColor(cycle, "Hull", eSpecular, p->profile.pColorSpecular);
+    }
 
-		glEnable(GL_NORMALIZE);
+    if (p->data.exp_radius == 0) {
+        nebu_Video_CheckErrors("before bike drawing");
 
-		/* draw spoke animation */
-		if (gSpoke_time > 140 - (p->data.speed * 10) 
-			&& game->pauseflag == PAUSE_GAME_RUNNING) {
-			if (gSpoke_state == 1) {
-			gSpoke_state = 0;
-			gltron_Mesh_Material_SetColor(cycle, "Spoke", eSpecular, SpokeColor);
-			gltron_Mesh_Material_SetColor(cycle, "Spoke", eAmbient, SpokeColor);
-			} else {
-			gSpoke_state = 1;
-			gltron_Mesh_Material_SetColor(cycle, "Spoke", eSpecular, NoSpokeColor);
-			gltron_Mesh_Material_SetColor(cycle, "Spoke", eAmbient, NoSpokeColor);
-			}
-			gSpoke_time = game2->time.current;
-		}
+        glEnable(GL_NORMALIZE);
 
-		if (gSettingsCache.light_cycles) {
-			glEnable(GL_LIGHTING); // enable OpenGL lighting for lightcycles
-		}
+        /* draw spoke animation */
+        if (gSpoke_time > 140 - (p->data.speed * 10) && game->pauseflag == PAUSE_GAME_RUNNING) {
+            if (gSpoke_state == 1) {
+                gSpoke_state = 0;
+                gltron_Mesh_Material_SetColor(cycle, "Spoke", eSpecular, SpokeColor);
+                gltron_Mesh_Material_SetColor(cycle, "Spoke", eAmbient, SpokeColor);
+            } else {
+                gSpoke_state = 1;
+                gltron_Mesh_Material_SetColor(cycle, "Spoke", eSpecular, NoSpokeColor);
+                gltron_Mesh_Material_SetColor(cycle, "Spoke", eAmbient, NoSpokeColor);
+            }
+            gSpoke_time = game2->time.current;
+        }
 
-		if(cycle->pSI)
-		{
-			// clear stencil buffer, but leave reflection bit alone
-			glEnable(GL_STENCIL_TEST);
-			glStencilMask(gShadowVolStencilMask);
-			if(gIsRenderingReflection)
-				glStencilFunc(GL_EQUAL, gFloorStencilRef, gFloorStencilRef);
-			else
-				glStencilFunc(GL_ALWAYS, 0, ~0);
-			glStencilOp(GL_KEEP, GL_KEEP, GL_ZERO);
-		}
+        if (gSettingsCache.light_cycles) {
+            glEnable(GL_LIGHTING); // enable OpenGL lighting for lightcycles
+        }
 
-		// draw cycle with ambient (including camera) lighting
-		setupLights(eCyclesAmbient);
-		glColor4f(0,0,0, 1.0f);
-		glDisable(GL_LIGHTING);
+        if(cycle->pSI) {
+            // clear stencil buffer, but leave reflection bit alone
+            glEnable(GL_STENCIL_TEST);
+            glStencilMask(gShadowVolStencilMask);
+            if(gIsRenderingReflection)
+                glStencilFunc(GL_EQUAL, gFloorStencilRef, gFloorStencilRef);
+            else
+                glStencilFunc(GL_ALWAYS, 0, ~0);
+            glStencilOp(GL_KEEP, GL_KEEP, GL_ZERO);
+        }
 
-		glPushMatrix();
-		glMultMatrixf(matCycleToWorld.m);
+        // draw cycle with ambient (including camera) lighting
+        setupLights(eCyclesAmbient);
+        glColor4f(0,0,0, 1.0f);
+        glDisable(GL_LIGHTING);
 
-		// TODO: for reflections, clip to reflector
-		glEnable(GL_CULL_FACE);
-		gltron_Mesh_Draw(cycle, TRI_MESH);
-		glDisable(GL_CULL_FACE);
+        glPushMatrix();
+        glMultMatrixf(matCycleToWorld.m);
 
-		// draw shadow volume to mask out shadowed areas
-		// TODO: combine with reflections
-		// if(!gIsRenderingReflection && cycle->pSI)
-		if(cycle->pSI && getSettingi("shadow_volumes_cycle"))
-		{
-			vec3 vLightDirWorld = { { -.5, -.5, -1 } };
-			vec3 vLightDirModel;
+        // TODO: for reflections, clip to reflector
+        glEnable(GL_CULL_FACE);
+        gltron_Mesh_Draw(cycle, TRI_MESH);
+        glDisable(GL_CULL_FACE);
 
-			GLint front = (gIsRenderingReflection) ? GL_BACK : GL_FRONT;
-			GLint back = (gIsRenderingReflection) ? GL_FRONT : GL_BACK;
+        // draw shadow volume to mask out shadowed areas
+        if(cycle->pSI && getSettingi("shadow_volumes_cycle")) {
+            vec3 vLightDirWorld = { { -.5, -.5, -1 } };
+            vec3 vLightDirModel;
 
-			nebu_Video_CheckErrors("before shadow volume");
+            GLint front = (gIsRenderingReflection) ? GL_BACK : GL_FRONT;
+            GLint back = (gIsRenderingReflection) ? GL_FRONT : GL_BACK;
 
-			matrixTranspose(&matCycleToWorldInvInvT, &matCycleToWorld);
-			vec3_Transform(&vLightDirModel, &vLightDirWorld, &matCycleToWorldInvInvT);
-			vec3_Normalize(&vLightDirModel, &vLightDirModel);
-			nebu_Mesh_Shadow_SetLight(cycle->pSI, &vLightDirModel);
+            nebu_Video_CheckErrors("before shadow volume");
 
-			glDisable(GL_LIGHTING);
+            matrixTranspose(&matCycleToWorldInvInvT, &matCycleToWorld);
+            vec3_Transform(&vLightDirModel, &vLightDirWorld, &matCycleToWorldInvInvT);
+            vec3_Normalize(&vLightDirModel, &vLightDirModel);
+            nebu_Mesh_Shadow_SetLight(cycle->pSI, &vLightDirModel);
 
-			// write only to stencil
-			
-			glDepthMask(GL_FALSE);
-			glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+            glDisable(GL_LIGHTING);
 
-			glEnable(GL_STENCIL_TEST);
-			// TODO: make sure reflection bit is untouched
-#ifndef OPENGL_ES
-			if(0 && // DEBUG: disabled two-sided stencil
-				!gIsRenderingReflection && GLEW_EXT_stencil_two_side && GLEW_EXT_stencil_wrap)
-			{
-				// nVidia Geforce FX & better
-				glEnable(GL_STENCIL_TEST_TWO_SIDE_EXT);
+            // write only to stencil
+            glDepthMask(GL_FALSE);
+            glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
 
-				glActiveStencilFaceEXT(back);
-				glStencilOp(GL_KEEP, GL_KEEP, GL_DECR_WRAP_EXT);
-				glStencilMask(~0);
-				glStencilFunc(GL_ALWAYS, 0, ~0);
+            glEnable(GL_STENCIL_TEST);
+            glStencilMask(gShadowVolStencilMask);
+            glStencilFunc(GL_ALWAYS, 0, ~0);
 
-				glActiveStencilFaceEXT(front);
-				glStencilOp(GL_KEEP, GL_KEEP, GL_INCR_WRAP_EXT);
-				glStencilMask(~0);
-				glStencilFunc(GL_ALWAYS, 0, ~0);
-				drawExtruded(cycle->pSI->pEdges, cycle->pSI->pVB, &vLightDirModel);
+            glEnable(GL_CULL_FACE);
 
-				glDisable(GL_STENCIL_TEST_TWO_SIDE_EXT);
-			}
-			else if(0 && // DEBUG: disable two-sided stencil
-				!gIsRenderingReflection && GLEW_ATI_separate_stencil && GLEW_EXT_stencil_wrap)
-			{
-				// ATI Radeon 9600 and better
-				glStencilOpSeparateATI(front, GL_KEEP, GL_KEEP, GL_INCR_WRAP_EXT);
-				glStencilOpSeparateATI(back, GL_KEEP, GL_KEEP, GL_DECR_WRAP_EXT);
-				glStencilMask(~0);
-				glStencilFunc(GL_ALWAYS, 0, ~0);
-				drawExtruded(cycle->pSI->pEdges, cycle->pSI->pVB, &vLightDirModel);
-			}
-			else
-#endif
-			{
-				// older hardware needs two passes
-				glStencilMask(gShadowVolStencilMask);
-				glStencilFunc(GL_ALWAYS, 0, ~0);
+            // make sure that reflected volumes are properly drawn (e.g. not clipped by the floor plane etc.)
+            if(gIsRenderingReflection)
+                glDisable(GL_CLIP_PLANE0);
 
-				glEnable(GL_CULL_FACE);
+            // front faces
+            glStencilOp(GL_KEEP, GL_KEEP, GL_INCR);
+            glCullFace(back);
+            drawExtruded(cycle->pSI->pEdges, cycle->pSI->pVB, &vLightDirModel);
+            // back faces
+            glStencilOp(GL_KEEP, GL_KEEP, GL_DECR);
+            glCullFace(front);
+            drawExtruded(cycle->pSI->pEdges, cycle->pSI->pVB, &vLightDirModel);
+            glCullFace(back);
 
-				// make sure that reflected volumes are properly drawn (e.g. not clipped by the floor plane etc.)
-				if(gIsRenderingReflection)
-					glDisable(GL_CLIP_PLANE0);
+            if(gIsRenderingReflection)
+                glEnable(GL_CLIP_PLANE0);
 
-				// front faces
-				glStencilOp(GL_KEEP, GL_KEEP, GL_INCR);
-				glCullFace(back);
-				drawExtruded(cycle->pSI->pEdges, cycle->pSI->pVB, &vLightDirModel);
-				// back faces
-				glStencilOp(GL_KEEP, GL_KEEP, GL_DECR);
-				glCullFace(front);
-				drawExtruded(cycle->pSI->pEdges, cycle->pSI->pVB, &vLightDirModel);
-				glCullFace(back);
-				// glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+            glDisable(GL_CULL_FACE);
+            // restore color buffer access
+            glDepthMask(GL_TRUE);
+            glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 
-				if(gIsRenderingReflection)
-					glEnable(GL_CLIP_PLANE0);
-				
-				glDisable(GL_CULL_FACE);
-			}
-			// restore color buffer access
-			glDepthMask(GL_TRUE);
-			glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+            if(getSettingi("cycle_sharp_edges")) {
+                glColor4f(.5,.5,.5, 1.0f);
+                glPolygonOffset(1,1);
+                glEnable(GL_POLYGON_OFFSET_FILL);
+                drawSharpEdges(cycle);
+                glDisable(GL_POLYGON_OFFSET_FILL);
+            }
 
-			
-			if(getSettingi("cycle_sharp_edges"))
-			{
-				// lighting is disabled per default
-				// glDisable(GL_LIGHTING);
-				glColor4f(.5,.5,.5, 1.0f);
-				glPolygonOffset(1,1);
-				glEnable(GL_POLYGON_OFFSET_FILL);
-				drawSharpEdges(cycle);
-				glDisable(GL_POLYGON_OFFSET_FILL);
-			}
-			// */
+            if(gIsRenderingReflection) {
+                // 'clip' cycle to reflector
+                glStencilFunc(GL_EQUAL, gFloorStencilRef, gShadowVolStencilMask | gFloorStencilRef);
+            } else {
+                glStencilFunc(GL_EQUAL, 0, gShadowVolStencilMask);
+            }
+            glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
 
-			/* // debug code			
-			nebu_Mesh_VB_Enable(cycle->pSI->pVB);
-			glDisable(GL_LIGHTING);
-			glColor4f(1,1,1, 1.0f);
-			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-			drawExtruded(cycle->pSI->pEdges, cycle->pSI->pVB, &vLightDirModel);
-			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-			// glDrawElements(GL_LINES, 2 * cycle->pSI->pEdges->nPrimitives, GL_UNSIGNED_INT, cycle->pSI->pEdges->pIndices);
-			glColor4f(1,0,0, 1.0f);
-			// glDrawElements(GL_TRIANGLES, 3 * cycle->pSI->pFrontfaces->nPrimitives, GL_UNSIGNED_INT, cycle->pSI->pFrontfaces->pIndices);
-			glColor4f(0,.7f,0, 1.0f);
-			// glDrawElements(GL_TRIANGLES, 3 * cycle->pSI->pBackfaces->nPrimitives, GL_UNSIGNED_INT, cycle->pSI->pBackfaces->pIndices);
-			nebu_Mesh_VB_Disable(cycle->pSI->pVB);
-			glEnable(GL_LIGHTING);
-			// */
+            nebu_Video_CheckErrors("after shadow volume");
+        }
 
+        glDepthFunc(GL_LEQUAL);
 
-			if(gIsRenderingReflection)
-			{
-				// 'clip' cycle to reflector
-				glStencilFunc(GL_EQUAL, gFloorStencilRef, gShadowVolStencilMask | gFloorStencilRef);
-			}
-			else
-			{
-				glStencilFunc(GL_EQUAL, 0, gShadowVolStencilMask);
-			}
-			glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+        glPopMatrix();
+        setupLights(eCyclesWorld);
 
-			nebu_Video_CheckErrors("after shadow volume");
-		}
+        glEnable(GL_LIGHTING);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_ONE, GL_ONE);
 
-		glDepthFunc(GL_LEQUAL);
+        glPushMatrix();
+        glMultMatrixf(matCycleToWorld.m);
 
-		glPopMatrix();
-		setupLights(eCyclesWorld);
+        glEnable(GL_CULL_FACE);
+        gltron_Mesh_Draw(cycle, TRI_MESH);
+        glDisable(GL_CULL_FACE);
 
-		glEnable(GL_LIGHTING);
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_ONE, GL_ONE);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glDisable(GL_BLEND);
 
-		glPushMatrix();
-		glMultMatrixf(matCycleToWorld.m);
+        if(cycle->pSI && !gIsRenderingReflection)
+            glDisable(GL_STENCIL_TEST);
 
-		glEnable(GL_CULL_FACE);
-		gltron_Mesh_Draw(cycle, TRI_MESH);
-		glDisable(GL_CULL_FACE);
+        // draw wall buster 'special effect'
+        if(p->data.wall_buster_enabled) {
+            int i;
+            float fScale;
+            float gray[] = { 0.5f, 0.5f, 0.5f, 0.2f };
+            glEnable(GL_BLEND);
+            glDepthMask(GL_FALSE);
+            for(i = 0; i < 1; i++) {
+                fScale = 1.2f;
+                gltron_Mesh_Material_SetColor(cycle, "Hull", eDiffuse, gray);
+                gltron_Mesh_Material_SetAlpha(cycle, gray[3]);
+                glPushMatrix();
+                glScalef(fScale, fScale, fScale);
+                gltron_Mesh_Draw(cycle, TRI_MESH);
+                glPopMatrix();
+                gltron_Mesh_Material_SetAlpha(cycle, 1);
+            }
+            glDepthMask(GL_TRUE);
+            glDisable(GL_BLEND);
+        } // done with wall buster fx
 
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		glDisable(GL_BLEND);
+        glDisable(GL_CULL_FACE);
 
-		if(cycle->pSI && !gIsRenderingReflection)
-			glDisable(GL_STENCIL_TEST);
+        glDisable(GL_LIGHTING);
 
-		// draw wall buster 'special effect'
-		if(p->data.wall_buster_enabled)
-		{
-			int i;
-			float fScale;
-			float gray[] = { 0.5f, 0.5f, 0.5f, 0.2f };
-			glEnable(GL_BLEND);
-			glDepthMask(GL_FALSE);
-			for(i = 0; i < 1; i++) {
-				// fScale = 1 + (float)i * 0.2f / 5.0f;
-				// gray[3] = 0.5f - 0.12f * i;
-				fScale = 1.2f;
-				gltron_Mesh_Material_SetColor(cycle, "Hull", eDiffuse, gray);
-				gltron_Mesh_Material_SetAlpha(cycle, gray[3]);
-				glPushMatrix();
-				glScalef(fScale, fScale, fScale);
-				gltron_Mesh_Draw(cycle, TRI_MESH);
-				glPopMatrix();
-				gltron_Mesh_Material_SetAlpha(cycle, 1);
-			}
-			glDepthMask(GL_TRUE);
-			glDisable(GL_BLEND);
-		} // done with wall buster fx
+        glPopMatrix();
 
-		glDisable(GL_CULL_FACE);
+        nebu_Video_CheckErrors("after bike drawing");
+    } else if(p->data.exp_radius < EXP_RADIUS_MAX) {
+        nebu_Video_CheckErrors("before explosion");
 
-		glDisable(GL_LIGHTING);
+        glPushMatrix();
+        glMultMatrixf(matCycleToWorld.m);
 
-		glPopMatrix();
+        glEnable(GL_BLEND);
 
-		nebu_Video_CheckErrors("after bike drawing");
-	}
-	else if(p->data.exp_radius < EXP_RADIUS_MAX)
-	{
-		nebu_Video_CheckErrors("before explosion");
+        if (gSettingsCache.show_impact) {
+            glPushMatrix();
+            glTranslatef(0, 0, - (cycle->BBox.vMax.v[2] - cycle->BBox.vMin.v[2]) / 2);
+            drawImpact(player);
+            glPopMatrix();
+        }
 
-		glPushMatrix();
-		glMultMatrixf(matCycleToWorld.m);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-		glEnable(GL_BLEND);
+        if (gSettingsCache.light_cycles) {
+            glEnable(GL_LIGHTING); // enable OpenGL lighting for lightcycles
+        }
+        glDisable(GL_LIGHTING); // disable ligthing after lightcycles
+        glDisable(GL_BLEND);
 
-		if (gSettingsCache.show_impact)
-		{
-			glPushMatrix();
-			glTranslatef(0, 0, - (cycle->BBox.vMax.v[2] - cycle->BBox.vMin.v[2]) / 2);
-			drawImpact(player);
-			glPopMatrix();
-		}
+        glPopMatrix();
 
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-		if (gSettingsCache.light_cycles) {
-			glEnable(GL_LIGHTING); // enable OpenGL lighting for lightcycles
-		}
-		// gltron_Mesh_DrawExplosion(cycle, p->data.exp_radius);
-		glDisable(GL_LIGHTING); // disable ligthing after lightcycles
-		glDisable(GL_BLEND);
-
-		glPopMatrix();
-
-		nebu_Video_CheckErrors("after explosion");
-	}
+        nebu_Video_CheckErrors("after explosion");
+    }
 }
  
 /*! Returns the level of detail to be used for drawing the player mesh */
@@ -977,74 +875,62 @@ int playerVisible(Camera *pCamera, Player *pTarget)
 }
 
 void drawPlayers(Camera *pCamera) {
-  int i;
+    int i;
 
-  for(i = 0; i < game->players; i++) {
-		int lod;
-		int drawTurn = 1;
+    printf("[drawPlayers] Drawing players\n");
 
-		// TODO: disable turning your own cycle while in cockpit mode
-		/*
-		if (i == player &&
-			gSettingsCache.camType == CAM_TYPE_COCKPIT)
-			drawTurn = 0;
-		*/
+    for(i = 0; i < game->players; i++) {
+        int lod;
+        int drawTurn = 1;
 
-		lod = playerVisible(pCamera, &game->player[i]);
-		{
-			char buf[128];
-			sprintf(buf, "lod %d: %d", i, lod);
-			displayMessage(TO_CONSOLE, buf);
-		}
-		if (lod >= 0) { 
-			drawCycle(i, lod, drawTurn);
-		}
-	}
+        lod = playerVisible(pCamera, &game->player[i]);
+        printf("[drawPlayers] Player %d LOD: %d\n", i, lod);
+        if (lod >= 0) {
+            drawCycle(i, lod, drawTurn);
+        }
+    }
 }
 
 void drawPlanarShadows(Camera *pCamera) {
-	int i;
+    int i;
 
-	if(gSettingsCache.use_stencil) {
-		glEnable(GL_STENCIL_TEST);
-		glStencilOp(GL_KEEP, GL_KEEP, GL_ZERO);
-		glStencilMask(gFloorStencilRef);
-		glStencilFunc(GL_EQUAL, gFloorStencilRef, gFloorStencilRef);
-		glEnable(GL_BLEND);
-		glColor4f(gCurrentShadowColor[0],
-			gCurrentShadowColor[1],
-			gCurrentShadowColor[2],
-			gCurrentShadowColor[3]);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	} else {
-		glColor4f(0, 0, 0, 1.0f);
-		glDisable(GL_BLEND);
-	}
+    if (gSettingsCache.use_stencil) {
+        glEnable(GL_STENCIL_TEST);
+        glStencilOp(GL_KEEP, GL_KEEP, GL_ZERO);
+        glStencilMask(gFloorStencilRef);
+        glStencilFunc(GL_EQUAL, gFloorStencilRef, gFloorStencilRef);
+        glEnable(GL_BLEND);
+        glColor4f(gCurrentShadowColor[0],
+            gCurrentShadowColor[1],
+            gCurrentShadowColor[2],
+            gCurrentShadowColor[3]);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    } else {
+        glColor4f(0, 0, 0, 1.0f);
+        glDisable(GL_BLEND);
+    }
 
-	/* shadows on the floor: cycle, recognizer, trails */
-	if (gSettingsCache.show_recognizer &&
-		getSettingi("shadow_projective_recognizer_on_floor"))
-	{
-		drawRecognizerShadow();
-	}
+    /* Shadows on the floor: cycle, recognizer, trails */
+    if (gSettingsCache.show_recognizer &&
+        getSettingi("shadow_projective_recognizer_on_floor")) {
+        drawRecognizerShadow();
+    }
 
-	for(i = 0; i < game->players; i++) {
-		int lod = playerVisible(pCamera, &game->player[i]);
-		if (lod >= 0 && getSettingi("shadow_projective_cycle_on_floor")) {
-			// TODO: disable own cycle's shadow turning when in cockpit mode
-			// int drawTurn = (i != player || gSettingsCache.camType != CAM_TYPE_COCKPIT) ? 1 : 0;
-			int drawTurn = 1;
-			drawCycleShadow(game->player + i, lod, drawTurn);
-		}
-		if (game->player[i].data.trail_height > 0 &&
-			getSettingi("shadow_projective_trails_on_floor"))
-			drawTrailShadow(game->player + i);
-	}
+    for (i = 0; i < game->players; i++) {
+        int lod = playerVisible(pCamera, &game->player[i]);
+        if (lod >= 0 && getSettingi("shadow_projective_cycle_on_floor")) {
+            int drawTurn = 1;
+            drawCycleShadow(game->player + i, lod, drawTurn);
+        }
+        if (game->player[i].data.trail_height > 0 &&
+            getSettingi("shadow_projective_trails_on_floor"))
+            drawTrailShadow(game->player + i);
+    }
 
-	if(gSettingsCache.use_stencil)
-		glDisable(GL_STENCIL_TEST);
+    if (gSettingsCache.use_stencil)
+        glDisable(GL_STENCIL_TEST);
 
-	glDisable(GL_BLEND);
+    glDisable(GL_BLEND);
 }
 
 void drawCam2(Camera *pCamera)
@@ -1076,68 +962,63 @@ void drawCam2(Camera *pCamera)
 }
 
 
-void drawWorld(Camera *pCamera)
-{
-	int i;
 
-	nebu_Video_CheckErrors("before world");
+void drawWorld(Camera *pCamera) {
+    int i;
 
-	setupLights(eWorld);
+    printf("[drawWorld] Drawing world\n");
 
-	if (gSettingsCache.show_wall == 1 && gWorld->arena) {
-		glColor4f(1,1,1, 1.0f);
-		drawWalls();
-	}
+    nebu_Video_CheckErrors("before world");
 
-	// setupLights(eCycles);
-	// drawPlayers sets up its own lighting
-	nebu_Video_CheckErrors("before players");
-	drawPlayers(pCamera);
-	nebu_Video_CheckErrors("after players");
+    setupLights(eWorld);
 
-	// restore lighting to world light
-	// DEBUG: 
-	// setupLights(eWorld);
-	setupLights(eCyclesWorld);
-	glEnable(GL_LIGHTING);
-	{
-		TrailMesh mesh;
-		mesh.pVertices = (vec3*) malloc(1000 * sizeof(vec3));
-		mesh.pNormals = (vec3*) malloc(1000 * sizeof(vec3));
-		mesh.pColors = (unsigned char*) malloc(1000 * 4 * sizeof(float));
-		mesh.pTexCoords = (vec2*) malloc(1000 * sizeof(vec2));
-		mesh.pIndices = (unsigned short*) malloc(1000 * 2);
+    if (gSettingsCache.show_wall == 1 && gWorld->arena) {
+        glColor4f(1, 1, 1, 1.0f);
+        drawWalls();
+    }
 
-		for(i = 0; i < game->players; i++) {
-			if (game->player[i].data.trail_height > 0 ) {
-				int vOffset = 0;
-				int iOffset = 0;
-				mesh.iUsed = 0;
-				nebu_Video_CheckErrors("before trail geometry");
-				trailGeometry(game->player + i, &game->player[i].profile,
-					&mesh, &vOffset, &iOffset);
-				nebu_Video_CheckErrors("after trail geometry");
-				bowGeometry(game->player + i, &game->player[i].profile,
-					&mesh, &vOffset, &iOffset);
-				nebu_Video_CheckErrors("after bow geometry");
-				trailStatesNormal(game->player + i, gScreen->textures[TEX_DECAL]);
-				trailRender(&mesh);
-				trailStatesRestore();
-			}
-		}
-		free(mesh.pVertices);
-		free(mesh.pNormals);
-		free(mesh.pColors);
-		free(mesh.pTexCoords);
-		free(mesh.pIndices);
-	}
-	glDisable(GL_LIGHTING);
+    nebu_Video_CheckErrors("before players");
+    drawPlayers(pCamera);
+    nebu_Video_CheckErrors("after players");
 
-	for(i = 0; i < game->players; i++)
-		if (game->player[i].data.trail_height > 0 )
-			drawTrailLines(pCamera, &game->player[i]);
+    setupLights(eCyclesWorld);
+    glEnable(GL_LIGHTING);
+    {
+        TrailMesh mesh;
+        mesh.pVertices = (vec3*)malloc(1000 * sizeof(vec3));
+        mesh.pNormals = (vec3*)malloc(1000 * sizeof(vec3));
+        mesh.pColors = (unsigned char*)malloc(1000 * 4 * sizeof(float));
+        mesh.pTexCoords = (vec2*)malloc(1000 * sizeof(vec2));
+        mesh.pIndices = (unsigned short*)malloc(1000 * 2);
 
-	nebu_Video_CheckErrors("after world");
+        for (i = 0; i < game->players; i++) {
+            if (game->player[i].data.trail_height > 0) {
+                int vOffset = 0;
+                int iOffset = 0;
+                mesh.iUsed = 0;
+                nebu_Video_CheckErrors("before trail geometry");
+                trailGeometry(game->player + i, &game->player[i].profile, &mesh, &vOffset, &iOffset);
+                nebu_Video_CheckErrors("after trail geometry");
+                bowGeometry(game->player + i, &game->player[i].profile, &mesh, &vOffset, &iOffset);
+                nebu_Video_CheckErrors("after bow geometry");
+                trailStatesNormal(game->player + i, gScreen->textures[TEX_DECAL]);
+                trailRender(&mesh);
+                trailStatesRestore();
+            }
+        }
+        free(mesh.pVertices);
+        free(mesh.pNormals);
+        free(mesh.pColors);
+        free(mesh.pTexCoords);
+        free(mesh.pIndices);
+    }
+    glDisable(GL_LIGHTING);
+
+    for (i = 0; i < game->players; i++)
+        if (game->player[i].data.trail_height > 0)
+            drawTrailLines(pCamera, &game->player[i]);
+
+    nebu_Video_CheckErrors("after world");
 }
 
 static float getReflectivity() {
@@ -1207,86 +1088,95 @@ static float getReflectivity() {
 	traverse scenegraph each frame, and build object & shader lists
 */
 
-void setupCamera(PlayerVisual *pV)
-{
-	float up[3] = { 0, 0, 1 };
-	Visual *d = &pV->display;
-	Camera *pCamera = &pV->camera;
+void setupCamera(Camera *pCamera) {
+    float up[3] = { 0, 0, 1 };
 
-	// setup up a perspective projection matrix
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-	doPerspective(gSettingsCache.fov, (float) d->vp_w / (float) d->vp_h,
-		gSettingsCache.znear, box2_Diameter(& game2->level->boundingBox) * 6.5f);
+    // Setup a perspective projection matrix
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    doPerspective(gSettingsCache.fov, (float)gScreen->w / (float)gScreen->h,
+        gSettingsCache.znear, box2_Diameter(&game2->level->boundingBox) * 6.5f);
 
-	// setup the view matrix
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
-	{
-		vec3 vLookAt;
-		vec3 vTarget;
-		matrix matRotate;
+    // Setup the view matrix
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+    {
+        vec3 vLookAt;
+        vec3 vTarget;
+        matrix matRotate;
 
-		vec3_Sub(&vLookAt, (vec3*)pCamera->target, (vec3*)pCamera->cam);
-		vec3_Normalize(&vLookAt, &vLookAt);
-		matrixRotationAxis(&matRotate, 90.0f * (float) pCamera->bIsGlancing, (vec3*)up);
-		vec3_Transform(&vLookAt, &vLookAt, &matRotate);
-		vec3_Add(&vTarget, (vec3*)pCamera->cam, &vLookAt);
-		doLookAt(pCamera->cam, (float*)&vTarget, up);
-	}
-
+        vec3_Sub(&vLookAt, (vec3*)pCamera->target, (vec3*)pCamera->cam);
+        vec3_Normalize(&vLookAt, &vLookAt);
+        matrixRotationAxis(&matRotate, 90.0f * (float)pCamera->bIsGlancing, (vec3*)up);
+        vec3_Transform(&vLookAt, &vLookAt, &matRotate);
+        vec3_Add(&vTarget, (vec3*)pCamera->cam, &vLookAt);
+        doLookAt(pCamera->cam, (float*)&vTarget, up);
+    }
 }
+
+/*
+void drawSkybox(Skybox *skybox) {
+    // Draw the skybox if it exists
+    if (skybox && skybox->skyboxMesh) {
+        gltron_Mesh_Draw(skybox->skyboxMesh, TRI_MESH);
+    }
+}
+*/
+
 void drawCam(PlayerVisual *pV) {
     int i;
     float up[3] = { 0, 0, 1 };
 
     Camera *pCamera = &pV->camera;
-    
+
     printf("[drawCam] Starting to draw camera view\n");
-    
+
     // Force reflectivity to 0 to avoid issues with reflections
     float reflectivity = 0.0f;
     printf("[drawCam] Reflectivity: %f\n", reflectivity);
-    
-    // compute shadow color based on global constant & reflectivity
-    for(i = 0; i < 4; i++) 
+
+    // Compute shadow color based on global constant & reflectivity
+    for (i = 0; i < 4; i++)
         gCurrentShadowColor[i] = gShadowColor[i] * (1 - reflectivity);
 
-    glDisable(GL_LIGHTING); // initial config at frame start
-    glDisable(GL_BLEND); // initial config at frame start
+    glDisable(GL_LIGHTING); // Initial config at frame start
+    glDisable(GL_BLEND); // Initial config at frame start
 
-    // disable writes to alpha
+    // Disable writes to alpha
     glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE);
 
-    setupCamera(pV);
+    setupCamera(pCamera); // Use pCamera instead of pV
 
-    /* skybox */
+    /* Skybox */
     printf("[drawCam] Drawing skybox\n");
-    
-    // Skip skybox for now
-    printf("[drawCam] Skipping skybox to avoid segmentation fault\n");
-    
-    /* floor */ 
+
+    // Ensure gWorld->skybox is a valid identifier
+    if (gWorld && gWorld->skybox) {
+        drawSkybox(&gWorld->skybox);
+    } else {
+        printf("[drawCam] Skipping skybox drawing: gWorld or gWorld->skybox is NULL\n");
+    }
+
+    /* Floor */
     printf("[drawCam] Drawing floor\n");
-    
+
     if (!gWorld) {
         printf("[drawCam] gWorld is NULL\n");
         return;
     }
-    
+
     if (!gWorld->floor) {
         printf("[drawCam] gWorld->floor is NULL\n");
         return;
     }
-    
+
     // Force reflectivity to 0 to avoid issues with reflections
-    if(1) {
-        // draw floor to fb, z and stencil,
-        // using alpha-blending
+    if (1) {
+        // Draw floor to fb, z and stencil, using alpha-blending
         // TODO: draw floor alpha to fb
         printf("[drawCam] Setting up floor shader\n");
         video_Shader_Setup(&gWorld->floor_shader, 0);
-        
+
         glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
         glStencilMask(gFloorStencilRef);
         glStencilFunc(GL_ALWAYS, gFloorStencilRef, ~0);
@@ -1298,99 +1188,99 @@ void drawCam(PlayerVisual *pV) {
         glAlphaFunc(GL_GREATER, 0.1f);
 
         printf("[drawCam] Drawing floor mesh\n");
-        
+
         // Skip gltron_Mesh_Draw for now
         printf("[drawCam] Skipping gltron_Mesh_Draw to avoid segmentation fault\n");
-        
+
         // Draw a simple floor instead
         printf("[drawCam] Drawing a simple floor\n");
-        
+
         glBegin(GL_QUADS);
         glColor4f(0.5f, 0.5f, 0.5f, 1.0f);  // Gray
-        
+
         // Bottom-left
         glVertex3f(-100.0f, -100.0f, 0.0f);
-        
+
         // Bottom-right
         glVertex3f(100.0f, -100.0f, 0.0f);
-        
+
         // Top-right
         glVertex3f(100.0f, 100.0f, 0.0f);
-        
+
         // Top-left
         glVertex3f(-100.0f, 100.0f, 0.0f);
-        
+
         glEnd();
 
         glDisable(GL_ALPHA_TEST);
         glDisable(GL_BLEND);
         glDisable(GL_STENCIL_TEST);
-        
+
         printf("[drawCam] Cleaning up floor shader\n");
         video_Shader_Cleanup(&gWorld->floor_shader, 0);
     }
-    
-    /* planar shadows */
+
+    /* Planar shadows */
     printf("[drawCam] Drawing planar shadows\n");
-    
+
     // Skip planar shadows for now
     printf("[drawCam] Skipping planar shadows to avoid segmentation fault\n");
 
-    /* world */
+    /* World */
     printf("[drawCam] Drawing world\n");
-    
+
     // Skip drawWorld for now
     printf("[drawCam] Skipping drawWorld to avoid segmentation fault\n");
-    
+
     // Draw simple arena walls instead
     printf("[drawCam] Drawing simple arena walls\n");
-    
+
     glBegin(GL_QUADS);
     glColor4f(0.7f, 0.7f, 0.7f, 1.0f);  // Light gray
-    
+
     // Front wall
     glVertex3f(-100.0f, 100.0f, 0.0f);
     glVertex3f(100.0f, 100.0f, 0.0f);
     glVertex3f(100.0f, 100.0f, 10.0f);
     glVertex3f(-100.0f, 100.0f, 10.0f);
-    
+
     // Back wall
     glVertex3f(-100.0f, -100.0f, 0.0f);
     glVertex3f(100.0f, -100.0f, 0.0f);
     glVertex3f(100.0f, -100.0f, 10.0f);
     glVertex3f(-100.0f, -100.0f, 10.0f);
-    
+
     // Left wall
     glVertex3f(-100.0f, -100.0f, 0.0f);
     glVertex3f(-100.0f, 100.0f, 0.0f);
     glVertex3f(-100.0f, 100.0f, 10.0f);
     glVertex3f(-100.0f, -100.0f, 10.0f);
-    
+
     // Right wall
     glVertex3f(100.0f, -100.0f, 0.0f);
     glVertex3f(100.0f, 100.0f, 0.0f);
     glVertex3f(100.0f, 100.0f, 10.0f);
     glVertex3f(100.0f, -100.0f, 10.0f);
-    
+
     glEnd();
-    
+
     // Draw a grid on the floor to help visualize the space
     printf("[drawCam] Drawing grid\n");
     glDisable(GL_LIGHTING);
     glColor4f(0.3f, 0.3f, 0.3f, 1.0f);  // Dark gray
-    
+
     glBegin(GL_LINES);
     for (int i = -100; i <= 100; i += 20) {
         // Lines along the x-axis
         glVertex3f(i, -100.0f, 0.1f);
         glVertex3f(i, 100.0f, 0.1f);
-        
+
         // Lines along the y-axis
         glVertex3f(-100.0f, i, 0.1f);
         glVertex3f(100.0f, i, 0.1f);
     }
     glEnd();
-    
+
     // Draw coordinate axes to help visualize the space
     printf("[drawCam] Drawing coordinate axes\n");
     glBegin(GL_LINES);
@@ -1398,58 +1288,58 @@ void drawCam(PlayerVisual *pV) {
     glColor4f(1.0f, 0.0f, 0.0f, 1.0f);
     glVertex3f(0.0f, 0.0f, 0.2f);
     glVertex3f(50.0f, 0.0f, 0.2f);
-    
+
     // Y-axis (green)
     glColor4f(0.0f, 1.0f, 0.0f, 1.0f);
     glVertex3f(0.0f, 0.0f, 0.2f);
     glVertex3f(0.0f, 50.0f, 0.2f);
-    
+
     // Z-axis (blue)
     glColor4f(0.0f, 0.0f, 1.0f, 1.0f);
     glVertex3f(0.0f, 0.0f, 0.2f);
     glVertex3f(0.0f, 0.0f, 50.2f);
     glEnd();
-    
+
     /* Draw players */
     printf("[drawCam] Drawing players\n");
-    
+
     // Check if game2 and game exist
     if (!game2) {
         printf("[drawCam] game2 is NULL, cannot draw players\n");
         goto skip_players;
     }
-    
+
     if (!game) {
         printf("[drawCam] game is NULL, cannot draw players\n");
         goto skip_players;
     }
-    
+
     // Check if game2->play is set
     if (game2->play) {
         printf("[drawCam] Drawing players from game2\n");
-        
+
         // Check if game->players is valid
         if (game->players <= 0) {
             printf("[drawCam] No players to draw (game->players = %d)\n", game->players);
             goto skip_players;
         }
-        
+
         // Check if game->player is valid
         if (!game->player) {
             printf("[drawCam] game->player is NULL\n");
             goto skip_players;
         }
-        
+
         // Draw each player
         for (i = 0; i < game->players; i++) {
             printf("[drawCam] Drawing player %d\n", i);
-            
+
             // Draw player as a simple cube
             glPushMatrix();
-            
+
             // Get player position safely
             float x = 0.0f, y = 0.0f;
-            
+
             // Check if we can access player data
             if (&game->player[i] && &game->player[i].data) {
                 x = game->player[i].data.posx;
@@ -1460,14 +1350,14 @@ void drawCam(PlayerVisual *pV) {
                 glPopMatrix();
                 continue;
             }
-            
+
             // Move to player position
             glTranslatef(x, y, 1.0f);
-            
+
             // Rotate based on player direction
             int direction = game->player[i].data.dir;
             float angle = 0.0f;
-            
+
             switch (direction) {
                 case 0: angle = 0.0f; break;   // Right
                 case 1: angle = 90.0f; break;  // Up
@@ -1475,73 +1365,73 @@ void drawCam(PlayerVisual *pV) {
                 case 3: angle = 270.0f; break; // Down
                 default: angle = 0.0f; break;
             }
-            
+
             glRotatef(angle, 0.0f, 0.0f, 1.0f);
-            
+
             // Set player color
             if (&game->player[i].profile) {
                 glColor4f(
-                    game->player[i].profile.pColorDiffuse[0], 
-                    game->player[i].profile.pColorDiffuse[1], 
-                    game->player[i].profile.pColorDiffuse[2], 
+                    game->player[i].profile.pColorDiffuse[0],
+                    game->player[i].profile.pColorDiffuse[1],
+                    game->player[i].profile.pColorDiffuse[2],
                     1.0f
                 );
             } else {
                 // Default color if profile is not accessible
                 glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
             }
-            
+
             // Draw player cube
             glBegin(GL_QUADS);
-            
+
             // Front face
             glVertex3f(-2.0f, -4.0f, 0.0f);
             glVertex3f(2.0f, -4.0f, 0.0f);
             glVertex3f(2.0f, -4.0f, 2.0f);
             glVertex3f(-2.0f, -4.0f, 2.0f);
-            
+
             // Back face
             glVertex3f(-2.0f, 4.0f, 0.0f);
             glVertex3f(2.0f, 4.0f, 0.0f);
             glVertex3f(2.0f, 4.0f, 2.0f);
             glVertex3f(-2.0f, 4.0f, 2.0f);
-            
+
             // Left face
             glVertex3f(-2.0f, -4.0f, 0.0f);
             glVertex3f(-2.0f, 4.0f, 0.0f);
             glVertex3f(-2.0f, 4.0f, 2.0f);
             glVertex3f(-2.0f, -4.0f, 2.0f);
-            
+
             // Right face
             glVertex3f(2.0f, -4.0f, 0.0f);
             glVertex3f(2.0f, 4.0f, 0.0f);
             glVertex3f(2.0f, 4.0f, 2.0f);
             glVertex3f(2.0f, -4.0f, 2.0f);
-            
+
             // Top face
             glVertex3f(-2.0f, -4.0f, 2.0f);
             glVertex3f(2.0f, -4.0f, 2.0f);
             glVertex3f(2.0f, 4.0f, 2.0f);
             glVertex3f(-2.0f, 4.0f, 2.0f);
-            
+
             glEnd();
-            
+
             glPopMatrix();
-            
+
             // Skip trail drawing for now to avoid segmentation fault
             printf("[drawCam] Skipping trail drawing for player %d to avoid segmentation fault\n", i);
         }
     } else {
         printf("[drawCam] No players to draw (game2->play is not set)\n");
     }
-    
+
 skip_players:
-    /* transparent stuff */
+    /* Transparent stuff */
     printf("[drawCam] Drawing transparent stuff\n");
-    
+
     // Skip transparent stuff for now
     printf("[drawCam] Skipping transparent stuff to avoid segmentation fault\n");
-    
+
     printf("[drawCam] Camera view drawing complete\n");
 }
 

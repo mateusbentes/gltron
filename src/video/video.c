@@ -15,6 +15,8 @@
 
 #include "base/nebu_assert.h"
 
+#include "video/skybox.h"
+
 void displayGame(void) {
     printf("[display] Drawing game\n");
     drawGame();
@@ -230,23 +232,25 @@ void initVideoData(void) {
     int i;
 
     printf("[init] Initializing video data\n");
-    
+
     gScreen = (Visual*) malloc(sizeof(Visual));
     if (!gScreen) {
         fprintf(stderr, "[error] Failed to allocate memory for gScreen\n");
         return;
     }
-    
+
     memset(gScreen, 0, sizeof(Visual));
-    
-    gViewportType = getSettingi("display_type"); 
+
+    gViewportType = getSettingi("display_type");
 
     {
         Visual *d = gScreen;
-        d->w = getSettingi("width"); 
-        d->h = getSettingi("height"); 
-        d->vp_x = 0; d->vp_y = 0;
-        d->vp_w = d->w; d->vp_h = d->h;
+        d->w = getSettingi("width");
+        d->h = getSettingi("height");
+        d->vp_x = 0;
+        d->vp_y = 0;
+        d->vp_w = d->w;
+        d->vp_h = d->h;
         d->onScreen = -1;
         d->ridTextures = (int*) malloc(TEX_COUNT * sizeof(int));
         if (!d->ridTextures) {
@@ -284,7 +288,7 @@ void initVideoData(void) {
     {
         gpTokenHUD[i] = 0;
     }
-    
+
     printf("[init] Video data initialized successfully\n");
 }
 
@@ -308,26 +312,34 @@ void video_UnloadLevel(void)
 void video_LoadLevel(void) {
     printf("[video] Loading level\n");
 
-    if(gWorld) {
+    if (gWorld) {
         printf("[video] Freeing existing world\n");
         video_FreeLevel(gWorld);
         gWorld = NULL;
     } else {
-        printf("[video] Failed to create world\n");
+        printf("[video] No existing world to free\n");
     }
-    
+
     printf("[video] Creating new world\n");
-    
+
     // Call our simplified video_CreateLevel function
     gWorld = video_CreateLevel();
     if (!gWorld) {
         fprintf(stderr, "[FATAL] Failed to create world\n");
         exit(EXIT_FAILURE);
     }
-    
+
+    // Initialize the skybox
+    gWorld->Skybox = (Skybox*)malloc(sizeof(Skybox));
+    if (!gWorld->skybox) {
+        fprintf(stderr, "[FATAL] Failed to allocate memory for skybox\n");
+        exit(EXIT_FAILURE);
+    }
+    gWorld->Skybox->skyboxMesh = loadSkyboxMesh(); // Assume this function loads the skybox mesh
+
     printf("[video] World created successfully\n");
 }
-	
+
 void video_ResetData(void) {
     int i;
     

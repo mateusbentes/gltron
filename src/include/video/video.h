@@ -11,6 +11,7 @@
 #include "video/video_level.h"
 #include "video/model.h" // gltron_Mesh
 #include "base/nebu_png_texture.h" // png_texture
+#include "video/skybox.h" // Include the skybox header
 
 /* Display mode flags */
 #define SYSTEM_RGB        0x0001  /* RGB color mode */

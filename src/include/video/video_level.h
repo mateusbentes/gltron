@@ -2,21 +2,24 @@
 #define VIDEO_LEVEL_H
 
 #include "video/model.h"
+#include "video/skybox.h" // Include the skybox header
 
 typedef struct video_level_shader {
-	int lit;
-	float fDiffuseTextureScale;
-	int passes; // number of passes necessary
-	int ridTexture;	// resourceId for the texture
-	int idTexture; // GL id for the texture, cached for each frame
+    int lit;
+    float fDiffuseTextureScale;
+    int passes; // number of passes necessary
+    int ridTexture; // resourceId for the texture
+    int idTexture; // GL id for the texture, cached for each frame
 } video_level_shader;
 
 typedef struct video_level {
-	gltron_Mesh *floor;
-	gltron_Mesh *arena;
+    gltron_Mesh *floor;
+    gltron_Mesh *arena;
+	gltron_Mesh *Skybox;
+    float skybox; // Add the skybox structure
 
-	video_level_shader floor_shader;
-	video_level_shader arena_shader;
+    video_level_shader floor_shader;
+    video_level_shader arena_shader;
 } video_level;
 
 void video_LoadLevel(void);
