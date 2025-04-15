@@ -4,6 +4,10 @@
 #include "base/nebu_vector.h"
 #include "video/nebu_mesh.h"
 
+typedef struct gltron_Mesh_Base {
+	// Base mesh properties can be added here
+} gltron_Mesh_Base;
+
 typedef enum eMaterialType
 {
 	eMT_Ambient		= 0x01,
@@ -38,7 +42,7 @@ typedef struct gltron_Mesh {
 	int bIsBBoxValid;
 
 	// Add the skybox structure
-	float skyboxMesh;
+	gltron_Mesh_Base *skyboxMesh;
 
 	// Add vertices, numVertices, indices, and numIndices
 	float *vertices;

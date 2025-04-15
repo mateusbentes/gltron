@@ -77,7 +77,7 @@ void drawSkybox(Skybox *skybox) {
 }
 
 
-float loadSkyboxMesh(void) {
+gltron_Mesh* loadSkyboxMesh(void) {
     // Implement the logic to load the skybox mesh
     // This is a placeholder implementation
     gltron_Mesh* mesh = (gltron_Mesh*)malloc(sizeof(gltron_Mesh));
@@ -102,9 +102,8 @@ float loadSkyboxMesh(void) {
     mesh->nMaterials = 0;
     mesh->ppMaterials = NULL;
     mesh->bIsBBoxValid = 0;
-    mesh->skyboxMesh = 0.0f; // Assuming this is a placeholder
+    mesh->skyboxMesh = NULL; // Assuming this is a placeholder
 
-    // Return a float value representing the skybox mesh
-    // This is just a placeholder; you need to implement the actual logic
-    return 1.0f; // Replace with actual logic to return a float value
+	// Return the loaded mesh
+	return mesh;
 }
