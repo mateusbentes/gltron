@@ -44,11 +44,11 @@ void nebu_System_SetCallbacks(Callbacks *cb) {
     fprintf(stderr, "[error] nebu_System_SetCallbacks: NULL callbacks provided\n");
     return;
   }
-  
+
   current = cb;
-  
+
   /* Print debug info about the callbacks being set */
-  fprintf(stderr, "[debug] nebu_System_SetCallbacks: setting callbacks '%s'\n", 
+  fprintf(stderr, "[debug] nebu_System_SetCallbacks: setting callbacks '%s'\n",
           current->name ? current->name : "unnamed");
 }
 
@@ -60,59 +60,6 @@ void nebu_System_Exit() {
 void nebu_System_ExitLoop(int value) {
   idle = 0;
   return_code = value;
-}
-
-int nebu_System_MainLoop() {
-  SDL_Event event;
-  int now;
-  int dt;
-
-  now = getElapsedTime();
-  dt = now - fps_last;
-  fps_last = now;
-  fps_frames++;
-  fps_dt += dt;
-  if(fps_dt > 1000) {
-    // printf("%d fps\n", (fps_frames * 1000) / fps_dt);
-    fps_dt = 0;
-    fps_frames = 0;
-  }
-
-  /* run game, draw scene */
-  if(redisplay && current && current->display) {
-    current->display();
-    redisplay = 0;
-  } else if(redisplay && (!current || !current->display)) {
-    fprintf(stderr, "[warning] Display requested but no valid display callback available\n");
-    redisplay = 0;
-  }
-  /* process pending events */
-  /* while*/ if(SDL_PollEvent(&event)) {
-    switch(event.type) {
-    case SDL_QUIT:
-      nebu_System_ExitLoop(0);
-      goto done;
-      break;
-    case SDL_WINDOWEVENT:
-      if(event.window.event == SDL_WINDOWEVENT_RESIZED) {
-        if(current && current->reshape) {
-          current->reshape(event.window.data1, event.window.data2);
-        }
-      }
-      break;
-    default:
-      nebu_Intern_HandleInput(&event);
-    }
-  }
-  /* idle callback */
-  if(current && current->idle)
-    current->idle();
-  else if(!idle)
-    SDL_Delay(10); /* Prevent CPU spinning when no idle callback is set */
-  /* wait for vsync */
-  // nebu_System_Sleep(15);
- done:
-  return idle;
 }
 
 void nebu_System_PostRedisplay() {

@@ -128,7 +128,15 @@ void nebu_Input_Ungrab(void) {
 }
 
 void nebu_Input_HidePointer(void) {
-	SDL_ShowCursor(SDL_DISABLE);
+    // Hide mouse pointer
+    printf("[input] Hiding mouse pointer\n");
+    SDL_ShowCursor(SDL_DISABLE);
+}
+
+void nebu_Input_ShowPointer(void) {
+    // Show mouse pointer
+    printf("[input] Showing mouse pointer\n");
+    SDL_ShowCursor(SDL_ENABLE);
 }
 
 void nebu_Input_UnhidePointer(void) {

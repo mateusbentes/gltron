@@ -55,19 +55,13 @@ void nebu_Video_SetWindowMode(int x, int y, int w, int h) {
   fprintf(stderr, "ignoring (%d,%d) initial window position - feature not implemented\n", x, y);
   width = w;
   height = h;
-  
+
   /* Use SDL_SetVideoMode_Compat instead of direct SDL functions */
   gScreen = SDL_SetVideoMode_Compat(w, h, 0, SDL_WINDOW_OPENGL);
   if(!gScreen) {
     fprintf(stderr, "Video initialization failed: %s\n", SDL_GetError());
     nebu_assert(0); exit(1); /* OK: critical, no visual */
   }
-}
-
-void nebu_Video_GetDimension(int *x, int *y)
-{
-	*x = width;
-	*y = height;
 }
 
 void nebu_Video_SetDisplayMode(int f) {
@@ -99,7 +93,7 @@ void nebu_Video_SetDisplayMode(int f) {
     SDL_GL_SetAttribute( SDL_GL_DEPTH_SIZE, zdepth);
   if(flags & SYSTEM_STENCIL)
      SDL_GL_SetAttribute( SDL_GL_STENCIL_SIZE, 8);
-  else 
+  else
      SDL_GL_SetAttribute( SDL_GL_STENCIL_SIZE, 0);
   video_initialized = 1;
 }
@@ -114,7 +108,7 @@ void printOpenGLDebugInfo(void)
 
 	fprintf(stderr, "Bitdepth:\n");
 	nebu_Video_GetDisplayDepth(&r, &g, &b, &a);
-	
+
 	fprintf(stderr, "  Red: %d\n", r);
 	fprintf(stderr, "  Green: %d\n", g);
 	fprintf(stderr, "  Blue: %d\n", b);
@@ -131,17 +125,17 @@ void createWindow(const char *name)
   Uint32 sdl_flags = SDL_WINDOW_OPENGL;
   if(flags & SYSTEM_FULLSCREEN)
     sdl_flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
-    
+
   gScreen = SDL_SetVideoMode_Compat(width, height, bitdepth, sdl_flags);
   if(!gScreen) {
     fprintf(stderr, "[system] Couldn't set GL mode: %s\n", SDL_GetError());
     nebu_assert(0); exit(1); /* OK: critical, no visual */
   }
-  
+
   /* Get window and context from compatibility layer */
   window = SDL_GetWindow_Compat();
   context = SDL_GL_GetCurrentContext();
-  
+
   window_id = 1;
   SDL_GL_SetSwapInterval(1);
 }
@@ -160,7 +154,7 @@ int nebu_Video_Create(char *name) {
 
 	createWindow(name);
 	glewInit();
-		
+
 	if(!GLEW_ARB_multitexture)
 	{
 		printOpenGLDebugInfo();
