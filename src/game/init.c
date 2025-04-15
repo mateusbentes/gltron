@@ -873,20 +873,28 @@ void initPlayerCamera(PlayerVisual *pV, int type) {
 
 void initPlayers(void) {
     printf("[init] Initializing players\n");
-    
+
     // Check if game is NULL
     if (!game) {
         printf("[init] game is NULL, cannot initialize players\n");
         return;
     }
-    
+
     // Set up player count
     int player_count = 4;  // Default to 4 players (1 human, 3 AI)
     printf("[init] Setting up %d players\n", player_count);
-    
+
     // Set player count
     game->players = player_count;
-    
+
+    // Allocate memory for players
+    game->player = (Player*) malloc(player_count * sizeof(Player));
+    if (!game->player) {
+        fprintf(stderr, "[init] Failed to allocate memory for players\n");
+        return;
+    }
+    memset(game->player, 0, player_count * sizeof(Player));
+
     // Initialize each player
     for (int i = 0; i < player_count; i++) {
         // Set player type (0 = human, 1 = AI)
@@ -894,7 +902,7 @@ void initPlayers(void) {
         game->player[i].ai.active = (i == 0) ? 0 : 1;  // Set active field to 0 for human, 1 for AI
         game->player[i].ai.tdiff = 0;
         game->player[i].ai.lasttime = 0;
-        
+
         // Initialize player data
         game->player[i].data.speed = 10.0f;
         game->player[i].data.trail_height = 3.5f;
@@ -904,11 +912,11 @@ void initPlayers(void) {
         game->player[i].data.dir = i;  // Each player starts facing a different direction
         game->player[i].data.boost_enabled = 1;
         game->player[i].data.wall_buster_enabled = 0;
-        
+
         // Set player position based on direction
         float pos_x = 0.0f;
         float pos_y = 0.0f;
-        
+
         switch (i) {
             case 0:  // Player 1 (bottom left)
                 pos_x = -50.0f;
@@ -927,11 +935,11 @@ void initPlayers(void) {
                 pos_y = 50.0f;
                 break;
         }
-        
+
         // Set player position in the data structure
         game->player[i].data.posx = pos_x;
         game->player[i].data.posy = pos_y;
-        
+
         // Initialize player colors
         switch (i) {
             case 0:  // Player 1 (blue)
@@ -959,20 +967,20 @@ void initPlayers(void) {
                 game->player[i].profile.pColorDiffuse[3] = 1.0f;
                 break;
         }
-        
+
         // Copy diffuse color to specular color with reduced intensity
         for (int j = 0; j < 3; j++) {
             game->player[i].profile.pColorSpecular[j] = game->player[i].profile.pColorDiffuse[j] * 0.5f;
         }
         game->player[i].profile.pColorSpecular[3] = 1.0f;
-        
-        printf("[init] Initialized player %d at position (%f, %f)\n", 
+
+        printf("[init] Initialized player %d at position (%f, %f)\n",
                i, game->player[i].data.posx, game->player[i].data.posy);
     }
-    
+
     // Initialize player visuals
     printf("[init] Initializing player visuals\n");
-    
+
     // Allocate memory for player visuals
     gppPlayerVisuals = (PlayerVisual**) malloc(player_count * sizeof(PlayerVisual*));
     if (!gppPlayerVisuals) {
@@ -980,10 +988,10 @@ void initPlayers(void) {
         return;
     }
     memset(gppPlayerVisuals, 0, player_count * sizeof(PlayerVisual*));
-    
+
     // Set viewport type (1 = split screen)
     gViewportType = 1;
-    
+
     // Initialize each player visual
     for (int i = 0; i < player_count; i++) {
         // Allocate memory for player visual
@@ -993,13 +1001,13 @@ void initPlayers(void) {
             continue;
         }
         memset(gppPlayerVisuals[i], 0, sizeof(PlayerVisual));
-        
+
         // Set player pointer
         gppPlayerVisuals[i]->pPlayer = &game->player[i];
-        
+
         // Set up display
         Visual *d = &gppPlayerVisuals[i]->display;
-        
+
         // Set viewport dimensions based on player index
         switch (i) {
             case 0:  // Player 1 (top left)
@@ -1027,15 +1035,15 @@ void initPlayers(void) {
                 d->vp_h = 300;
                 break;
         }
-        
+
         // Set viewport to be on screen
         d->onScreen = 1;
-        
+
         // Initialize camera for this player
         initPlayerCamera(gppPlayerVisuals[i], 0);  // 0 = follow camera
-        
+
         printf("[init] Initialized player visual %d\n", i);
     }
-    
+
     printf("[init] Players initialized\n");
 }
