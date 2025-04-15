@@ -37,6 +37,10 @@
 static float getReflectivity(void);
 void setupCamera(PlayerVisual *pV);
 void drawSimple3DScene(void);
+void drawSimpleTrail(Player *pPlayer);
+void drawSimpleExplosion(Player *pPlayer);
+void drawSimplePlayer(Player *pPlayer);
+void drawSimplePlayerShadow(Player *pPlayer);
 
 #define MAX_LOD_LEVEL 3
 static int lod_dist[MAX_LOD_LEVEL + 1][LC_LOD + 1] = { 
@@ -1539,4 +1543,180 @@ skip_players:
     printf("[drawCam] Skipping transparent stuff to avoid segmentation fault\n");
     
     printf("[drawCam] Camera view drawing complete\n");
+}
+
+void drawSimpleTrail(Player *pPlayer) {
+    if (!pPlayer) return;
+    
+    // Get player data
+    Data *data = &pPlayer->data;
+    
+    // Check if player is active
+    if (data->speed <= 0) return;
+    
+    // Get player color
+    float r = pPlayer->profile.pColorDiffuse[0];
+    float g = pPlayer->profile.pColorDiffuse[1];
+    float b = pPlayer->profile.pColorDiffuse[2];
+    
+    // Set trail color (slightly transparent)
+    glColor4f(r, g, b, 0.7f);
+    
+    // Enable blending for transparency
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    
+    // Current position
+    float x = data->posx;
+    float y = data->posy;
+    float height = data->trail_height;
+    
+    // If we don't have trail segments yet, just draw a simple line
+    if (!data->trails || data->nTrails == 0) {
+        // Calculate trail start position based on direction
+        float trail_length = 20.0f;  // Length of the trail
+        float trail_x = x;
+        float trail_y = y;
+        
+        switch (data->dir) {
+            case 0:  // Right
+                trail_x -= trail_length;
+                break;
+            case 1:  // Up
+                trail_y -= trail_length;
+                break;
+            case 2:  // Left
+                trail_x += trail_length;
+                break;
+            case 3:  // Down
+                trail_y += trail_length;
+                break;
+        }
+        
+        // Draw the trail as a 3D rectangle
+        glBegin(GL_QUADS);
+        
+        // Bottom face (on the floor)
+        glVertex3f(trail_x, trail_y, 0.1f);
+        glVertex3f(x, y, 0.1f);
+        glVertex3f(x, y, height);
+        glVertex3f(trail_x, trail_y, height);
+        
+        glEnd();
+    } else {
+        // Draw all trail segments
+        glBegin(GL_QUADS);
+        
+        for (int i = 0; i < data->nTrails; i++) {
+            segment2 *segment = &data->trails[i];
+            
+            // Get segment start and end points
+            float x1 = segment->vStart.v[0];
+            float y1 = segment->vStart.v[1];
+            float x2 = x1 + segment->vDirection.v[0];
+            float y2 = y1 + segment->vDirection.v[1];
+            
+            // Draw segment as a 3D rectangle
+            // Bottom face (on the floor)
+            glVertex3f(x1, y1, 0.1f);
+            glVertex3f(x2, y2, 0.1f);
+            
+            // Top face (at trail height)
+            glVertex3f(x2, y2, height);
+            glVertex3f(x1, y1, height);
+        }
+        
+        glEnd();
+    }
+    
+    // Disable blending
+    glDisable(GL_BLEND);
+}
+
+void drawSimpleExplosion(Player *pPlayer) {
+    if (!pPlayer) return;
+    
+    // Get player data
+    Data *data = &pPlayer->data;
+    
+    // Check if player has crashed
+    if (data->exp_radius <= 0) return;
+    
+    // Get player position
+    float x = data->posx;
+    float y = data->posy;
+    
+    // Get player color
+    float r = pPlayer->profile.pColorDiffuse[0];
+    float g = pPlayer->profile.pColorDiffuse[1];
+    float b = pPlayer->profile.pColorDiffuse[2];
+    
+    // Enable blending for transparency
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    
+    // Disable depth testing to ensure explosion is visible
+    glDisable(GL_DEPTH_TEST);
+    
+    // Draw explosion as a series of concentric circles
+    float max_radius = 10.0f;
+    float alpha = 1.0f - (data->exp_radius / max_radius);
+    if (alpha < 0) alpha = 0;
+    
+    glColor4f(1.0f, 0.5f, 0.0f, alpha * 0.7f);  // Orange-yellow with transparency
+    
+    // Draw outer explosion circle
+    glBegin(GL_TRIANGLE_FAN);
+    glVertex3f(x, y, 0.5f);  // Center point
+    
+    int segments = 20;
+    for (int i = 0; i <= segments; i++) {
+        float angle = 2.0f * M_PI * i / segments;
+        float px = x + cosf(angle) * data->exp_radius;
+        float py = y + sinf(angle) * data->exp_radius;
+        glVertex3f(px, py, 0.5f);
+    }
+    glEnd();
+    
+    // Draw inner explosion circle
+    glColor4f(1.0f, 1.0f, 0.0f, alpha);  // Bright yellow
+    
+    glBegin(GL_TRIANGLE_FAN);
+    glVertex3f(x, y, 0.6f);  // Center point
+    
+    for (int i = 0; i <= segments; i++) {
+        float angle = 2.0f * M_PI * i / segments;
+        float px = x + cosf(angle) * data->exp_radius * 0.6f;
+        float py = y + sinf(angle) * data->exp_radius * 0.6f;
+        glVertex3f(px, py, 0.6f);
+    }
+    glEnd();
+    
+    // Draw debris particles
+    glBegin(GL_POINTS);
+    glColor4f(r, g, b, alpha);
+    
+    int num_particles = 30;
+    for (int i = 0; i < num_particles; i++) {
+        float angle = (float)rand() / RAND_MAX * 2.0f * M_PI;
+        float distance = (float)rand() / RAND_MAX * data->exp_radius * 1.2f;
+        float px = x + cosf(angle) * distance;
+        float py = y + sinf(angle) * distance;
+        float pz = 0.5f + (float)rand() / RAND_MAX * 2.0f;  // Random height
+        
+        glVertex3f(px, py, pz);
+    }
+    glEnd();
+    
+    // Restore OpenGL state
+    glEnable(GL_DEPTH_TEST);
+    glDisable(GL_BLEND);
+    
+    // Increase explosion radius for next frame
+    data->exp_radius += 0.5f;
+    
+    // Reset explosion when it gets too big
+    if (data->exp_radius > max_radius) {
+        data->exp_radius = 0;
+    }
 }
