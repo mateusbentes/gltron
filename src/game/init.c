@@ -226,6 +226,8 @@ void initExitGame(void) {
 }
 
 void initSubsystems(int argc, const char *argv[]) {
+
+    // Initialize Nebu system
     nebu_Init();
 
     resource_Init();
@@ -240,8 +242,7 @@ void initSubsystems(int argc, const char *argv[]) {
     platform_InitSettings();
     
     initConfiguration(argc, argv);
-    initArtpacks(); // stores the artpack directory names in a lua table, so we can display it in the menu later on
-
+    initArtpacks();
     initGUIs();
     
     // Initialize game structure first
@@ -249,12 +250,14 @@ void initSubsystems(int argc, const char *argv[]) {
     
     // Initialize game2 structure
     initGame2();
-    
-    // initVideo() calls video_LoadLevel(), which calls video_CreateLevel()
-    printf("[init] Initializing video system\n");
+
+    // Initialize video
     initVideo();
-    
+
+    // Initialize audio
     initAudio();
+    
+    // Initialize input
     initInput();
     
     // Initialize players
@@ -262,6 +265,7 @@ void initSubsystems(int argc, const char *argv[]) {
 
     fprintf(stderr, "[status] done loading level...\n");
 }
+
 
 void initFilesystem(int argc, const char *argv[]) {
 	printf("[debug] Initializing filesystem with argv[0]: %s\n", argv[0]);

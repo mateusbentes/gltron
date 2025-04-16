@@ -20,10 +20,7 @@ GLuint loadTexture(const char* filename) {
     }
 
     png_structp png = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-    if (!png) {
-        fclose(fp);
-        return 0;
-    }
+    if (!png) { fclose(fp); return 0; }
 
     png_infop info = png_create_info_struct(png);
     if (!info) {
@@ -46,39 +43,22 @@ GLuint loadTexture(const char* filename) {
     png_byte color_type = png_get_color_type(png, info);
     png_byte bit_depth = png_get_bit_depth(png, info);
 
-    // Standardizes image to RGBA
-    if (bit_depth == 16)
-        png_set_strip_16(png);
-
-    if (color_type == PNG_COLOR_TYPE_PALETTE)
-        png_set_palette_to_rgb(png);
-
-    if (color_type == PNG_COLOR_TYPE_GRAY && bit_depth < 8)
-        png_set_expand_gray_1_2_4_to_8(png);
-
-    if (png_get_valid(png, info, PNG_INFO_tRNS))
-        png_set_tRNS_to_alpha(png);
-
-    // The fix: add alpha channel if missing
-    if (!(color_type & PNG_COLOR_MASK_ALPHA))
-        png_set_filler(png, 0xFF, PNG_FILLER_AFTER);
-
+    if (bit_depth == 16) png_set_strip_16(png);
+    if (color_type == PNG_COLOR_TYPE_PALETTE) png_set_palette_to_rgb(png);
+    if (color_type == PNG_COLOR_TYPE_GRAY && bit_depth < 8) png_set_expand_gray_1_2_4_to_8(png);
+    if (png_get_valid(png, info, PNG_INFO_tRNS)) png_set_tRNS_to_alpha(png);
+    if (!(color_type & PNG_COLOR_MASK_ALPHA)) png_set_filler(png, 0xFF, PNG_FILLER_AFTER);
     if (color_type == PNG_COLOR_TYPE_GRAY || color_type == PNG_COLOR_TYPE_GRAY_ALPHA)
         png_set_gray_to_rgb(png);
 
     png_set_interlace_handling(png);
+
     png_read_update_info(png, info);
-
-    png_bytep row = (png_bytep) malloc(png_get_rowbytes(png, info));
-
-    for (int y = 0; y < height; y++) {
-        png_read_row(png, row, NULL);
-    }
 
     // Now safe: 4 bytes per pixel (RGBA)
     unsigned char* image_data = (unsigned char*)malloc(width * height * 4);
     if (!image_data) {
-        fprintf(stderr, "Failed to allocate memory for image data\n");
+        fprintf(stderr, "Failed to allocate memory\n");
         png_destroy_read_struct(&png, &info, NULL);
         fclose(fp);
         return 0;
@@ -87,7 +67,7 @@ GLuint loadTexture(const char* filename) {
     // Set row pointers to point to the correct positions in image_data
     png_bytep* row_pointers = (png_bytep*)malloc(sizeof(png_bytep) * height);
     if (!row_pointers) {
-        fprintf(stderr, "Failed to allocate memory for row pointers\n");
+        fprintf(stderr, "Failed to allocate row pointers\n");
         free(image_data);
         png_destroy_read_struct(&png, &info, NULL);
         fclose(fp);
@@ -101,7 +81,7 @@ GLuint loadTexture(const char* filename) {
 
     png_read_image(png, row_pointers);
 
-    // Texture creation
+    // Create OpenGL texture
     GLuint texture;
     glGenTextures(1, &texture);
     glBindTexture(GL_TEXTURE_2D, texture);
@@ -111,9 +91,18 @@ GLuint loadTexture(const char* filename) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0,
-                 GL_RGBA, GL_UNSIGNED_BYTE, image_data);
-    glGenerateMipmap(GL_TEXTURE_2D);
+    const GLubyte *renderer = glGetString(GL_RENDERER);
+    if (!renderer) {
+        fprintf(stderr, "[error] No OpenGL context found!\n");
+        exit(1);
+    }
+
+    if (!image_data) {
+        fprintf(stderr, "[error] image_data is NULL\n");
+        return 0;
+    }
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image_data);
 
     GLenum err = glGetError();
     if (err != GL_NO_ERROR) {
@@ -123,7 +112,6 @@ GLuint loadTexture(const char* filename) {
     // Clean up
     free(row_pointers);
     free(image_data);
-    free(row);
     png_destroy_read_struct(&png, &info, NULL);
     fclose(fp);
 
