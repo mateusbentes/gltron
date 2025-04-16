@@ -10,6 +10,7 @@
 #include "Nebu_scripting.h"
 
 #include <string.h>
+#include <png.h>
 
 #include "base/nebu_debug_memory.h"
 
@@ -335,7 +336,17 @@ void video_LoadLevel(void) {
         fprintf(stderr, "[FATAL] Failed to allocate memory for skybox\n");
         exit(EXIT_FAILURE);
     }
-    gWorld->Skybox->skyboxMesh = loadSkyboxMesh("path/to/skybox.3ds"); // Provide the path to the 3DS file
+
+    // Load skybox textures
+    const char* skyboxFilenames[6] = {
+        "path/to/front.png", //front
+        "path/to/back.png", //back
+        "path/to/left.png", //left
+        "path/to/right.png", //right
+        "path/to/top.png", //top
+        "path/to/bottom.png" //bottom
+    };
+    loadSkyboxTextures(gWorld->Skybox, skyboxFilenames);
 
     printf("[video] World created successfully\n");
 }

@@ -15,6 +15,7 @@
         "cstdlib": "c",
         "settings.h": "c",
         "nebu_matrix.h": "c",
-        "nebu_console.h": "c"
+        "nebu_console.h": "c",
+        "stdio.h": "c"
     }
 }

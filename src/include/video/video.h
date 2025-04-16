@@ -13,6 +13,8 @@
 #include "base/nebu_png_texture.h" // png_texture
 #include "video/skybox.h" // Include the skybox header
 
+#include <GL/glew.h> // Include glew.h first
+
 /* Display mode flags */
 #define SYSTEM_RGB        0x0001  /* RGB color mode */
 #define SYSTEM_RGBA       (SYSTEM_RGB | SYSTEM_ALPHA)
@@ -194,7 +196,7 @@ extern void initTexture(Visual*);
 
 /* texture loading -> load_texture.c */
 /* uses sgi_texture.c or sdl_texture.c */
-extern void loadTexture(const char *filename, int format);
+extern GLuint loadTexture(const char *filename); // Updated declaration
 
 /* screenshot.c */
 extern void doBmpScreenShot(Visual *display);
