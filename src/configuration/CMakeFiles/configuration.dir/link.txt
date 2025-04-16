@@ -1,2 +1,0 @@
-/usr/bin/ar qc libconfiguration.a CMakeFiles/configuration.dir/platform_settings.c.o CMakeFiles/configuration.dir/settings.c.o CMakeFiles/configuration.dir/touch_settings.c.o
-/usr/bin/ranlib libconfiguration.a

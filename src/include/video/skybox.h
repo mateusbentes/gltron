@@ -12,6 +12,6 @@ typedef struct {
 void enableSkyboxTexture(void);
 void disableSkyboxTexture(void);
 void drawSkybox(Skybox *skybox);
-gltron_Mesh* loadSkyboxMesh(void); // Declaration of the loadSkyboxMesh function
+gltron_Mesh* loadSkyboxMesh(const char* filename); // Declaration of the loadSkyboxMesh function
 
 #endif /* SKYBOX_H */

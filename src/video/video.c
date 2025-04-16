@@ -331,11 +331,11 @@ void video_LoadLevel(void) {
 
     // Initialize the skybox
     gWorld->Skybox = (Skybox*)malloc(sizeof(Skybox));
-    if (!gWorld->skybox) {
+    if (!gWorld->Skybox) {
         fprintf(stderr, "[FATAL] Failed to allocate memory for skybox\n");
         exit(EXIT_FAILURE);
     }
-    gWorld->Skybox->skyboxMesh = loadSkyboxMesh(); // Assume this function loads the skybox mesh
+    gWorld->Skybox->skyboxMesh = loadSkyboxMesh("path/to/skybox.3ds"); // Provide the path to the 3DS file
 
     printf("[video] World created successfully\n");
 }

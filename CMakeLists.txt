@@ -58,6 +58,10 @@ find_package(PNG REQUIRED)
 find_package(SDL2 REQUIRED)
 find_package(GLEW REQUIRED)
 
+# Directly specify the paths to the lib3ds library and its include directory
+set(LIB3DS_LIBRARY lib3ds)
+set(LIB3DS_INCLUDE_DIR lib3ds)
+
 # Make sure we have the GLEW::GLEW target
 if(NOT TARGET GLEW::GLEW)
   add_library(GLEW::GLEW UNKNOWN IMPORTED)
@@ -211,6 +215,7 @@ include_directories(
   ${PNG_INCLUDE_DIRS}
   ${ZLIB_INCLUDE_DIRS}
   ${SDL2_INCLUDE_DIRS}
+  ${lib3ds_INCLUDE_DIRS}  # Add lib3ds include directories
 )
 
 # Create SDL compatibility library
@@ -318,7 +323,7 @@ target_link_libraries(gltron PRIVATE
   configuration
   base
   filesystem
-  lib3ds
+  lib3ds  # Add lib3ds library
   ${GLEW_LIBRARIES}
   ${PNG_LIBRARIES}
   ${ZLIB_LIBRARIES}

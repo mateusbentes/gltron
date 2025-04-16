@@ -4,6 +4,10 @@
 #include "configuration/settings.h"
 #include "video/nebu_renderer_gl.h"
 #include "video/skybox.h"
+#include <lib3ds/file.h>
+#include <lib3ds/mesh.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 static void bindSkyboxTexture(int index) {
     glBindTexture(GL_TEXTURE_2D, gScreen->textures[TEX_SKYBOX0 + index]);
@@ -77,23 +81,65 @@ void drawSkybox(Skybox *skybox) {
 }
 
 
-gltron_Mesh* loadSkyboxMesh(void) {
-    // Implement the logic to load the skybox mesh
-    // This is a placeholder implementation
-    gltron_Mesh* mesh = (gltron_Mesh*)malloc(sizeof(gltron_Mesh));
-    if (!mesh) {
-        fprintf(stderr, "[FATAL] Failed to allocate memory for skybox mesh\n");
+gltron_Mesh* loadSkyboxMesh(const char* filename) {
+    // Load the skybox mesh using lib3ds
+    Lib3dsFile *file = lib3ds_file_load(filename);
+    if (!file) {
+        fprintf(stderr, "[FATAL] Failed to load skybox mesh from file: %s\n", filename);
         exit(EXIT_FAILURE);
     }
 
-    // Initialize the mesh with appropriate data
-    // This is just a placeholder; you need to implement the actual loading logic
-    // For example, you might load the mesh from a file or generate it programmatically
-    // Example: Initialize with dummy data
-    mesh->vertices = NULL; // Replace with actual vertex data
-    mesh->numVertices = 0; // Replace with actual number of vertices
-    mesh->indices = NULL; // Replace with actual index data
-    mesh->numIndices = 0; // Replace with actual number of indices
+    // Find the mesh named "skybox_mesh_name"
+    Lib3dsMesh *lib3ds_mesh = NULL;
+    for (Lib3dsMesh *m = file->meshes; m; m = m->next) {
+        if (strcmp(m->name, "skybox_mesh_name") == 0) {
+            lib3ds_mesh = m;
+            break;
+        }
+    }
+
+    if (!lib3ds_mesh) {
+        fprintf(stderr, "[FATAL] Failed to find skybox mesh named 'skybox_mesh_name' in file: %s\n", filename);
+        lib3ds_file_free(file);
+        exit(EXIT_FAILURE);
+    }
+
+    // Create a new gltron_Mesh structure
+    gltron_Mesh* mesh = (gltron_Mesh*)malloc(sizeof(gltron_Mesh));
+    if (!mesh) {
+        fprintf(stderr, "[FATAL] Failed to allocate memory for skybox mesh\n");
+        lib3ds_file_free(file);
+        exit(EXIT_FAILURE);
+    }
+
+    // Initialize the mesh with data from the 3DS file
+    mesh->vertices = (float*)malloc(lib3ds_mesh->points * 3 * sizeof(float));
+    mesh->numVertices = lib3ds_mesh->points;
+    mesh->indices = (unsigned short*)malloc(lib3ds_mesh->faces * 3 * sizeof(unsigned short));
+    mesh->numIndices = lib3ds_mesh->faces * 3;
+
+    if (!mesh->vertices || !mesh->indices) {
+        fprintf(stderr, "[FATAL] Failed to allocate memory for mesh vertices or indices\n");
+        free(mesh->vertices);
+        free(mesh->indices);
+        free(mesh);
+        lib3ds_file_free(file);
+        exit(EXIT_FAILURE);
+    }
+
+    // Copy vertex data
+    for (int i = 0; i < lib3ds_mesh->points; i++) {
+        mesh->vertices[i * 3] = lib3ds_mesh->pointL[i].pos[0];
+        mesh->vertices[i * 3 + 1] = lib3ds_mesh->pointL[i].pos[1];
+        mesh->vertices[i * 3 + 2] = lib3ds_mesh->pointL[i].pos[2];
+    }
+
+    // Copy index data
+    for (int i = 0; i < lib3ds_mesh->faces; i++) {
+        mesh->indices[i * 3] = lib3ds_mesh->faceL[i].points[0];
+        mesh->indices[i * 3 + 1] = lib3ds_mesh->faceL[i].points[1];
+        mesh->indices[i * 3 + 2] = lib3ds_mesh->faceL[i].points[2];
+    }
 
     // Initialize other members as needed
     mesh->pVB = NULL;
@@ -104,6 +150,8 @@ gltron_Mesh* loadSkyboxMesh(void) {
     mesh->bIsBBoxValid = 0;
     mesh->skyboxMesh = NULL; // Assuming this is a placeholder
 
-	// Return the loaded mesh
-	return mesh;
+    // Free the lib3ds file
+    lib3ds_file_free(file);
+
+    return mesh;
 }
