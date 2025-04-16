@@ -1,2 +1,0 @@
-/usr/bin/ar qc libnebu_base.a CMakeFiles/nebu_base.dir/debug_memory.c.o CMakeFiles/nebu_base.dir/matrix.c.o CMakeFiles/nebu_base.dir/png_texture.c.o CMakeFiles/nebu_base.dir/quat.c.o CMakeFiles/nebu_base.dir/random.c.o CMakeFiles/nebu_base.dir/resource.c.o CMakeFiles/nebu_base.dir/spline.c.o CMakeFiles/nebu_base.dir/surface.c.o CMakeFiles/nebu_base.dir/system.c.o CMakeFiles/nebu_base.dir/util.c.o CMakeFiles/nebu_base.dir/vector.c.o
-/usr/bin/ranlib libnebu_base.a

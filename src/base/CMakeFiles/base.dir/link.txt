@@ -1,2 +1,0 @@
-/usr/bin/ar qc libbase.a CMakeFiles/base.dir/sdl_compat.c.o CMakeFiles/base.dir/setcallback.c.o CMakeFiles/base.dir/util.c.o
-/usr/bin/ranlib libbase.a
