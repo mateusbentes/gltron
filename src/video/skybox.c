@@ -11,6 +11,8 @@
 
 // Function to load a texture from a PNG file using libpng
 GLuint loadTexture(const char* filename) {
+    printf("[debug] Loading texture: %s\n", filename);
+
     FILE *fp = fopen(filename, "rb");
     if (!fp) {
         fprintf(stderr, "Failed to open file: %s\n", filename);
@@ -44,6 +46,7 @@ GLuint loadTexture(const char* filename) {
     png_byte color_type = png_get_color_type(png, info);
     png_byte bit_depth = png_get_bit_depth(png, info);
 
+    // Standardizes image to RGBA
     if (bit_depth == 16)
         png_set_strip_16(png);
 
@@ -56,45 +59,75 @@ GLuint loadTexture(const char* filename) {
     if (png_get_valid(png, info, PNG_INFO_tRNS))
         png_set_tRNS_to_alpha(png);
 
-    if (color_type == PNG_COLOR_TYPE_RGB ||
-        color_type == PNG_COLOR_TYPE_GRAY ||
-        color_type == PNG_COLOR_TYPE_PALETTE)
+    // The fix: add alpha channel if missing
+    if (!(color_type & PNG_COLOR_MASK_ALPHA))
         png_set_filler(png, 0xFF, PNG_FILLER_AFTER);
 
-    if (color_type == PNG_COLOR_TYPE_GRAY ||
-        color_type == PNG_COLOR_TYPE_GRAY_ALPHA)
+    if (color_type == PNG_COLOR_TYPE_GRAY || color_type == PNG_COLOR_TYPE_GRAY_ALPHA)
         png_set_gray_to_rgb(png);
 
+    png_set_interlace_handling(png);
     png_read_update_info(png, info);
 
-    png_bytep* row_pointers = (png_bytep*)malloc(sizeof(png_bytep) * height);
+    png_bytep row = (png_bytep) malloc(png_get_rowbytes(png, info));
+
     for (int y = 0; y < height; y++) {
-        row_pointers[y] = (png_byte*)malloc(png_get_rowbytes(png, info));
+        png_read_row(png, row, NULL);
+    }
+
+    // Now safe: 4 bytes per pixel (RGBA)
+    unsigned char* image_data = (unsigned char*)malloc(width * height * 4);
+    if (!image_data) {
+        fprintf(stderr, "Failed to allocate memory for image data\n");
+        png_destroy_read_struct(&png, &info, NULL);
+        fclose(fp);
+        return 0;
+    }
+
+    // Set row pointers to point to the correct positions in image_data
+    png_bytep* row_pointers = (png_bytep*)malloc(sizeof(png_bytep) * height);
+    if (!row_pointers) {
+        fprintf(stderr, "Failed to allocate memory for row pointers\n");
+        free(image_data);
+        png_destroy_read_struct(&png, &info, NULL);
+        fclose(fp);
+        return 0;
+    }
+
+    // Invert lines (OpenGL uses bottom left origin)
+    for (int y = 0; y < height; y++) {
+        row_pointers[y] = image_data + y * width * 4;
     }
 
     png_read_image(png, row_pointers);
 
+    // Texture creation
     GLuint texture;
     glGenTextures(1, &texture);
     glBindTexture(GL_TEXTURE_2D, texture);
 
-    GLenum format;
-    if (color_type == PNG_COLOR_TYPE_RGB)
-        format = GL_RGB;
-    else if (color_type == PNG_COLOR_TYPE_RGBA)
-        format = GL_RGBA;
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-    glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, row_pointers[0]);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0,
+                 GL_RGBA, GL_UNSIGNED_BYTE, image_data);
     glGenerateMipmap(GL_TEXTURE_2D);
 
-    for (int y = 0; y < height; y++) {
-        free(row_pointers[y]);
+    GLenum err = glGetError();
+    if (err != GL_NO_ERROR) {
+        fprintf(stderr, "OpenGL error: %d\n", err);
     }
-    free(row_pointers);
 
+    // Clean up
+    free(row_pointers);
+    free(image_data);
+    free(row);
     png_destroy_read_struct(&png, &info, NULL);
     fclose(fp);
 
+    printf("[debug] Texture loaded: %s (id=%u)\n", filename, texture);
     return texture;
 }
 
@@ -171,10 +204,12 @@ void drawSkybox(Skybox *skybox) {
 
 void loadSkyboxTextures(Skybox *skybox, const char* filenames[6]) {
     for (int i = 0; i < 6; i++) {
+        printf("[debug] Loading skybox texture: %s\n", filenames[i]);
         gScreen->textures[TEX_SKYBOX0 + i] = loadTexture(filenames[i]);
         if (!gScreen->textures[TEX_SKYBOX0 + i]) {
             fprintf(stderr, "[FATAL] Failed to load skybox texture: %s\n", filenames[i]);
             exit(EXIT_FAILURE);
         }
+        printf("[debug] Skybox texture loaded: %s\n", filenames[i]);
     }
 }

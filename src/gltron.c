@@ -78,8 +78,8 @@ int main(int argc, char *argv[] ) {
     /* Initialize the game world before rendering */
     printf("[main] Initializing game world\n");
     if (!gWorld) {
-        printf("[main] Creating game world\n");
-        video_LoadLevel();
+        //printf("[main] Creating game world\n");
+        //video_LoadLevel();
         if (!gWorld) {
             fprintf(stderr, "[error] Failed to create game world\n");
         } else {
@@ -130,13 +130,20 @@ int main(int argc, char *argv[] ) {
 
 /* Display callback */
 void mainDisplay(void) {
+    static int firstCall = 1;
+
     if (isMenuActive()) {
         /* Menu is active, draw menu */
         printf("[mainDisplay] Drawing menu\n");
         // Call menuIdle instead of drawMenu directly, as menuIdle will handle drawing the menu
         menuIdle();
     } else {
-        /* Game is active, draw game */
+        if (firstCall) {
+            printf("[mainDisplay] First-time setup: loading level\n");
+            video_LoadLevel();
+            firstCall = 0;
+        }
+
         printf("[mainDisplay] Drawing game\n");
         displayGame();
 

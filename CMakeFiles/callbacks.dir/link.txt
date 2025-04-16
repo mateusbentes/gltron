@@ -1,0 +1,2 @@
+/usr/bin/ar qc libcallbacks.a CMakeFiles/callbacks.dir/src/game/callbacks.c.o CMakeFiles/callbacks.dir/src/game/init_stubs.c.o
+/usr/bin/ranlib libcallbacks.a

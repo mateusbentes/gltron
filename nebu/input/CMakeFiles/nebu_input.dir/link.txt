@@ -1,0 +1,2 @@
+/usr/bin/ar qc libnebu_input.a CMakeFiles/nebu_input.dir/custom_keys.c.o CMakeFiles/nebu_input.dir/input_system.c.o CMakeFiles/nebu_input.dir/system_keynames.c.o
+/usr/bin/ranlib libnebu_input.a

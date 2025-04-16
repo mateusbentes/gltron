@@ -1,0 +1,2 @@
+/usr/bin/ar qc libnebu_system.a CMakeFiles/nebu_system.dir/system/nebu_system_callbacks.c.o CMakeFiles/nebu_system.dir/system/nebu_system_swap_buffers.c.o
+/usr/bin/ranlib libnebu_system.a
