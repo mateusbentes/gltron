@@ -37,9 +37,9 @@ void video_ReleaseResources(void)
 int initWindow(void) {
     int win_id;
     int flags;
-    
+
     printf("[init] Initializing window\n");
-    
+
     /* Use default values instead of reading from Lua */
     int width = 800;
     int height = 600;
@@ -47,32 +47,32 @@ int initWindow(void) {
     int windowMode = 1;  // Changed to 1 for windowed mode
     int use_stencil = 1;
     int mouse_warp = 1;
-    
+
     printf("[init] Setting window mode: %dx%d\n", width, height);
     nebu_Video_SetWindowMode(0, 0, width, height);
-    
-    flags = SYSTEM_RGBA | SYSTEM_DOUBLE | SYSTEM_DEPTH | SYSTEM_STENCIL; 
+
+    flags = SYSTEM_RGBA | SYSTEM_DOUBLE | SYSTEM_DEPTH | SYSTEM_STENCIL;
     if(bitdepth_32)
         flags |= SYSTEM_32_BIT;
     if(windowMode == 0)  // This is now false
         flags |= SYSTEM_FULLSCREEN;
-    
+
     printf("[init] Setting display mode: flags=%d\n", flags);
     nebu_Video_SetDisplayMode(flags);
-    
+
     printf("[init] Creating window\n");
     win_id = nebu_Video_Create("gltron");
     printf("[init] Window created: win_id=%d\n", win_id);
-    
+
     // Check OpenGL initialization
     const char* vendor = (const char*)glGetString(GL_VENDOR);
     const char* renderer = (const char*)glGetString(GL_RENDERER);
     const char* version = (const char*)glGetString(GL_VERSION);
-    
+
     printf("[opengl] Vendor: %s\n", vendor ? vendor : "Unknown");
     printf("[opengl] Renderer: %s\n", renderer ? renderer : "Unknown");
     printf("[opengl] Version: %s\n", version ? version : "Unknown");
-    
+
     // Check for OpenGL errors
     GLenum error = glGetError();
     if (error != GL_NO_ERROR) {
@@ -80,7 +80,7 @@ int initWindow(void) {
     } else {
         printf("[opengl] OpenGL initialized successfully\n");
     }
-    
+
     // check if we have destination alpha,
     // if not, display warning
     {
@@ -92,8 +92,8 @@ int initWindow(void) {
             printf("[warning] No destination alpha available\n");
         }
     }
-    
-    if (win_id < 0) { 
+
+    if (win_id < 0) {
         if(use_stencil) {
             flags &= ~SYSTEM_STENCIL;
             printf("[init] Retrying without stencil: flags=%d\n", flags);
@@ -109,9 +109,9 @@ int initWindow(void) {
         printf("[fatal] could not create window...exiting\n");
         nebu_assert(0); exit(1); /* OK: critical, no visual */
     }
-    
+
     SKIP:
-    
+
     if(windowMode == 0 || mouse_warp == 1) {
         printf("[init] Grabbing input\n");
         nebu_Input_Grab();
@@ -119,7 +119,7 @@ int initWindow(void) {
         printf("[init] Not grabbing input\n");
         nebu_Input_Ungrab();
     }
-    
+
     printf("[init] Window initialized with default values\n");
     return win_id;
 }
@@ -146,27 +146,27 @@ void shutdownDisplay() {
 
 void setupDisplay(void) {
     printf("[video] Setting up display\n");
-    
+
     /* Set up display with fixed values */
     int width = 800;  /* Fixed width */
     int height = 600;  /* Fixed height */
     int fullscreen = 0;  /* Fixed to windowed mode */
     int flags = 0;
-    
+
     printf("[video] Using fixed values: width=%d, height=%d, fullscreen=%d\n", width, height, fullscreen);
-    
+
     /* Set window mode first */
     nebu_Video_SetWindowMode(0, 0, width, height);
-    
+
     /* Then set display mode flags */
     flags = SYSTEM_RGBA | SYSTEM_DOUBLE | SYSTEM_DEPTH | SYSTEM_STENCIL;
     if (fullscreen)
         flags |= SYSTEM_FULLSCREEN;
-    
+
     /* Call nebu_Video_SetDisplayMode with the correct arguments */
     nebu_Video_SetDisplayMode(flags);
     printf("[video] Display mode set successfully\n");
-    
+
     printf("[video] Display setup complete\n");
 }
 
@@ -298,7 +298,7 @@ void initGameScreen(void)
 	Visual *d;
 	d = gScreen;
 	d->w = getSettingi("width");
-	d->h = getSettingi("height"); 
+	d->h = getSettingi("height");
 	d->vp_x = 0; d->vp_y = 0;
 	d->vp_w = d->w; d->vp_h = d->h;
 }
@@ -353,14 +353,14 @@ void video_LoadLevel(void) {
 
 void video_ResetData(void) {
     int i;
-    
+
     printf("[status] reset video data (stub)\n");
-    
+
     /* Use default values instead of reading from Lua */
     float defaultDiffuse[4] = {1.0f, 1.0f, 1.0f, 1.0f};
     float defaultSpecular[4] = {1.0f, 1.0f, 1.0f, 1.0f};
     float defaultAlpha[4] = {1.0f, 1.0f, 1.0f, 0.8f};
-    
+
     for(i = 0; i < game->players; i++) {
         Player *p = game->player + i;
         {
@@ -370,7 +370,7 @@ void video_ResetData(void) {
             memcpy(p->profile.pColorAlpha, defaultAlpha, 4 * sizeof(float));
         }
     }
-    
+
     printf("[status] video data reset with default values\n");
 }
 
@@ -384,7 +384,7 @@ void initDisplay(Visual *d, int type, int p, int onScreen) {
 	d->vp_w = (int) ( vp_w[type][p] * field_x );
 	d->vp_h = (int) ( vp_h[type][p] * field_y );
 	d->onScreen = onScreen;
-}  
+}
 
 static void defaultViewportPositions(void) {
 	int i;
@@ -415,7 +415,7 @@ static void autoConfigureDisplay(void) {
 		{
 			gppPlayerVisuals[n_humans]->pPlayer = &game->player[i];
 			n_humans++;
-		}    
+		}
 	}
 
 	switch(n_humans) {
@@ -435,7 +435,7 @@ static void autoConfigureDisplay(void) {
 	default :
 		defaultViewportPositions();
 		vp = VP_FOURWAY;
-	}  
+	}
 	updateDisplay(vp);
 }
 
@@ -446,11 +446,11 @@ void changeDisplay(int view) {
 	if (view == -1) {
 		view = getSettingi("display_type");
 	}
-	  
+
 	if (view == 3) {
-		autoConfigureDisplay(); 
+		autoConfigureDisplay();
 	} else {
-		defaultViewportPositions(); 
+		defaultViewportPositions();
 		updateDisplay(view);
 	}
 
