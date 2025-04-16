@@ -339,12 +339,12 @@ void video_LoadLevel(void) {
 
     // Load skybox textures
     const char* skyboxFilenames[6] = {
-        "path/to/front.png", //front
-        "path/to/back.png", //back
-        "path/to/left.png", //left
-        "path/to/right.png", //right
-        "path/to/top.png", //top
-        "path/to/bottom.png" //bottom
+        "art/classic/skybox0.png", //front
+        "art/classic/skybox2.png", //back
+        "art/classic/skybox3.png", //left
+        "art/classic/skybox4.png", //right
+        "art/classic/skybox5.png", //top
+        "art/classic/skybox1.png" //bottom
     };
     loadSkyboxTextures(gWorld->Skybox, skyboxFilenames);
 

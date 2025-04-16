@@ -9,8 +9,7 @@
 #include <string.h>
 #include <png.h>
 
-
-// Function to load a texture from a PNG file
+// Function to load a texture from a PNG file using libpng
 GLuint loadTexture(const char* filename) {
     FILE *fp = fopen(filename, "rb");
     if (!fp) {
