@@ -247,7 +247,7 @@ if(LOCAL_DATA)
   file(COPY ${CMAKE_SOURCE_DIR}/sounds/ DESTINATION ${CMAKE_BINARY_DIR}/sounds)
 
   # Only copy scripts if not using embedded scripts
-  if(NOT USE_EMBEDDED_SCRIPTS)
+  if(USE_SCRIPTING)
     file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/scripts)
     file(COPY ${CMAKE_SOURCE_DIR}/scripts/ DESTINATION ${CMAKE_BINARY_DIR}/scripts)
   endif()
