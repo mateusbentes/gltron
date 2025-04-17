@@ -310,6 +310,9 @@ SDL_SOUND_LIBRARY:FILEPATH=/usr/lib/x86_64-linux-gnu/libSDL_sound.so
 //Use embedded Lua scripts
 USE_EMBEDDED_SCRIPTS:BOOL=ON
 
+//Use Lua scripting
+USE_SCRIPTING:BOOL=OFF
+
 //Path to a file.
 ZLIB_INCLUDE_DIR:PATH=/usr/include
 

@@ -12,7 +12,7 @@ option(BUILD_ANDROID "Build for Android platform" OFF)
 option(ENABLE_STATIC_LINKING "Enable static linking" OFF)
 option(LOCAL_DATA "Use local data directory" ON)  # Changed to ON by default
 option(ENABLE_SOUND "Enable sound support (requires SDL_sound)" ON)
-option(USE_EMBEDDED_SCRIPTS "Use embedded Lua scripts" ON)  # Added option for embedded scripts
+option(USE_SCRIPTING "Use Lua scripting" OFF)  # Added option for use scripting
 
 # Set default build type if not specified
 if(NOT CMAKE_BUILD_TYPE)
@@ -31,7 +31,7 @@ endif()
 # Force LOCAL_DATA to be ON during development
 set(LOCAL_DATA ON CACHE BOOL "Use local data directory" FORCE)
 message(STATUS "LOCAL_DATA is set to: ${LOCAL_DATA}")
-message(STATUS "USE_EMBEDDED_SCRIPTS is set to: ${USE_EMBEDDED_SCRIPTS}")
+message(STATUS "USE_SCRIPTING is set to: ${USE_SCRIPTING}")
 
 # Add compiler definitions
 if(BUILD_ANDROID)
@@ -45,11 +45,11 @@ if(LOCAL_DATA)
   message(STATUS "LOCAL_DATA definition added")
 endif()
 
-if(USE_EMBEDDED_SCRIPTS)
-  add_definitions(-DUSE_EMBEDDED_SCRIPTS)
+if(USE_SCRIPTING)
+  add_definitions(-DUSE_SCRIPTING)
   # Also add it as a global compile definition to ensure it's passed to all targets
-  add_compile_definitions(USE_EMBEDDED_SCRIPTS)
-  message(STATUS "USE_EMBEDDED_SCRIPTS definition added")
+  add_compile_definitions(USE_SCRIPTING)
+  message(STATUS "USE_SCRIPTING definition added")
 endif()
 
 # Find required packages
@@ -293,14 +293,11 @@ if(USE_EMBEDDED_SCRIPTS)
 endif()
 
 # Find Lua (optional)
-find_package(Lua)
+find_package(Lua REQUIRED)
 if(LUA_FOUND)
   message(STATUS "Found Lua: ${LUA_LIBRARIES}")
 else()
-  message(STATUS "Lua not found, using stub implementations")
-  # Set empty variables to avoid errors
-  set(LUA_INCLUDE_DIR "")
-  set(LUA_LIBRARIES "")
+  message(FATAL_ERROR "Lua not found. Please install Lua and try again.")
 endif()
 
 # Link libraries - IMPORTANT: Order matters for static linking
@@ -329,14 +326,10 @@ target_link_libraries(gltron PRIVATE
   ${ZLIB_LIBRARIES}
   ${OPENGL_LIBRARIES}
   ${SDL2_LIBRARIES}
+  ${LUA_LIBRARIES}  # Add Lua libraries
   # Add dl library for dynamic loading on Unix-like systems
   $<$<NOT:$<PLATFORM_ID:Windows>>:dl>
 )
-
-# Conditionally add Lua libraries if found
-if(LUA_FOUND)
-  target_link_libraries(gltron PRIVATE ${LUA_LIBRARIES})
-endif()
 
 # Add math library only on non-Windows platforms
 if(NOT WIN32)

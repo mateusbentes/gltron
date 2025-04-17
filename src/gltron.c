@@ -132,10 +132,11 @@ int main(int argc, char *argv[] ) {
 void mainDisplay(void) {
     static int firstCall = 1;
 
+    printf("[mainDisplay] isMenuActive: %d\n", isMenuActive());
+
     if (isMenuActive()) {
         /* Menu is active, draw menu */
         printf("[mainDisplay] Drawing menu\n");
-        // Call menuIdle instead of drawMenu directly, as menuIdle will handle drawing the menu
         menuIdle();
     } else {
         if (firstCall) {

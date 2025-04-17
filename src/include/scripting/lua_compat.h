@@ -90,4 +90,29 @@ static void safe_lua_pop(lua_State *L, int n) {
     }
 }
 
+// Implementation of luaL_dostring for Lua 5.1 compatibility
+// This is equivalent to (luaL_loadstring(L, str) || lua_pcall(L, 0, LUA_MULTRET, 0))
+static int luaL_dostring(lua_State *L, const char *str) {
+    if (!L || !str) {
+        fprintf(stderr, "[FATAL] Invalid parameters for luaL_dostring\n");
+        return LUA_ERRRUN;
+    }
+    
+    int status = luaL_loadstring(L, str);
+    if (status == 0) {
+        status = lua_pcall(L, 0, LUA_MULTRET, 0);
+    }
+    return status;
+}
+
+// Safe wrapper for luaL_dostring
+static int safe_luaL_dostring(lua_State *L, const char *str) {
+    if (!L || !str) {
+        fprintf(stderr, "[FATAL] Invalid parameters for safe_luaL_dostring\n");
+        return LUA_ERRRUN;
+    }
+    
+    return luaL_dostring(L, str);
+}
+
 #endif /* LUA_COMPAT_H */

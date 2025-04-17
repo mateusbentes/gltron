@@ -297,7 +297,9 @@ void game_ResetData(void) {
 	game2->events.next = NULL;
 	/* TODO: free any old events that might have gotten left */
 
+#ifdef USE_SCRIPTING
 	scripting_Run("console_Clear()");
+#endif
 
 	resetPlayerData();
 	camera_ResetAll();

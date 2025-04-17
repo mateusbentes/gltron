@@ -22,7 +22,8 @@ static lua_State *lua_state = NULL;
 /* Error handling for scripting functions */
 jmp_buf scripting_error_jmp;
 
-/* Get the Lua state */
+/* Functions for Lua state management */
+#ifdef USE_SCRIPTING
 lua_State* scripting_GetLuaState(void) {
     if (!lua_state) {
         fprintf(stderr, "[FATAL] Lua state accessed before initialization\n");
@@ -30,43 +31,56 @@ lua_State* scripting_GetLuaState(void) {
     }
     return lua_state;
 }
+#endif
 
-/* Set the Lua state */
+#ifdef USE_SCRIPTING
 void scripting_SetLuaState(lua_State *L_param) {
-    // Check if the Lua state is NULL
     if (!L_param) {
         fprintf(stderr, "[FATAL] Attempted to set NULL Lua state in scripting_SetLuaState\n");
         return;
     }
-    
-    // Print debug information about the Lua state
+
     printf("[scripting] Lua state set: %p\n", (void*)L_param);
-    
-    // Store the Lua state in the static variable
+
     lua_state = L_param;
-    
-    // Don't call any Lua functions here
-    
+
     printf("[scripting] Lua state successfully stored\n");
 }
+#endif
 
-/* Run a Lua script from a string */
+#ifdef USE_SCRIPTING
 int scripting_RunString(const char *script) {
     if (!lua_state) {
         fprintf(stderr, "[FATAL] Lua state not initialized in scripting_RunString\n");
         return 0;
     }
-    
+
     if (!script) {
         fprintf(stderr, "[FATAL] NULL script in scripting_RunString\n");
         return 0;
     }
-    
+
     printf("[scripting] Running script string (length: %zu)\n", strlen(script));
-    
-    // IMPORTANT: Instead of actually running the script, we'll just pretend we did
-    // This is to avoid the segmentation fault
+
     printf("[scripting] Skipping actual script execution to avoid segmentation fault\n");
-    
-    return 1;  // Pretend it succeeded
+
+    return 1;
 }
+#endif
+
+/* Stubs when scripting is disabled */
+#ifndef USE_SCRIPTING
+void scripting_SetLuaState(lua_State *L_param) {
+    printf("[scripting] Lua state is disabled, skipping Lua setup\n");
+}
+
+int scripting_RunString(const char *script) {
+    printf("[scripting] Scripting is disabled, skipping script execution\n");
+    return 0;
+}
+
+lua_State* scripting_GetLuaState(void) {
+    printf("[scripting] Lua state is disabled, returning NULL\n");
+    return NULL;
+}
+#endif

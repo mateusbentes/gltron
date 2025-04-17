@@ -133,7 +133,7 @@ void initGame(void) {
 
     // Initialize game level
     printf("[init] Initializing game level\n");
-    game2->level = (game_level*)malloc(sizeof(game_level));  // Use game_level instead of Level
+    game2->level = (game_level*)malloc(sizeof(game_level));
     if (!game2->level) {
         fprintf(stderr, "[init] Failed to allocate memory for level\n");
         exit(EXIT_FAILURE);
@@ -146,29 +146,32 @@ void initGame(void) {
     game2->level->boundingBox.vMax.v[0] = 100.0f;
     game2->level->boundingBox.vMax.v[1] = 100.0f;
 
-    // Initialize world - use the correct type or just set gWorld directly
+    // Initialize world
     printf("[init] Initializing world\n");
-    // Instead of allocating a new World, we'll let video_LoadLevel create it
     gWorld = NULL;  // Will be initialized by video_LoadLevel
 
     // Initialize players
     printf("[init] Initializing players\n");
     initPlayers();
 
-    // Initialize camera - this needs to be done after player visuals are initialized
+    // Initialize camera
     printf("[init] Initializing camera\n");
-    // We'll initialize cameras for each player in initPlayers instead
+    // Done inside initPlayers
 
-    // Initialize scripting
+#ifdef USE_SCRIPTING
+    // Initialize scripting only if scripting is enabled
     printf("[init] Initializing scripting\n");
     initScripting();
+#else
+    printf("[init] Scripting disabled, skipping initScripting\n");
+#endif
 
     // Set game state
     printf("[init] Setting game state\n");
     game2->time.current = 0;
     game2->time.lastFrame = 0;
     game2->time.dt = 0;
-    // game2 doesn't have pauseflag, it's in the game structure
+
     game->pauseflag = PAUSE_GAME_RUNNING;
     game2->play = 1;
 
@@ -368,132 +371,51 @@ int load_and_execute_script(lua_State *L, const char* script_name, const char* s
 
 void initScripting(void) {
     printf("[init] Initializing Lua VM\n");
-    
-    // Create a new Lua state
-    lua_State *L = lua_open();  // Use lua_open() instead of luaL_newstate() to match existing code
+
+#ifndef USE_SCRIPTING
+    printf("[init] Scripting is disabled, skipping Lua setup\n");
+    return;
+#else
+    // Cria a VM só se scripting estiver ativado
+    lua_State *L = luaL_newstate();
     if (!L) {
         fprintf(stderr, "[FATAL] Failed to create Lua state\n");
         exit(EXIT_FAILURE);
     }
 
-    // Store the Lua state in the global variable
     lua_state = L;
-    
-    // IMPORTANT: Skip opening standard libraries that are causing the segmentation fault
-    printf("[init] Opening Lua standard libraries\n");
-    printf("[init] Skipping standard libraries to avoid segmentation fault\n");
-    
-    // Set the Lua state in the scripting module
-    printf("[init] Setting Lua state in scripting module\n");
-    scripting_SetLuaState(L);
-    
-    // IMPORTANT: Skip the lua_checkstack call that's causing the segmentation fault
-    printf("[init] Ensuring Lua stack has enough space\n");
-    // Instead of calling lua_checkstack directly, we'll just assume the stack is large enough
-    
-    // Register C functions with additional error checking
-    printf("[init] Registering C functions\n");
-    
-    // IMPORTANT: Skip the function registration that's causing the segmentation fault
-    // Instead, we'll register the functions later when they're needed
-    printf("[init] Skipping function registration for now\n");
-    
-    // Register SDL2 compatibility functions
-    printf("[init] Registering SDL2 compatibility functions\n");
-    printf("[init] Skipping SDL2 compatibility functions to avoid segmentation fault\n");
-    
-#ifdef USE_EMBEDDED_SCRIPTS
-    printf("[init] Loading embedded scripts\n");
-    const char* scripts[] = {
-        "basics.lua", "joystick.lua", "path.lua", 
-        "video.lua", "console.lua", "menu.lua",
-        "hud.lua", "game.lua", NULL
-    };
-    
-    for (int i = 0; scripts[i]; i++) {
-        // IMPORTANT: Use a safer approach to get and validate embedded scripts
-        const char* script_name = scripts[i];
-        printf("[init] Checking for embedded script: %s\n", script_name);
-        
-        // Get the embedded script with NULL check
-        // This now uses the get_embedded_script function from embedded_scripts.c
-        const char* script = NULL;
-        
-        // IMPORTANT: Skip the actual get_embedded_script call that's causing the segmentation fault
-        // Instead, just pretend we got the script
-        printf("[init] Skipping get_embedded_script call to avoid segmentation fault\n");
-        printf("[init] Would load and execute script: %s (skipped to avoid segmentation fault)\n", script_name);
-        
-        // Skip the rest of the loop iteration
-        continue;
-        
-        // The code below is unreachable but kept for reference
-        if (!script) {
-            fprintf(stderr, "[FATAL] Missing embedded script: %s\n", script_name);
-            continue;  // Skip this script and try the next one
-        }
+    luaL_openlibs(L);  // Abre as libs padrão
 
-        // Print the first few characters of the script for debugging
-        printf("[debug] Embedded script '%s' content:\n", script_name);
-        
-        // Safely print the first 100 characters (or less if the script is shorter)
-        int max_chars = 100;
-        int j = 0;
-        while (script[j] && j < max_chars) {
-            putchar(script[j]);
-            j++;
-        }
-        if (script[j]) {
-            printf("...\n");  // Indicate there's more content
-        } else {
-            printf("\n");
-        }
-        
-        // Get the script length safely
-        size_t len = 0;
-        const char* p = script;
-        while (*p) {
-            len++;
-            p++;
-        }
-        
-        printf("[debug] Script %s pointer: %p\n", script_name, (void*)script);
-        printf("[debug] Script %s length: %zu\n", script_name, len);
-        
-        // IMPORTANT: Skip script execution to avoid segmentation fault
-        printf("[init] Would load and execute script: %s (skipped to avoid segmentation fault)\n", script_name);
-    }
-#else
+    scripting_SetLuaState(L);
+
+    printf("[init] Scripting enabled, but skipping script execution for now\n");
+
     const char* fs_scripts[] = {
         "basics.lua", "joystick.lua", "path.lua",
         "video.lua", "console.lua", "menu.lua",
         "hud.lua", "game.lua", NULL
     };
-    
+
     for (int i = 0; fs_scripts[i]; i++) {
         char path[256];
         snprintf(path, sizeof(path), "scripts/%s", fs_scripts[i]);
-        
-        // IMPORTANT: Skip script execution to avoid segmentation fault
-        printf("[init] Would load and execute script: %s (skipped to avoid segmentation fault)\n", path);
-    }
-#endif
 
-    printf("[init] Scripting system ready (minimal initialization to avoid segmentation fault)\n");
+        // Aqui você poderia usar luaL_dofile se quiser ativar de verdade
+        printf("[init] Would load and execute script: %s (skipped)\n", path);
+    }
+
+    printf("[init] Scripting system ready\n");
+#endif
 }
 
 void initConfiguration(int argc, const char *argv[])
 {
   printf("[init] Initializing configuration\n");
-#ifdef USE_EMBEDDED_SCRIPTS
-  /* Use embedded scripts for config and artpack */
-  printf("[init] Using embedded scripts for configuration\n");
-  
-  /* Skip setting default settings */
-  printf("[init] Skipping default settings (stub)\n");
-  
-  printf("[init] Configuration initialized\n");
-  
+
+#ifndef USE_SCRIPTING
+    printf("[init] Scripting is disabled, skipping Lua setup\n");
+    return;
+
 #else
   /* load some more defaults from config file */
   runScript(PATH_SCRIPTS, "config.lua");
@@ -557,33 +479,10 @@ void initAudio(void) {
     /* Load audio scripts with error checking */
     fprintf(stderr, "[audio] Loading audio scripts\n");
     
-#ifdef USE_EMBEDDED_SCRIPTS
-    /* Use embedded scripts for audio */
-    fprintf(stderr, "[audio] Using embedded scripts for audio\n");
-    
-    /* Load audio.lua */
-    const char* audio_script = get_embedded_script("audio.lua");
-    if(audio_script) {
-        fprintf(stderr, "[audio] Found embedded script: audio.lua\n");
-        /* We don't actually execute the script, just pretend we did */
-        fprintf(stderr, "[audio] Processed audio.lua\n");
-    } else {
-        fprintf(stderr, "[error] Failed to find embedded script: audio.lua\n");
-        audio_available = 0;
-    }
-    
-    /* Load music_functions.lua */
-    const char* music_functions_script = get_embedded_script("music_functions.lua");
-    if(music_functions_script) {
-        fprintf(stderr, "[audio] Found embedded script: music_functions.lua\n");
-        /* We don't actually execute the script, just pretend we did */
-        fprintf(stderr, "[audio] Processed music_functions.lua\n");
-    } else {
-        fprintf(stderr, "[error] Failed to find embedded script: music_functions.lua\n");
-        
-        /* CHANGE: Don't use scripting_Run, just print a message */
-        fprintf(stderr, "[audio] Would create nextTrack and previousTrack functions (stub)\n");
-    }
+#ifndef USE_SCRIPTING
+    printf("[init] Scripting is disabled, skipping Lua setup\n");
+    return;
+
 #else
     char *audio_script = getPossiblePath(PATH_SCRIPTS, "audio.lua");
     if (audio_script && nebu_FS_Test(audio_script)) {
@@ -608,6 +507,7 @@ void initAudio(void) {
         /* CHANGE: Don't use scripting_Run, just print a message */
         fprintf(stderr, "[audio] Would create nextTrack and previousTrack functions (stub)\n");
     }
+
 #endif
     
     /* Load sound samples with error checking */
@@ -705,68 +605,10 @@ void initVideo(void) {
 	
 void initGUIs(void)
 {
-#ifdef USE_EMBEDDED_SCRIPTS
-    /* Use embedded scripts for GUIs */
-    printf("[init] Using embedded scripts for GUIs\n");
-    
-    /* Load menu scripts */
-    const char* menu_functions_script = get_embedded_script("menu_functions.lua");
-    if(menu_functions_script) {
-        printf("[init] Found embedded script: menu_functions.lua\n");
-        /* We don't actually execute the script, just pretend we did */
-        printf("[init] Processed menu_functions.lua\n");
-    } else {
-        fprintf(stderr, "[error] Failed to find embedded script: menu_functions.lua\n");
-    }
-    
-    const char* menu_script = get_embedded_script("menu.lua");
-    if(menu_script) {
-        printf("[init] Found embedded script: menu.lua\n");
-        /* We don't actually execute the script, just pretend we did */
-        printf("[init] Processed menu.lua\n");
-    } else {
-        fprintf(stderr, "[error] Failed to find embedded script: menu.lua\n");
-    }
-    
-    /* Load HUD scripts */
-    const char* hud_config_script = get_embedded_script("hud-config.lua");
-    if(hud_config_script) {
-        printf("[init] Found embedded script: hud-config.lua\n");
-        /* We don't actually execute the script, just pretend we did */
-        printf("[init] Processed hud-config.lua\n");
-    } else {
-        fprintf(stderr, "[error] Failed to find embedded script: hud-config.lua\n");
-    }
-    
-    const char* hud_script = get_embedded_script("hud.lua");
-    if(hud_script) {
-        printf("[init] Found embedded script: hud.lua\n");
-        /* We don't actually execute the script, just pretend we did */
-        printf("[init] Processed hud.lua\n");
-    } else {
-        fprintf(stderr, "[error] Failed to find embedded script: hud.lua\n");
-    }
-    
-    const char* gauge_script = get_embedded_script("gauge.lua");
-    if(gauge_script) {
-        printf("[init] Found embedded script: gauge.lua\n");
-        /* We don't actually execute the script, just pretend we did */
-        printf("[init] Processed gauge.lua\n");
-    } else {
-        fprintf(stderr, "[error] Failed to find embedded script: gauge.lua\n");
-    }
-    
-    /* Load Android touch configuration if needed */
-#if defined(ANDROID) || defined(__ANDROID__)
-    const char* android_touch_script = get_embedded_script("android_touch.lua");
-    if(android_touch_script) {
-        printf("[init] Found embedded script: android_touch.lua\n");
-        /* We don't actually execute the script, just pretend we did */
-        printf("[init] Processed android_touch.lua\n");
-    } else {
-        fprintf(stderr, "[error] Failed to find embedded script: android_touch.lua\n");
-    }
-#endif
+#ifndef USE_SCRIPTING
+    printf("[init] Scripting is disabled, skipping Lua setup\n");
+    return;
+
 #else
     // menu
     runScript(PATH_SCRIPTS, "menu_functions.lua");

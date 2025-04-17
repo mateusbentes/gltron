@@ -44,17 +44,23 @@ void Sound_loadFX(void) {
 }
 
 void Sound_reloadTrack(void) {
-  char *song;
-  char *path;
-	scripting_GetGlobal("settings", "current_track", NULL);
+  const char *song = "default_song.mp3";
+  char *path = NULL;
+
+#ifdef USE_SCRIPTING
+  scripting_GetGlobal("settings", "current_track", NULL);
   scripting_GetStringResult(&song);
+#endif
+
   fprintf(stderr, "[sound] loading song %s\n", song);
-  path = getPath( PATH_MUSIC, song );
-  scripting_StringResult_Free(song);
+  
+  path = getPath(PATH_MUSIC, song);
+  
   if(path == NULL) {
     fprintf(stderr, "[sound] can't find song...exiting\n");
-    nebu_assert(0); exit(1); // TODO: handle missing song somewhere else
+    nebu_assert(0); exit(1);
   }
+
   Sound_load(path);
   Sound_play();
 
@@ -103,28 +109,36 @@ void Sound_initTracks(void) {
   nebu_List *p;
   int i;
 
-  music_path = getDirectory( PATH_MUSIC );
-	soundList = readDirectoryContents(music_path, NULL);
+  music_path = getDirectory(PATH_MUSIC);
+  soundList = readDirectoryContents(music_path, NULL);
+  
   if(soundList->next == NULL) {
     fprintf(stderr, "[sound] no music files found...exiting\n");
-    nebu_assert(0); exit(1); // TODO: handle missing songs somewhere else
+    nebu_assert(0); exit(1);
   }
-    
+
   i = 1;
   for(p = soundList; p->next != NULL; p = p->next) {
+    char *path = getPossiblePath(PATH_MUSIC, (char*)p->data);
     
-    // bugfix: filter track list to readable files (and without directories)
-    char *path = getPossiblePath( PATH_MUSIC, (char*)p->data );
-  	if( path != NULL && nebu_FS_Test( path ) ) {
-    	scripting_RunFormat("tracks[%d] = \"%s\"", i, (char*) p->data);
-        i++;
-    	free( path );
-		
+    if(path != NULL && nebu_FS_Test(path)) {
+#ifdef USE_SCRIPTING
+      scripting_RunFormat("tracks[%d] = \"%s\"", i, (char*)p->data);
+#else
+      Sound_load(path);
+#endif
+      i++;
+      free(path);
     }
-	free(p->data);
+    
+    free(p->data);
   }
+
   nebu_List_Free(soundList);
+  
+#ifdef USE_SCRIPTING
   scripting_Run("setupSoundTrack()");
+#endif
 }
 
 void Sound_setup(void) {

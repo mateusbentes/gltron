@@ -385,7 +385,11 @@ void GameMode_Idle(void) {
 	Game_Idle();
 	Video_Idle();
 	Input_Idle();
+
+    #ifdef USE_SCRIPTING
 	Scripting_Idle();
+    #endif
+    
 	nebu_Time_FrameDelay(5);
 	nebu_System_PostRedisplay();
 }

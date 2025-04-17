@@ -41,165 +41,110 @@ void keyGame(int state, int k, int x, int y)
 {
 	int i;
 
-	// detect modifier states (at least those we care about
-	switch (k)
-	{
-	case SYSTEM_KEY_ALT_LEFT:
-		isAltLeftPressed = state == NEBU_INPUT_KEYSTATE_DOWN ? 1 :0;
-		break;
-	case SYSTEM_KEY_ALT_RIGHT:
-		isAltRightPressed = state == NEBU_INPUT_KEYSTATE_DOWN ? 1 :0;
-		break;
-	case SYSTEM_KEY_CAPS_LOCK:
-		isCapsLockPressed = state == NEBU_INPUT_KEYSTATE_DOWN ? 1 : 0;
-		break;
+	switch (k) {
+		case SYSTEM_KEY_ALT_LEFT:
+			isAltLeftPressed = (state == NEBU_INPUT_KEYSTATE_DOWN);
+			break;
+		case SYSTEM_KEY_ALT_RIGHT:
+			isAltRightPressed = (state == NEBU_INPUT_KEYSTATE_DOWN);
+			break;
+		case SYSTEM_KEY_CAPS_LOCK:
+			isCapsLockPressed = (state == NEBU_INPUT_KEYSTATE_DOWN);
+			break;
 	}
 
-	if(state == NEBU_INPUT_KEYSTATE_DOWN)
-	{
-		switch (k)
-		{
-		case 27:
-			game->pauseflag = PAUSE_GAME_SUSPENDED;
-			nebu_System_ExitLoop(eSRC_Game_Escape);
-			return;
-		case ' ':
-			game->pauseflag = PAUSE_GAME_SUSPENDED;
-			nebu_System_ExitLoop(eSRC_Game_Pause);
-			return;
-		case SYSTEM_KEY_F1: changeDisplay(0); return;
-		case SYSTEM_KEY_F2: changeDisplay(1); return;
-		case SYSTEM_KEY_F3: changeDisplay(2); return;
-		case SYSTEM_KEY_F4: changeDisplay(3); return;
-
-		// somehow, this breaks the 'keys' array, and saving
-		// at the end of the game fails
-		// case SYSTEM_KEY_F5: saveSettings(); return;
-
-		case SYSTEM_KEY_F10: nextCameraType(); return;
-		case SYSTEM_KEY_F11: doBmpScreenShot(gScreen); return;
-		case SYSTEM_KEY_F12: doPngScreenShot(gScreen); return;
-
-		case SYSTEM_KEY_F6: console_Seek(-1); return;
-		case SYSTEM_KEY_F7: console_Seek(1); return;
-
-		case SYSTEM_KEY_F8:
-			// toggle wireframe setting
-			setSettingi("wireframe", getSettingi("wireframe") ? 0 : 1);
-			return;
-
-    /* toggle lighting
-  case SYSTEM_KEY_F6: 
-      setSettingi("light_cycles", !game->settings->light_cycles);
-      return;
-    */
+	if (state == NEBU_INPUT_KEYSTATE_DOWN) {
+		switch (k) {
+			case 27:
+				game->pauseflag = PAUSE_GAME_SUSPENDED;
+				nebu_System_ExitLoop(eSRC_Game_Escape);
+				return;
+			case ' ':
+				game->pauseflag = PAUSE_GAME_SUSPENDED;
+				nebu_System_ExitLoop(eSRC_Game_Pause);
+				return;
+			case SYSTEM_KEY_F1: changeDisplay(0); return;
+			case SYSTEM_KEY_F2: changeDisplay(1); return;
+			case SYSTEM_KEY_F3: changeDisplay(2); return;
+			case SYSTEM_KEY_F4: changeDisplay(3); return;
+			case SYSTEM_KEY_F10: nextCameraType(); return;
+			case SYSTEM_KEY_F11: doBmpScreenShot(gScreen); return;
+			case SYSTEM_KEY_F12: doPngScreenShot(gScreen); return;
+			case SYSTEM_KEY_F6: console_Seek(-1); return;
+			case SYSTEM_KEY_F7: console_Seek(1); return;
+			case SYSTEM_KEY_F8:
+				setSettingi("wireframe", getSettingi("wireframe") ? 0 : 1);
+				return;
 		}
 	}
-	// foreach player, check if the player's movement keys are pressed
-	// TODO: This is ugly as else, better create a mapping for each 
-	// key to each action
-	for( i = 0; i < game->players; i++)
-	{
-		if(PLAYER_IS_ACTIVE(&game->player[i]) &&
-			 !game->player[i].ai.active)
-		{
+
+	for (i = 0; i < game->players; i++) {
+		if (PLAYER_IS_ACTIVE(&game->player[i]) && !game->player[i].ai.active) {
+#ifdef USE_SCRIPTING
 			int key;
-			if(state == NEBU_INPUT_KEYSTATE_DOWN)
-			{ 
+			if (state == NEBU_INPUT_KEYSTATE_DOWN) {
 				scripting_RunFormat("return settings.keys[%d].left", i + 1);
-				scripting_GetIntegerResult( &key );
-				if(key == k)
-				{
+				scripting_GetIntegerResult(&key);
+				if (key == k) {
 					createEvent(i, EVENT_TURN_LEFT);
 					return;
 				}
 				scripting_RunFormat("return settings.keys[%d].right", i + 1);
-				scripting_GetIntegerResult( &key );
-				if(key == k)
-				{
+				scripting_GetIntegerResult(&key);
+				if (key == k) {
 					createEvent(i, EVENT_TURN_RIGHT);
 					return;
 				}
 			}
-			// deal with glance keys
+			// Glance left
 			scripting_RunFormat("return settings.keys[%d].glance_left", i + 1);
-			scripting_GetIntegerResult( &key );
-			if(key == k)
-			{
-				if(state == NEBU_INPUT_KEYSTATE_DOWN)
-				{
-					// printf("glance left down\n");
-					gppPlayerVisuals[i]->camera.bIsGlancing = 1;
-				}
-				else
-				{
-					// printf("glance left up\n");
-					gppPlayerVisuals[i]->camera.bIsGlancing = 0;
-				}
+			scripting_GetIntegerResult(&key);
+			if (key == k) {
+				gppPlayerVisuals[i]->camera.bIsGlancing = (state == NEBU_INPUT_KEYSTATE_DOWN) ? 1 : 0;
 				return;
 			}
-			// deal with glance keys
+			// Glance right
 			scripting_RunFormat("return settings.keys[%d].glance_right", i + 1);
-			scripting_GetIntegerResult( &key );
-			if(key == k)
-			{
-				if(state == NEBU_INPUT_KEYSTATE_DOWN)
-				{
-					// printf("glance right down\n");
-					gppPlayerVisuals[i]->camera.bIsGlancing = -1;
-				} else {
-					// printf("glance right up\n");
-					gppPlayerVisuals[i]->camera.bIsGlancing = 0;
-				}
+			scripting_GetIntegerResult(&key);
+			if (key == k) {
+				gppPlayerVisuals[i]->camera.bIsGlancing = (state == NEBU_INPUT_KEYSTATE_DOWN) ? -1 : 0;
 				return;
 			}
-			// boost
+			// Boost
 			scripting_RunFormat("return settings.keys[%d].boost", i + 1);
-			scripting_GetIntegerResult( &key );
-			if(key == k)
-			{
-				if(state == NEBU_INPUT_KEYSTATE_DOWN)
-				{
-					// printf("boost down\n");
-					if(getSettingi("booster_on") &&
-						game->player[i].data.energy > getSettingf("booster_min"))
-					{
+			scripting_GetIntegerResult(&key);
+			if (key == k) {
+				if (state == NEBU_INPUT_KEYSTATE_DOWN) {
+					if (getSettingi("booster_on") &&
+						game->player[i].data.energy > getSettingf("booster_min")) {
 						game->player[i].data.boost_enabled = 1;
 					}
-				}
-				else
-				{
-					// printf("boost up\n");
+				} else {
 					game->player[i].data.boost_enabled = 0;
 				}
 				return;
 			}
-			// wallbuster
+			// Wallbuster
 			scripting_RunFormat("return settings.keys[%d].bust", i + 1);
-			scripting_GetIntegerResult( &key );
-			if(key == k)
-			{
-				if(state == NEBU_INPUT_KEYSTATE_DOWN)
-				{
-					// printf("wall_buster down\n");
-					if(getSettingi("wall_buster_on") &&
-						game->player[i].data.energy > getSettingf("wall_buster_min"))
-					{
+			scripting_GetIntegerResult(&key);
+			if (key == k) {
+				if (state == NEBU_INPUT_KEYSTATE_DOWN) {
+					if (getSettingi("wall_buster_on") &&
+						game->player[i].data.energy > getSettingf("wall_buster_min")) {
 						game->player[i].data.wall_buster_enabled = 1;
 					}
-				}
-				else
-				{
-					// printf("wall_buster up\n");
+				} else {
 					game->player[i].data.wall_buster_enabled = 0;
 				}
 				return;
 			}
+#endif // USE_SCRIPTING
 		}
 	}
-	if(state == NEBU_INPUT_KEYSTATE_DOWN) {
-		displayMessage(TO_STDERR, "key '%s' (%d) is not bound", 
-									 nebu_Input_GetKeyname(k), k);
+
+	if (state == NEBU_INPUT_KEYSTATE_DOWN) {
+		displayMessage(TO_STDERR, "key '%s' (%d) is not bound",
+			nebu_Input_GetKeyname(k), k);
 	}
 }
 

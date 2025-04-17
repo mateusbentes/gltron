@@ -196,10 +196,23 @@ void drawGame() {
 
     // Draw the skybox
     printf("[drawGame] Drawing skybox\n");
+
+    if (!gWorld) {
+        printf("[drawGame] gWorld is NULL!\n");
+        return;
+    }
+    
     if (gWorld->skybox) {
+        printf("[drawGame] gWorld->skybox is not NULL\n");
+    } else {
+        printf("[drawGame] gWorld->skybox is NULL\n");
+    }
+    
+    if (gWorld->Skybox) {
+        printf("[drawGame] gWorld->Skybox is not NULL, drawing...\n");
         drawSkybox(gWorld->Skybox);
     } else {
-        printf("[drawGame] Skybox not available\n");
+        printf("[drawGame] gWorld->Skybox is NULL, skipping drawSkybox()\n");
     }
 
     // Draw the floor

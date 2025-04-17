@@ -10,7 +10,6 @@
 #include "game/resource.h"
 #include "base/nebu_resource.h"
 
-#include "Nebu_scripting.h"
 #include "video/nebu_renderer_gl.h"
 #include "video/nebu_mesh.h"
 
@@ -19,9 +18,12 @@
 
 #include "base/nebu_debug_memory.h"
 
+#ifdef USE_SCRIPTING
+#include "Nebu_scripting.h"
 #include <lua.h>
 #include <lauxlib.h>
 #include <lualib.h>
+#endif
 
 /* Forward declarations for functions used in video_CreateLevel */
 // gltron_Mesh* createFloorMesh(void);  // Commented out to avoid compilation errors
@@ -172,6 +174,7 @@ int level_LoadTexture() {
 
 	meta.format = GL_RGBA;
 
+#ifdef USE_SCRIPTING
 	scripting_GetValue("min_filter");
 	scripting_GetIntegerResult(&result);
 	meta.min_filter = filter[result];
@@ -200,14 +203,27 @@ int level_LoadTexture() {
 	}
 
 	scripting_GetValue("file");
-	scripting_GetStringResult(& filename);
+	scripting_GetStringResult(&filename);
+#else
+	meta.min_filter = GL_LINEAR;
+	meta.mag_filter = GL_LINEAR;
+	meta.wrap_s = GL_REPEAT;
+	meta.wrap_t = GL_REPEAT;
+	meta.anisotropy = 1.0f;
+	filename = "default_texture.png";  // Placeholder for non-scripting
+#endif
+
 	rid = resource_GetTokenMeta(filename, eRT_Texture, &meta, sizeof(nebu_Texture2D_meta));
+
+#ifdef USE_SCRIPTING
 	scripting_StringResult_Free(filename);
+#endif
 
 	return rid;
 }
 
 void level_LoadShader(video_level_shader *shader) {
+#ifdef USE_SCRIPTING
 	scripting_GetValue("shading");
 	scripting_GetValue("lit");
 	scripting_GetIntegerResult(& shader->lit);
@@ -250,6 +266,13 @@ void level_LoadShader(video_level_shader *shader) {
 	}
 	scripting_Pop(); // textures
 	scripting_Pop(); // shading
+#else
+	shader->lit = 1;
+	shader->passes = 1;
+	shader->ridTexture = 0;
+	shader->idTexture = 0;
+	shader->fDiffuseTextureScale = 1.0f;
+#endif
 }
 
 void loadModel(gltron_Mesh **ppMesh, int *pToken)
@@ -257,6 +280,7 @@ void loadModel(gltron_Mesh **ppMesh, int *pToken)
     nebu_assert(!*pToken);
     nebu_assert(!*ppMesh);
 
+#ifdef USE_SCRIPTING
     scripting_GetValue("model");
     if(scripting_IsNil())
     {
@@ -294,6 +318,10 @@ void loadModel(gltron_Mesh **ppMesh, int *pToken)
         }
         *ppMesh = resource_Get(*pToken, eRT_GLtronTriMesh);
     }
+#else
+    printf("[video] Loading mesh without scripting\n");
+    *ppMesh = loadMesh();
+#endif
 }
 
 video_level* video_CreateLevel(void) {

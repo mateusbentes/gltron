@@ -15,6 +15,8 @@
 // Global variable to store the Lua state
 static lua_State *lua_state = NULL;
 
+#ifdef USE_SCRIPTING
+
 // static lua_State *L;
 lua_State *L;
 FILE* scripting_debug = NULL;
@@ -451,3 +453,5 @@ int scripting_GetOptional_Int(const char *name, int *i, int iValue)
 	}
 	return retValue;
 }
+
+#endif
