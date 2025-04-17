@@ -961,9 +961,61 @@ void drawCam2(Camera *pCamera)
 	// - recognizer
 }
 
+void crossProduct(vec3 *a, vec3 *b, vec3 *result) {
+    result->v[0] = a->v[1] * b->v[2] - a->v[2] * b->v[1];
+    result->v[1] = a->v[2] * b->v[0] - a->v[0] * b->v[2];
+    result->v[2] = a->v[0] * b->v[1] - a->v[1] * b->v[0];
+}
 
+float dotProduct(vec3 *a, vec3 *b) {
+    return a->v[0] * b->v[0] + a->v[1] * b->v[1] + a->v[2] * b->v[2];
+}
+
+void normalize(vec3 *v) {
+    float length = sqrt(v->v[0] * v->v[0] + v->v[1] * v->v[1] + v->v[2] * v->v[2]);
+    v->v[0] /= length;
+    v->v[1] /= length;
+    v->v[2] /= length;
+}
+
+void computeViewMatrix(Camera *cam, float *outMatrix) {
+    // Camera and target position vectors
+    vec3 forward, right, up;
+    
+    // Calcular o vetor de direção (forward) da câmera
+    forward.v[0] = cam->target[0] - cam->cam[0];
+    forward.v[1] = cam->target[1] - cam->cam[1];
+    forward.v[2] = cam->target[2] - cam->cam[2];
+    
+    // Normalize the direction vector (forward)
+    normalize(&forward);
+    
+    // Calculate the right vector, which is orthogonal to the forward vector
+    up.v[0] = 0.0f;
+    up.v[1] = 0.0f;
+    up.v[2] = 1.0f; // The "up" vector assumes the positive Z direction
+    crossProduct(&up, &forward, &right);
+    normalize(&right);
+    
+    // Recalculate the up vector
+    crossProduct(&forward, &right, &up);
+    normalize(&up);
+
+    // Assemble the 4x4 display matrix
+    outMatrix[0] = right.v[0];  outMatrix[4] = right.v[1];  outMatrix[8]  = right.v[2];  outMatrix[12] = -dotProduct(&right, &forward);
+    outMatrix[1] = up.v[0];     outMatrix[5] = up.v[1];     outMatrix[9]  = up.v[2];     outMatrix[13] = -dotProduct(&up, &forward);
+    outMatrix[2] = -forward.v[0]; outMatrix[6] = -forward.v[1]; outMatrix[10] = -forward.v[2]; outMatrix[14] = dotProduct(&forward, &forward);
+    outMatrix[3] = 0.0f;        outMatrix[7] = 0.0f;        outMatrix[11] = 0.0f;        outMatrix[15] = 1.0f;
+}
 
 void drawWorld(Camera *pCamera) {
+    
+    // === Apply the camera transformation ===
+    float viewMatrix[16];
+    computeViewMatrix(pCamera, viewMatrix);
+    glMatrixMode(GL_MODELVIEW);
+    glLoadMatrixf(viewMatrix);
+    
     int i;
 
     printf("[drawWorld] Drawing world\n");
