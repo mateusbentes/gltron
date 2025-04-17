@@ -538,7 +538,7 @@ CMakeFiles/verify_local_data.dir/clean:
 lua5/CMakeFiles/lua5.dir/all:
 	$(MAKE) $(MAKESILENT) -f lua5/CMakeFiles/lua5.dir/build.make lua5/CMakeFiles/lua5.dir/depend
 	$(MAKE) $(MAKESILENT) -f lua5/CMakeFiles/lua5.dir/build.make lua5/CMakeFiles/lua5.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=40,41,42,43,44,45,46,47,48,49,50 "Built target lua5"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=39,40,41,42,43,44,45,46,47,48,49 "Built target lua5"
 .PHONY : lua5/CMakeFiles/lua5.dir/all
 
 # Build rule for subdir invocation for target.
@@ -564,7 +564,7 @@ lua5/CMakeFiles/lua5.dir/clean:
 lua5/CMakeFiles/lualib5.dir/all:
 	$(MAKE) $(MAKESILENT) -f lua5/CMakeFiles/lualib5.dir/build.make lua5/CMakeFiles/lualib5.dir/depend
 	$(MAKE) $(MAKESILENT) -f lua5/CMakeFiles/lualib5.dir/build.make lua5/CMakeFiles/lualib5.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=51,52,53,54,55 "Built target lualib5"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=50,51,52,53,54 "Built target lualib5"
 .PHONY : lua5/CMakeFiles/lualib5.dir/all
 
 # Build rule for subdir invocation for target.
@@ -590,7 +590,7 @@ lua5/CMakeFiles/lualib5.dir/clean:
 lib3ds/CMakeFiles/lib3ds.dir/all:
 	$(MAKE) $(MAKESILENT) -f lib3ds/CMakeFiles/lib3ds.dir/build.make lib3ds/CMakeFiles/lib3ds.dir/depend
 	$(MAKE) $(MAKESILENT) -f lib3ds/CMakeFiles/lib3ds.dir/build.make lib3ds/CMakeFiles/lib3ds.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=29,30,31,32,33,34,35,36,37,38,39 "Built target lib3ds"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=28,29,30,31,32,33,34,35,36,37,38 "Built target lib3ds"
 .PHONY : lib3ds/CMakeFiles/lib3ds.dir/all
 
 # Build rule for subdir invocation for target.
@@ -624,7 +624,7 @@ nebu/CMakeFiles/nebu_system.dir/all: nebu/base/CMakeFiles/nebu_base.dir/all
 
 # Build rule for subdir invocation for target.
 nebu/CMakeFiles/nebu_system.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/mateus/gltron/CMakeFiles 23
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/mateus/gltron/CMakeFiles 24
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 nebu/CMakeFiles/nebu_system.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/mateus/gltron/CMakeFiles 0
 .PHONY : nebu/CMakeFiles/nebu_system.dir/rule
@@ -672,12 +672,12 @@ nebu/audio/CMakeFiles/nebu_audio.dir/all: CMakeFiles/sdl_compat.dir/all
 nebu/audio/CMakeFiles/nebu_audio.dir/all: nebu/base/CMakeFiles/nebu_base.dir/all
 	$(MAKE) $(MAKESILENT) -f nebu/audio/CMakeFiles/nebu_audio.dir/build.make nebu/audio/CMakeFiles/nebu_audio.dir/depend
 	$(MAKE) $(MAKESILENT) -f nebu/audio/CMakeFiles/nebu_audio.dir/build.make nebu/audio/CMakeFiles/nebu_audio.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=56,57,58,59,60 "Built target nebu_audio"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=55,56,57,58,59 "Built target nebu_audio"
 .PHONY : nebu/audio/CMakeFiles/nebu_audio.dir/all
 
 # Build rule for subdir invocation for target.
 nebu/audio/CMakeFiles/nebu_audio.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/mateus/gltron/CMakeFiles 12
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/mateus/gltron/CMakeFiles 13
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 nebu/audio/CMakeFiles/nebu_audio.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/mateus/gltron/CMakeFiles 0
 .PHONY : nebu/audio/CMakeFiles/nebu_audio.dir/rule
@@ -705,7 +705,7 @@ nebu/video/CMakeFiles/nebu_video.dir/all: nebu/base/CMakeFiles/nebu_base.dir/all
 
 # Build rule for subdir invocation for target.
 nebu/video/CMakeFiles/nebu_video.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/mateus/gltron/CMakeFiles 21
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/mateus/gltron/CMakeFiles 22
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 nebu/video/CMakeFiles/nebu_video.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/mateus/gltron/CMakeFiles 0
 .PHONY : nebu/video/CMakeFiles/nebu_video.dir/rule
@@ -780,12 +780,12 @@ nebu/filesystem/CMakeFiles/nebu_filesystem.dir/clean:
 nebu/base/CMakeFiles/nebu_base.dir/all: CMakeFiles/sdl_compat.dir/all
 	$(MAKE) $(MAKESILENT) -f nebu/base/CMakeFiles/nebu_base.dir/build.make nebu/base/CMakeFiles/nebu_base.dir/depend
 	$(MAKE) $(MAKESILENT) -f nebu/base/CMakeFiles/nebu_base.dir/build.make nebu/base/CMakeFiles/nebu_base.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=61,62,63,64,65,66 "Built target nebu_base"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=60,61,62,63,64,65,66 "Built target nebu_base"
 .PHONY : nebu/base/CMakeFiles/nebu_base.dir/all
 
 # Build rule for subdir invocation for target.
 nebu/base/CMakeFiles/nebu_base.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/mateus/gltron/CMakeFiles 7
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/mateus/gltron/CMakeFiles 8
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 nebu/base/CMakeFiles/nebu_base.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/mateus/gltron/CMakeFiles 0
 .PHONY : nebu/base/CMakeFiles/nebu_base.dir/rule
@@ -818,7 +818,7 @@ src/game/CMakeFiles/game.dir/all: nebu/base/CMakeFiles/nebu_base.dir/all
 
 # Build rule for subdir invocation for target.
 src/game/CMakeFiles/game.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/mateus/gltron/CMakeFiles 54
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/mateus/gltron/CMakeFiles 55
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 src/game/CMakeFiles/game.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/mateus/gltron/CMakeFiles 0
 .PHONY : src/game/CMakeFiles/game.dir/rule
@@ -847,7 +847,7 @@ src/input/CMakeFiles/input.dir/all: nebu/base/CMakeFiles/nebu_base.dir/all
 src/input/CMakeFiles/input.dir/all: src/game/CMakeFiles/game.dir/all
 	$(MAKE) $(MAKESILENT) -f src/input/CMakeFiles/input.dir/build.make src/input/CMakeFiles/input.dir/depend
 	$(MAKE) $(MAKESILENT) -f src/input/CMakeFiles/input.dir/build.make src/input/CMakeFiles/input.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=27,28 "Built target input"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=27 "Built target input"
 .PHONY : src/input/CMakeFiles/input.dir/all
 
 # Build rule for subdir invocation for target.
@@ -881,7 +881,7 @@ src/audio/CMakeFiles/audio.dir/all: nebu/base/CMakeFiles/nebu_base.dir/all
 
 # Build rule for subdir invocation for target.
 src/audio/CMakeFiles/audio.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/mateus/gltron/CMakeFiles 17
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/mateus/gltron/CMakeFiles 18
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 src/audio/CMakeFiles/audio.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/mateus/gltron/CMakeFiles 0
 .PHONY : src/audio/CMakeFiles/audio.dir/rule
@@ -915,7 +915,7 @@ src/video/CMakeFiles/video.dir/all: nebu/base/CMakeFiles/nebu_base.dir/all
 
 # Build rule for subdir invocation for target.
 src/video/CMakeFiles/video.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/mateus/gltron/CMakeFiles 59
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/mateus/gltron/CMakeFiles 60
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 src/video/CMakeFiles/video.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/mateus/gltron/CMakeFiles 0
 .PHONY : src/video/CMakeFiles/video.dir/rule
@@ -936,12 +936,12 @@ src/video/CMakeFiles/video.dir/clean:
 src/configuration/CMakeFiles/configuration.dir/all:
 	$(MAKE) $(MAKESILENT) -f src/configuration/CMakeFiles/configuration.dir/build.make src/configuration/CMakeFiles/configuration.dir/depend
 	$(MAKE) $(MAKESILENT) -f src/configuration/CMakeFiles/configuration.dir/build.make src/configuration/CMakeFiles/configuration.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=7,8 "Built target configuration"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=7,8,9 "Built target configuration"
 .PHONY : src/configuration/CMakeFiles/configuration.dir/all
 
 # Build rule for subdir invocation for target.
 src/configuration/CMakeFiles/configuration.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/mateus/gltron/CMakeFiles 2
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/mateus/gltron/CMakeFiles 3
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 src/configuration/CMakeFiles/configuration.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/mateus/gltron/CMakeFiles 0
 .PHONY : src/configuration/CMakeFiles/configuration.dir/rule
@@ -989,12 +989,12 @@ src/filesystem/CMakeFiles/filesystem.dir/all: CMakeFiles/sdl_compat.dir/all
 src/filesystem/CMakeFiles/filesystem.dir/all: nebu/filesystem/CMakeFiles/nebu_filesystem.dir/all
 	$(MAKE) $(MAKESILENT) -f src/filesystem/CMakeFiles/filesystem.dir/build.make src/filesystem/CMakeFiles/filesystem.dir/depend
 	$(MAKE) $(MAKESILENT) -f src/filesystem/CMakeFiles/filesystem.dir/build.make src/filesystem/CMakeFiles/filesystem.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=9,10,11 "Built target filesystem"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=10,11 "Built target filesystem"
 .PHONY : src/filesystem/CMakeFiles/filesystem.dir/all
 
 # Build rule for subdir invocation for target.
 src/filesystem/CMakeFiles/filesystem.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/mateus/gltron/CMakeFiles 6
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/mateus/gltron/CMakeFiles 5
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 src/filesystem/CMakeFiles/filesystem.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/mateus/gltron/CMakeFiles 0
 .PHONY : src/filesystem/CMakeFiles/filesystem.dir/rule

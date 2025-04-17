@@ -70,16 +70,11 @@ int main(int argc, char *argv[] ) {
     /* Initialize subsystems */
     initSubsystems(argc, (const char**) argv);
 
-#ifdef USE_EMBEDDED_SCRIPTS
-    /* Process main.lua from embedded scripts */
-    printf("[main] Processing embedded main.lua\n");
-    process_embedded_main();
-
     /* Initialize the game world before rendering */
     printf("[main] Initializing game world\n");
     if (!gWorld) {
-        //printf("[main] Creating game world\n");
-        //video_LoadLevel();
+        // printf("[main] Creating game world\n");
+        // video_LoadLevel(); // Caso precise carregar um nível
         if (!gWorld) {
             fprintf(stderr, "[error] Failed to create game world\n");
         } else {
@@ -116,11 +111,6 @@ int main(int argc, char *argv[] ) {
     /* Enter main loop */
     printf("[main] Entering main loop\n");
     nebu_System_MainLoop();
-
-#else
-    /* Run main.lua from file */
-    runScript(PATH_SCRIPTS, "main.lua");
-#endif
 
     /* Exit subsystems */
     exitSubsystems();

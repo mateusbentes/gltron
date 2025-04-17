@@ -5,9 +5,6 @@ file(GLOB HEADERS "*.h")
 # Remove scripting_helpers.c from the build
 list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/scripting_helpers.c")
 
-# Add embedded_processing.c explicitly
-list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/embedded_processing.c")
-
 # Create the library
 add_library(game STATIC ${SOURCES} ${HEADERS})
 

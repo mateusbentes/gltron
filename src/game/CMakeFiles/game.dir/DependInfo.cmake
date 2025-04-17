@@ -15,8 +15,6 @@ set(CMAKE_DEPENDS_DEPENDENCY_FILES
   "/home/mateus/gltron/src/game/computer.c" "src/game/CMakeFiles/game.dir/computer.c.o" "gcc" "src/game/CMakeFiles/game.dir/computer.c.o.d"
   "/home/mateus/gltron/src/game/computer_utilities.c" "src/game/CMakeFiles/game.dir/computer_utilities.c.o" "gcc" "src/game/CMakeFiles/game.dir/computer_utilities.c.o.d"
   "/home/mateus/gltron/src/game/credits.c" "src/game/CMakeFiles/game.dir/credits.c.o" "gcc" "src/game/CMakeFiles/game.dir/credits.c.o.d"
-  "/home/mateus/gltron/src/game/embedded_processing.c" "src/game/CMakeFiles/game.dir/embedded_processing.c.o" "gcc" "src/game/CMakeFiles/game.dir/embedded_processing.c.o.d"
-  "/home/mateus/gltron/src/game/embedded_scripts.c" "src/game/CMakeFiles/game.dir/embedded_scripts.c.o" "gcc" "src/game/CMakeFiles/game.dir/embedded_scripts.c.o.d"
   "/home/mateus/gltron/src/game/engine.c" "src/game/CMakeFiles/game.dir/engine.c.o" "gcc" "src/game/CMakeFiles/game.dir/engine.c.o.d"
   "/home/mateus/gltron/src/game/event.c" "src/game/CMakeFiles/game.dir/event.c.o" "gcc" "src/game/CMakeFiles/game.dir/event.c.o.d"
   "/home/mateus/gltron/src/game/game.c" "src/game/CMakeFiles/game.dir/game.c.o" "gcc" "src/game/CMakeFiles/game.dir/game.c.o.d"

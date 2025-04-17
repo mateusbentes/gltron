@@ -167,38 +167,10 @@ src/game/CMakeFiles/game.dir/credits.c.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling C source to assembly CMakeFiles/game.dir/credits.c.s"
 	cd /home/mateus/gltron/src/game && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -S /home/mateus/gltron/src/game/credits.c -o CMakeFiles/game.dir/credits.c.s
 
-src/game/CMakeFiles/game.dir/embedded_processing.c.o: src/game/CMakeFiles/game.dir/flags.make
-src/game/CMakeFiles/game.dir/embedded_processing.c.o: src/game/embedded_processing.c
-src/game/CMakeFiles/game.dir/embedded_processing.c.o: src/game/CMakeFiles/game.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Building C object src/game/CMakeFiles/game.dir/embedded_processing.c.o"
-	cd /home/mateus/gltron/src/game && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT src/game/CMakeFiles/game.dir/embedded_processing.c.o -MF CMakeFiles/game.dir/embedded_processing.c.o.d -o CMakeFiles/game.dir/embedded_processing.c.o -c /home/mateus/gltron/src/game/embedded_processing.c
-
-src/game/CMakeFiles/game.dir/embedded_processing.c.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing C source to CMakeFiles/game.dir/embedded_processing.c.i"
-	cd /home/mateus/gltron/src/game && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -E /home/mateus/gltron/src/game/embedded_processing.c > CMakeFiles/game.dir/embedded_processing.c.i
-
-src/game/CMakeFiles/game.dir/embedded_processing.c.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling C source to assembly CMakeFiles/game.dir/embedded_processing.c.s"
-	cd /home/mateus/gltron/src/game && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -S /home/mateus/gltron/src/game/embedded_processing.c -o CMakeFiles/game.dir/embedded_processing.c.s
-
-src/game/CMakeFiles/game.dir/embedded_scripts.c.o: src/game/CMakeFiles/game.dir/flags.make
-src/game/CMakeFiles/game.dir/embedded_scripts.c.o: src/game/embedded_scripts.c
-src/game/CMakeFiles/game.dir/embedded_scripts.c.o: src/game/CMakeFiles/game.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Building C object src/game/CMakeFiles/game.dir/embedded_scripts.c.o"
-	cd /home/mateus/gltron/src/game && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT src/game/CMakeFiles/game.dir/embedded_scripts.c.o -MF CMakeFiles/game.dir/embedded_scripts.c.o.d -o CMakeFiles/game.dir/embedded_scripts.c.o -c /home/mateus/gltron/src/game/embedded_scripts.c
-
-src/game/CMakeFiles/game.dir/embedded_scripts.c.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing C source to CMakeFiles/game.dir/embedded_scripts.c.i"
-	cd /home/mateus/gltron/src/game && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -E /home/mateus/gltron/src/game/embedded_scripts.c > CMakeFiles/game.dir/embedded_scripts.c.i
-
-src/game/CMakeFiles/game.dir/embedded_scripts.c.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling C source to assembly CMakeFiles/game.dir/embedded_scripts.c.s"
-	cd /home/mateus/gltron/src/game && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -S /home/mateus/gltron/src/game/embedded_scripts.c -o CMakeFiles/game.dir/embedded_scripts.c.s
-
 src/game/CMakeFiles/game.dir/engine.c.o: src/game/CMakeFiles/game.dir/flags.make
 src/game/CMakeFiles/game.dir/engine.c.o: src/game/engine.c
 src/game/CMakeFiles/game.dir/engine.c.o: src/game/CMakeFiles/game.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=$(CMAKE_PROGRESS_10) "Building C object src/game/CMakeFiles/game.dir/engine.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Building C object src/game/CMakeFiles/game.dir/engine.c.o"
 	cd /home/mateus/gltron/src/game && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT src/game/CMakeFiles/game.dir/engine.c.o -MF CMakeFiles/game.dir/engine.c.o.d -o CMakeFiles/game.dir/engine.c.o -c /home/mateus/gltron/src/game/engine.c
 
 src/game/CMakeFiles/game.dir/engine.c.i: cmake_force
@@ -212,7 +184,7 @@ src/game/CMakeFiles/game.dir/engine.c.s: cmake_force
 src/game/CMakeFiles/game.dir/event.c.o: src/game/CMakeFiles/game.dir/flags.make
 src/game/CMakeFiles/game.dir/event.c.o: src/game/event.c
 src/game/CMakeFiles/game.dir/event.c.o: src/game/CMakeFiles/game.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=$(CMAKE_PROGRESS_11) "Building C object src/game/CMakeFiles/game.dir/event.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Building C object src/game/CMakeFiles/game.dir/event.c.o"
 	cd /home/mateus/gltron/src/game && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT src/game/CMakeFiles/game.dir/event.c.o -MF CMakeFiles/game.dir/event.c.o.d -o CMakeFiles/game.dir/event.c.o -c /home/mateus/gltron/src/game/event.c
 
 src/game/CMakeFiles/game.dir/event.c.i: cmake_force
@@ -226,7 +198,7 @@ src/game/CMakeFiles/game.dir/event.c.s: cmake_force
 src/game/CMakeFiles/game.dir/game.c.o: src/game/CMakeFiles/game.dir/flags.make
 src/game/CMakeFiles/game.dir/game.c.o: src/game/game.c
 src/game/CMakeFiles/game.dir/game.c.o: src/game/CMakeFiles/game.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=$(CMAKE_PROGRESS_12) "Building C object src/game/CMakeFiles/game.dir/game.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=$(CMAKE_PROGRESS_10) "Building C object src/game/CMakeFiles/game.dir/game.c.o"
 	cd /home/mateus/gltron/src/game && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT src/game/CMakeFiles/game.dir/game.c.o -MF CMakeFiles/game.dir/game.c.o.d -o CMakeFiles/game.dir/game.c.o -c /home/mateus/gltron/src/game/game.c
 
 src/game/CMakeFiles/game.dir/game.c.i: cmake_force
@@ -240,7 +212,7 @@ src/game/CMakeFiles/game.dir/game.c.s: cmake_force
 src/game/CMakeFiles/game.dir/game_level.c.o: src/game/CMakeFiles/game.dir/flags.make
 src/game/CMakeFiles/game.dir/game_level.c.o: src/game/game_level.c
 src/game/CMakeFiles/game.dir/game_level.c.o: src/game/CMakeFiles/game.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=$(CMAKE_PROGRESS_13) "Building C object src/game/CMakeFiles/game.dir/game_level.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=$(CMAKE_PROGRESS_11) "Building C object src/game/CMakeFiles/game.dir/game_level.c.o"
 	cd /home/mateus/gltron/src/game && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT src/game/CMakeFiles/game.dir/game_level.c.o -MF CMakeFiles/game.dir/game_level.c.o.d -o CMakeFiles/game.dir/game_level.c.o -c /home/mateus/gltron/src/game/game_level.c
 
 src/game/CMakeFiles/game.dir/game_level.c.i: cmake_force
@@ -254,7 +226,7 @@ src/game/CMakeFiles/game.dir/game_level.c.s: cmake_force
 src/game/CMakeFiles/game.dir/globals.c.o: src/game/CMakeFiles/game.dir/flags.make
 src/game/CMakeFiles/game.dir/globals.c.o: src/game/globals.c
 src/game/CMakeFiles/game.dir/globals.c.o: src/game/CMakeFiles/game.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=$(CMAKE_PROGRESS_14) "Building C object src/game/CMakeFiles/game.dir/globals.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=$(CMAKE_PROGRESS_12) "Building C object src/game/CMakeFiles/game.dir/globals.c.o"
 	cd /home/mateus/gltron/src/game && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT src/game/CMakeFiles/game.dir/globals.c.o -MF CMakeFiles/game.dir/globals.c.o.d -o CMakeFiles/game.dir/globals.c.o -c /home/mateus/gltron/src/game/globals.c
 
 src/game/CMakeFiles/game.dir/globals.c.i: cmake_force
@@ -268,7 +240,7 @@ src/game/CMakeFiles/game.dir/globals.c.s: cmake_force
 src/game/CMakeFiles/game.dir/gui.c.o: src/game/CMakeFiles/game.dir/flags.make
 src/game/CMakeFiles/game.dir/gui.c.o: src/game/gui.c
 src/game/CMakeFiles/game.dir/gui.c.o: src/game/CMakeFiles/game.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=$(CMAKE_PROGRESS_15) "Building C object src/game/CMakeFiles/game.dir/gui.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=$(CMAKE_PROGRESS_13) "Building C object src/game/CMakeFiles/game.dir/gui.c.o"
 	cd /home/mateus/gltron/src/game && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT src/game/CMakeFiles/game.dir/gui.c.o -MF CMakeFiles/game.dir/gui.c.o.d -o CMakeFiles/game.dir/gui.c.o -c /home/mateus/gltron/src/game/gui.c
 
 src/game/CMakeFiles/game.dir/gui.c.i: cmake_force
@@ -282,7 +254,7 @@ src/game/CMakeFiles/game.dir/gui.c.s: cmake_force
 src/game/CMakeFiles/game.dir/init.c.o: src/game/CMakeFiles/game.dir/flags.make
 src/game/CMakeFiles/game.dir/init.c.o: src/game/init.c
 src/game/CMakeFiles/game.dir/init.c.o: src/game/CMakeFiles/game.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=$(CMAKE_PROGRESS_16) "Building C object src/game/CMakeFiles/game.dir/init.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=$(CMAKE_PROGRESS_14) "Building C object src/game/CMakeFiles/game.dir/init.c.o"
 	cd /home/mateus/gltron/src/game && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT src/game/CMakeFiles/game.dir/init.c.o -MF CMakeFiles/game.dir/init.c.o.d -o CMakeFiles/game.dir/init.c.o -c /home/mateus/gltron/src/game/init.c
 
 src/game/CMakeFiles/game.dir/init.c.i: cmake_force
@@ -296,7 +268,7 @@ src/game/CMakeFiles/game.dir/init.c.s: cmake_force
 src/game/CMakeFiles/game.dir/init_stubs.c.o: src/game/CMakeFiles/game.dir/flags.make
 src/game/CMakeFiles/game.dir/init_stubs.c.o: src/game/init_stubs.c
 src/game/CMakeFiles/game.dir/init_stubs.c.o: src/game/CMakeFiles/game.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=$(CMAKE_PROGRESS_17) "Building C object src/game/CMakeFiles/game.dir/init_stubs.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=$(CMAKE_PROGRESS_15) "Building C object src/game/CMakeFiles/game.dir/init_stubs.c.o"
 	cd /home/mateus/gltron/src/game && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT src/game/CMakeFiles/game.dir/init_stubs.c.o -MF CMakeFiles/game.dir/init_stubs.c.o.d -o CMakeFiles/game.dir/init_stubs.c.o -c /home/mateus/gltron/src/game/init_stubs.c
 
 src/game/CMakeFiles/game.dir/init_stubs.c.i: cmake_force
@@ -310,7 +282,7 @@ src/game/CMakeFiles/game.dir/init_stubs.c.s: cmake_force
 src/game/CMakeFiles/game.dir/input.c.o: src/game/CMakeFiles/game.dir/flags.make
 src/game/CMakeFiles/game.dir/input.c.o: src/game/input.c
 src/game/CMakeFiles/game.dir/input.c.o: src/game/CMakeFiles/game.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=$(CMAKE_PROGRESS_18) "Building C object src/game/CMakeFiles/game.dir/input.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=$(CMAKE_PROGRESS_16) "Building C object src/game/CMakeFiles/game.dir/input.c.o"
 	cd /home/mateus/gltron/src/game && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT src/game/CMakeFiles/game.dir/input.c.o -MF CMakeFiles/game.dir/input.c.o.d -o CMakeFiles/game.dir/input.c.o -c /home/mateus/gltron/src/game/input.c
 
 src/game/CMakeFiles/game.dir/input.c.i: cmake_force
@@ -324,7 +296,7 @@ src/game/CMakeFiles/game.dir/input.c.s: cmake_force
 src/game/CMakeFiles/game.dir/level.c.o: src/game/CMakeFiles/game.dir/flags.make
 src/game/CMakeFiles/game.dir/level.c.o: src/game/level.c
 src/game/CMakeFiles/game.dir/level.c.o: src/game/CMakeFiles/game.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=$(CMAKE_PROGRESS_19) "Building C object src/game/CMakeFiles/game.dir/level.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=$(CMAKE_PROGRESS_17) "Building C object src/game/CMakeFiles/game.dir/level.c.o"
 	cd /home/mateus/gltron/src/game && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT src/game/CMakeFiles/game.dir/level.c.o -MF CMakeFiles/game.dir/level.c.o.d -o CMakeFiles/game.dir/level.c.o -c /home/mateus/gltron/src/game/level.c
 
 src/game/CMakeFiles/game.dir/level.c.i: cmake_force
@@ -338,7 +310,7 @@ src/game/CMakeFiles/game.dir/level.c.s: cmake_force
 src/game/CMakeFiles/game.dir/menu.c.o: src/game/CMakeFiles/game.dir/flags.make
 src/game/CMakeFiles/game.dir/menu.c.o: src/game/menu.c
 src/game/CMakeFiles/game.dir/menu.c.o: src/game/CMakeFiles/game.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=$(CMAKE_PROGRESS_20) "Building C object src/game/CMakeFiles/game.dir/menu.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=$(CMAKE_PROGRESS_18) "Building C object src/game/CMakeFiles/game.dir/menu.c.o"
 	cd /home/mateus/gltron/src/game && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT src/game/CMakeFiles/game.dir/menu.c.o -MF CMakeFiles/game.dir/menu.c.o.d -o CMakeFiles/game.dir/menu.c.o -c /home/mateus/gltron/src/game/menu.c
 
 src/game/CMakeFiles/game.dir/menu.c.i: cmake_force
@@ -352,7 +324,7 @@ src/game/CMakeFiles/game.dir/menu.c.s: cmake_force
 src/game/CMakeFiles/game.dir/pause.c.o: src/game/CMakeFiles/game.dir/flags.make
 src/game/CMakeFiles/game.dir/pause.c.o: src/game/pause.c
 src/game/CMakeFiles/game.dir/pause.c.o: src/game/CMakeFiles/game.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=$(CMAKE_PROGRESS_21) "Building C object src/game/CMakeFiles/game.dir/pause.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=$(CMAKE_PROGRESS_19) "Building C object src/game/CMakeFiles/game.dir/pause.c.o"
 	cd /home/mateus/gltron/src/game && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT src/game/CMakeFiles/game.dir/pause.c.o -MF CMakeFiles/game.dir/pause.c.o.d -o CMakeFiles/game.dir/pause.c.o -c /home/mateus/gltron/src/game/pause.c
 
 src/game/CMakeFiles/game.dir/pause.c.i: cmake_force
@@ -366,7 +338,7 @@ src/game/CMakeFiles/game.dir/pause.c.s: cmake_force
 src/game/CMakeFiles/game.dir/resource.c.o: src/game/CMakeFiles/game.dir/flags.make
 src/game/CMakeFiles/game.dir/resource.c.o: src/game/resource.c
 src/game/CMakeFiles/game.dir/resource.c.o: src/game/CMakeFiles/game.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=$(CMAKE_PROGRESS_22) "Building C object src/game/CMakeFiles/game.dir/resource.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=$(CMAKE_PROGRESS_20) "Building C object src/game/CMakeFiles/game.dir/resource.c.o"
 	cd /home/mateus/gltron/src/game && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT src/game/CMakeFiles/game.dir/resource.c.o -MF CMakeFiles/game.dir/resource.c.o.d -o CMakeFiles/game.dir/resource.c.o -c /home/mateus/gltron/src/game/resource.c
 
 src/game/CMakeFiles/game.dir/resource.c.i: cmake_force
@@ -380,7 +352,7 @@ src/game/CMakeFiles/game.dir/resource.c.s: cmake_force
 src/game/CMakeFiles/game.dir/scripting.c.o: src/game/CMakeFiles/game.dir/flags.make
 src/game/CMakeFiles/game.dir/scripting.c.o: src/game/scripting.c
 src/game/CMakeFiles/game.dir/scripting.c.o: src/game/CMakeFiles/game.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=$(CMAKE_PROGRESS_23) "Building C object src/game/CMakeFiles/game.dir/scripting.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=$(CMAKE_PROGRESS_21) "Building C object src/game/CMakeFiles/game.dir/scripting.c.o"
 	cd /home/mateus/gltron/src/game && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT src/game/CMakeFiles/game.dir/scripting.c.o -MF CMakeFiles/game.dir/scripting.c.o.d -o CMakeFiles/game.dir/scripting.c.o -c /home/mateus/gltron/src/game/scripting.c
 
 src/game/CMakeFiles/game.dir/scripting.c.i: cmake_force
@@ -394,7 +366,7 @@ src/game/CMakeFiles/game.dir/scripting.c.s: cmake_force
 src/game/CMakeFiles/game.dir/scripting_interface.c.o: src/game/CMakeFiles/game.dir/flags.make
 src/game/CMakeFiles/game.dir/scripting_interface.c.o: src/game/scripting_interface.c
 src/game/CMakeFiles/game.dir/scripting_interface.c.o: src/game/CMakeFiles/game.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=$(CMAKE_PROGRESS_24) "Building C object src/game/CMakeFiles/game.dir/scripting_interface.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=$(CMAKE_PROGRESS_22) "Building C object src/game/CMakeFiles/game.dir/scripting_interface.c.o"
 	cd /home/mateus/gltron/src/game && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT src/game/CMakeFiles/game.dir/scripting_interface.c.o -MF CMakeFiles/game.dir/scripting_interface.c.o.d -o CMakeFiles/game.dir/scripting_interface.c.o -c /home/mateus/gltron/src/game/scripting_interface.c
 
 src/game/CMakeFiles/game.dir/scripting_interface.c.i: cmake_force
@@ -408,7 +380,7 @@ src/game/CMakeFiles/game.dir/scripting_interface.c.s: cmake_force
 src/game/CMakeFiles/game.dir/switchCallbacks.c.o: src/game/CMakeFiles/game.dir/flags.make
 src/game/CMakeFiles/game.dir/switchCallbacks.c.o: src/game/switchCallbacks.c
 src/game/CMakeFiles/game.dir/switchCallbacks.c.o: src/game/CMakeFiles/game.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=$(CMAKE_PROGRESS_25) "Building C object src/game/CMakeFiles/game.dir/switchCallbacks.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=$(CMAKE_PROGRESS_23) "Building C object src/game/CMakeFiles/game.dir/switchCallbacks.c.o"
 	cd /home/mateus/gltron/src/game && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT src/game/CMakeFiles/game.dir/switchCallbacks.c.o -MF CMakeFiles/game.dir/switchCallbacks.c.o.d -o CMakeFiles/game.dir/switchCallbacks.c.o -c /home/mateus/gltron/src/game/switchCallbacks.c
 
 src/game/CMakeFiles/game.dir/switchCallbacks.c.i: cmake_force
@@ -422,7 +394,7 @@ src/game/CMakeFiles/game.dir/switchCallbacks.c.s: cmake_force
 src/game/CMakeFiles/game.dir/timedemo.c.o: src/game/CMakeFiles/game.dir/flags.make
 src/game/CMakeFiles/game.dir/timedemo.c.o: src/game/timedemo.c
 src/game/CMakeFiles/game.dir/timedemo.c.o: src/game/CMakeFiles/game.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=$(CMAKE_PROGRESS_26) "Building C object src/game/CMakeFiles/game.dir/timedemo.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=$(CMAKE_PROGRESS_24) "Building C object src/game/CMakeFiles/game.dir/timedemo.c.o"
 	cd /home/mateus/gltron/src/game && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT src/game/CMakeFiles/game.dir/timedemo.c.o -MF CMakeFiles/game.dir/timedemo.c.o.d -o CMakeFiles/game.dir/timedemo.c.o -c /home/mateus/gltron/src/game/timedemo.c
 
 src/game/CMakeFiles/game.dir/timedemo.c.i: cmake_force
@@ -436,7 +408,7 @@ src/game/CMakeFiles/game.dir/timedemo.c.s: cmake_force
 src/game/CMakeFiles/game.dir/touch_interface.c.o: src/game/CMakeFiles/game.dir/flags.make
 src/game/CMakeFiles/game.dir/touch_interface.c.o: src/game/touch_interface.c
 src/game/CMakeFiles/game.dir/touch_interface.c.o: src/game/CMakeFiles/game.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=$(CMAKE_PROGRESS_27) "Building C object src/game/CMakeFiles/game.dir/touch_interface.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=$(CMAKE_PROGRESS_25) "Building C object src/game/CMakeFiles/game.dir/touch_interface.c.o"
 	cd /home/mateus/gltron/src/game && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT src/game/CMakeFiles/game.dir/touch_interface.c.o -MF CMakeFiles/game.dir/touch_interface.c.o.d -o CMakeFiles/game.dir/touch_interface.c.o -c /home/mateus/gltron/src/game/touch_interface.c
 
 src/game/CMakeFiles/game.dir/touch_interface.c.i: cmake_force
@@ -456,8 +428,6 @@ game_OBJECTS = \
 "CMakeFiles/game.dir/computer.c.o" \
 "CMakeFiles/game.dir/computer_utilities.c.o" \
 "CMakeFiles/game.dir/credits.c.o" \
-"CMakeFiles/game.dir/embedded_processing.c.o" \
-"CMakeFiles/game.dir/embedded_scripts.c.o" \
 "CMakeFiles/game.dir/engine.c.o" \
 "CMakeFiles/game.dir/event.c.o" \
 "CMakeFiles/game.dir/game.c.o" \
@@ -487,8 +457,6 @@ src/game/libgame.a: src/game/CMakeFiles/game.dir/camera.c.o
 src/game/libgame.a: src/game/CMakeFiles/game.dir/computer.c.o
 src/game/libgame.a: src/game/CMakeFiles/game.dir/computer_utilities.c.o
 src/game/libgame.a: src/game/CMakeFiles/game.dir/credits.c.o
-src/game/libgame.a: src/game/CMakeFiles/game.dir/embedded_processing.c.o
-src/game/libgame.a: src/game/CMakeFiles/game.dir/embedded_scripts.c.o
 src/game/libgame.a: src/game/CMakeFiles/game.dir/engine.c.o
 src/game/libgame.a: src/game/CMakeFiles/game.dir/event.c.o
 src/game/libgame.a: src/game/CMakeFiles/game.dir/game.c.o
@@ -509,7 +477,7 @@ src/game/libgame.a: src/game/CMakeFiles/game.dir/timedemo.c.o
 src/game/libgame.a: src/game/CMakeFiles/game.dir/touch_interface.c.o
 src/game/libgame.a: src/game/CMakeFiles/game.dir/build.make
 src/game/libgame.a: src/game/CMakeFiles/game.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=$(CMAKE_PROGRESS_28) "Linking CXX static library libgame.a"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/mateus/gltron/CMakeFiles --progress-num=$(CMAKE_PROGRESS_26) "Linking CXX static library libgame.a"
 	cd /home/mateus/gltron/src/game && $(CMAKE_COMMAND) -P CMakeFiles/game.dir/cmake_clean_target.cmake
 	cd /home/mateus/gltron/src/game && $(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/game.dir/link.txt --verbose=$(VERBOSE)
 
