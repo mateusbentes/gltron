@@ -158,14 +158,14 @@ void initGame(void) {
     printf("[init] Initializing camera\n");
     // Done inside initPlayers
 
-#ifdef USE_SCRIPTING
-    // Initialize scripting only if scripting is enabled
     printf("[init] Initializing scripting\n");
+
+#ifdef USE_SCRIPTING   
     initScripting();
-#else
-    printf("[init] Scripting disabled, skipping initScripting\n");
 #endif
 
+    
+    
     // Set game state
     printf("[init] Setting game state\n");
     game2->time.current = 0;
@@ -239,8 +239,11 @@ void initSubsystems(int argc, const char *argv[]) {
     
     // Make sure initScripting() is called before initVideo()
     printf("[init] Initializing scripting system\n");
+
+#ifdef USE_SCRIPTING
     initScripting();
-    
+#endif
+
     /* Initialize platform-specific settings before general configuration */
     platform_InitSettings();
     
@@ -370,42 +373,21 @@ int load_and_execute_script(lua_State *L, const char* script_name, const char* s
 }
 
 void initScripting(void) {
-    printf("[init] Initializing Lua VM\n");
 
-#ifndef USE_SCRIPTING
-    printf("[init] Scripting is disabled, skipping Lua setup\n");
-    return;
-#else
-    // Cria a VM só se scripting estiver ativado
-    lua_State *L = luaL_newstate();
-    if (!L) {
-        fprintf(stderr, "[FATAL] Failed to create Lua state\n");
-        exit(EXIT_FAILURE);
-    }
+#ifdef USE_SCRIPTING
+    scripting_Init(NEBU_SCRIPTING_DEBUG);
+    init_c_interface();
 
-    lua_state = L;
-    luaL_openlibs(L);  // Abre as libs padrão
+    /* load basic scripting services */
+    runScript(PATH_SCRIPTS, "basics.lua");
+    runScript(PATH_SCRIPTS, "joystick.lua");
+    runScript(PATH_SCRIPTS, "path.lua");
 
-    scripting_SetLuaState(L);
+    runScript(PATH_SCRIPTS, "video.lua");
 
-    printf("[init] Scripting enabled, but skipping script execution for now\n");
-
-    const char* fs_scripts[] = {
-        "basics.lua", "joystick.lua", "path.lua",
-        "video.lua", "console.lua", "menu.lua",
-        "hud.lua", "game.lua", NULL
-    };
-
-    for (int i = 0; fs_scripts[i]; i++) {
-        char path[256];
-        snprintf(path, sizeof(path), "scripts/%s", fs_scripts[i]);
-
-        // Aqui você poderia usar luaL_dofile se quiser ativar de verdade
-        printf("[init] Would load and execute script: %s (skipped)\n", path);
-    }
-
-    printf("[init] Scripting system ready\n");
+    runScript(PATH_SCRIPTS, "console.lua");
 #endif
+
 }
 
 void initConfiguration(int argc, const char *argv[])

@@ -13,6 +13,8 @@
 
 #define PLAYER_IS_ACTIVE(x) ((x)->data.speed > 0)
 
+typedef struct PlayerVisual PlayerVisual;
+
 typedef enum eGameType {
 	GAME_SINGLE = 1
 #ifdef RECORD
@@ -96,6 +98,7 @@ typedef struct Player {
 
 typedef struct Game {
 	Player *player;
+	PlayerVisual *playerVisual; // visual representation of the player
 	int players; //!< number of players - currently limited to 4 somewhere
 	int winner; //!< who won this round
 	int pauseflag; 

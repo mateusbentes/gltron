@@ -362,20 +362,6 @@ void Game_Update(void) {
     }
 }
 
-void Game_Idle(void) {
-    // Get screen dimensions
-    int screenWidth = 800;  // Default width
-    int screenHeight = 600; // Default height
-    
-    // If we have access to the actual screen dimensions, use those instead
-    nebu_Video_GetDimension(&screenWidth, &screenHeight);
-    
-    // Draw touch controls if touch is enabled
-    #if defined(ANDROID) || defined(__ANDROID__) || defined(IOS) || defined(__IOS__)
-    drawTouchControls(screenWidth, screenHeight);
-    #endif
-}
-
 void GameMode_Idle(void) {
 	Sound_idle();
 	Time_Idle();

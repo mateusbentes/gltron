@@ -87,56 +87,114 @@ int getFPS(void)
 	return fps_avg;
 }
 
+void drawScore(int score) {
+    // Draw the player's score
+    printf("[drawScore] Score: %d\n", score);
+    // Render the score on the screen
+    // For example, use OpenGL to draw the score as text.
+}
+
+void drawAIStatus(const char *status) {
+    // Draw the AI status (whether the player is controlled by AI or not)
+    printf("[drawAIStatus] AI Status: %s\n", status);
+    // Render the AI status on the screen
+}
+
+void drawSpeed(float raw, float normalized) {
+    // Draw the speed of the player (raw and normalized values)
+    printf("[drawSpeed] Raw Speed: %f, Normalized Speed: %f\n", raw, normalized);
+    // Render the speed on the screen
+}
+
+void drawEnergy(float normalized) {
+    // Draw the player's energy (normalized value)
+    printf("[drawEnergy] Normalized Energy: %f\n", normalized);
+    // Render the energy on the screen
+}
+
+void drawPauseText(const char *text, float r, float g, float b) {
+    // Draw the pause message with the specified color
+    printf("[drawPauseText] Pause Text: %s, Color: (%f, %f, %f)\n", text, r, g, b);
+    // Render the pause text with the specified color
+}
+
 void drawHUD(Player *p, PlayerVisual *pV)
 {
-	char temp[1024];
-	char pause_message[128];
-	float pause_color[3];
+    char temp[1024];
+    char pause_message[128];
+    float pause_color[3];
 
-	getPauseString(pause_message, pause_color);
+    printf("[drawHUD] Starting HUD rendering\n");
 
-	glDisable(GL_DEPTH_TEST);
-	glDepthMask(GL_FALSE);
-	rasonly(&pV->display);
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	/*
-		drawHud: parameters
-		- Viewport Width
-		- Viewport Height
-		- Score (or -1 if disabled)
-		- AI status ("computer player" or "")
-		- Speed digital (absolute value)
-		- Speed analog (1 for default speed, > 1 during acceleration)
-		- Booster value (between 0 and 1)
-		- fps
-		- pause message
-		- pause message r,g,b colors
-	*/
+    if (!game2) {
+        printf("[drawHUD] game2 is NULL\n");
+        return;
+    }
 
-	sprintf(temp, "drawHUD(%d, %d, %d, \"%s\", %f, %f, %f, %f, %d, \"%s\", %f, %f, %f)",
-		pV->display.vp_w, pV->display.vp_h,
-		gSettingsCache.show_scores ? p->data.score : -1,
-		gSettingsCache.show_ai_status ?
-		(p->ai.active ? "AI_COMPUTER" : "") : "",
-		p->data.speed,
-		p->data.speed / (2 * game2->rules.speed),
-		p->data.energy / getSettingf("energy"),
-		0.0f, // formerly wallbuster
-		getFPS(),
-		pause_message,
-		pause_color[0],
-		pause_color[1],
-		pause_color[2]
-		);
+    if (!p) {
+        printf("[drawHUD] Player pointer is NULL\n");
+        return;
+    }
 
-	glScalef(pV->display.vp_w / 1024.0f, pV->display.vp_w / 1024.0f, 1.0f);
-	// fprintf(stderr, "%s\n", temp);
-	scripting_Run(temp);
+    if (!pV) {
+        printf("[drawHUD] PlayerVisual pointer is NULL\n");
+        return;
+    }
 
-	glDisable(GL_BLEND);
-	glDepthMask(GL_TRUE);
-	glEnable(GL_DEPTH_TEST);
+    getPauseString(pause_message, pause_color);
+
+    glDisable(GL_DEPTH_TEST);
+    glDepthMask(GL_FALSE);
+    rasonly(&pV->display);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    glScalef(pV->display.vp_w / 1024.0f,
+             pV->display.vp_w / 1024.0f, 1.0f);
+
+#ifdef USE_SCRIPTING
+    sprintf(temp,
+        "drawHUD(%d, %d, %d, \"%s\", %f, %f, %f, %f, %d, \"%s\", %f, %f, %f)",
+        pV->display.vp_w,
+        pV->display.vp_h,
+        gSettingsCache.show_scores ? p->data.score : -1,
+        gSettingsCache.show_ai_status
+            ? (p->ai.active ? "AI_COMPUTER" : "")
+            : "",
+        p->data.speed,
+        p->data.speed / (2 * game2->rules.speed),
+        p->data.energy / getSettingf("energy"),
+        0.0f,
+        (int)getFPS(),
+        pause_message,
+        pause_color[0],
+        pause_color[1],
+        pause_color[2]
+    );
+
+    scripting_Run(temp);
+#else
+    if (gSettingsCache.show_scores)
+        drawScore(p->data.score);
+
+    if (gSettingsCache.show_ai_status && p->ai.active)
+        drawAIStatus("AI_COMPUTER");
+
+    drawSpeed(
+        p->data.speed,
+        p->data.speed / (2 * game2->rules.speed)
+    );
+
+    drawEnergy(p->data.energy / getSettingf("energy"));
+
+    drawPauseText(pause_message, pause_color[0], pause_color[1], pause_color[2]);
+#endif
+
+    glDisable(GL_BLEND);
+    glDepthMask(GL_TRUE);
+    glEnable(GL_DEPTH_TEST);
+
+    printf("[drawHUD] HUD rendering completed\n");
 }
 
 void getPauseString(char *buf, float* color) {
@@ -301,6 +359,7 @@ int c_color(lua_State *l)
 }
 
 int c_drawTextFitIntoRect(lua_State *l) {
+#ifdef USE_SCRIPTING
 	// text, width, height, flags
 	char *text;
 	float width;
@@ -321,19 +380,23 @@ int c_drawTextFitIntoRect(lua_State *l) {
 	scripting_StringResult_Free(text);
 
 	return 0;
+#endif
 }
 
 int c_draw2D(lua_State* l)
 {
+#ifdef USE_SCRIPTING
 	nebu_Rect rect = { 0, 0, 0, 0 };
 	scripting_GetIntegerResult(&rect.height);
 	scripting_GetIntegerResult(&rect.width);
 	draw2D(&rect);
 	return 0;
+#endif
 }
 
 int c_drawHUDSurface(lua_State* l)
 {
+#ifdef USE_SCRIPTING
 	int surface;
 	scripting_GetIntegerResult(&surface);
 
@@ -342,10 +405,12 @@ int c_drawHUDSurface(lua_State* l)
 	nebu_2d_Draw((nebu_2d*)resource_Get(gpTokenHUD[surface], eRT_2d));
 	glDisable(GL_BLEND);
 	return 0;
+#endif
 }
 
 int c_drawHUDMask(lua_State* l)
 {
+#ifdef USE_SCRIPTING
 	int maskId, maskIndex;
 	scripting_GetIntegerResult(&maskIndex);
 	scripting_GetIntegerResult(&maskId);
@@ -358,6 +423,7 @@ int c_drawHUDMask(lua_State* l)
 		hud_MaskSetup(maskId, maskIndex);
 	}
 	return 0;
+#endif
 }
 		
 void rgb_interpolate(float *color, float t, float *c1, float *c2) {

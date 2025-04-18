@@ -461,9 +461,9 @@ void Game_Idle(void) {
 	
 	while(dt > 0) {
 		nebu_List *p;
-		int t; // time for a single tick to be processed
+		int t;
 
-		// chop time since last frame into ticks of maximally PHYSICS_RATE milliseconds
+		// chop time into ticks
 		if(dt > PHYSICS_RATE) t = PHYSICS_RATE;
 		else t = dt;
 
@@ -478,7 +478,7 @@ void Game_Idle(void) {
 		game_ProcesssInput(dt);
 		*/
 
-		/* process any outstanding events (turns, etc) */
+		// process events
 		for(p = &(game2->events); p->next != NULL; p = p->next) {
 			if(processEvent((GameEvent*) p->data))
 				// a STOP event was encountered, exiting
@@ -486,7 +486,7 @@ void Game_Idle(void) {
 				return;
 		}
 
-		/* free list items (processed events are already freed in processEvents */
+		// limpar eventos processados
 		p = game2->events.next;
 		while(p != NULL) {
 			nebu_List *l = p;
@@ -495,12 +495,14 @@ void Game_Idle(void) {
 		}
 		game2->events.next = NULL;
 
-		doMovement(t); /* this can generate new events */
+		doMovement(t);
 
 		dt -= t;
 	}
 
 	doCameraMovement();
+
+	// lidar com o mouse
 	{
 		// why I can't just warp the mouse to the orig is still not 100% clear to me
 		// oh well, it's not a big loss.
@@ -509,7 +511,18 @@ void Game_Idle(void) {
 		if(mouse_dx != 0 || mouse_dy != 0)
 			nebu_Input_Mouse_WarpToOrigin();
 	}
+
 	doRecognizerMovement();
+
+	// renderizar controles de toque, se aplicável
+	#if defined(ANDROID) || defined(__ANDROID__) || defined(IOS) || defined(__IOS__)
+	{
+		int screenWidth = 800;
+		int screenHeight = 600;
+		nebu_Video_GetDimension(&screenWidth, &screenHeight);
+		drawTouchControls(screenWidth, screenHeight);
+	}
+	#endif
 }
 
 /*! \fn void createEvent(int player, event_type_e eventType)

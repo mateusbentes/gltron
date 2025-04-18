@@ -70,6 +70,12 @@ int main(int argc, char *argv[] ) {
     /* Initialize subsystems */
     initSubsystems(argc, (const char**) argv);
 
+#ifdef USE_SCRIPTING
+
+    runScript(PATH_SCRIPTS, "main.lua");
+
+#else
+
     /* Initialize the game world before rendering */
     printf("[main] Initializing game world\n");
     if (!gWorld) {
@@ -84,6 +90,7 @@ int main(int argc, char *argv[] ) {
 
     /* Initialize game */
     printf("[main] Initializing game\n");
+
     initGame();
     if (!game) {
         fprintf(stderr, "[error] Failed to initialize game\n");
@@ -112,6 +119,8 @@ int main(int argc, char *argv[] ) {
     printf("[main] Entering main loop\n");
     nebu_System_MainLoop();
 
+#endif
+
     /* Exit subsystems */
     exitSubsystems();
 
@@ -138,6 +147,9 @@ void mainDisplay(void) {
         printf("[mainDisplay] Drawing game\n");
         displayGame();
 
+        /* Draw HUD */
+        drawHUD(&game->player, &game->playerVisual);
+
         /* Draw touch controls on mobile platforms */
         #if defined(ANDROID) || defined(__ANDROID__) || defined(IOS) || defined(__IOS__)
         inputDrawTouchControls(nebu_Video_GetWidth(), nebu_Video_GetHeight());
@@ -154,6 +166,13 @@ void mainIdle(void) {
     } else {
         /* Game is active, update game */
         printf("[mainIdle] Updating game\n");
+        
+        // If game is running, update the game mode (GameMode_Idle)
+        if (game && game->running > 0) {
+            GameMode_Idle();
+        }
+
+        // Handle GUI main loop (if needed)
         int status = guiMainLoop();
         if (status == 0) {
             /* Game ended, return to menu */
