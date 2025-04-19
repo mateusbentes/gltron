@@ -390,6 +390,61 @@ void initScripting(void) {
 
 }
 
+void initConfiguration(int argc, const char *argv[])
+{
+  printf("[init] Initializing configuration\n");
+
+#ifndef USE_SCRIPTING
+    printf("[init] Scripting is disabled, skipping Lua setup\n");
+    return;
+
+#else
+  /* load some more defaults from config file */
+  runScript(PATH_SCRIPTS, "config.lua");
+  runScript(PATH_SCRIPTS, "artpack.lua");
+#endif
+  
+  /* go for .gltronrc (or whatever is defined in RC_NAME) */
+  {
+    char *path;
+    path = getPossiblePath(PATH_PREFERENCES, RC_NAME);
+    if (path != NULL) {
+      if (nebu_FS_Test(path)) {
+        printf("[status] loading settings from %s\n", path);
+        /* CHANGE: Don't call scripting_RunFile, just print a message */
+        printf("[scripting] Would run script file: %s (stub)\n", path);
+      } else {
+        printf("[error] cannot load %s from %s\n", RC_NAME, path);
+      }
+      free(path);
+    }
+    else {
+      printf("[fatal] can't get valid pref path for %s\n", RC_NAME);
+      nebu_assert(0); exit(1); // something is seriously wrong
+    }
+  }
+  
+  // CHANGE: Replace Lua-dependent version check with a stub
+  printf("[scripting] Skipping version check (stub)\n");
+  
+  // CHANGE: Replace Lua-dependent config validation with a stub
+  printf("[scripting] Skipping config validation (stub)\n");
+  
+  /* parse any comandline switches overrinding the loaded settings */
+  parse_args(argc, argv);
+  
+  /* sanity check some settings */
+  checkSettings();
+  
+  // CHANGE: Replace scripting_Run calls with stubs
+  printf("[scripting] Would run: setupArtpackPaths() (stub)\n");
+  printf("[scripting] Would run: setupLevels() (stub)\n");
+    
+  /* intialize the settings cache, remember to do that everytime you
+     change something */
+  updateSettingsCache();
+}
+
 void initAudio(void) {
     int audio_available = 1;
     
