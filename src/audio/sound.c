@@ -10,7 +10,12 @@
 
 #include "base/nebu_assert.h"
 
+#include <SDL_mixer.h>
+
 #define NUM_GAME_FX 3
+
+
+Mix_Music *music = NULL;
 
 static char *game_fx_names[] = {
 
@@ -150,4 +155,20 @@ void Sound_setup(void) {
   Sound_reloadTrack();
   Sound_setMusicVolume(getSettingf("musicVolume"));
   Audio_Start();
+}
+
+// Function to restart the music track
+void restartTrack(void) {
+  // Check if music is currently playing
+  if (Mix_PlayingMusic()) {
+    // Stop the current music and restart playback
+    printf("[audio] Restarting the current track...\n");
+
+    // Restart the music from the beginning
+    Sound_stop();      // Stop the music
+    Sound_play();      // Start playing the music from the beginning
+  } else {
+    // If no music is currently playing, log an error
+    printf("[audio] No music is currently playing, cannot restart.\n");
+  }
 }

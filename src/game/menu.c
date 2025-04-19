@@ -6,6 +6,7 @@
 #include "audio/sound_glue.h"
 #include "configuration/settings.h"
 #include "base/nebu_system.h"
+#include "base/switchCallbacks.h"
 
 #ifdef __APPLE__
 #include <OpenGL/gl.h>
@@ -256,8 +257,14 @@ void startGame(void) {
 void showSettings(void) {
     printf("[menu] Showing settings menu\n");
     gMenuState = MENU_STATE_SETTINGS;
-    // TODO: Implement settings menu
+
+    // Initialize GUI
+    initGui();
+    nebu_System_SetCallback_Display(guiCallbacks.display);
+    nebu_System_SetCallback_Idle(guiCallbacks.idle);
+    nebu_System_SetCallback_Key(guiCallbacks.keyboard);
 }
+
 
 // Show help screen
 void showHelp(void) {

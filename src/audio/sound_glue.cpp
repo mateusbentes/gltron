@@ -1,4 +1,4 @@
-#if 0  // Changed from 1 to 0 to disable audio completely
+#if 1  // Changed from 1 to 0 to disable audio completely
 #include "audio/sound_glue.h"
 extern "C" {
 #include "game/game.h"
@@ -9,6 +9,7 @@ extern "C" {
 #include "game/game_data.h"
 #include "configuration/settings.h"
 #include "base/nebu_assert.h"
+#include "audio/audio.h"
 }
 
 #include "Nebu_audio.h"
@@ -154,14 +155,24 @@ extern "C" {
       }
     }
 
-    // Check if music needs to be restarted
-    if(music && !music->IsPlaying()) {
-      // check if music is enabled. if it is, advance to
-      // next song
-      if(gSettingsCache.playMusic) {
-        printf("[audio] Music not playing, calling nextTrack() script\n");
-        int result = scripting_Run("if nextTrack then nextTrack() else print('[error] nextTrack function not found') end");
-        printf("[audio] nextTrack() script returned: %d\n", result);
+  // Check if music needs to be restarted
+  if (music && !music->IsPlaying()) {
+      // Check if music is enabled. If it is, advance to the next song.
+      if (gSettingsCache.playMusic) {
+        printf("[audio] Music not playing, calling nextTrack()\n");
+        
+        // Conditional compilation: check if scripting is enabled
+        #if IS_SCRIPTING
+            // If scripting is enabled, call the scripting function to go to next track
+            printf("[audio] Music not playing, calling nextTrack() script\n");
+            int result = scripting_Run("if nextTrack then nextTrack() else print('[error] nextTrack function not found') end");
+            printf("[audio] nextTrack() script returned: %d\n", result);
+        #else
+            // If scripting is not enabled, call the nextTrack function directly
+            printf("[audio] Music not playing, restarting the track\n");
+            restartTrack();  // Function to restart the current track
+        #endif
+
       } else {
         printf("[audio] Music not playing, but playMusic is disabled\n");
       }

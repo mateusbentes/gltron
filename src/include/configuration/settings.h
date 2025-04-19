@@ -1,6 +1,10 @@
 #ifndef SETTINGS_H
 #define SETTINGS_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* 
  * SettingsCache - A Structure for storing lua settings during play to 
  * avoid the overhead of fetching from lua repeatedly. Values should be 
@@ -47,5 +51,9 @@ int getVideoSettingi(const char *name);
 
 void setSettingf(const char *name, float f);
 void setSettingi(const char *name, int i);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

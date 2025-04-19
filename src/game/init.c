@@ -390,62 +390,6 @@ void initScripting(void) {
 
 }
 
-void initConfiguration(int argc, const char *argv[])
-{
-  printf("[init] Initializing configuration\n");
-
-#ifndef USE_SCRIPTING
-    printf("[init] Scripting is disabled, skipping Lua setup\n");
-    return;
-
-#else
-  /* load some more defaults from config file */
-  runScript(PATH_SCRIPTS, "config.lua");
-  runScript(PATH_SCRIPTS, "artpack.lua");
-#endif
-  
-  /* go for .gltronrc (or whatever is defined in RC_NAME) */
-  {
-    char *path;
-    path = getPossiblePath(PATH_PREFERENCES, RC_NAME);
-    if (path != NULL) {
-      if (nebu_FS_Test(path)) {
-        printf("[status] loading settings from %s\n", path);
-        /* CHANGE: Don't call scripting_RunFile, just print a message */
-        printf("[scripting] Would run script file: %s (stub)\n", path);
-      } else {
-        printf("[error] cannot load %s from %s\n", RC_NAME, path);
-      }
-      free(path);
-    }
-    else {
-      printf("[fatal] can't get valid pref path for %s\n", RC_NAME);
-      nebu_assert(0); exit(1); // something is seriously wrong
-    }
-  }
-  
-  // CHANGE: Replace Lua-dependent version check with a stub
-  printf("[scripting] Skipping version check (stub)\n");
-  
-  // CHANGE: Replace Lua-dependent config validation with a stub
-  printf("[scripting] Skipping config validation (stub)\n");
-  
-  /* parse any comandline switches overrinding the loaded settings */
-  parse_args(argc, argv);
-  
-  /* sanity check some settings */
-  checkSettings();
-  
-  // CHANGE: Replace scripting_Run calls with stubs
-  printf("[scripting] Would run: setupArtpackPaths() (stub)\n");
-  printf("[scripting] Would run: setupLevels() (stub)\n");
-    
-  /* intialize the settings cache, remember to do that everytime you
-     change something */
-  updateSettingsCache();
-}
-  
-// CHANGE: Modify initAudio to avoid Lua-dependent calls
 void initAudio(void) {
     int audio_available = 1;
     
@@ -460,12 +404,10 @@ void initAudio(void) {
     
     /* Load audio scripts with error checking */
     fprintf(stderr, "[audio] Loading audio scripts\n");
-    
-#ifndef USE_SCRIPTING
-    printf("[init] Scripting is disabled, skipping Lua setup\n");
-    return;
 
-#else
+#ifdef USE_SCRIPTING
+    // Parte relacionada ao uso de Lua
+    /* Exemplo de como carregar os scripts Lua, se necessário */
     char *audio_script = getPossiblePath(PATH_SCRIPTS, "audio.lua");
     if (audio_script && nebu_FS_Test(audio_script)) {
         fprintf(stderr, "[audio] Loading audio.lua from: %s\n", audio_script);
@@ -476,7 +418,7 @@ void initAudio(void) {
         if (audio_script) free(audio_script);
         audio_available = 0;
     }
-    
+
     char *music_functions_script = getPossiblePath(PATH_SCRIPTS, "music_functions.lua");
     if (music_functions_script && nebu_FS_Test(music_functions_script)) {
         fprintf(stderr, "[audio] Loading music_functions.lua from: %s\n", music_functions_script);
@@ -485,17 +427,14 @@ void initAudio(void) {
     } else {
         fprintf(stderr, "[error] Failed to load music_functions.lua\n");
         if (music_functions_script) free(music_functions_script);
-        
-        /* CHANGE: Don't use scripting_Run, just print a message */
+    
+        /* CHANGE: Would create nextTrack and previousTrack functions in Lua (stub) */
         fprintf(stderr, "[audio] Would create nextTrack and previousTrack functions (stub)\n");
     }
+#else
+    fprintf(stderr, "[audio] Scripting is disabled, loading audio manually\n");
 
-#endif
-    
-    /* Load sound samples with error checking */
-    fprintf(stderr, "[audio] Loading sound samples\n");
-    
-    /* Check if sound files exist before loading */
+    // Load crash sound
     char *crash_sound = getPossiblePath(PATH_DATA, "sounds/game_crash.wav");
     if (crash_sound && nebu_FS_Test(crash_sound)) {
         fprintf(stderr, "[audio] Loading crash sound from: %s\n", crash_sound);
@@ -529,13 +468,6 @@ void initAudio(void) {
         audio_available = 0;
     }
     
-    /* If audio is not available, disable it */
-    if (!audio_available) {
-        fprintf(stderr, "[audio] Audio not fully available, disabling music\n");
-        /* CHANGE: Don't use scripting_Run, just print a message */
-        fprintf(stderr, "[audio] Would disable music (stub)\n");
-    }
-    
     /* Set up audio volumes with error checking */
     fprintf(stderr, "[audio] Setting audio volumes\n");
     
@@ -563,11 +495,22 @@ void initAudio(void) {
     if (audio_available && isSetting("playMusic") && getSettingi("playMusic")) {
         fprintf(stderr, "[audio] Music is enabled, trying to play\n");
         
-        /* CHANGE: Just print a message instead of calling scripting functions */
-        fprintf(stderr, "[audio] Would check for nextTrack function and call it (stub)\n");
+        // Play music
+        char *music_path = getPossiblePath(PATH_MUSIC, "default_song.mp3");
+        if (music_path && nebu_FS_Test(music_path)) {
+            fprintf(stderr, "[audio] Loading and playing music from: %s\n", music_path);
+            Audio_LoadMusic(music_path);
+            Audio_PlayMusic();
+            free(music_path);
+        } else {
+            fprintf(stderr, "[error] Failed to load music\n");
+            audio_available = 0;
+        }
     } else {
         fprintf(stderr, "[audio] Music is disabled\n");
     }
+
+#endif
     
     fprintf(stderr, "[audio] Audio initialization complete\n");
 }

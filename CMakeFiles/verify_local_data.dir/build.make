@@ -68,7 +68,7 @@ include CMakeFiles/verify_local_data.dir/progress.make
 
 CMakeFiles/verify_local_data:
 	/usr/bin/cmake -E echo LOCAL_DATA\ is\ set\ to:\ ON
-	/usr/bin/cmake -E echo USE_EMBEDDED_SCRIPTS\ is\ set\ to:\ ON
+	/usr/bin/cmake -E echo NOT\ USE_SCRIPTING\ is\ set\ to:\ TRUE
 	/usr/bin/cmake -E echo Build\ type\ is:\ Release
 	/usr/bin/cmake -E echo Resources\ should\ be\ in:\ /home/mateus/gltron/scripts
 	ls -la /home/mateus/gltron/scripts

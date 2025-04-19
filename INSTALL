@@ -14,7 +14,7 @@ If you install from CVS, read also README.CVS
 - CMake 3.10 or newer
 
 ### For sound support:
-- SDL_sound development libraries
+- SDL_mixer development libraries (in addition to SDL_sound)
 
 ### For Android:
 - Android NDK
@@ -22,17 +22,17 @@ If you install from CVS, read also README.CVS
 
 ### Package installation on Ubuntu/Debian:
 ```
-sudo apt-get install build-essential cmake libsdl2-dev libglew-dev libpng-dev zlib1g-dev libsdl-sound1.2-dev libgl1-mesa-dev liblua5.1-dev
+sudo apt-get install build-essential cmake libsdl2-dev libglew-dev libpng-dev zlib1g-dev libsdl-mixer-dev libsdl-sound1.2-dev libgl1-mesa-dev liblua5.1-dev
 ```
 
 ### Package installation on Fedora/RHEL/CentOS:
 ```
-sudo dnf install cmake gcc-c++ SDL2-devel glew-devel libpng-devel zlib-devel SDL_sound-devel mesa-libGL-devel lua-devel
+sudo dnf install cmake gcc-c++ SDL2-devel glew-devel libpng-devel zlib-devel SDL_mixer-devel SDL_sound-devel mesa-libGL-devel lua-devel
 ```
 
 ### Package installation on macOS (using Homebrew):
 ```
-brew install cmake sdl2 glew libpng sdl_sound lua@5.1
+brew install cmake sdl2 glew libpng sdl_mixer sdl_sound lua@5.1
 ```
 
 ## Compiling with CMake (Recommended):

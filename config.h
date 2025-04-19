@@ -4,6 +4,6 @@
 #define LOCAL_DATA
 /* #undef HAVE_SDL_SOUND */
 /* #undef ANDROID */
-#define USE_EMBEDDED_SCRIPTS
+/* #undef USE_SCRIPTING */
 
 #endif /* CONFIG_H */

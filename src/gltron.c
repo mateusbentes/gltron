@@ -7,7 +7,6 @@
 #include "filesystem/path.h"
 #include "base/util.h"
 #include "base/nebu_debug_memory.h"
-#include "scripting/embedded_processing.h" // Added for process_embedded_main()
 
 /* Add these includes for gWorld, video_LoadLevel, and displayGame */
 #include "video/video.h"  // For video_LoadLevel and displayGame

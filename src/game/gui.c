@@ -434,5 +434,9 @@ void drawGuiMenu(Visual *d) {
 Callbacks configureCallbacks = {
     displayConfigure, idleGui, keyboardConfigure, initGui, NULL /* exit */,
     NULL /* mouse button */, NULL /* mouse motion */, NULL /* reshape */, "configure"
-  
+};
+
+Callbacks guiCallbacks = {
+    displayGui, idleGui, keyboardGui, initGui, exitGui,
+    guiMouse, guiMouseMotion, NULL /* reshape */, "gui"
 };

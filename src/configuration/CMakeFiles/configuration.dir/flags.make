@@ -4,7 +4,7 @@
 # compile C with /usr/bin/cc
 C_DEFINES = -DENABLE_TOUCH_SUPPORT -DHAVE_SDL_SOUND -DLOCAL_DATA
 
-C_INCLUDES = -I/usr/include/SDL -I/home/mateus/gltron -I/home/mateus/gltron/src/include -I/home/mateus/gltron/lua5/include -I/home/mateus/gltron/nebu/include -I/home/mateus/gltron/lib3ds/include -I/usr/include/SDL2
+C_INCLUDES = -I/usr/include/SDL2 -I/usr/include/SDL -I/home/mateus/gltron -I/home/mateus/gltron/src/include -I/home/mateus/gltron/lua5/include -I/home/mateus/gltron/nebu/include -I/home/mateus/gltron/lib3ds/include -I/home/mateus/gltron/src/configuration
 
 C_FLAGS = -O3 -DNDEBUG
 

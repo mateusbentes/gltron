@@ -15,5 +15,6 @@ void Sound_setFxVolume(float volume);
 void Sound_reloadTrack(void);
 void Sound_initTracks(void);
 void Sound_setup(void);
+void restartTrack(void);
 
 #endif

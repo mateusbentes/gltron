@@ -2,6 +2,8 @@
 cmake_minimum_required(VERSION 3.10)
 project(gltron VERSION 0.71 LANGUAGES C CXX)
 
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
+
 # Set policy CMP0079 to NEW to allow linking targets from different directories
 if(POLICY CMP0079)
   cmake_policy(SET CMP0079 NEW)
@@ -57,6 +59,16 @@ find_package(ZLIB REQUIRED)
 find_package(PNG REQUIRED)
 find_package(SDL2 REQUIRED)
 find_package(GLEW REQUIRED)
+
+# SDL_mixer support
+find_package(SDL2_mixer REQUIRED)
+
+if(SDL2_MIXER_FOUND)
+  message(STATUS "Found SDL2_mixer: ${SDL2_MIXER_LIBRARIES}")
+  include_directories(${SDL2_MIXER_INCLUDE_DIRS})
+else()
+  message(FATAL_ERROR "SDL2_mixer not found. Install it with your package manager.")
+endif()
 
 # Directly specify the paths to the lib3ds library and its include directory
 set(LIB3DS_LIBRARY lib3ds)
@@ -136,7 +148,7 @@ file(WRITE ${CMAKE_BINARY_DIR}/cmake/config.h.in
 #cmakedefine LOCAL_DATA
 #cmakedefine HAVE_SDL_SOUND
 #cmakedefine ANDROID
-#cmakedefine USE_EMBEDDED_SCRIPTS
+#cmakedefine USE_SCRIPTING
 
 #endif /* CONFIG_H */
 ")
@@ -173,34 +185,6 @@ file(WRITE ${CMAKE_BINARY_DIR}/src/include/gltron-config.h
 #endif
 
 #endif /* GLTRON_CONFIG_H */
-")
-
-# Create embedded_scripts.h
-file(WRITE ${CMAKE_BINARY_DIR}/src/include/scripting/embedded_scripts.h
-"/* 
- * Header file for embedded scripts
- */
-#ifndef EMBEDDED_SCRIPTS_H
-#define EMBEDDED_SCRIPTS_H
-
-#ifdef __cplusplus
-extern \"C\" {
-#endif
-
-/* Structure to hold embedded script data */
-typedef struct {
-    const char* name;    /* Script filename */
-    const char* content; /* Script content */
-} EmbeddedScript;
-
-/* Function to get an embedded script by name */
-const char* get_embedded_script(const char *name);
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* EMBEDDED_SCRIPTS_H */
 ")
 
 # Include directories - IMPORTANT: Order matters!
@@ -246,7 +230,7 @@ if(LOCAL_DATA)
   file(COPY ${CMAKE_SOURCE_DIR}/levels/ DESTINATION ${CMAKE_BINARY_DIR}/levels)
   file(COPY ${CMAKE_SOURCE_DIR}/sounds/ DESTINATION ${CMAKE_BINARY_DIR}/sounds)
 
-  # Only copy scripts if not using embedded scripts
+  # Only copy scripts if using USE_SCRIPTING
   if(USE_SCRIPTING)
     file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/scripts)
     file(COPY ${CMAKE_SOURCE_DIR}/scripts/ DESTINATION ${CMAKE_BINARY_DIR}/scripts)
@@ -261,8 +245,8 @@ add_subdirectory(lib3ds)
 add_subdirectory(nebu)
 add_subdirectory(src)
 
-# Resources - only add if not using embedded scripts
-if(NOT USE_EMBEDDED_SCRIPTS)
+# Resources - only add if using USE_SCRIPTING
+if(USE_SCRIPTING)
   add_subdirectory(art)
   add_subdirectory(data)
   add_subdirectory(music)
@@ -287,49 +271,63 @@ add_executable(gltron ${CMAKE_SOURCE_DIR}/src/gltron.c)
 # Add LOCAL_DATA definition specifically to the gltron target
 target_compile_definitions(gltron PRIVATE LOCAL_DATA)
 
-# Add USE_EMBEDDED_SCRIPTS definition if enabled
-if(USE_EMBEDDED_SCRIPTS)
-  target_compile_definitions(gltron PRIVATE USE_EMBEDDED_SCRIPTS)
+# Add USE_SCRIPTING definition if enabled
+if(NOT USE_SCRIPTING)
+  target_compile_definitions(gltron PRIVATE NOT USE_SCRIPTING)
 endif()
 
 # Find Lua (optional)
-find_package(Lua REQUIRED)
-if(LUA_FOUND)
-  message(STATUS "Found Lua: ${LUA_LIBRARIES}")
-else()
-  message(FATAL_ERROR "Lua not found. Please install Lua and try again.")
+if(USE_SCRIPTING)
+  find_package(Lua REQUIRED)
+  if(LUA_FOUND)
+    message(STATUS "Found Lua: ${LUA_LIBRARIES}")
+  else()
+    message(FATAL_ERROR "Lua not found. Please install Lua and try again.")
+  endif()
 endif()
 
 # Link libraries - IMPORTANT: Order matters for static linking
 target_link_libraries(gltron PRIVATE
-  sdl_compat  # Add the SDL compatibility library first
-  lua5  # For luaL_loadstring - move this before nebu_scripting
-  lualib5  # For lua_pcall - move this before nebu_scripting
-  nebu_system  # Add nebu_system before nebu_video
-  nebu_video  # Add nebu_video before nebu_scripting
-  nebu_input  # Add nebu_input before nebu_scripting
-  nebu_scripting  # For scripting_GetLuaState - move this before game
-  nebu_filesystem  # For nebu_FS_Test - move this before game
-  nebu_base  # For basic functions - move this before game
-  nebu_audio  # Move nebu_audio up in the linking order
-  callbacks  # Add this line to link against the callbacks library
-  game
-  input
-  audio
-  video
-  configuration
-  base
-  filesystem
-  lib3ds  # Add lib3ds library
+  sdl_compat  # SDL compatibility wrapper
+
+  nebu_system        # System utilities (must come before video/input)
+  nebu_video         # Low-level video handling
+  nebu_input         # Input device handling
+  nebu_filesystem    # Filesystem operations
+  nebu_base          # Basic math and utilities
+  nebu_audio         # Legacy audio functions
+
+  callbacks          # Main menu and in-game callback logic
+
+  configuration      # Custom config management module
+  game               # Main game logic
+  input              # Rewritten input handling
+  audio              # Rewritten audio handling
+  video              # Rewritten video rendering
+  base               # Rewritten utility module
+  filesystem         # Rewritten file handling
+
+  lib3ds             # 3D model loading support
   ${GLEW_LIBRARIES}
   ${PNG_LIBRARIES}
   ${ZLIB_LIBRARIES}
   ${OPENGL_LIBRARIES}
   ${SDL2_LIBRARIES}
-  ${LUA_LIBRARIES}  # Add Lua libraries
-  # Add dl library for dynamic loading on Unix-like systems
+  ${SDL2_MIXER_LIBRARIES}
+
+  # Dynamic loading (Unix only)
   $<$<NOT:$<PLATFORM_ID:Windows>>:dl>
 )
+
+# Link Lua-related libraries only when scripting is enabled
+if(USE_SCRIPTING)
+  target_link_libraries(gltron PRIVATE
+    lua5         # Required for luaL_loadstring
+    lualib5      # Required for lua_pcall
+    nebu_scripting  # Script interface (must be linked after Lua libs)
+    ${LUA_LIBRARIES}
+  )
+endif()
 
 # Add math library only on non-Windows platforms
 if(NOT WIN32)
@@ -394,8 +392,8 @@ if(LOCAL_DATA)
     COMMENT "Copying sounds to build directory"
   )
 
-  # Only copy scripts if not using embedded scripts
-  if(NOT USE_EMBEDDED_SCRIPTS)
+  # Only copy scripts if not using USE_SCRIPTING
+  if(NOT USE_SCRIPTING)
     add_custom_command(TARGET gltron POST_BUILD
       COMMAND ${CMAKE_COMMAND} -E copy_directory
       ${CMAKE_SOURCE_DIR}/scripts ${CMAKE_BINARY_DIR}/scripts
@@ -404,14 +402,14 @@ if(LOCAL_DATA)
   endif()
 endif()
 
-# Installation rules - only install resources if not using embedded scripts
+# Installation rules - only install resources if not using USE_SCRIPTING
 install(TARGETS gltron DESTINATION bin)
 install(DIRECTORY art/ DESTINATION share/gltron/art)
 install(DIRECTORY data/ DESTINATION share/gltron/data)
 install(DIRECTORY music/ DESTINATION share/gltron/music)
 install(DIRECTORY levels/ DESTINATION share/gltron/levels)
 install(DIRECTORY sounds/ DESTINATION share/gltron/sounds)
-if(NOT USE_EMBEDDED_SCRIPTS)
+if(NOT USE_SCRIPTING)
   install(DIRECTORY scripts/ DESTINATION share/gltron/scripts)
 endif()
 
@@ -424,8 +422,7 @@ add_custom_target(tags
 # Add a custom target to verify LOCAL_DATA is defined
 add_custom_target(verify_local_data
   COMMAND ${CMAKE_COMMAND} -E echo "LOCAL_DATA is set to: ${LOCAL_DATA}"
-  COMMAND ${CMAKE_COMMAND} -E echo "USE_EMBEDDED_SCRIPTS is set to: ${USE_EMBEDDED_SCRIPTS}"
-  COMMAND ${CMAKE_COMMAND} -E echo "Build type is: ${CMAKE_BUILD_TYPE}"
+  COMMAND ${CMAKE_COMMAND} -E echo "NOT USE_SCRIPTING is set to: $<IF:$<NOT:$<BOOL:${USE_SCRIPTING}>>,TRUE,FALSE>"  COMMAND ${CMAKE_COMMAND} -E echo "Build type is: ${CMAKE_BUILD_TYPE}"
   COMMAND ${CMAKE_COMMAND} -E echo "Resources should be in: ${CMAKE_BINARY_DIR}/scripts"
   COMMAND ls -la ${CMAKE_BINARY_DIR}/scripts
 )

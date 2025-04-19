@@ -4,6 +4,6 @@
 #cmakedefine LOCAL_DATA
 #cmakedefine HAVE_SDL_SOUND
 #cmakedefine ANDROID
-#cmakedefine USE_EMBEDDED_SCRIPTS
+#cmakedefine USE_SCRIPTING
 
 #endif /* CONFIG_H */
