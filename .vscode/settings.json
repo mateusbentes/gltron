@@ -16,6 +16,8 @@
         "settings.h": "c",
         "nebu_matrix.h": "c",
         "nebu_console.h": "c",
-        "stdio.h": "c"
+        "stdio.h": "c",
+        "gltron.h": "c",
+        "sound_glue.h": "c"
     }
 }

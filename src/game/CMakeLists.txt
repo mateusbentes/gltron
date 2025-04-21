@@ -15,11 +15,17 @@ target_include_directories(game PUBLIC
   ${CMAKE_SOURCE_DIR}/lua5/include
 )
 
-# Link libraries - Order matters for static linking
+# Only link Lua-related stuff if scripting is enabled
+if(USE_SCRIPTING)
+  target_link_libraries(game PUBLIC
+    nebu_scripting
+    lua5
+    lualib5
+  )
+endif()
+
+# Always link these
 target_link_libraries(game PUBLIC
-  nebu_scripting  # Ensure this library contains scripting_SetLuaState
-  lua5  # Ensure this is the correct Lua library
-  lualib5  # Ensure this is the correct Lua auxiliary library
   nebu_filesystem
   nebu_input
   nebu_video

@@ -258,7 +258,7 @@ endif()
 # Create a library for the callback functions
 add_library(callbacks STATIC
   ${CMAKE_SOURCE_DIR}/src/game/callbacks.c
-  ${CMAKE_SOURCE_DIR}/src/game/init_stubs.c  # Add this line
+  ${CMAKE_SOURCE_DIR}/src/game/init_stubs.c
 )
 target_include_directories(callbacks PUBLIC
   ${CMAKE_BINARY_DIR}/src/include
@@ -273,7 +273,7 @@ target_compile_definitions(gltron PRIVATE LOCAL_DATA)
 
 # Add USE_SCRIPTING definition if enabled
 if(NOT USE_SCRIPTING)
-  target_compile_definitions(gltron PRIVATE NOT USE_SCRIPTING)
+  target_compile_definitions(gltron PRIVATE USE_SCRIPTING)
 endif()
 
 # Find Lua (optional)
@@ -299,11 +299,11 @@ target_link_libraries(gltron PRIVATE
 
   callbacks          # Main menu and in-game callback logic
 
-  configuration      # Custom config management module
   game               # Main game logic
   input              # Rewritten input handling
   audio              # Rewritten audio handling
   video              # Rewritten video rendering
+  configuration      # Custom config management module
   base               # Rewritten utility module
   filesystem         # Rewritten file handling
 
@@ -422,7 +422,12 @@ add_custom_target(tags
 # Add a custom target to verify LOCAL_DATA is defined
 add_custom_target(verify_local_data
   COMMAND ${CMAKE_COMMAND} -E echo "LOCAL_DATA is set to: ${LOCAL_DATA}"
-  COMMAND ${CMAKE_COMMAND} -E echo "NOT USE_SCRIPTING is set to: $<IF:$<NOT:$<BOOL:${USE_SCRIPTING}>>,TRUE,FALSE>"  COMMAND ${CMAKE_COMMAND} -E echo "Build type is: ${CMAKE_BUILD_TYPE}"
   COMMAND ${CMAKE_COMMAND} -E echo "Resources should be in: ${CMAKE_BINARY_DIR}/scripts"
   COMMAND ls -la ${CMAKE_BINARY_DIR}/scripts
 )
+
+if(NOT USE_SCRIPTING)
+  message(STATUS "NOT USE_SCRIPTING is set to: TRUE")
+else()
+  message(STATUS "NOT USE_SCRIPTING is set to: FALSE")
+endif()

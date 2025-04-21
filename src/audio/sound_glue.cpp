@@ -8,6 +8,7 @@ extern "C" {
 #include "game/camera.h"
 #include "game/game_data.h"
 #include "configuration/settings.h"
+#include "configuration/configuration.h"
 #include "base/nebu_assert.h"
 #include "audio/audio.h"
 }
