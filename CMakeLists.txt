@@ -409,7 +409,7 @@ install(DIRECTORY data/ DESTINATION share/gltron/data)
 install(DIRECTORY music/ DESTINATION share/gltron/music)
 install(DIRECTORY levels/ DESTINATION share/gltron/levels)
 install(DIRECTORY sounds/ DESTINATION share/gltron/sounds)
-if(NOT USE_SCRIPTING)
+if(USE_SCRIPTING)
   install(DIRECTORY scripts/ DESTINATION share/gltron/scripts)
 endif()
 
