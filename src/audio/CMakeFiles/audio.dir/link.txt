@@ -1,2 +1,0 @@
-/usr/bin/ar qc libaudio.a CMakeFiles/audio.dir/audio_diagnostic.c.o CMakeFiles/audio.dir/sound.c.o CMakeFiles/audio.dir/sound_glue.cpp.o CMakeFiles/audio.dir/sound_glue_stubs.cpp.o CMakeFiles/audio.dir/sound_stubs.c.o
-/usr/bin/ranlib libaudio.a
