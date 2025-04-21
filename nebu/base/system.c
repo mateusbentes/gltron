@@ -105,10 +105,6 @@ void nebu_Time_FrameDelay(unsigned int ms) {
   } while(end - start < ms);
 }
 
-void nebu_System_SwapBuffers() {
-  nebu_Video_SwapBuffers();
-}
-
 void nebu_System_Sleep(int ms) {
   SDL_Delay(ms);
 }

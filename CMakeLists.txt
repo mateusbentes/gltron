@@ -290,13 +290,6 @@ endif()
 target_link_libraries(gltron PRIVATE
   sdl_compat  # SDL compatibility wrapper
 
-  nebu_system        # System utilities (must come before video/input)
-  nebu_video         # Low-level video handling
-  nebu_input         # Input device handling
-  nebu_filesystem    # Filesystem operations
-  nebu_base          # Basic math and utilities
-  nebu_audio         # Legacy audio functions
-
   callbacks          # Main menu and in-game callback logic
 
   game               # Main game logic
@@ -306,6 +299,13 @@ target_link_libraries(gltron PRIVATE
   configuration      # Custom config management module
   base               # Rewritten utility module
   filesystem         # Rewritten file handling
+
+  nebu_system        # System utilities (must come before video/input)
+  nebu_video         # Low-level video handling
+  nebu_input         # Input device handling
+  nebu_filesystem    # Filesystem operations
+  nebu_base          # Basic math and utilities
+  nebu_audio         # Legacy audio functions
 
   lib3ds             # 3D model loading support
   ${GLEW_LIBRARIES}
