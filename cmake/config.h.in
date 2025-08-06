@@ -1,9 +1,0 @@
-#ifndef CONFIG_H
-#define CONFIG_H
-
-#cmakedefine LOCAL_DATA
-#cmakedefine HAVE_SDL_SOUND
-#cmakedefine ANDROID
-#cmakedefine USE_SCRIPTING
-
-#endif /* CONFIG_H */
