@@ -61,24 +61,65 @@ if(LOCAL_DATA)
   message(STATUS "LOCAL_DATA definition added")
 endif()
 
+# Add embedded Lua
+if(USE_SCRIPTING)
+  add_library(lua5 STATIC
+    lua5/lapi.c
+    lua5/lcode.c
+    lua5/lctype.c
+    lua5/ldebug.c
+    lua5/ldo.c
+    lua5/ldump.c
+    lua5/lfunc.c
+    lua5/lgc.c
+    lua5/llex.c
+    lua5/lmem.c
+    lua5/lobject.c
+    lua5/lopcodes.c
+    lua5/lparser.c
+    lua5/lstate.c
+    lua5/lstring.c
+    lua5/ltable.c
+    lua5/ltm.c
+    lua5/lundump.c
+    lua5/lvm.c
+    lua5/lzio.c
+    lua5/lauxlib.c
+    lua5/lbaselib.c
+    lua5/ldblib.c
+    lua5/liolib.c
+    lua5/lmathlib.c
+    lua5/loslib.c
+    lua5/lstrlib.c
+    lua5/ltablib.c
+    lua5/loadlib.c
+    lua5/linit.c
+  )
+  target_include_directories(lua5 PUBLIC
+  ${CMAKE_CURRENT_SOURCE_DIR}/lua5
+  ${CMAKE_CURRENT_SOURCE_DIR}/lua5/include
+)
+endif()
+
 # Platform-specific package finding
 if(BUILD_ANDROID)
   # Android-specific setup
   if(NOT ANDROID_NDK)
     message(FATAL_ERROR "Android NDK not found. Please set ANDROID_NDK or use Android toolchain.")
   endif()
-  
+
   set(CMAKE_ANDROID_API 24)
+
   if(NOT CMAKE_ANDROID_ARCH_ABI)
     set(CMAKE_ANDROID_ARCH_ABI arm64-v8a)
   endif()
-  
-  # Find Android libraries
+
+  # Find Android native libraries
   find_library(ANDROID_LIB android)
   find_library(LOG_LIB log)
   find_library(EGL_LIB EGL)
   find_library(GLES_LIB GLESv2)
-  
+
   if(ENABLE_SOUND)
     find_library(OPENSLES_LIB OpenSLES)
     if(OPENSLES_LIB)
@@ -90,7 +131,7 @@ if(BUILD_ANDROID)
       set(ENABLE_SOUND OFF)
     endif()
   endif()
-  
+
   message(STATUS "Android libraries:")
   message(STATUS "  Android: ${ANDROID_LIB}")
   message(STATUS "  Log: ${LOG_LIB}")
@@ -99,34 +140,34 @@ if(BUILD_ANDROID)
   if(ENABLE_SOUND)
     message(STATUS "  OpenSLES: ${OPENSLES_LIB}")
   endif()
-  
+
 else()
   # Linux/Desktop packages
   find_package(ZLIB REQUIRED)
   find_package(PNG REQUIRED)
   find_package(SDL2 REQUIRED)
   find_package(OpenGL REQUIRED)
-  
+
   # Try to find GLEW
   find_package(GLEW)
   if(NOT GLEW_FOUND)
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(GLEW REQUIRED glew)
   endif()
-  
-  # Make sure we have the GLEW::GLEW target
+
+  # Ensure GLEW::GLEW target
   if(NOT TARGET GLEW::GLEW)
     add_library(GLEW::GLEW UNKNOWN IMPORTED)
     set_target_properties(GLEW::GLEW PROPERTIES
       IMPORTED_LOCATION "${GLEW_LIBRARIES}"
       INTERFACE_INCLUDE_DIRECTORIES "${GLEW_INCLUDE_DIRS}")
   endif()
-  
-  # SDL_mixer support for Linux
+
+  # SDL_mixer support
   if(ENABLE_SOUND)
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(SDL2_MIXER REQUIRED SDL2_mixer)
-    
+
     if(SDL2_MIXER_FOUND)
       message(STATUS "Found SDL2_mixer: ${SDL2_MIXER_LIBRARIES}")
       add_definitions(-DHAVE_SDL_SOUND)
@@ -136,11 +177,11 @@ else()
       set(ENABLE_SOUND OFF)
     endif()
   endif()
-  
-  # Directly specify the paths to the lib3ds library and its include directory
+
+  # lib3ds manual setup
   set(LIB3DS_LIBRARY lib3ds)
   set(LIB3DS_INCLUDE_DIR lib3ds)
-  
+
   message(STATUS "Linux libraries found:")
   message(STATUS "  SDL2: ${SDL2_LIBRARIES}")
   message(STATUS "  OpenGL: ${OPENGL_LIBRARIES}")
