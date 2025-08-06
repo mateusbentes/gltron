@@ -1,0 +1,43 @@
+-- SDL2 compatibility layer for Lua scripts
+print("[lua] Loading SDL2 compatibility layer")
+
+-- Initialize SDL table if it doesn't exist
+SDL = SDL or {}
+
+-- Event types
+SDL.KEYDOWN = 2
+SDL.KEYUP = 3
+SDL.MOUSEMOTION = 4
+SDL.MOUSEBUTTONDOWN = 5
+SDL.MOUSEBUTTONUP = 6
+SDL.QUIT = 12
+
+-- Key modifiers
+SDL.KMOD_NONE = 0
+SDL.KMOD_LSHIFT = 1
+SDL.KMOD_RSHIFT = 2
+SDL.KMOD_LCTRL = 64
+SDL.KMOD_RCTRL = 128
+SDL.KMOD_LALT = 256
+SDL.KMOD_RALT = 512
+SDL.KMOD_SHIFT = 3    -- LSHIFT | RSHIFT
+SDL.KMOD_CTRL = 192   -- LCTRL | RCTRL
+SDL.KMOD_ALT = 768    -- LALT | RALT
+
+-- Mouse buttons
+SDL.BUTTON_LEFT = 1
+SDL.BUTTON_MIDDLE = 2
+SDL.BUTTON_RIGHT = 3
+
+-- Video flags
+SDL.SWSURFACE = 0
+SDL.HWSURFACE = 1
+SDL.ASYNCBLIT = 4
+SDL.ANYFORMAT = 268435456
+SDL.HWPALETTE = 536870912
+SDL.DOUBLEBUF = 1073741824
+SDL.FULLSCREEN = 2147483648
+SDL.OPENGL = 2
+SDL.RESIZABLE = 16
+
+print("[lua] SDL2 compatibility layer loaded")
