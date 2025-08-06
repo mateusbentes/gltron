@@ -216,3 +216,27 @@ void nebu_Video_CheckErrors(const char *where) {
 void nebu_Video_SwapBuffers(void) {
 	SDL_GL_SwapWindow(window);
 }
+
+void nebu_Video_GetDimension(int *w, int *h) {
+	if (w) *w = width;
+	if (h) *h = height;
+}
+
+void nebu_Video_SetDimension(int w, int h) {
+	width = w;
+	height = h;
+}
+
+int nebu_Video_GetWidth(void) {
+	return width;
+}
+
+int nebu_Video_GetHeight(void) {
+	return height;
+}
+
+void nebu_Video_GetScreenSize(int *w, int *h) {
+	// For desktop, return current window size
+	if (w) *w = width;
+	if (h) *h = height;
+}

@@ -1,30 +1,21 @@
-# Find all source files in this directory
+# src/scripting/CMakeLists.txt
 file(GLOB SOURCES "*.c" "*.cpp")
 file(GLOB HEADERS "*.h")
 
-# Ensure the source file containing scripting_SetLuaState is included
-# Double-check the directory for the correct source file
-
-# Create the library
-add_library(nebu_scripting STATIC ${SOURCES} ${HEADERS})
-
-# Include directories
-target_include_directories(nebu_scripting PUBLIC
-  ${CMAKE_SOURCE_DIR}/nebu/include
-  ${CMAKE_SOURCE_DIR}/src/include
-  ${CMAKE_SOURCE_DIR}/lua5/include
-  ${SDL2_INCLUDE_DIRS}
-)
-
-# Link with Lua libraries
-target_link_libraries(nebu_scripting PUBLIC
-  sdl_compat
-  lua5
-  lualib5
-  ${SDL2_LIBRARIES}
-)
-
-# Platform-specific configurations
-if(BUILD_ANDROID)
-  target_compile_definitions(nebu_scripting PRIVATE ANDROID)
+if(SOURCES)
+  add_library(src_scripting STATIC ${SOURCES} ${HEADERS})
+  add_common_includes(src_scripting)
+  add_common_platform_definitions(src_scripting)
+  
+  # Link with Lua libraries specific to src_scripting
+  target_link_libraries(src_scripting PUBLIC
+    lua5
+    lualib5
+  )
+  
+  add_common_sdl_linking(src_scripting)
+  message(STATUS "[src/scripting] Created src_scripting library with sources: ${SOURCES}")
+else()
+  add_library(src_scripting INTERFACE)
+  message(STATUS "[src/scripting] Created dummy src_scripting library (no source files found)")
 endif()

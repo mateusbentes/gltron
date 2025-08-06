@@ -1,6 +1,10 @@
-# Main CMakeLists.txt for GLTron (Universal: Linux + Android)
+# Modular Main CMakeLists.txt for GLTron
 cmake_minimum_required(VERSION 3.10)
 project(gltron VERSION 0.71 LANGUAGES C CXX)
+
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
 
@@ -15,9 +19,11 @@ if(POLICY CMP0072)
 endif()
 
 # Detect platform automatically
-if(ANDROID)
+if(ANDROID OR CMAKE_SYSTEM_NAME STREQUAL "Android")
   set(BUILD_ANDROID ON)
   message(STATUS "Detected Android platform")
+  message(STATUS "Android ABI: ${ANDROID_ABI}")
+  message(STATUS "Android Platform: ${ANDROID_PLATFORM}")
 else()
   set(BUILD_ANDROID OFF)
   message(STATUS "Detected Linux/Desktop platform")
@@ -61,46 +67,6 @@ if(LOCAL_DATA)
   message(STATUS "LOCAL_DATA definition added")
 endif()
 
-# Add embedded Lua
-if(USE_SCRIPTING)
-  add_library(lua5 STATIC
-    lua5/lapi.c
-    lua5/lcode.c
-    lua5/lctype.c
-    lua5/ldebug.c
-    lua5/ldo.c
-    lua5/ldump.c
-    lua5/lfunc.c
-    lua5/lgc.c
-    lua5/llex.c
-    lua5/lmem.c
-    lua5/lobject.c
-    lua5/lopcodes.c
-    lua5/lparser.c
-    lua5/lstate.c
-    lua5/lstring.c
-    lua5/ltable.c
-    lua5/ltm.c
-    lua5/lundump.c
-    lua5/lvm.c
-    lua5/lzio.c
-    lua5/lauxlib.c
-    lua5/lbaselib.c
-    lua5/ldblib.c
-    lua5/liolib.c
-    lua5/lmathlib.c
-    lua5/loslib.c
-    lua5/lstrlib.c
-    lua5/ltablib.c
-    lua5/loadlib.c
-    lua5/linit.c
-  )
-  target_include_directories(lua5 PUBLIC
-  ${CMAKE_CURRENT_SOURCE_DIR}/lua5
-  ${CMAKE_CURRENT_SOURCE_DIR}/lua5/include
-)
-endif()
-
 # Platform-specific package finding
 if(BUILD_ANDROID)
   # Android-specific setup
@@ -130,15 +96,6 @@ if(BUILD_ANDROID)
       message(WARNING "OpenSL ES not found. Building without Android audio.")
       set(ENABLE_SOUND OFF)
     endif()
-  endif()
-
-  message(STATUS "Android libraries:")
-  message(STATUS "  Android: ${ANDROID_LIB}")
-  message(STATUS "  Log: ${LOG_LIB}")
-  message(STATUS "  EGL: ${EGL_LIB}")
-  message(STATUS "  GLESv2: ${GLES_LIB}")
-  if(ENABLE_SOUND)
-    message(STATUS "  OpenSLES: ${OPENSLES_LIB}")
   endif()
 
 else()
@@ -176,20 +133,6 @@ else()
       message(WARNING "SDL2_mixer not found. Building without sound support.")
       set(ENABLE_SOUND OFF)
     endif()
-  endif()
-
-  # lib3ds manual setup
-  set(LIB3DS_LIBRARY lib3ds)
-  set(LIB3DS_INCLUDE_DIR lib3ds)
-
-  message(STATUS "Linux libraries found:")
-  message(STATUS "  SDL2: ${SDL2_LIBRARIES}")
-  message(STATUS "  OpenGL: ${OPENGL_LIBRARIES}")
-  message(STATUS "  GLEW: ${GLEW_LIBRARIES}")
-  message(STATUS "  PNG: ${PNG_LIBRARIES}")
-  message(STATUS "  ZLIB: ${ZLIB_LIBRARIES}")
-  if(ENABLE_SOUND)
-    message(STATUS "  SDL2_mixer: ${SDL2_MIXER_LIBRARIES}")
   endif()
 endif()
 
@@ -297,52 +240,60 @@ if(NOT BUILD_ANDROID)
 ")
 endif()
 
-# Include directories - IMPORTANT: Order matters!
+# Include directories for generated headers
 include_directories(
-  ${CMAKE_BINARY_DIR}/src/include  # Generated headers first
-  ${CMAKE_BINARY_DIR}  # For config.h
+  ${CMAKE_BINARY_DIR}/src/include
+  ${CMAKE_BINARY_DIR}
 )
 
-# Platform-specific include directories
-if(BUILD_ANDROID)
-  include_directories(
-    ${CMAKE_SOURCE_DIR}/include  # Android-specific headers
-    ${CMAKE_SOURCE_DIR}/include/base
-    ${CMAKE_SOURCE_DIR}/include/video
-    ${CMAKE_SOURCE_DIR}/include/input
-    ${CMAKE_SOURCE_DIR}/include/audio
-    ${CMAKE_SOURCE_DIR}/include/game
-    ${CMAKE_SOURCE_DIR}/include/filesystem
-    ${CMAKE_SOURCE_DIR}/include/configuration
-    ${CMAKE_SOURCE_DIR}/include/scripting
-  )
-else()
-  # Linux - only include standard directories, avoid Android-specific ones
-  include_directories(
-    ${CMAKE_SOURCE_DIR}/src/include  # Standard GLTron headers
-    ${CMAKE_SOURCE_DIR}/nebu/include  # Nebu library headers
-    ${CMAKE_SOURCE_DIR}/lib3ds/include  # Add lib3ds include directory
+# Common functions to reduce duplication across CMakeLists.txt files
+function(add_common_includes target_name)
+  target_include_directories(${target_name} PUBLIC
+    ${CMAKE_SOURCE_DIR}/src/include
+    ${CMAKE_SOURCE_DIR}/nebu/include
+    ${CMAKE_SOURCE_DIR}/lua5/include
     ${SDL2_INCLUDE_DIRS}
-    ${GLEW_INCLUDE_DIRS}
-    ${PNG_INCLUDE_DIRS}
-    ${ZLIB_INCLUDE_DIRS}
   )
-  if(ENABLE_SOUND)
-    include_directories(${SDL2_MIXER_INCLUDE_DIRS})
-  endif()
-endif()
+endfunction()
 
-# Check which source files actually exist
-function(check_source_files file_list result_var)
-  set(existing_files "")
-  foreach(file ${file_list})
-    if(EXISTS "${CMAKE_SOURCE_DIR}/${file}")
-      list(APPEND existing_files ${file})
+function(add_common_platform_definitions target_name)
+  if(BUILD_ANDROID)
+    target_compile_definitions(${target_name} PRIVATE ANDROID)
+  endif()
+
+  if(LOCAL_DATA)
+    target_compile_definitions(${target_name} PRIVATE LOCAL_DATA)
+  endif()
+
+  if(ENABLE_SOUND)
+    if(BUILD_ANDROID)
+      target_compile_definitions(${target_name} PRIVATE HAVE_ANDROID_AUDIO)
     else()
-      message(STATUS "Source file not found: ${file}")
+      target_compile_definitions(${target_name} PRIVATE HAVE_SDL_SOUND)
     endif()
-  endforeach()
-  set(${result_var} ${existing_files} PARENT_SCOPE)
+  endif()
+endfunction()
+
+function(create_standard_library module_name)
+  file(GLOB SOURCES "*.c" "*.cpp")
+  file(GLOB HEADERS "*.h")
+
+  if(SOURCES)
+    add_library(${module_name} STATIC ${SOURCES} ${HEADERS})
+    add_common_includes(${module_name})
+    add_common_platform_definitions(${module_name})
+    message(STATUS "[${module_name}] Created library with sources: ${SOURCES}")
+  else()
+    add_library(${module_name} INTERFACE)
+    message(STATUS "[${module_name}] Created dummy library (no source files found)")
+  endif()
+endfunction()
+
+function(add_common_sdl_linking target_name)
+  target_link_libraries(${target_name} PUBLIC
+    sdl_compat
+    ${SDL2_LIBRARIES}
+  )
 endfunction()
 
 # Create SDL compatibility library (Linux only)
@@ -351,8 +302,14 @@ if(NOT BUILD_ANDROID)
       src/base/sdl_compat.c
       base/sdl_compat.c
   )
-  check_source_files("${SDL_COMPAT_CANDIDATES}" SDL_COMPAT_SOURCES)
-  
+
+  set(SDL_COMPAT_SOURCES "")
+  foreach(file ${SDL_COMPAT_CANDIDATES})
+    if(EXISTS "${CMAKE_SOURCE_DIR}/${file}")
+      list(APPEND SDL_COMPAT_SOURCES ${file})
+    endif()
+  endforeach()
+
   if(SDL_COMPAT_SOURCES)
     add_library(sdl_compat STATIC ${SDL_COMPAT_SOURCES})
     target_include_directories(sdl_compat PUBLIC
@@ -361,7 +318,7 @@ if(NOT BUILD_ANDROID)
       ${SDL2_INCLUDE_DIRS}
     )
     target_link_libraries(sdl_compat PUBLIC ${SDL2_LIBRARIES})
-    message(STATUS "SDL compatibility library created")
+    message(STATUS "SDL compatibility library created with sources: ${SDL_COMPAT_SOURCES}")
   else()
     # Create a dummy SDL compatibility library
     add_library(sdl_compat INTERFACE)
@@ -369,347 +326,46 @@ if(NOT BUILD_ANDROID)
   endif()
 endif()
 
-# Create modular libraries based on existing files
-set(MODULE_DEFINITIONS
-    "callbacks:src/game/callbacks.c,src/game/init_stubs.c,game/callbacks.c,game/init_stubs.c"
-    "game:src/game/game.c,src/game/engine.c,src/game/level.c,game/game.c,game/engine.c,game/level.c"
-    "input:src/input/input.c,input/input.c"
-    "audio:src/audio/sound.c,src/audio/sound_stubs.c,audio/sound.c,audio/sound_stubs.c"
-    "video:src/video/video.c,src/video/graphics.c,video/video.c,video/graphics.c"
-    "configuration:src/configuration/settings.c,configuration/settings.c"
-    "base:src/base/util.c,base/util.c"
-    "filesystem:src/filesystem/path.c,src/filesystem/dirsetup.c,filesystem/path.c,filesystem/dirsetup.c"
-    "nebu_system:nebu/base/nebu_system.c,nebu/system/system.c"
-    "nebu_video:nebu/video/nebu_video.c,nebu/video/video.c"
-    "nebu_input:nebu/input/nebu_input.c,nebu/input/input.c"
-    "nebu_filesystem:nebu/filesystem/nebu_filesystem.c,nebu/filesystem/filesystem.c"
-    "nebu_base:nebu/base/nebu_math.c,nebu/base/nebu_util.c,nebu/base/math.c,nebu/base/util.c"
-    "nebu_audio:nebu/audio/nebu_audio.c,nebu/audio/audio.c"
-)
-
-# Create libraries for each module
-foreach(module_def ${MODULE_DEFINITIONS})
-  string(REPLACE ":" ";" module_parts ${module_def})
-  list(GET module_parts 0 module_name)
-  list(GET module_parts 1 module_files_str)
-  string(REPLACE "," ";" module_files ${module_files_str})
-  
-  # Check which files exist for this module
-  check_source_files("${module_files}" existing_module_files)
-  
-  if(existing_module_files)
-    add_library(${module_name} STATIC ${existing_module_files})
-    target_include_directories(${module_name} PUBLIC
-      ${CMAKE_BINARY_DIR}/src/include
-      ${CMAKE_SOURCE_DIR}/src/include
-      ${CMAKE_SOURCE_DIR}/nebu/include
-    )
-    
-    # Add platform-specific compile definitions
-    if(BUILD_ANDROID)
-      target_compile_definitions(${module_name} PRIVATE ANDROID)
-      if(ENABLE_SOUND)
-        target_compile_definitions(${module_name} PRIVATE HAVE_ANDROID_AUDIO)
-      endif()
-    else()
-      if(ENABLE_SOUND)
-        target_compile_definitions(${module_name} PRIVATE HAVE_SDL_SOUND)
-      endif()
-    endif()
-    
-    target_compile_definitions(${module_name} PRIVATE LOCAL_DATA)
-    message(STATUS "Created library: ${module_name} with files: ${existing_module_files}")
-  else()
-    # Create a dummy library if no files found
-    add_library(${module_name} INTERFACE)
-    message(STATUS "Created dummy library: ${module_name} (no source files found)")
-  endif()
-endforeach()
-
-# Try to create lib3ds library (Linux only)
+# Copy assets to build directory for testing
 if(NOT BUILD_ANDROID)
-  set(LIB3DS_CANDIDATES
-      lib3ds/lib3ds.c
-      lib3ds/src/lib3ds.c
-      src/lib3ds/lib3ds.c
-  )
-  check_source_files("${LIB3DS_CANDIDATES}" LIB3DS_SOURCES)
-  
-  if(LIB3DS_SOURCES)
-    add_library(lib3ds STATIC ${LIB3DS_SOURCES})
-    target_include_directories(lib3ds PUBLIC
-      ${CMAKE_SOURCE_DIR}/lib3ds/include
-      ${CMAKE_SOURCE_DIR}/lib3ds
-    )
-    message(STATUS "Created lib3ds library")
-  else()
-    # Create a dummy lib3ds library
-    add_library(lib3ds INTERFACE)
-    message(STATUS "Created dummy lib3ds library")
-  endif()
+  # List of asset directories to copy
+  set(ASSET_DIRS art data levels music scripts sounds)
+
+  foreach(asset_dir ${ASSET_DIRS})
+    if(EXISTS "${CMAKE_SOURCE_DIR}/${asset_dir}")
+      # Copy the entire directory
+      file(COPY "${CMAKE_SOURCE_DIR}/${asset_dir}" 
+           DESTINATION "${CMAKE_BINARY_DIR}")
+      message(STATUS "Copied asset directory: ${asset_dir}")
+    endif()
+  endforeach()
+
+  # Also copy individual asset files if they exist
+  set(ASSET_FILES README CREDITS COPYING)
+  foreach(asset_file ${ASSET_FILES})
+    if(EXISTS "${CMAKE_SOURCE_DIR}/${asset_file}")
+      file(COPY "${CMAKE_SOURCE_DIR}/${asset_file}" 
+           DESTINATION "${CMAKE_BINARY_DIR}")
+      message(STATUS "Copied asset file: ${asset_file}")
+    endif()
+  endforeach()
 endif()
 
-# Main source files
-set(MAIN_SOURCE_CANDIDATES
-    gltron.c
-    src/gltron.c
-)
+# Add subdirectories for modular build
+add_subdirectory(glew)
+add_subdirectory(lua5)
+add_subdirectory(nebu/audio)
+add_subdirectory(nebu/base)
+add_subdirectory(nebu/filesystem)
+add_subdirectory(nebu/input)
+add_subdirectory(nebu/scripting)
+add_subdirectory(nebu/system)
+add_subdirectory(nebu/video)
+add_subdirectory(src)
 
-check_source_files("${MAIN_SOURCE_CANDIDATES}" MAIN_SOURCES)
-
-if(NOT MAIN_SOURCES)
-  message(FATAL_ERROR "No main source file found!")
-endif()
-
-# Platform-specific adaptations
-if(BUILD_ANDROID)
-  set(ANDROID_ADAPTATION_CANDIDATES
-      android_gles_adapter.c
-      android_input_adapter.c
-      android_main.c
-      android_audio_adapter.c
-      android_audio_settings.c
-      android_resolution_manager.c
-      android_settings_menu.c
-      scripting_stubs.c
-      opengl_stubs.c
-  )
-  
-  check_source_files("${ANDROID_ADAPTATION_CANDIDATES}" PLATFORM_ADAPTATIONS)
-else()
-  set(PLATFORM_ADAPTATIONS "")
-endif()
-
-# Combine all source files
-set(ALL_SOURCES ${MAIN_SOURCES} ${PLATFORM_ADAPTATIONS})
-
-# Create the main target
-if(BUILD_ANDROID)
-  # Android native library
-  add_library(gltron_native SHARED ${ALL_SOURCES})
-  set(TARGET_NAME gltron_native)
-else()
-  # Linux executable
-  add_executable(gltron ${ALL_SOURCES})
-  set(TARGET_NAME gltron)
-endif()
-
-# Add compile definitions to the target
-target_compile_definitions(${TARGET_NAME} PRIVATE LOCAL_DATA)
-
-if(BUILD_ANDROID)
-  target_compile_definitions(${TARGET_NAME} PRIVATE ANDROID)
-  if(ENABLE_SOUND)
-    target_compile_definitions(${TARGET_NAME} PRIVATE HAVE_ANDROID_AUDIO)
-  endif()
-else()
-  if(ENABLE_SOUND)
-    target_compile_definitions(${TARGET_NAME} PRIVATE HAVE_SDL_SOUND)
-  endif()
-endif()
-
-# Set target properties
-set_target_properties(${TARGET_NAME} PROPERTIES
-    C_STANDARD 99
-    CXX_STANDARD 11
-)
-
-if(BUILD_ANDROID)
-  set_target_properties(${TARGET_NAME} PROPERTIES
-      POSITION_INDEPENDENT_CODE ON
-  )
-endif()
-
-# Link libraries based on platform
-if(BUILD_ANDROID)
-  # Android libraries
-  target_link_libraries(${TARGET_NAME} PRIVATE
-      # Android-specific modules
-      callbacks
-      game
-      input
-      audio
-      video
-      configuration
-      base
-      filesystem
-      
-      # Android system libraries
-      ${ANDROID_LIB}
-      ${LOG_LIB}
-      ${EGL_LIB}
-      ${GLES_LIB}
-  )
-  
-  if(ENABLE_SOUND AND OPENSLES_LIB)
-    target_link_libraries(${TARGET_NAME} PRIVATE ${OPENSLES_LIB})
-  endif()
-  
-else()
-  # Linux/Desktop libraries - IMPORTANT: Order matters for static linking
-  target_link_libraries(${TARGET_NAME} PRIVATE
-      sdl_compat          # SDL compatibility wrapper
-      
-      callbacks          # Main menu and in-game callback logic
-      
-      game               # Main game logic
-      input              # Rewritten input handling
-      audio              # Rewritten audio handling
-      video              # Rewritten video rendering
-      configuration      # Custom config management module
-      base               # Rewritten utility module
-      filesystem         # Rewritten file handling
-      
-      nebu_system        # System utilities (must come before video/input)
-      nebu_video         # Low-level video handling
-      nebu_input         # Input device handling
-      nebu_filesystem    # Filesystem operations
-      nebu_base          # Basic math and utilities
-      nebu_audio         # Legacy audio functions
-      
-      lib3ds             # 3D model loading support
-      ${GLEW_LIBRARIES}
-      ${PNG_LIBRARIES}
-      ${ZLIB_LIBRARIES}
-      ${OPENGL_LIBRARIES}
-      ${SDL2_LIBRARIES}
-  )
-  
-  if(ENABLE_SOUND)
-    target_link_libraries(${TARGET_NAME} PRIVATE ${SDL2_MIXER_LIBRARIES})
-  endif()
-  
-  # Dynamic loading (Unix only)
-  if(NOT WIN32)
-    target_link_libraries(${TARGET_NAME} PRIVATE dl)
-  endif()
-endif()
-
-# Add math library
-target_link_libraries(${TARGET_NAME} PRIVATE m)
-
-# Copy resources to build directory for LOCAL_DATA mode
-if(LOCAL_DATA)
-  if(BUILD_ANDROID)
-    # Create Android asset directories
-    file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/assets)
-    file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/assets/art)
-    file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/assets/data)
-    file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/assets/music)
-    file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/assets/sounds)
-    message(STATUS "Android asset directories created")
-  else()
-    # Create Linux directories
-    file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/art)
-    file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/data)
-    file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/music)
-    file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/sounds)
-    
-    # Copy resources as post-build step
-    add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${CMAKE_SOURCE_DIR}/art ${CMAKE_BINARY_DIR}/art
-        COMMENT "Copying art to build directory"
-    )
-    
-    add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${CMAKE_SOURCE_DIR}/data ${CMAKE_BINARY_DIR}/data
-        COMMENT "Copying data to build directory"
-    )
-    
-    add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${CMAKE_SOURCE_DIR}/music ${CMAKE_BINARY_DIR}/music
-        COMMENT "Copying music to build directory"
-    )
-    
-    add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${CMAKE_SOURCE_DIR}/sounds ${CMAKE_BINARY_DIR}/sounds
-        COMMENT "Copying sounds to build directory"
-    )
-    
-    message(STATUS "Linux resource directories created")
-  endif()
-endif()
-
-# Installation rules
-if(BUILD_ANDROID)
-  install(TARGETS ${TARGET_NAME} 
-      LIBRARY DESTINATION lib
-      ARCHIVE DESTINATION lib
-  )
-else()
-  install(TARGETS ${TARGET_NAME} DESTINATION bin)
-  # Install resources for Linux
-  if(EXISTS ${CMAKE_SOURCE_DIR}/art)
-    install(DIRECTORY art/ DESTINATION share/gltron/art)
-  endif()
-  if(EXISTS ${CMAKE_SOURCE_DIR}/data)
-    install(DIRECTORY data/ DESTINATION share/gltron/data)
-  endif()
-  if(EXISTS ${CMAKE_SOURCE_DIR}/music)
-    install(DIRECTORY music/ DESTINATION share/gltron/music)
-  endif()
-  if(EXISTS ${CMAKE_SOURCE_DIR}/sounds)
-    install(DIRECTORY sounds/ DESTINATION share/gltron/sounds)
-  endif()
-endif()
-
-# Generate tags for development
-add_custom_target(tags
-    COMMAND find . -name '*.c' -or -name '*.cpp' -or -name '*.h' | xargs etags
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-)
-
-# Create a verification target
-add_custom_target(verify_build
-    COMMAND ${CMAKE_COMMAND} -E echo "Build configuration:"
-    COMMAND ${CMAKE_COMMAND} -E echo "  Platform: ${CMAKE_SYSTEM_NAME}"
-    COMMAND ${CMAKE_COMMAND} -E echo "  Android: ${BUILD_ANDROID}"
-    COMMAND ${CMAKE_COMMAND} -E echo "  LOCAL_DATA: ${LOCAL_DATA}"
-    COMMAND ${CMAKE_COMMAND} -E echo "  ENABLE_SOUND: ${ENABLE_SOUND}"
-    COMMAND ${CMAKE_COMMAND} -E echo "  Target: ${TARGET_NAME}"
-)
-
-# Summary
-message(STATUS "")
-message(STATUS "GLTron Configuration Summary:")
-message(STATUS "=============================")
+# Summary message
+message(STATUS "\nGLTron Modular Configuration Summary:")
 message(STATUS "Platform: ${CMAKE_SYSTEM_NAME}")
 message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
-if(BUILD_ANDROID)
-message(STATUS "Android API Level: ${CMAKE_ANDROID_API}")
-message(STATUS "Android ABI: ${CMAKE_ANDROID_ARCH_ABI}")
-endif()
 message(STATUS "Local Data: ${LOCAL_DATA}")
 message(STATUS "Sound Support: ${ENABLE_SOUND}")
-message(STATUS "")
-message(STATUS "Features:")
-if(BUILD_ANDROID)
-message(STATUS "  ✓ Android OpenGL ES rendering")
-message(STATUS "  ✓ Touch input system")
-if(ENABLE_SOUND)
-message(STATUS "  ✓ Android audio system (OpenSL ES)")
-message(STATUS "  ✓ Audio settings and controls")
-endif()
-message(STATUS "  ✓ Resolution management")
-message(STATUS "  ✓ Graphics quality settings")
-message(STATUS "  ✓ Settings menu system")
-else()
-message(STATUS "  ✓ Desktop OpenGL rendering")
-message(STATUS "  ✓ Keyboard/mouse input")
-if(ENABLE_SOUND)
-message(STATUS "  ✓ SDL audio system")
-endif()
-message(STATUS "  ✓ Modular library structure")
-endif()
-message(STATUS "")
-if(BUILD_ANDROID)
-message(STATUS "Target: libgltron_native.so")
-else()
-message(STATUS "Target: gltron executable")
-endif()
-message(STATUS "")
-

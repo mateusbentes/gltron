@@ -1,22 +1,22 @@
-# Find all source files in this directory
+# glew/CMakeLists.txt
 file(GLOB SOURCES "*.c")
 file(GLOB HEADERS "include/GL/*.h")
 
-# Create the library
 add_library(glew STATIC ${SOURCES} ${HEADERS})
 
 # Set include directories
-target_include_directories(glew 
-  PUBLIC 
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
+target_include_directories(glew PUBLIC
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${SDL2_INCLUDE_DIRS}
 )
 
 # Define GLEW preprocessor macros
-target_compile_definitions(glew 
-  PRIVATE 
-    GLEW_STATIC
-    GLEW_NO_GLU
+target_compile_definitions(glew PRIVATE
+  GLEW_STATIC
+  GLEW_NO_GLU
 )
+
+add_common_platform_definitions(glew)
 
 # Platform-specific configurations
 if(WIN32)
@@ -26,8 +26,6 @@ elseif(APPLE)
   target_compile_definitions(glew PRIVATE MACOSX)
   find_library(OPENGL_FRAMEWORK OpenGL)
   target_link_libraries(glew PRIVATE ${OPENGL_FRAMEWORK})
-elseif(BUILD_ANDROID)
-  target_compile_definitions(glew PRIVATE ANDROID)
 else()
   # Linux
   target_link_libraries(glew PRIVATE GL)

@@ -1,17 +1,7 @@
-# Find all source files in this directory
-file(GLOB SOURCES "*.c" "*.cpp")
-file(GLOB HEADERS "*.h")
+# src/input/CMakeLists.txt
+create_standard_library(input)
 
-# Create the library
-add_library(input STATIC ${SOURCES} ${HEADERS})
-
-# Include directories
-target_include_directories(input PUBLIC
-  ${CMAKE_SOURCE_DIR}/src/include
-  ${CMAKE_SOURCE_DIR}/nebu/include
-)
-
-# Link libraries
+# Link libraries specific to input
 target_link_libraries(input PUBLIC
   nebu_scripting
   nebu_input
@@ -19,8 +9,3 @@ target_link_libraries(input PUBLIC
   nebu_video
   game
 )
-
-# Platform-specific configurations
-if(BUILD_ANDROID)
-  target_compile_definitions(input PRIVATE ANDROID)
-endif()

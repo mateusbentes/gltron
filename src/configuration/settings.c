@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include "base/nebu_assert.h"
 
 #include "configuration/settings.h"
@@ -15,6 +16,107 @@
 
 #define BUFSIZE 100
 #define MAX_VAR_NAME_LEN 64
+#define MAX_SETTINGS 100
+
+/* Simple settings storage */
+typedef struct {
+    char name[MAX_VAR_NAME_LEN];
+    float value;
+    int is_set;
+} Setting;
+
+static Setting settings_storage[MAX_SETTINGS];
+static int settings_count = 0;
+
+/* Forward declarations */
+static Setting* find_setting(const char *name);
+static void set_setting(const char *name, float value);
+static float get_setting(const char *name);
+
+/* Find a setting by name */
+static Setting* find_setting(const char *name) {
+    int i;
+    for (i = 0; i < settings_count; i++) {
+        if (strcmp(settings_storage[i].name, name) == 0) {
+            return &settings_storage[i];
+        }
+    }
+    return NULL;
+}
+
+/* Create or update a setting */
+static void set_setting(const char *name, float value) {
+    Setting *setting = find_setting(name);
+    
+    if (setting) {
+        setting->value = value;
+    } else if (settings_count < MAX_SETTINGS) {
+        strncpy(settings_storage[settings_count].name, name, MAX_VAR_NAME_LEN - 1);
+        settings_storage[settings_count].name[MAX_VAR_NAME_LEN - 1] = '\0';
+        settings_storage[settings_count].value = value;
+        settings_storage[settings_count].is_set = 1;
+        settings_count++;
+    } else {
+        printf("[settings] Warning: Maximum number of settings reached\n");
+    }
+}
+
+/* Get a setting value */
+static float get_setting(const char *name) {
+    Setting *setting = find_setting(name);
+    if (setting) {
+        return setting->value;
+    }
+    
+    /* Return reasonable defaults for unknown settings */
+    if (strcmp(name, "width") == 0) return 800.0f;
+    if (strcmp(name, "height") == 0) return 600.0f;
+    if (strcmp(name, "display_type") == 0) return 0.0f;
+    if (strcmp(name, "players") == 0) return 4.0f;
+    if (strcmp(name, "ai_opponents") == 0) return 3.0f;
+    if (strcmp(name, "speed") == 0) return 6.0f;
+    if (strcmp(name, "fov") == 0) return 90.0f;
+    if (strcmp(name, "znear") == 0) return 0.5f;
+    
+    return 1.0f; /* Default for most boolean settings */
+}
+
+/* Initialize default settings */
+static void init_default_settings(void) {
+    static int initialized = 0;
+    if (initialized) return;
+    
+    initialized = 1; /* Set this first to prevent recursion */
+    
+    /* Set default resolution and display settings directly */
+    set_setting("width", 800.0f);
+    set_setting("height", 600.0f);
+    set_setting("display_type", 0.0f);  /* Single viewport */
+    set_setting("windowMode", 1.0f);    /* Windowed mode */
+    set_setting("fullscreen", 0.0f);    /* Not fullscreen */
+    
+    /* Other default settings */
+    set_setting("ai_level", 2.0f);
+    set_setting("show_fps", 0.0f);
+    set_setting("players", 4.0f);
+    set_setting("ai_opponents", 3.0f);
+    set_setting("wireframe", 0.0f);
+    set_setting("playMusic", 1.0f);
+    set_setting("playEffects", 1.0f);
+    set_setting("mouse_lock_ingame", 1.0f);
+    set_setting("mouse_invert_x", 0.0f);
+    set_setting("mouse_invert_y", 0.0f);
+    set_setting("camType", 0.0f);
+    set_setting("debug_output", 0.0f);
+    
+    set_setting("speed", 6.0f);
+    set_setting("fov", 90.0f);
+    set_setting("znear", 0.5f);
+    set_setting("fxVolume", 1.0f);
+    set_setting("musicVolume", 1.0f);
+    
+    printf("[settings] Default settings initialized\n");
+}
 
 void checkSettings(void) {
 	/* sanity check: speed */
@@ -33,52 +135,51 @@ void saveSettings(void) {
 }
 
 int getSettingi(const char *name) {
-    printf("[debug] Getting integer setting: %s (stub)\n", name);
-    /* Return default values based on the setting name */
-    if(strcmp(name, "ai_level") == 0) return 2;
-    if(strcmp(name, "show_fps") == 0) return 0;
-    /* Add more defaults as needed */
-    return 1; /* Default for most boolean settings */
+    init_default_settings();
+    int value = (int)get_setting(name);
+    printf("[settings] Getting integer setting: %s = %d\n", name, value);
+    return value;
 }
 
 int getVideoSettingi(const char *name) {
-    printf("[debug] Getting video integer setting: %s (stub)\n", name);
-    /* Return default values based on the setting name */
-    if(strcmp(name, "width") == 0) return 800;
-    if(strcmp(name, "height") == 0) return 600;
-    /* Add more defaults as needed */
-    return 1; /* Default for most boolean settings */
+    init_default_settings();
+    int value = (int)get_setting(name);
+    printf("[settings] Getting video integer setting: %s = %d\n", name, value);
+    return value;
 }
 
 float getSettingf(const char *name) {
-    printf("[debug] Getting float setting: %s (stub)\n", name);
-    /* Return default values based on the setting name */
-    if(strcmp(name, "fov") == 0) return 90.0f;
-    if(strcmp(name, "znear") == 0) return 0.5f;
-    if(strcmp(name, "speed") == 0) return 6.0f;
-    /* Add more defaults as needed */
-    return 1.0f; /* Default for most settings */
+    init_default_settings();
+    float value = get_setting(name);
+    printf("[settings] Getting float setting: %s = %f\n", name, value);
+    return value;
 }
 
 float getVideoSettingf(const char *name) {
-    printf("[debug] Getting video float setting: %s (stub)\n", name);
-    /* Return default values based on the setting name */
-    /* Add specific defaults as needed */
-    return 1.0f; /* Default for most settings */
+    init_default_settings();
+    float value = get_setting(name);
+    printf("[settings] Getting video float setting: %s = %f\n", name, value);
+    return value;
 }
 
 int isSetting(const char *name) {
-    printf("[debug] Checking if setting exists: %s (stub)\n", name);
-    return 1; /* Assume all settings exist */
+    init_default_settings();
+    Setting *setting = find_setting(name);
+    int exists = (setting != NULL);
+    printf("[settings] Checking if setting exists: %s = %s\n", name, exists ? "yes" : "no");
+    return exists;
 }
 
 void setSettingf(const char *name, float f) {
-	printf("[debug] Setting float setting: %s = %f (stub)\n", name, f);
-	/* In a real implementation, you would update the setting in Lua */
+    init_default_settings();
+    set_setting(name, f);
+    printf("[settings] Setting float setting: %s = %f\n", name, f);
 }
 
 void setSettingi(const char *name, int i) {
-	setSettingf(name, (float)i);
+    init_default_settings();
+    set_setting(name, (float)i);
+    printf("[settings] Setting integer setting: %s = %d\n", name, i);
 }
 
 void updateSettingsCache(void) {

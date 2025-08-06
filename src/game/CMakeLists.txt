@@ -1,19 +1,13 @@
-# Collect all source and header files
+# src/game/CMakeLists.txt
 file(GLOB SOURCES "*.c")
 file(GLOB HEADERS "*.h")
 
 # Remove scripting_helpers.c from the build
 list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/scripting_helpers.c")
 
-# Create the library
 add_library(game STATIC ${SOURCES} ${HEADERS})
-
-# Include directories
-target_include_directories(game PUBLIC
-  ${CMAKE_SOURCE_DIR}/src/include
-  ${CMAKE_SOURCE_DIR}/nebu/include
-  ${CMAKE_SOURCE_DIR}/lua5/include
-)
+add_common_includes(game)
+add_common_platform_definitions(game)
 
 # Only link Lua-related stuff if scripting is enabled
 if(USE_SCRIPTING)
@@ -30,5 +24,6 @@ target_link_libraries(game PUBLIC
   nebu_input
   nebu_video
   nebu_base
-  sdl_compat
 )
+
+add_common_sdl_linking(game)

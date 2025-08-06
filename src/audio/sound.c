@@ -18,38 +18,45 @@
 Mix_Music *music = NULL;
 
 static char *game_fx_names[] = {
-
-#if 1
   "game_engine.wav",
   "game_crash.wav",
-  "game_recognizer.wav"
-#else
-  "game_engine.ogg",
-  "game_crash.ogg",
-  "game_recognizer.ogg"
-#endif
+  "game_engine.wav"  // Use engine sound for recognizer since game_recognizer.wav doesn't exist
 };
 
 void Sound_loadFX(void) {
   int i;
   char *path;
-
+  char sound_path[512];
 
   for(i = 0; i < NUM_GAME_FX; i++) {
-    path = getPath(PATH_DATA, game_fx_names[i]);
-    if(path) {
+    // Try to load from sounds/ directory first
+    sprintf(sound_path, "sounds/%s", game_fx_names[i]);
+    path = getPossiblePath(PATH_DATA, sound_path);
+    
+    if(path && nebu_FS_Test(path)) {
+      printf("[audio] Loading sound from: %s\n", path);
       Audio_LoadSample(path, i);
       free(path);
     } else {
-      fprintf(stderr, "[error] can't load sound fx file %s\n",
-	     game_fx_names[i]);
-      nebu_assert(0); exit(1); // TODO: handle missing fx somewhere else
+      if(path) free(path);
+      // Fallback to data directory
+      path = getPossiblePath(PATH_DATA, game_fx_names[i]);
+      if(path && nebu_FS_Test(path)) {
+        printf("[audio] Loading sound from: %s\n", path);
+        Audio_LoadSample(path, i);
+        free(path);
+      } else {
+        if(path) free(path);
+        fprintf(stderr, "[error] can't load sound fx file %s\n", game_fx_names[i]);
+        // Don't exit, just continue without this sound
+        printf("[audio] Continuing without sound file: %s\n", game_fx_names[i]);
+      }
     }
   }
 }
 
 void Sound_reloadTrack(void) {
-  const char *song = "default_song.mp3";
+  const char *song = "song_revenge_of_cats.it";  // Use the actual music file that exists
   char *path = NULL;
 
 #ifdef USE_SCRIPTING
@@ -59,11 +66,13 @@ void Sound_reloadTrack(void) {
 
   fprintf(stderr, "[sound] loading song %s\n", song);
   
-  path = getPath(PATH_MUSIC, song);
+  path = getPossiblePath(PATH_MUSIC, song);
   
-  if(path == NULL) {
-    fprintf(stderr, "[sound] can't find song...exiting\n");
-    nebu_assert(0); exit(1);
+  if(path == NULL || !nebu_FS_Test(path)) {
+    if(path) free(path);
+    fprintf(stderr, "[sound] can't find song %s, disabling music\n", song);
+    // Don't exit, just disable music
+    return;
   }
 
   Sound_load(path);
@@ -118,8 +127,8 @@ void Sound_initTracks(void) {
   soundList = readDirectoryContents(music_path, NULL);
   
   if(soundList->next == NULL) {
-    fprintf(stderr, "[sound] no music files found...exiting\n");
-    nebu_assert(0); exit(1);
+    fprintf(stderr, "[sound] no music files found, continuing without music\n");
+    return;  // Don't exit, just continue without music
   }
 
   i = 1;

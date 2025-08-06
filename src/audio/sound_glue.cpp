@@ -1,4 +1,4 @@
-#if 1  // Changed from 1 to 0 to disable audio completely
+#if 1  // Audio enabled
 #include "audio/sound_glue.h"
 extern "C" {
 #include "game/game.h"
@@ -162,9 +162,8 @@ extern "C" {
       if (gSettingsCache.playMusic) {
         printf("[audio] Music not playing, calling nextTrack()\n");
         
-        // Conditional compilation: check if scripting is enabled
-        #if IS_SCRIPTING
-            // If scripting is enabled, call the scripting function to go to next track
+        // Try to call the scripting function to go to next track
+        #ifdef USE_SCRIPTING
             printf("[audio] Music not playing, calling nextTrack() script\n");
             int result = scripting_Run("if nextTrack then nextTrack() else print('[error] nextTrack function not found') end");
             printf("[audio] nextTrack() script returned: %d\n", result);
@@ -544,16 +543,20 @@ extern "C" {
     FILE *f = fopen(name, "rb");
     if (!f) {
         // Try with "game_" prefix if the original file doesn't exist
-        char alt_name[512];
+        char alt_name[1024];  // Increased buffer size to avoid overflow
         const char* basename = strrchr(name, '/');
         if (basename) {
             char path[512];
             size_t path_len = basename - name + 1;
-            strncpy(path, name, path_len);
-            path[path_len] = '\0';
-            sprintf(alt_name, "%sgame_%s", path, basename + 1);
+            if (path_len < sizeof(path)) {
+                strncpy(path, name, path_len);
+                path[path_len] = '\0';
+                snprintf(alt_name, sizeof(alt_name), "%sgame_%s", path, basename + 1);
+            } else {
+                snprintf(alt_name, sizeof(alt_name), "game_%s", basename + 1);
+            }
         } else {
-            sprintf(alt_name, "game_%s", name);
+            snprintf(alt_name, sizeof(alt_name), "game_%s", name);
         }
         
         FILE *alt_f = fopen(alt_name, "rb");

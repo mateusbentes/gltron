@@ -2,11 +2,14 @@
 #include "game/gltron.h"
 #include "input/input.h"
 #include "video/video.h"
+#include "video/nebu_video_system.h"
 #include "audio/audio.h"
 #include "audio/sound_glue.h"
 #include "configuration/settings.h"
 #include "base/nebu_system.h"
 #include "base/switchCallbacks.h"
+#include "game/init.h"
+#include "game/gui.h"
 
 #ifdef __APPLE__
 #include <OpenGL/gl.h>
@@ -75,6 +78,9 @@ void drawMenu(void) {
     // Get screen dimensions
     nebu_Video_GetDimension(&screenWidth, &screenHeight);
     
+    // Set viewport to full screen
+    glViewport(0, 0, screenWidth, screenHeight);
+    
     // Clear the screen
     glClearColor(0.0f, 0.0f, 0.1f, 1.0f);  // Dark blue background
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -82,7 +88,7 @@ void drawMenu(void) {
     // Set up orthographic projection for 2D drawing
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    glOrtho(0, screenWidth, screenHeight, 0, -1, 1);
+    glOrtho(0, screenWidth, 0, screenHeight, -1, 1);  // Fixed coordinate system
     
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
@@ -90,6 +96,9 @@ void drawMenu(void) {
     // Disable depth testing and lighting for 2D drawing
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_LIGHTING);
+    glDisable(GL_TEXTURE_2D);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     
     // Draw a simple background
     glBegin(GL_QUADS);

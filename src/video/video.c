@@ -147,13 +147,13 @@ void shutdownDisplay() {
 void setupDisplay(void) {
     printf("[video] Setting up display\n");
 
-    /* Set up display with fixed values */
-    int width = 800;  /* Fixed width */
-    int height = 600;  /* Fixed height */
-    int fullscreen = 0;  /* Fixed to windowed mode */
+    /* Get display settings from configuration */
+    int width = getSettingi("width");
+    int height = getSettingi("height");
+    int fullscreen = !getSettingi("windowMode");  /* windowMode=1 means windowed, so fullscreen is opposite */
     int flags = 0;
 
-    printf("[video] Using fixed values: width=%d, height=%d, fullscreen=%d\n", width, height, fullscreen);
+    printf("[video] Using settings: width=%d, height=%d, fullscreen=%d\n", width, height, fullscreen);
 
     /* Set window mode first */
     nebu_Video_SetWindowMode(0, 0, width, height);
@@ -166,6 +166,11 @@ void setupDisplay(void) {
     /* Call nebu_Video_SetDisplayMode with the correct arguments */
     nebu_Video_SetDisplayMode(flags);
     printf("[video] Display mode set successfully\n");
+
+    /* Create the window */
+    printf("[video] Creating window\n");
+    gScreen->win_id = initWindow();
+    printf("[video] Window created with ID: %d\n", gScreen->win_id);
 
     printf("[video] Display setup complete\n");
 }

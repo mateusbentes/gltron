@@ -1,5 +1,4 @@
-
-# Find all common source files in this directory
+# src/filesystem/CMakeLists.txt
 file(GLOB COMMON_SOURCES "*.c" "*.cpp")
 file(GLOB HEADERS "*.h")
 
@@ -13,38 +12,18 @@ list(APPEND COMMON_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/installpath.c")
 set(PLATFORM_SOURCES "")
 
 if(MACOSX)
-    # Use macOS-specific implementation
     list(APPEND PLATFORM_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/dirsetup-macos.c")
 elseif(WIN32)
-    # Use Windows-specific implementation
     list(APPEND PLATFORM_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/dirsetup-win32.c")
-else()
-    # Use the generic implementation for Linux/Unix
-    # No additional files needed as dirsetup.c is already in COMMON_SOURCES
 endif()
 
-# Create the library
 add_library(filesystem STATIC ${COMMON_SOURCES} ${PLATFORM_SOURCES} ${HEADERS})
-
-# Include directories
-target_include_directories(filesystem PUBLIC
-  ${CMAKE_SOURCE_DIR}/src/include
-  ${CMAKE_SOURCE_DIR}/nebu/include
-)
+add_common_includes(filesystem)
+add_common_platform_definitions(filesystem)
 
 # Link with nebu_filesystem
 target_link_libraries(filesystem PUBLIC
   nebu_filesystem
-  sdl_compat
 )
 
-# Platform-specific configurations
-if(MACOSX)
-  target_compile_definitions(filesystem PRIVATE MACOSX)
-elseif(WIN32)
-  target_compile_definitions(filesystem PRIVATE WIN32)
-elseif(BUILD_ANDROID)
-  target_compile_definitions(filesystem PRIVATE ANDROID)
-else()
-  target_compile_definitions(filesystem PRIVATE LINUX)
-endif()
+add_common_sdl_linking(filesystem)
