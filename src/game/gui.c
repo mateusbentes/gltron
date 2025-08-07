@@ -270,26 +270,6 @@ void guiMouseMotion(int mx, int my) {
   /* TODO: add mouse cursor, highlighted areas, etc. */
 }
 
-int guiMainLoop(void) {
-  int status = 0;
-
-  printf("[game] Running GUI callback\n");
-
-  // Process input events
-  status = nebu_System_MainLoop();
-  if (status == 0) {
-    return 0; // Quit
-  }
-
-  // Update game state
-  updateGame();
-
-  // Display the game
-  displayGame();
-
-  return 1; // Continue
-}
-
 void drawGuiMenu(Visual *d) {
   /* draw Menu pCurrent */
 

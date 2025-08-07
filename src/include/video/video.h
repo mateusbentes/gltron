@@ -1,6 +1,9 @@
 #ifndef VIDEO_H
 #define VIDEO_H
 
+#include <GL/glew.h>  // Include glew.h first
+#include <GL/gl.h>    // Then include gl.h
+
 #include "game/game.h"
 #include "game/game_data.h" // Player
 #include "game/camera.h" // Camera
@@ -12,8 +15,6 @@
 #include "video/model.h" // gltron_Mesh
 #include "base/nebu_png_texture.h" // png_texture
 #include "video/skybox.h" // Include the skybox header
-
-#include <GL/glew.h> // Include glew.h first
 
 /* Display mode flags */
 #define SYSTEM_RGB        0x0001  /* RGB color mode */
@@ -99,9 +100,7 @@ enum {
 #define BOW_DIST2 0.85f
 #define BOW_DIST1 0.4f
 
-
 extern int gl_error;
-
 
 extern float camAngle;
 extern float cam_phi;
@@ -127,7 +126,6 @@ extern int gpTokenCurrentFloor;
 
 extern float rec_outline_color[3];
 extern float rec_spec_color[4];
-
 
 extern video_level *gWorld;  /* Changed from void * to video_level * */
 
@@ -165,7 +163,6 @@ extern unsigned char debugcolors[6][4];
 extern float gShadowColor[4];
 extern float gCurrentShadowColor[4];
 extern float shadow_matrix[16];
-
 
 /* pixel stuff */
 extern unsigned char* loadPixels(const char *filename, Visual *d);
@@ -244,6 +241,5 @@ extern int video_initialized;
 
 extern PlayerVisual **gppPlayerVisuals;
 extern int gnPlayerVisuals;
-
 
 #endif

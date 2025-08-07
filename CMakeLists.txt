@@ -33,6 +33,7 @@ endif()
 option(ENABLE_STATIC_LINKING "Enable static linking" OFF)
 option(LOCAL_DATA "Use local data directory" ON)
 option(ENABLE_SOUND "Enable sound support" ON)
+option(ENABLE_TTF "Enable SDL2_ttf support" ON)  # Add this option
 
 # Set default build type if not specified
 if(NOT CMAKE_BUILD_TYPE)
@@ -54,6 +55,7 @@ message(STATUS "Platform: ${CMAKE_SYSTEM_NAME}")
 message(STATUS "LOCAL_DATA is set to: ${LOCAL_DATA}")
 message(STATUS "ENABLE_SOUND is set to: ${ENABLE_SOUND}")
 message(STATUS "BUILD_ANDROID is set to: ${BUILD_ANDROID}")
+message(STATUS "ENABLE_TTF is set to: ${ENABLE_TTF}")  # Add this message
 
 # Add compiler definitions
 if(BUILD_ANDROID)
@@ -134,6 +136,21 @@ else()
       set(ENABLE_SOUND OFF)
     endif()
   endif()
+
+  # SDL_ttf support
+  if(ENABLE_TTF)
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(SDL2_TTF REQUIRED SDL2_ttf)
+
+    if(SDL2_TTF_FOUND)
+      message(STATUS "Found SDL2_ttf: ${SDL2_TTF_LIBRARIES}")
+      add_definitions(-DHAVE_SDL_TTF)
+      add_compile_definitions(HAVE_SDL_TTF)
+    else()
+      message(WARNING "SDL2_ttf not found. Building without TTF support.")
+      set(ENABLE_TTF OFF)
+    endif()
+  endif()
 endif()
 
 # Create the cmake directory if it doesn't exist
@@ -158,6 +175,7 @@ else()
 
 #cmakedefine LOCAL_DATA
 #cmakedefine HAVE_SDL_SOUND
+#cmakedefine HAVE_SDL_TTF  # Add this line
 
 #endif /* CONFIG_H */
 ")
@@ -253,6 +271,7 @@ function(add_common_includes target_name)
     ${CMAKE_SOURCE_DIR}/nebu/include
     ${CMAKE_SOURCE_DIR}/lua5/include
     ${SDL2_INCLUDE_DIRS}
+    ${SDL2_TTF_INCLUDE_DIRS}  # Add this line
   )
 endfunction()
 
@@ -271,6 +290,10 @@ function(add_common_platform_definitions target_name)
     else()
       target_compile_definitions(${target_name} PRIVATE HAVE_SDL_SOUND)
     endif()
+  endif()
+
+  if(ENABLE_TTF)
+    target_compile_definitions(${target_name} PRIVATE HAVE_SDL_TTF)
   endif()
 endfunction()
 
@@ -293,6 +316,7 @@ function(add_common_sdl_linking target_name)
   target_link_libraries(${target_name} PUBLIC
     sdl_compat
     ${SDL2_LIBRARIES}
+    ${SDL2_TTF_LIBRARIES}  # Add this line
   )
 endfunction()
 
@@ -369,3 +393,4 @@ message(STATUS "Platform: ${CMAKE_SYSTEM_NAME}")
 message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "Local Data: ${LOCAL_DATA}")
 message(STATUS "Sound Support: ${ENABLE_SOUND}")
+message(STATUS "TTF Support: ${ENABLE_TTF}")

@@ -93,6 +93,12 @@ target_include_directories(lualib5 PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
+# Install Lua headers
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
+  DESTINATION include/lua5
+  FILES_MATCHING PATTERN "*.h"
+)
+
 # Add necessary compile definitions
 target_compile_definitions(lua5 PRIVATE LUA_ANSI)
 target_compile_definitions(lualib5 PRIVATE LUA_ANSI)
@@ -108,3 +114,12 @@ if(UNIX)
   target_link_libraries(lua5 PRIVATE m)
   target_link_libraries(lualib5 PRIVATE m)
 endif()
+
+# Export targets for other projects to use
+install(TARGETS lua5 lualib5
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+)
+
+# Create imported targets for other projects
+export(TARGETS lua5 lualib5 FILE ${CMAKE_BINARY_DIR}/lua5-targets.cmake)

@@ -18,6 +18,8 @@
         "nebu_console.h": "c",
         "stdio.h": "c",
         "gltron.h": "c",
-        "sound_glue.h": "c"
+        "sound_glue.h": "c",
+        "random": "c",
+        "configuration.h": "c"
     }
 }

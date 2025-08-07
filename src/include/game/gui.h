@@ -16,7 +16,7 @@ void gui_ReleaseResources(void);
 void exitGui(void);
 void guiMouse(int buttons, int state, int x, int y);
 void guiMouseMotion(int mx, int my);
-int guiMainLoop(void);  // Renamed from runGUI to guiMainLoop
-void drawGuiMenu(Visual *d);  // Renamed from drawMenu to avoid conflict
+int guiMainLoop(void);
+void drawGuiMenu(Visual *d);
 
 #endif

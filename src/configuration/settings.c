@@ -118,20 +118,69 @@ static void init_default_settings(void) {
     printf("[settings] Default settings initialized\n");
 }
 
+// Define all settings variables
+int settings_booster_on = 1;
+int settings_wall_accel_on = 1;
+int settings_wall_buster_on = 1;
+float settings_speed = 6.5f;
+int settings_ai_level = 2;
+int settings_erase_crashed = 1;
+int settings_fast_finish = 0;
+int settings_camType = 0;
+int settings_display_type = 0;
+float settings_map_scale = 1.5f;
+int settings_players = 2;
+int settings_ai_opponents = 0;
+int settings_ai_player1 = 0;
+int settings_ai_player2 = 1;
+int settings_ai_player3 = 1;
+int settings_ai_player4 = 1;
+int settings_mouse_lock_ingame = 1;
+int settings_mouse_invert_y = 0;
+int settings_mouse_invert_x = 0;
+int settings_mipmap_filter = 1;
+int settings_alpha_trails = 1;
+int settings_show_glow = 1;
+int settings_cycle_sharp_edges = 1;
+float settings_reflection = 0.5f;
+int settings_show_model = 1;
+int settings_shadow_volumes_cycle = 1;
+int settings_arena_outlines = 1;
+int settings_show_recognizer = 0;
+int settings_lod = 1;
+int settings_show_fps = 0;
+int settings_show_ai_status = 0;
+int settings_show_scores = 1;
+int settings_show_speed = 1;
+int settings_show_console = 0;
+int settings_show_2d = 1;
+int settings_fov = 60;
+int settings_width = 1024;
+int settings_height = 768;
+int settings_windowMode = 0;
+int settings_playMusic = 1;
+int settings_playEffects = 1;
+float settings_musicVolume = 0.7f;
+float settings_fxVolume = 0.7f;
+int settings_loopMusic = 1;
+char settings_current_level[256] = "levels/arena1.lvl";
+char settings_current_artpack[256] = "artpacks/default";
+char settings_current_track[256] = "music/gltron.mp3";
+
 void checkSettings(void) {
-	/* sanity check: speed */
-	if(getSettingf("speed") <= 0) {
-	  fprintf(stderr, "[gltron] sanity check failed: speed = %.2ff\n",
-		  getSettingf("speed"));
-	  setSettingf("speed", 6.0);  // This calls scripting_SetFloat()
-	  fprintf(stderr, "[gltron] reset speed: speed = %.2f\n",
-		  getSettingf("speed"));
-	}
+    /* sanity check: speed */
+    if(getSettingf("speed") <= 0) {
+      fprintf(stderr, "[gltron] sanity check failed: speed = %.2ff\n",
+          getSettingf("speed"));
+      setSettingf("speed", 6.0);  // This calls scripting_SetFloat()
+      fprintf(stderr, "[gltron] reset speed: speed = %.2f\n",
+          getSettingf("speed"));
+    }
 }
 
 void saveSettings(void) {
-	printf("[debug] Saving settings (stub)\n");
-	/* In a real implementation, you would save settings to a file */
+    printf("[debug] Saving settings (stub)\n");
+    /* In a real implementation, you would save settings to a file */
 }
 
 int getSettingi(const char *name) {
