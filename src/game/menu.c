@@ -10,6 +10,9 @@
 #include "base/switchCallbacks.h"
 #include "game/init.h"
 #include "game/gui.h"
+#include "game/engine.h"
+#include "video/video.h"
+#include "input/input.h"
 
 #ifdef __APPLE__
 #include <OpenGL/gl.h>
@@ -61,13 +64,22 @@ void showSettings(void);
 void showHelp(void);
 void showCredits(void);
 void exitGame(void);
+void menuIdle(void);
+void returnToMenu(void);
 
 // Initialize the menu system
 void initMenu(void) {
     printf("[menu] Initializing menu system\n");
+    fflush(stdout);
     gMenuState = MENU_STATE_MAIN;
+    printf("[menu] Set menu state to MAIN\n");
+    fflush(stdout);
     gSelectedOption = MENU_OPTION_START_GAME;
+    printf("[menu] Set selected option to START_GAME\n");
+    fflush(stdout);
     gMenuActive = 1;
+    printf("[menu] Menu system initialized successfully\n");
+    fflush(stdout);
 }
 
 // Draw the menu
@@ -75,8 +87,13 @@ void drawMenu(void) {
     int i;
     int screenWidth, screenHeight;
     
+    printf("[menu] drawMenu called\n");
+    fflush(stdout);
+    
     // Get screen dimensions
     nebu_Video_GetDimension(&screenWidth, &screenHeight);
+    printf("[menu] Screen dimensions: %dx%d\n", screenWidth, screenHeight);
+    fflush(stdout);
     
     // Set viewport to full screen
     glViewport(0, 0, screenWidth, screenHeight);
@@ -257,8 +274,18 @@ void startGame(void) {
     gMenuActive = 0;
     gMenuState = MENU_STATE_GAME;
     
-    // Initialize game
-    initGame();
+    // Initialize game if needed
+    if (!game || !game2) {
+        initGame();
+    }
+    
+    // Set up game callbacks
+    nebu_System_SetCallback_Display(displayGame);
+    nebu_System_SetCallback_Idle(Game_Idle);
+    nebu_System_SetCallback_Key(keyGame);
+    nebu_System_SetCallback_Mouse(gameMouse);
+    
+    // Enter game mode
     enterGame();
 }
 
@@ -269,9 +296,12 @@ void showSettings(void) {
 
     // Initialize GUI
     initGui();
+    
+    // Set GUI callbacks
     nebu_System_SetCallback_Display(guiCallbacks.display);
     nebu_System_SetCallback_Idle(guiCallbacks.idle);
     nebu_System_SetCallback_Key(guiCallbacks.keyboard);
+    nebu_System_SetCallback_Mouse(guiCallbacks.mouse);
 }
 
 
@@ -292,12 +322,27 @@ void showCredits(void) {
 // Exit the game
 void exitGame(void) {
     printf("[menu] Exiting game\n");
-    nebu_System_Exit();
+    gMenuActive = 0;
+    nebu_System_ExitLoop(0);
 }
 
 // Check if menu is active
 int isMenuActive(void) {
     return gMenuActive;
+}
+
+// Return to menu from game
+void returnToMenu(void) {
+    printf("[menu] Returning to menu\n");
+    gMenuActive = 1;
+    gMenuState = MENU_STATE_MAIN;
+    gSelectedOption = MENU_OPTION_START_GAME;
+    
+    // Set menu callbacks
+    nebu_System_SetCallback_Display(drawMenu);
+    nebu_System_SetCallback_Idle(menuIdle);
+    nebu_System_SetCallback_Key(keyMenu);
+    nebu_System_SetCallback_Mouse(mouseMenu);
 }
 
 // Menu key handler

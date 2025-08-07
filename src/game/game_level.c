@@ -107,10 +107,16 @@ game_spawnset* game_spawnset_Create(void) {
 
     scripting_Pop(); // set
 #else
-    // Cria spawn set vazio
-    pSpawnSet->type = eGameSpawnUndef;
-    pSpawnSet->nPoints = 0;
-    pSpawnSet->pSpawnPoints = NULL;
+    // Create default spawn set with 4 spawn points
+    pSpawnSet->type = eGameSpawnPoint;
+    pSpawnSet->nPoints = 4;
+    pSpawnSet->pSpawnPoints = malloc(4 * sizeof(game_spawnpoint));
+    
+    // Set up 4 default spawn points
+    pSpawnSet->pSpawnPoints[0].vStart.v[0] = -0.5f; pSpawnSet->pSpawnPoints[0].vStart.v[1] = -0.5f; pSpawnSet->pSpawnPoints[0].dir = 0;
+    pSpawnSet->pSpawnPoints[1].vStart.v[0] = 0.5f;  pSpawnSet->pSpawnPoints[1].vStart.v[1] = -0.5f; pSpawnSet->pSpawnPoints[1].dir = 1;
+    pSpawnSet->pSpawnPoints[2].vStart.v[0] = 0.5f;  pSpawnSet->pSpawnPoints[2].vStart.v[1] = 0.5f;  pSpawnSet->pSpawnPoints[2].dir = 2;
+    pSpawnSet->pSpawnPoints[3].vStart.v[0] = -0.5f; pSpawnSet->pSpawnPoints[3].vStart.v[1] = 0.5f;  pSpawnSet->pSpawnPoints[3].dir = 3;
 #endif
 
     return pSpawnSet;
@@ -209,8 +215,13 @@ game_level* game_CreateLevel(void) {
     l->nBoundaries = 0;
     l->boundaries = NULL;
 
-    l->nAxis = 0;
-    l->pAxis = NULL;
+    // Initialize with default axis (4 directions: right, up, left, down)
+    l->nAxis = 4;
+    l->pAxis = malloc(4 * sizeof(vec2));
+    l->pAxis[0].v[0] = 1.0f; l->pAxis[0].v[1] = 0.0f;  // Right
+    l->pAxis[1].v[0] = 0.0f; l->pAxis[1].v[1] = 1.0f;  // Up
+    l->pAxis[2].v[0] = -1.0f; l->pAxis[2].v[1] = 0.0f; // Left
+    l->pAxis[3].v[0] = 0.0f; l->pAxis[3].v[1] = -1.0f; // Down
 #endif
 
     computeBoundingBox(l);

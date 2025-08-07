@@ -2,6 +2,7 @@
 #include "game/game.h"
 #include "game/camera.h"
 #include "game/event.h"
+#include "game/menu.h"
 #include "configuration/settings.h"
 #include "scripting/scripting.h"
 
@@ -56,8 +57,9 @@ void keyGame(int state, int k, int x, int y)
 	if (state == NEBU_INPUT_KEYSTATE_DOWN) {
 		switch (k) {
 			case 27:
-				game->pauseflag = PAUSE_GAME_SUSPENDED;
-				nebu_System_ExitLoop(eSRC_Game_Escape);
+				// Return to menu instead of pausing
+				printf("[input] ESC pressed, returning to menu\n");
+				returnToMenu();
 				return;
 			case ' ':
 				game->pauseflag = PAUSE_GAME_SUSPENDED;
