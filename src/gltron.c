@@ -58,6 +58,13 @@ Java_com_gltron_android_MainActivity_nativeMain(JNIEnv *env, jobject thiz) {
 }
 #endif
 
+// Menu display callback function - this will call the internal menu drawing
+void displayMenuCallback(void) {
+    if (isMenuActive()) {
+        drawMenu();
+    }
+}
+
 // Linux main function
 #ifndef ANDROID
 int main(int argc, char *argv[]) {
@@ -79,13 +86,16 @@ int main(int argc, char *argv[]) {
     // Initialize the menu system
     printf("[main] Initializing menu system...\n");
     initMenu();
+    
+    // Activate the menu so it will be displayed
+    activateMenu();
 
     // Set up menu callbacks with the Nebu system
     printf("[main] Setting up menu callbacks...\n");
-    nebu_System_SetCallback_Display(drawMenu);
-    nebu_System_SetCallback_Idle(menuIdle);  // Now properly defined
-    nebu_System_SetCallback_Key(keyMenu);    // Now properly defined
-    nebu_System_SetCallback_Mouse(mouseMenu);  // Now properly defined
+    nebu_System_SetCallback_Display(displayMenuCallback);  // Use our wrapper function
+    nebu_System_SetCallback_Idle(menuIdle);               // This should be public
+    nebu_System_SetCallback_Key(keyMenu);                 // This should be public
+    nebu_System_SetCallback_Mouse(mouseMenu);             // This should be public
 
     // Run the main loop until exitGame() calls nebu_System_Exit()
     printf("[main] Starting main loop...\n");

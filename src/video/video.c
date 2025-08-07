@@ -17,6 +17,9 @@
 #include "base/nebu_assert.h"
 
 #include "video/skybox.h"
+#include <SDL2/SDL.h>
+SDL_Window *gWindow = NULL;
+SDL_GLContext gGLContext = NULL;
 
 void displayGame(void) {
     printf("[display] Drawing game\n");
