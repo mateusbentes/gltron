@@ -3,7 +3,7 @@
 #include "base/nebu_system.h"
 #include "base/nebu_assert.h"
 #include "base/nebu_debug_memory.h"
-#include "base/sdl_compat.h"
+#include "../../src/include/base/sdl_compat.h"
 
 /* Define constants directly in this file to avoid include issues */
 #ifndef SYSTEM_DOUBLE
@@ -33,8 +33,6 @@
 /* Include SDL2 header */
 #include <SDL2/SDL.h>
 
-static SDL_Window *window = NULL;
-static SDL_GLContext context = NULL;
 static SDL_Surface *gScreen = NULL;
 static int width = 0;
 static int height = 0;
@@ -132,10 +130,6 @@ void createWindow(const char *name)
     nebu_assert(0); exit(1); /* OK: critical, no visual */
   }
 
-  /* Get window and context from compatibility layer */
-  window = SDL_GetWindow_Compat();
-  context = SDL_GL_GetCurrentContext();
-
   window_id = 1;
   SDL_GL_SetSwapInterval(1);
 }
@@ -184,16 +178,7 @@ int nebu_Video_Create(char *name) {
 void nebu_Video_Destroy(int id) {
 	nebu_assert(id == window_id);
 	window_id = 0;
-	if(context)
-	{
-		SDL_GL_DeleteContext(context);
-		context = NULL;
-	}
-	if(window)
-	{
-		SDL_DestroyWindow(window);
-		window = NULL;
-	}
+	SDL_DestroyWindow_Compat();
 	video_initialized = 0;
 }
 
@@ -202,7 +187,9 @@ void SystemReshapeFunc(void(*reshape)(int w, int h)) {
 }
 
 void nebu_Video_WarpPointer(int x, int y) {
-  SDL_WarpMouseInWindow(window, x, y);
+  if (g_window) {
+    SDL_WarpMouseInWindow(g_window, x, y);
+  }
 }
 
 void nebu_Video_CheckErrors(const char *where) {
@@ -214,7 +201,7 @@ void nebu_Video_CheckErrors(const char *where) {
 }
 
 void nebu_Video_SwapBuffers(void) {
-	SDL_GL_SwapWindow(window);
+	SDL_GL_SwapWindow_Compat();
 }
 
 void nebu_Video_GetDimension(int *w, int *h) {

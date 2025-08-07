@@ -1,6 +1,9 @@
 /* Implementation of nebu_System_SetCallback_* functions */
 
 #include "base/nebu_system.h"
+#include "video/nebu_video_system.h"
+#include "../../src/include/base/sdl_compat.h"
+#include <SDL2/SDL.h>
 #include <stdio.h>
 
 /* Callback function pointers */
@@ -93,8 +96,8 @@ void nebu_System_SystemEvent(void *event) {
 int nebu_System_MainLoop(void) {
     printf("[system] Entering main loop\n");
 
-    /* Simple main loop implementation */
     int running = 1;
+    
     while (running) {
         /* Process events */
         SDL_Event event;
@@ -171,5 +174,13 @@ int nebu_System_MainLoop(void) {
     }
 
     printf("[system] Exiting main loop\n");
-    return 0; /* Return 0 to indicate successful exit */
+    return 0;
+}
+
+/* Exit loop function - use external implementation */
+extern void nebu_System_ExitLoop(int return_code);
+
+/* Swap buffers function */
+void nebu_System_SwapBuffers(void) {
+    nebu_Video_SwapBuffers();
 }

@@ -67,6 +67,12 @@ int main(int argc, char *argv[]) {
     printf("[main] Initializing subsystems...\n");
     initSubsystems(argc, argv_const);
     
+    // Force a reasonable window size if needed
+    printf("[main] Setting up video mode...\n");
+    int screenWidth = 1024, screenHeight = 768;
+    nebu_Video_GetDimension(&screenWidth, &screenHeight);
+    printf("[main] Window size: %dx%d\n", screenWidth, screenHeight);
+    
     // Initialize the menu system
     printf("[main] Initializing menu system...\n");
     initMenu();
@@ -78,19 +84,15 @@ int main(int argc, char *argv[]) {
     nebu_System_SetCallback_Key(keyMenu);
     nebu_System_SetCallback_Mouse(mouseMenu);
     
-    // Force a reasonable window size if needed
-    printf("[main] Setting up video mode...\n");
-    int screenWidth = 1024, screenHeight = 768;
-    nebu_Video_GetDimension(&screenWidth, &screenHeight);
-    printf("[main] Window size: %dx%d\n", screenWidth, screenHeight);
-    
     // Run the main loop until exitGame() calls nebu_System_Exit()
     printf("[main] Starting main loop...\n");
-    nebu_System_MainLoop();
+    int result = nebu_System_MainLoop();
     
     // Clean up all subsystems
     printf("[main] Cleaning up subsystems...\n");
     exitSubsystems();
+    
+    printf("[main] Main loop exited with code: %d\n", result);
     
     printf("GLTron Linux exiting...\n");
     return 0;

@@ -13,6 +13,9 @@
 #include "game/engine.h"
 #include "video/video.h"
 #include "input/input.h"
+#include "base/sdl_compat.h"
+
+#include <SDL2/SDL.h>
 
 #ifdef __APPLE__
 #include <OpenGL/gl.h>
@@ -95,6 +98,13 @@ void drawMenu(void) {
     printf("[menu] Screen dimensions: %dx%d\n", screenWidth, screenHeight);
     fflush(stdout);
     
+    // Ensure we have valid dimensions
+    if (screenWidth <= 0 || screenHeight <= 0) {
+        screenWidth = 1024;
+        screenHeight = 768;
+        printf("[menu] Using fallback dimensions: %dx%d\n", screenWidth, screenHeight);
+    }
+    
     // Set viewport to full screen
     glViewport(0, 0, screenWidth, screenHeight);
     
@@ -105,7 +115,7 @@ void drawMenu(void) {
     // Set up orthographic projection for 2D drawing
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    glOrtho(0, screenWidth, 0, screenHeight, -1, 1);  // Fixed coordinate system
+    glOrtho(0, screenWidth, screenHeight, 0, -1, 1);  // Fixed coordinate system (Y flipped for screen coords)
     
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
@@ -127,45 +137,45 @@ void drawMenu(void) {
     glVertex2f(0, screenHeight);
     glEnd();
     
-    // Draw the GLTron logo
-    glColor4f(1.0f, 1.0f, 1.0f, 1.0f);  // White
+    // Draw the GLTron logo background
+    glColor4f(0.2f, 0.2f, 0.2f, 0.8f);  // Dark gray background
     glBegin(GL_QUADS);
-    glVertex2f(screenWidth/2 - 200, 100);
-    glVertex2f(screenWidth/2 + 200, 100);
-    glVertex2f(screenWidth/2 + 200, 200);
-    glVertex2f(screenWidth/2 - 200, 200);
+    glVertex2f(screenWidth/2 - 200, 50);
+    glVertex2f(screenWidth/2 + 200, 50);
+    glVertex2f(screenWidth/2 + 200, 150);
+    glVertex2f(screenWidth/2 - 200, 150);
     glEnd();
     
-    // Draw "GLTron" text (simulated with a rectangle)
+    // Draw "GLTron" title (simulated with a rectangle)
     glColor4f(0.0f, 0.8f, 1.0f, 1.0f);  // Cyan
     glBegin(GL_QUADS);
-    glVertex2f(screenWidth/2 - 150, 120);
-    glVertex2f(screenWidth/2 + 150, 120);
-    glVertex2f(screenWidth/2 + 150, 180);
-    glVertex2f(screenWidth/2 - 150, 180);
+    glVertex2f(screenWidth/2 - 150, 70);
+    glVertex2f(screenWidth/2 + 150, 70);
+    glVertex2f(screenWidth/2 + 150, 130);
+    glVertex2f(screenWidth/2 - 150, 130);
     glEnd();
     
     // Draw menu options
     for (i = 0; i < MENU_OPTION_COUNT; i++) {
-        int y = 300 + i * 50;
+        int y = 200 + i * 60;  // Start lower and space out more
         
         // Highlight selected option
         if (i == gSelectedOption) {
             // Draw selection box
-            glColor4f(0.0f, 0.5f, 1.0f, 0.5f);  // Semi-transparent blue
+            glColor4f(0.0f, 0.5f, 1.0f, 0.7f);  // Semi-transparent blue
             glBegin(GL_QUADS);
-            glVertex2f(screenWidth/2 - 150, y - 5);
-            glVertex2f(screenWidth/2 + 150, y - 5);
-            glVertex2f(screenWidth/2 + 150, y + 35);
-            glVertex2f(screenWidth/2 - 150, y + 35);
+            glVertex2f(screenWidth/2 - 180, y - 5);
+            glVertex2f(screenWidth/2 + 180, y - 5);
+            glVertex2f(screenWidth/2 + 180, y + 45);
+            glVertex2f(screenWidth/2 - 180, y + 45);
             glEnd();
             
             // Draw selection indicator (triangle)
             glColor4f(1.0f, 1.0f, 0.0f, 1.0f);  // Yellow
             glBegin(GL_TRIANGLES);
-            glVertex2f(screenWidth/2 - 170, y + 15);
-            glVertex2f(screenWidth/2 - 150, y + 25);
-            glVertex2f(screenWidth/2 - 150, y + 5);
+            glVertex2f(screenWidth/2 - 200, y + 20);
+            glVertex2f(screenWidth/2 - 180, y + 30);
+            glVertex2f(screenWidth/2 - 180, y + 10);
             glEnd();
             
             // Draw option text (simulated with a rectangle)
@@ -175,31 +185,31 @@ void drawMenu(void) {
             glColor4f(0.7f, 0.7f, 0.7f, 1.0f);  // Light gray
         }
         
-        // Draw option text (simulated with a rectangle)
+        // Draw option text background (simulated with a rectangle)
         glBegin(GL_QUADS);
-        glVertex2f(screenWidth/2 - 100, y + 5);
-        glVertex2f(screenWidth/2 + 100, y + 5);
-        glVertex2f(screenWidth/2 + 100, y + 25);
-        glVertex2f(screenWidth/2 - 100, y + 25);
+        glVertex2f(screenWidth/2 - 120, y + 5);
+        glVertex2f(screenWidth/2 + 120, y + 5);
+        glVertex2f(screenWidth/2 + 120, y + 35);
+        glVertex2f(screenWidth/2 - 120, y + 35);
         glEnd();
     }
     
-    // Draw instructions
+    // Draw instructions at bottom
     glColor4f(0.7f, 0.7f, 0.7f, 1.0f);  // Light gray
     
-    // Draw instruction text (simulated with rectangles)
+    // Draw instruction text background (simulated with rectangles)
     glBegin(GL_QUADS);
-    glVertex2f(screenWidth/2 - 200, screenHeight - 100);
-    glVertex2f(screenWidth/2 + 200, screenHeight - 100);
-    glVertex2f(screenWidth/2 + 200, screenHeight - 80);
     glVertex2f(screenWidth/2 - 200, screenHeight - 80);
+    glVertex2f(screenWidth/2 + 200, screenHeight - 80);
+    glVertex2f(screenWidth/2 + 200, screenHeight - 60);
+    glVertex2f(screenWidth/2 - 200, screenHeight - 60);
     glEnd();
     
     glBegin(GL_QUADS);
-    glVertex2f(screenWidth/2 - 150, screenHeight - 70);
-    glVertex2f(screenWidth/2 + 150, screenHeight - 70);
-    glVertex2f(screenWidth/2 + 150, screenHeight - 50);
     glVertex2f(screenWidth/2 - 150, screenHeight - 50);
+    glVertex2f(screenWidth/2 + 150, screenHeight - 50);
+    glVertex2f(screenWidth/2 + 150, screenHeight - 30);
+    glVertex2f(screenWidth/2 - 150, screenHeight - 30);
     glEnd();
     
     // Restore OpenGL state
@@ -212,7 +222,7 @@ void drawMenu(void) {
 // Handle menu input
 void handleMenuInput(int key) {
     switch (key) {
-        case SYSTEM_KEY_UP:
+        case SDLK_UP:
         case 'w':
         case 'W':
             // Move selection up
@@ -220,7 +230,7 @@ void handleMenuInput(int key) {
             printf("[menu] Selected option: %s\n", gMenuOptionText[gSelectedOption]);
             break;
             
-        case SYSTEM_KEY_DOWN:
+        case SDLK_DOWN:
         case 's':
         case 'S':
             // Move selection down
@@ -228,8 +238,8 @@ void handleMenuInput(int key) {
             printf("[menu] Selected option: %s\n", gMenuOptionText[gSelectedOption]);
             break;
             
-        case SYSTEM_KEY_RETURN:
-        case SYSTEM_KEY_SPACE:
+        case SDLK_RETURN:
+        case SDLK_SPACE:
             // Select current option
             switch (gSelectedOption) {
                 case MENU_OPTION_START_GAME:
@@ -254,7 +264,7 @@ void handleMenuInput(int key) {
             }
             break;
             
-        case 27:  // ESC key
+        case SDLK_ESCAPE:  // ESC key
             // If in a submenu, return to main menu
             if (gMenuState != MENU_STATE_MAIN) {
                 gMenuState = MENU_STATE_MAIN;
@@ -274,34 +284,25 @@ void startGame(void) {
     gMenuActive = 0;
     gMenuState = MENU_STATE_GAME;
     
-    // Initialize game if needed
-    if (!game || !game2) {
-        initGame();
-    }
+    // For now, just show a message that the game would start
+    // TODO: Implement actual game initialization and transition
+    printf("[menu] Game start requested - this would transition to the actual game\n");
     
-    // Set up game callbacks
-    nebu_System_SetCallback_Display(displayGame);
-    nebu_System_SetCallback_Idle(Game_Idle);
-    nebu_System_SetCallback_Key(keyGame);
-    nebu_System_SetCallback_Mouse(gameMouse);
-    
-    // Enter game mode
-    enterGame();
+    // Return to menu for now
+    gMenuActive = 1;
+    gMenuState = MENU_STATE_MAIN;
 }
 
 // Show settings menu
 void showSettings(void) {
     printf("[menu] Showing settings menu\n");
     gMenuState = MENU_STATE_SETTINGS;
-
-    // Initialize GUI
-    initGui();
     
-    // Set GUI callbacks
-    nebu_System_SetCallback_Display(guiCallbacks.display);
-    nebu_System_SetCallback_Idle(guiCallbacks.idle);
-    nebu_System_SetCallback_Key(guiCallbacks.keyboard);
-    nebu_System_SetCallback_Mouse(guiCallbacks.mouse);
+    // For now, just show a message
+    printf("[menu] Settings menu requested - this would show game settings\n");
+    
+    // Return to main menu for now
+    gMenuState = MENU_STATE_MAIN;
 }
 
 
@@ -323,7 +324,7 @@ void showCredits(void) {
 void exitGame(void) {
     printf("[menu] Exiting game\n");
     gMenuActive = 0;
-    nebu_System_ExitLoop(0);
+    nebu_System_Exit();
 }
 
 // Check if menu is active
@@ -347,8 +348,8 @@ void returnToMenu(void) {
 
 // Menu key handler
 void keyMenu(int state, int key, int x, int y) {
-    // Only process key press events
-    if (state != SYSTEM_KEYPRESS) {
+    // Only process key press events (state == 1 means key down)
+    if (state != 1) {
         return;
     }
     
@@ -362,8 +363,8 @@ void mouseMenu(int button, int state, int x, int y) {
     nebu_Video_GetDimension(&screenWidth, &screenHeight);
     
     // Convert mouse click to touch event
-    if (button == 0) { // Left mouse button
-        touchMenu(state == SYSTEM_MOUSEPRESSED ? 1 : 0, x, y, screenWidth, screenHeight);
+    if (button == SDL_BUTTON_LEFT) { // Left mouse button
+        touchMenu(state, x, y, screenWidth, screenHeight);
     }
 }
 
@@ -376,9 +377,9 @@ void touchMenu(int state, int x, int y, int screenWidth, int screenHeight) {
         return;
     }
     
-    // Calculate menu item positions
-    int menuStartY = 300;
-    int menuItemHeight = 50;
+    // Calculate menu item positions (matching the drawing coordinates)
+    int menuStartY = 200;
+    int menuItemHeight = 60;
     int menuItemCount = MENU_OPTION_COUNT;
     
     // Check if touch is within menu area
@@ -386,8 +387,8 @@ void touchMenu(int state, int x, int y, int screenWidth, int screenHeight) {
         int itemY = menuStartY + i * menuItemHeight;
         
         // Check if touch is within this menu item
-        if (x >= screenWidth/2 - 150 && x <= screenWidth/2 + 150 &&
-            y >= itemY - 5 && y <= itemY + 35) {
+        if (x >= screenWidth/2 - 180 && x <= screenWidth/2 + 180 &&
+            y >= itemY - 5 && y <= itemY + 45) {
             
             // Select this menu item
             gSelectedOption = i;
@@ -403,9 +404,9 @@ void touchMenu(int state, int x, int y, int screenWidth, int screenHeight) {
 
 // Menu idle function
 void menuIdle(void) {
-    // Draw the menu
-    drawMenu();
+    // The display callback (drawMenu) will be called automatically by the main loop
+    // We just need to handle any idle processing here
     
     // Delay to limit frame rate
-    nebu_Time_FrameDelay(20);
+    nebu_Time_FrameDelay(16); // ~60 FPS
 }
