@@ -290,12 +290,35 @@ Callbacks guiCallbacks = {
     NULL /* mouse button */, NULL /* mouse motion */, NULL /* reshape */, "gui"
 };
 
-void runGUI(void) {
-    // Your GUI main loop or logic here
+void runGame(void) {
+    SDL_Event event;
+    int running = 1;
+
+    while (running) {
+        while (SDL_PollEvent(&event)) {
+            switch (event.type) {
+                case SDL_QUIT:
+                    running = 0;
+                    break;
+                case SDL_KEYDOWN:
+                    // Handle game input here
+                    break;
+                // Handle other events as needed...
+            }
+        }
+
+        // Update game logic here
+
+        // Render the game scene
+        drawGame();
+
+        // Swap the OpenGL buffers to display the rendered frame
+        SDL_GL_SwapWindow(gWindow);
+    }
 }
 
-void runGame(void) {
-    // Main game loop or logic goes here
+void runGUI(void) {
+    // Your GUI main loop or logic here
 }
 
 void runPause(void) {
