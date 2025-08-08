@@ -101,6 +101,15 @@ void drawGuiBackground(void) {
 }
 
 void drawGuiMenu(Visual *d) {
+    if (!d) {
+        fprintf(stderr, "[drawGuiMenu] Visual pointer is NULL!\n");
+        return;
+    }
+    if (!pFont) {
+        fprintf(stderr, "[drawGuiMenu] Font pointer is NULL!\n");
+        return;
+    }
+
     const char *menuItems[] = {
         "Start Game",
         "Sound Options",

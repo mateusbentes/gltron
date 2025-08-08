@@ -7,6 +7,7 @@
 #include "game/game.h"
 #include "game/menu.h"  // declare isMenuActive()
 #include "game/gui.h"   // declare drawGuiMenu(), keyGuiMenu(), mouseGuiMenu(), idleGui()
+#include "video/video.h"
 
 static int menuActive = 0;
 
@@ -33,7 +34,7 @@ void initGuiMenuItems(void) {
 }
 
 void drawGuiMenuWrapper(void) {
-    drawGuiMenu(NULL);
+    drawGuiMenu(gScreen);
 }
 
 void displayMenuCallback(void) {
@@ -105,7 +106,6 @@ void mouseGuiMenu(SDL_MouseButtonEvent *event) {
         }
     }
 }
-
 
 void returnToMenu(void) {
     activateMenu();
