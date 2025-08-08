@@ -1,12 +1,16 @@
 #include <SDL2/SDL.h>
-#include <GL/glew.h>
-#include <GL/gl.h>
+#ifdef __ANDROID__
+    #include <GLES2/gl2.h>
+#else
+    #include <GL/glew.h>   // GLEW must come before gl.h!
+    #include <GL/gl.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "game/game.h"
-#include "game/menu.h"  // declare isMenuActive()
-#include "game/gui.h"   // declare drawGuiMenu(), keyGuiMenu(), mouseGuiMenu(), idleGui()
+#include "game/menu.h"
+#include "game/gui.h"
 #include "video/video.h"
 
 static int menuActive = 0;
@@ -24,13 +28,12 @@ void deactivateMenu(void) {
 }
 
 void initMenu(void) {
-    // Initialize menu state, load resources, etc.
     activateMenu();
-    printf("[initMenu] Activated meni\n");
+    printf("[initMenu] Activated menu\n");
 }
 
 void initGuiMenuItems(void) {
-    printf("[initGuiMenuItems] Menu gui started GUI\n");
+    printf("[initGuiMenuItems] Menu GUI started\n");
 }
 
 void drawGuiMenuWrapper(void) {
@@ -61,23 +64,47 @@ void mouseMenu(SDL_MouseButtonEvent *event) {
     }
 }
 
+// --- Touch support for Android and mobile ---
+void touchMenu(SDL_TouchFingerEvent *event) {
+    if (!isMenuActive()) return;
+
+    // Convert normalized coordinates to screen pixels
+    int screenW = gScreen ? gScreen->vp_w : 800;
+    int screenH = gScreen ? gScreen->vp_h : 600;
+    int x = (int)(event->x * screenW);
+    int y = (int)(event->y * screenH);
+
+    if (event->type == SDL_FINGERDOWN) {
+        // Simple detection of button by y coordinate
+        if (y > 300 && y < 340) {
+            printf("Touched 'Start Game' button\n");
+            deactivateMenu();
+            initGame();
+            nebu_System_SetCallback_Display(displayGame);
+            nebu_System_SetCallback_Idle(Game_Idle);
+            nebu_System_SetCallback_Key((void*)keyGame);
+        } else if (y > 360 && y < 400) {
+            printf("Touched 'Exit' button\n");
+            SDL_Quit();
+            // On Android, SDL_Quit will close the app gracefully
+        }
+    }
+}
+
 void keyGuiMenu(SDL_KeyboardEvent *event) {
     if (event->type == SDL_KEYDOWN) {
         switch (event->keysym.sym) {
             case SDLK_RETURN:
-                // Start game
                 deactivateMenu();
-                initGame();  // <- important: here start game logic
+                initGame();
                 nebu_System_SetCallback_Display(displayGame);
                 nebu_System_SetCallback_Idle(Game_Idle);
                 nebu_System_SetCallback_Key((void*)keyGame);
                 break;
-
             case SDLK_ESCAPE:
                 printf("Exiting game...\n");
-                exit(0);
+                SDL_Quit();
                 break;
-
             default:
                 printf("Pressed key on menu: %d\n", event->keysym.sym);
                 break;
@@ -90,8 +117,6 @@ void mouseGuiMenu(SDL_MouseButtonEvent *event) {
         if (event->button == SDL_BUTTON_LEFT) {
             int x = event->x;
             int y = event->y;
-
-            // Simples detecção de botão em y fixo
             if (y > 300 && y < 340) {
                 printf("Clicked 'Start Game' button\n");
                 deactivateMenu();
@@ -101,7 +126,7 @@ void mouseGuiMenu(SDL_MouseButtonEvent *event) {
                 nebu_System_SetCallback_Key((void*)keyGame);
             } else if (y > 360 && y < 400) {
                 printf("Clicked 'Exit' button\n");
-                exit(0);
+                SDL_Quit();
             }
         }
     }
@@ -113,5 +138,26 @@ void returnToMenu(void) {
     nebu_System_SetCallback_Idle(menuIdle);
     nebu_System_SetCallback_Key((void*)keyGuiMenu);
     nebu_System_SetCallback_Mouse((void*)mouseGuiMenu);
-    printf("[returnToMenu] Deactivated menu\n");
+    printf("[returnToMenu] Activated menu\n");
+}
+
+// --- Event dispatcher for SDL2 main loop ---
+void menuHandleSDLEvent(const SDL_Event *event) {
+    switch (event->type) {
+        case SDL_KEYDOWN:
+        case SDL_KEYUP:
+            keyMenu((SDL_KeyboardEvent *)&event->key);
+            break;
+        case SDL_MOUSEBUTTONDOWN:
+        case SDL_MOUSEBUTTONUP:
+            mouseMenu((SDL_MouseButtonEvent *)&event->button);
+            break;
+        case SDL_FINGERDOWN:
+        case SDL_FINGERUP:
+        case SDL_FINGERMOTION:
+            touchMenu((SDL_TouchFingerEvent *)&event->tfinger);
+            break;
+        default:
+            break;
+    }
 }
