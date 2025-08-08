@@ -2,10 +2,10 @@
 #define MENU_H
 
 #include <SDL2/SDL.h>
-#include <GL/glew.h> 
+#include <GL/glew.h>
 #include <GL/gl.h>
 
-// Definições de menu
+// Menu states
 typedef enum {
     MENU_STATE_MAIN,
     MENU_STATE_SETTINGS,
@@ -14,6 +14,7 @@ typedef enum {
     MENU_STATE_GAME
 } MenuState;
 
+// Menu options in the main menu
 typedef enum {
     MENU_OPTION_START_GAME,
     MENU_OPTION_SETTINGS,
@@ -23,21 +24,35 @@ typedef enum {
     MENU_OPTION_COUNT
 } MenuOption;
 
-// Funções do menu
+// Initialization and main loop
 void initMenu(void);
+void menuMain(void);
+
+// Drawing and updating menu
 void drawMenu(void);
 void menuIdle(void);
-void keyMenu(int state, int key, int x, int y);
-void mouseMenu(int button, int state, int x, int y);
+
+// Input handlers
+void keyMenu(SDL_KeyboardEvent *event);
+void mouseMenu(SDL_MouseButtonEvent *event);
+
+// GUI input handlers (for callbacks)
+void keyGuiMenu(SDL_KeyboardEvent *event);
+void mouseGuiMenu(SDL_MouseButtonEvent *event);
+
+// Display callback for menu
+void displayMenuCallback(void);
+
+// Utility
 int isMenuActive(void);
+void navigateMenu(int direction);
+void selectMenuOption(void);
+
+// Menu actions
 void showSettings(void);
 void showHelp(void);
 void showCredits(void);
 void exitGame(void);
 void returnToMenu(void);
-void navigateMenu(int direction);
-void selectMenuOption(void);
-void handleMenuInput(void);
-void menuMain(void);
 
 #endif // MENU_H

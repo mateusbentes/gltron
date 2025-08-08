@@ -18,6 +18,10 @@
 
 #include "video/skybox.h"
 #include <SDL2/SDL.h>
+
+int gScreenWidth = 800;
+int gScreenHeight = 600;
+
 SDL_Window *gWindow = NULL;
 SDL_GLContext gGLContext = NULL;
 

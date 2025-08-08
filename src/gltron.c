@@ -1,6 +1,8 @@
-/* GLTron main entry point - Universal (Linux + Android) */
+/*
+  gltron
+  Copyright (C) 1999 by Andreas Umbach <marvin@dataway.ch>
+*/
 #include "config.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -9,105 +11,66 @@
 #include "base/nebu_assert.h"
 #include "base/nebu_debug_memory.h"
 #include "base/nebu_util.h"
-
 #include "game/init.h"
 #include "game/menu.h"
 #include "video/nebu_video_system.h"
+#include "gltron-config.h"
+#include "game/menu.h"
 
 #ifdef ANDROID
-#include "android_config.h"
-#include "Nebu_filesystem.h"
-#include "Nebu_scripting.h"
-#include "game/game.h"
-#include "android_audio.h"
-#include "android_resolution.h"
-#include "android_settings_menu.h"
-#include <jni.h>
-#include <android/log.h>
-
-#define LOGI(...) ((void)__android_log_print(ANDROID_LOG_INFO, "GLTron", __VA_ARGS__))
+  #include "android_config.h"
+  #include "Nebu_filesystem.h"
+  #include "Nebu_scripting.h"
+  #include "game/game.h"
+  #include "android/android_audio.h"
+  #include "android/android_resolution.h"
+  #include "android/android_settings_menu.h"
+  #include <jni.h>
+  #include <android/log.h>
+  #define LOGI(...) ((void)__android_log_print(ANDROID_LOG_INFO, "GLTron", __VA_ARGS__))
 #endif
 
-#include "gltron-config.h"
-
-// Android main function
 #ifdef ANDROID
 int android_main(int argc, char *argv[]) {
-    LOGI("GLTron Android starting...");
-
-    // Initialize Android systems
-    android_audio_init();
-    android_resolution_init(1920, 1080); // Default resolution
-    android_settings_menu_init();
-
-    // Load settings
-    android_audio_load_settings();
-    android_resolution_load_settings();
-
-    LOGI("GLTron Android initialized successfully");
-
-    // Main game loop would go here
-    // For now, just return success
-    return 0;
+  LOGI("GLTron Android starting...");
+  android_audio_init();
+  android_resolution_init(1920, 1080);
+  android_settings_menu_init();
+  android_audio_load_settings();
+  android_resolution_load_settings();
+  LOGI("GLTron Android initialized successfully");
+  return 0;
 }
 
-// JNI entry point for Android
 JNIEXPORT jint JNICALL
 Java_com_gltron_android_MainActivity_nativeMain(JNIEnv *env, jobject thiz) {
-    return android_main(0, NULL);
+  return android_main(0, NULL);
 }
-#endif
-
-// Menu display callback function - this will call the internal menu drawing
-void displayMenuCallback(void) {
-    if (isMenuActive()) {
-        drawMenu();
-    }
-}
-
-// Linux main function
-#ifndef ANDROID
+#else
 int main(int argc, char *argv[]) {
-    printf("GLTron Linux starting...\n");
+  printf("GLTron PC starting...\n");
+  nebu_debug_memory_CheckLeaksOnExit();
 
-    // Convert to const char** for compatibility
-    const char **argv_const = (const char**)argv;
+  initSubsystems(argc, (const char**)argv);
 
-    // Initialize all subsystems (filesystem, scripting, config, video, audio, input, game data)
-    printf("[main] Initializing subsystems...\n");
-    initSubsystems(argc, argv_const);
+  int screenWidth = 800, screenHeight = 600;
+  nebu_Video_GetDimension(&screenWidth, &screenHeight);
+  printf("[main] Window size: %dx%d\n", screenWidth, screenHeight);
 
-    // Force a reasonable window size if needed
-    printf("[main] Setting up video mode...\n");
-    int screenWidth = 1024, screenHeight = 768;
-    nebu_Video_GetDimension(&screenWidth, &screenHeight);
-    printf("[main] Window size: %dx%d\n", screenWidth, screenHeight);
+  initMenu();
+  initGuiMenuItems();
+  activateMenu();
 
-    // Initialize the menu system
-    printf("[main] Initializing menu system...\n");
-    initMenu();
-    
-    // Activate the menu so it will be displayed
-    activateMenu();
+  nebu_System_SetCallback_Display(displayMenuCallback);
+  nebu_System_SetCallback_Idle(menuIdle);
+  nebu_System_SetCallback_Key((void*)keyGuiMenu);
+  nebu_System_SetCallback_Mouse((void*)mouseGuiMenu);
 
-    // Set up menu callbacks with the Nebu system
-    printf("[main] Setting up menu callbacks...\n");
-    nebu_System_SetCallback_Display(displayMenuCallback);  // Use our wrapper function
-    nebu_System_SetCallback_Idle(menuIdle);               // This should be public
-    nebu_System_SetCallback_Key(keyMenu);                 // This should be public
-    nebu_System_SetCallback_Mouse(mouseMenu);             // This should be public
+  int result = nebu_System_MainLoop();
 
-    // Run the main loop until exitGame() calls nebu_System_Exit()
-    printf("[main] Starting main loop...\n");
-    int result = nebu_System_MainLoop();
+  exitSubsystems();
 
-    // Clean up all subsystems
-    printf("[main] Cleaning up subsystems...\n");
-    exitSubsystems();
-
-    printf("[main] Main loop exited with code: %d\n", result);
-
-    printf("GLTron Linux exiting...\n");
-    return 0;
+  printf("GLTron exiting with code %d\n", result);
+  return result;
 }
 #endif
