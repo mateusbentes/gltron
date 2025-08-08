@@ -258,7 +258,7 @@ void gui_LoadResources(void) {
         exit(1);
     }
 
-    path = nebu_FS_GetPath_WithFilename(PATH_ART, "gui.png");
+    path = nebu_FS_GetPath_WithFilename(PATH_ART, "default/gui.png");
     if (path) {
         pBackground = nebu_2d_LoadPNG(path, 0);
         free(path);
