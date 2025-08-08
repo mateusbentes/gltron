@@ -37,6 +37,18 @@ static const ResolutionOption gResOptions[] = {
 };
 #define NUM_RES_OPTIONS (sizeof(gResOptions)/sizeof(gResOptions[0]))
 
+// Defensive static label arrays
+static const char *res_labels[NUM_RES_OPTIONS] = {
+    "800 x 600", "1024 x 768", "1280 x 720", "1280 x 1024",
+    "1366 x 768", "1440 x 900", "1600 x 900", "1680 x 1050", "1920 x 1080"
+};
+
+#if PLATFORM_MOBILE
+static const char *fullscreen_labels[] = { "On" };
+#else
+static const char *fullscreen_labels[] = { "Off", "On" };
+#endif
+
 // Menu item types
 typedef enum {
     MENU_ACTION,
@@ -75,9 +87,16 @@ static void createMenus(void);
 static void handleInput(void);
 static void startGame(void);
 static void quitGame(void);
+static void (*drawMenuImpl)(void) = NULL;
 void menuDrawMenu(void);
 
 // Menu Actions
+
+void drawMenu(void) {
+    if (drawMenuImpl)
+        drawMenuImpl();
+}
+
 static void startGame(void) {
     printf("[menu] Start Game selected\n");
     gMenuActive = 0;
@@ -130,17 +149,6 @@ static MenuItem itemResolution, itemFullscreen, itemApply, itemBackVideo;
 
 // Menu Creation
 static void createMenus(void) {
-    // Defensive static label arrays
-    static const char *res_labels[NUM_RES_OPTIONS];
-    for (int i = 0; i < NUM_RES_OPTIONS; ++i) res_labels[i] = gResOptions[i].label;
-    static const char *fullscreen_labels[] = {
-#if PLATFORM_MOBILE
-        "On"
-#else
-        "Off", "On"
-#endif
-    };
-
     // Main Menu
     mainMenuItem.type = MENU_SUBMENU;
     strcpy(mainMenuItem.caption, "Main Menu");
@@ -396,6 +404,7 @@ void menuMainLoop(void) {
 // Entry Point for Menu System
 void menuSystemInit(void) {
     createMenus();
+    drawMenuImpl = menuDrawMenu;
     gMenuActive = 1;
     printf("[menu] Menu system initialized for %s\n", PLATFORM_NAME);
 }
@@ -419,6 +428,3 @@ void keyMenu(int key, int down) {
 }
 void mouseMenu(int button, int state, int x, int y) { (void)button; (void)state; (void)x; (void)y; }
 void handleMenuInput(void) { handleInput(); }
-
-// Function pointer for callback system
-void (*drawMenu)(void) = menuDrawMenu;
