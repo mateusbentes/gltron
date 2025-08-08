@@ -38,8 +38,29 @@ int android_main(int argc, char *argv[]) {
   android_settings_menu_init();
   android_audio_load_settings();
   android_resolution_load_settings();
-  LOGI("GLTron Android initialized successfully");
-  return 0;
+
+  // --- Menu initialization for Android ---
+  int screenWidth = 1920, screenHeight = 1080;
+  // If you have a way to get actual screen size, use it here
+  nebu_Video_GetDimension(&screenWidth, &screenHeight);
+  LOGI("[main] Window size: %dx%d", screenWidth, screenHeight);
+
+  initMenu();
+  initGuiMenuItems();
+  activateMenu();
+
+  nebu_System_SetCallback_Display(displayMenuCallback);
+  nebu_System_SetCallback_Idle(menuIdle);
+  nebu_System_SetCallback_Key((void*)keyGuiMenu);
+  nebu_System_SetCallback_Touch((void*)touchGuiMenu);
+
+  LOGI("GLTron Android menu initialized successfully");
+
+  int result = nebu_System_MainLoop();
+
+  // If you have Android-specific exit routines, call them here
+  LOGI("GLTron Android exiting with code %d", result);
+  return result;
 }
 
 JNIEXPORT jint JNICALL
