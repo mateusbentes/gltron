@@ -18,8 +18,15 @@
 
 #include "base/nebu_assert.h"
 #include <string.h>
-
 #include "base/nebu_debug_memory.h"
+
+#ifdef __ANDROID__
+  #include <GLES2/gl2.h>
+#else
+  #include <GL/gl.h>
+#endif
+
+#include <SDL2/SDL.h>
 
 extern int gScreenWidth;
 extern int gScreenHeight;
@@ -201,6 +208,35 @@ void keyboardGui(int state, int key, int x, int y) {
                 nebu_System_ExitLoop(eSRC_GUI_Escape);
             }
             break;
+    }
+}
+
+// --- Android Touch Support ---
+void touchGuiMenu(SDL_TouchFingerEvent *event) {
+    // Convert normalized coordinates to screen pixels
+    int screenW = gScreenWidth;
+    int screenH = gScreenHeight;
+    int x = (int)(event->x * screenW);
+    int y = (int)(event->y * screenH);
+
+    if (event->type == SDL_FINGERDOWN) {
+        int itemHeight = 24;
+        int menuStartY = (int)(screenH * 0.7f);
+
+        for (int i = 0; i < gMenuItemCount; i++) {
+            int itemY = menuStartY - itemHeight * i;
+            if (y > itemY - itemHeight && y < itemY) {
+                gActiveMenuIndex = i;
+                if (i == 0) {
+                    printf("[GUI] Start Game selected (touch)\n");
+                    // TODO: Trigger game start
+                } else if (i == 3) {
+                    printf("[GUI] Exit selected (touch)\n");
+                    nebu_System_ExitLoop(eSRC_GUI_Escape);
+                }
+                break;
+            }
+        }
     }
 }
 

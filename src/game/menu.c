@@ -29,7 +29,19 @@ void deactivateMenu(void) {
 
 void initMenu(void) {
     activateMenu();
-    printf("[initMenu] Activated menu\n");
+
+    initGui(); // Start GUI first
+
+    nebu_System_SetCallback_Display(displayMenuCallback);
+    nebu_System_SetCallback_Idle(menuIdle);
+
+#ifdef __ANDROID__
+    nebu_System_SetCallback_Key((void*)keyboardGui);
+    nebu_System_SetCallback_Touch((void*)touchGuiMenu);
+#else
+    nebu_System_SetCallback_Key((void*)keyboardGui);
+    nebu_System_SetCallback_Mouse((void*)mouseGuiMenu);
+#endif
 }
 
 void initGuiMenuItems(void) {
