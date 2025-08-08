@@ -20,6 +20,8 @@
         "gltron.h": "c",
         "sound_glue.h": "c",
         "random": "c",
-        "configuration.h": "c"
+        "configuration.h": "c",
+        "nebu_debug_memory.h": "c",
+        "nebu_video_system.h": "c"
     }
 }

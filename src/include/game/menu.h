@@ -5,6 +5,11 @@
 #include <GL/glew.h>
 #include <GL/gl.h>
 
+void gameIdle(void);
+void keyGame(SDL_KeyboardEvent *event);
+void displayGame(void);
+void initGame(void);
+
 // Menu states
 typedef enum {
     MENU_STATE_MAIN,

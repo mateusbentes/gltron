@@ -1,3 +1,4 @@
+#include <SDL2/SDL.h>
 #include "filesystem/path.h"
 #include "game/gltron.h"
 #include "game/timesystem.h"
@@ -399,14 +400,14 @@ void enterGame(void) { /* called when game mode is entered */
 	/* fprintf(stderr, "init game\n"); */
 }
 
-void gameMouse(int buttons, int state, int x, int y) {
-	if(state == SYSTEM_MOUSEPRESSED) {
-		if(buttons == SYSTEM_MOUSEBUTTON_LEFT) gInput.mouse1 = 1;
-		if(buttons == SYSTEM_MOUSEBUTTON_RIGHT) gInput.mouse2 = 1;
-	} else if(state == SYSTEM_MOUSERELEASED) {
-		if(buttons == SYSTEM_MOUSEBUTTON_LEFT) gInput.mouse1 = 0;
-		if(buttons == SYSTEM_MOUSEBUTTON_RIGHT) gInput.mouse2 = 0;
-	}
+void gameMouse(SDL_MouseButtonEvent *event) {
+    if (event->type == SDL_MOUSEBUTTONDOWN) {
+        if (event->button == SYSTEM_MOUSEBUTTON_LEFT) gInput.mouse1 = 1;
+        if (event->button == SYSTEM_MOUSEBUTTON_RIGHT) gInput.mouse2 = 1;
+    } else if (event->type == SDL_MOUSEBUTTONUP) {
+        if (event->button == SYSTEM_MOUSEBUTTON_LEFT) gInput.mouse1 = 0;
+        if (event->button == SYSTEM_MOUSEBUTTON_RIGHT) gInput.mouse2 = 0;
+    }
 
   /*
   if(getSettingi("camType") == CAM_TYPE_MOUSE) 

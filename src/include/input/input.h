@@ -55,8 +55,8 @@ typedef enum ReservedKeys {
 extern int ReservedKeyCodes[eReservedKeys];
 
 // Game input functions
-void keyGame(int state, int key, int x, int y);
-void gameMouse(int buttons, int state, int x, int y);
+void keyGame(SDL_KeyboardEvent *event);
+void gameMouse(SDL_MouseButtonEvent *event);
 
 // Menu input functions (modern SDL2 event-based)
 void keyMenu(SDL_KeyboardEvent *event);

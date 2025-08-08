@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "game/game.h"
 #include "game/menu.h"  // declare isMenuActive()
 #include "game/gui.h"   // declare drawGuiMenu(), keyGuiMenu(), mouseGuiMenu(), idleGui()
 
@@ -19,6 +20,16 @@ void activateMenu(void) {
 
 void deactivateMenu(void) {
     menuActive = 0;
+}
+
+void initMenu(void) {
+    // Initialize menu state, load resources, etc.
+    activateMenu();
+    printf("[initMenu] Activated meni\n");
+}
+
+void initGuiMenuItems(void) {
+    printf("[initGuiMenuItems] Menu gui started GUI\n");
 }
 
 void drawGuiMenuWrapper(void) {
@@ -49,31 +60,58 @@ void mouseMenu(SDL_MouseButtonEvent *event) {
     }
 }
 
-// ---- Implementations you requested ----
-
-void initMenu(void) {
-    // Initialize menu state, load resources, etc.
-    // For example:
-    activateMenu();
-    // ... any other initialization ...
-}
-
-void initGuiMenuItems(void) {
-    // Initialize GUI menu items, buttons, etc.
-    // For example:
-    // setupMenuButtons();
-}
-
 void keyGuiMenu(SDL_KeyboardEvent *event) {
-    // Handle keyboard events for the GUI menu
-    // Example: if (event->keysym.sym == SDLK_RETURN) { ... }
+    if (event->type == SDL_KEYDOWN) {
+        switch (event->keysym.sym) {
+            case SDLK_RETURN:
+                // Start game
+                deactivateMenu();
+                initGame();  // <- important: here start game logic
+                nebu_System_SetCallback_Display(displayGame);
+                nebu_System_SetCallback_Idle(Game_Idle);
+                nebu_System_SetCallback_Key((void*)keyGame);
+                break;
+
+            case SDLK_ESCAPE:
+                printf("Exiting game...\n");
+                exit(0);
+                break;
+
+            default:
+                printf("Pressed key on menu: %d\n", event->keysym.sym);
+                break;
+        }
+    }
 }
 
 void mouseGuiMenu(SDL_MouseButtonEvent *event) {
-    // Handle mouse button events for the GUI menu
-    // Example: if (event->button == SDL_BUTTON_LEFT) { ... }
+    if (event->type == SDL_MOUSEBUTTONDOWN) {
+        if (event->button == SDL_BUTTON_LEFT) {
+            int x = event->x;
+            int y = event->y;
+
+            // Simples detecção de botão em y fixo
+            if (y > 300 && y < 340) {
+                printf("Clicked 'Start Game' button\n");
+                deactivateMenu();
+                initGame();
+                nebu_System_SetCallback_Display(displayGame);
+                nebu_System_SetCallback_Idle(Game_Idle);
+                nebu_System_SetCallback_Key((void*)keyGame);
+            } else if (y > 360 && y < 400) {
+                printf("Clicked 'Exit' button\n");
+                exit(0);
+            }
+        }
+    }
 }
 
+
 void returnToMenu(void) {
-    // Example: set menu state, stop game, etc.
+    activateMenu();
+    nebu_System_SetCallback_Display(displayMenuCallback);
+    nebu_System_SetCallback_Idle(menuIdle);
+    nebu_System_SetCallback_Key((void*)keyGuiMenu);
+    nebu_System_SetCallback_Mouse((void*)mouseGuiMenu);
+    printf("[returnToMenu] Deactivated menu\n");
 }

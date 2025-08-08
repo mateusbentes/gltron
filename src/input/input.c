@@ -38,116 +38,117 @@ int ReservedKeyCodes[eReservedKeys] = {
 };
 
 
-void keyGame(int state, int k, int x, int y)
+void keyGame(SDL_KeyboardEvent *event)
 {
-	int i;
+    int i;
+    int state = (event->type == SDL_KEYDOWN) ? NEBU_INPUT_KEYSTATE_DOWN : NEBU_INPUT_KEYSTATE_UP;
+    int k = event->keysym.sym;
 
-	switch (k) {
-		case SYSTEM_KEY_ALT_LEFT:
-			isAltLeftPressed = (state == NEBU_INPUT_KEYSTATE_DOWN);
-			break;
-		case SYSTEM_KEY_ALT_RIGHT:
-			isAltRightPressed = (state == NEBU_INPUT_KEYSTATE_DOWN);
-			break;
-		case SYSTEM_KEY_CAPS_LOCK:
-			isCapsLockPressed = (state == NEBU_INPUT_KEYSTATE_DOWN);
-			break;
-	}
+    switch (k) {
+        case SDLK_LALT:
+            isAltLeftPressed = (state == NEBU_INPUT_KEYSTATE_DOWN);
+            break;
+        case SDLK_RALT:
+            isAltRightPressed = (state == NEBU_INPUT_KEYSTATE_DOWN);
+            break;
+        case SDLK_CAPSLOCK:
+            isCapsLockPressed = (state == NEBU_INPUT_KEYSTATE_DOWN);
+            break;
+    }
 
-	if (state == NEBU_INPUT_KEYSTATE_DOWN) {
-		switch (k) {
-			case 27:
-				// Return to menu instead of pausing
-				printf("[input] ESC pressed, returning to menu\n");
-				returnToMenu();
-				return;
-			case ' ':
-				game->pauseflag = PAUSE_GAME_SUSPENDED;
-				nebu_System_ExitLoop(eSRC_Game_Pause);
-				return;
-			case SYSTEM_KEY_F1: changeDisplay(0); return;
-			case SYSTEM_KEY_F2: changeDisplay(1); return;
-			case SYSTEM_KEY_F3: changeDisplay(2); return;
-			case SYSTEM_KEY_F4: changeDisplay(3); return;
-			case SYSTEM_KEY_F10: nextCameraType(); return;
-			case SYSTEM_KEY_F11: doBmpScreenShot(gScreen); return;
-			case SYSTEM_KEY_F12: doPngScreenShot(gScreen); return;
-			case SYSTEM_KEY_F6: console_Seek(-1); return;
-			case SYSTEM_KEY_F7: console_Seek(1); return;
-			case SYSTEM_KEY_F8:
-				setSettingi("wireframe", getSettingi("wireframe") ? 0 : 1);
-				return;
-		}
-	}
+    if (state == NEBU_INPUT_KEYSTATE_DOWN) {
+        switch (k) {
+            case SDLK_ESCAPE:
+                printf("[input] ESC pressed, returning to menu\n");
+                returnToMenu();
+                return;
+            case SDLK_SPACE:
+                game->pauseflag = PAUSE_GAME_SUSPENDED;
+                nebu_System_ExitLoop(eSRC_Game_Pause);
+                return;
+            case SDLK_F1: changeDisplay(0); return;
+            case SDLK_F2: changeDisplay(1); return;
+            case SDLK_F3: changeDisplay(2); return;
+            case SDLK_F4: changeDisplay(3); return;
+            case SDLK_F10: nextCameraType(); return;
+            case SDLK_F11: doBmpScreenShot(gScreen); return;
+            case SDLK_F12: doPngScreenShot(gScreen); return;
+            case SDLK_F6: console_Seek(-1); return;
+            case SDLK_F7: console_Seek(1); return;
+            case SDLK_F8:
+                setSettingi("wireframe", getSettingi("wireframe") ? 0 : 1);
+                return;
+        }
+    }
 
-	for (i = 0; i < game->players; i++) {
-		if (PLAYER_IS_ACTIVE(&game->player[i]) && !game->player[i].ai.active) {
+    for (i = 0; i < game->players; i++) {
+        if (PLAYER_IS_ACTIVE(&game->player[i]) && !game->player[i].ai.active) {
 #ifdef USE_SCRIPTING
-			int key;
-			if (state == NEBU_INPUT_KEYSTATE_DOWN) {
-				scripting_RunFormat("return settings.keys[%d].left", i + 1);
-				scripting_GetIntegerResult(&key);
-				if (key == k) {
-					createEvent(i, EVENT_TURN_LEFT);
-					return;
-				}
-				scripting_RunFormat("return settings.keys[%d].right", i + 1);
-				scripting_GetIntegerResult(&key);
-				if (key == k) {
-					createEvent(i, EVENT_TURN_RIGHT);
-					return;
-				}
-			}
-			// Glance left
-			scripting_RunFormat("return settings.keys[%d].glance_left", i + 1);
-			scripting_GetIntegerResult(&key);
-			if (key == k) {
-				gppPlayerVisuals[i]->camera.bIsGlancing = (state == NEBU_INPUT_KEYSTATE_DOWN) ? 1 : 0;
-				return;
-			}
-			// Glance right
-			scripting_RunFormat("return settings.keys[%d].glance_right", i + 1);
-			scripting_GetIntegerResult(&key);
-			if (key == k) {
-				gppPlayerVisuals[i]->camera.bIsGlancing = (state == NEBU_INPUT_KEYSTATE_DOWN) ? -1 : 0;
-				return;
-			}
-			// Boost
-			scripting_RunFormat("return settings.keys[%d].boost", i + 1);
-			scripting_GetIntegerResult(&key);
-			if (key == k) {
-				if (state == NEBU_INPUT_KEYSTATE_DOWN) {
-					if (getSettingi("booster_on") &&
-						game->player[i].data.energy > getSettingf("booster_min")) {
-						game->player[i].data.boost_enabled = 1;
-					}
-				} else {
-					game->player[i].data.boost_enabled = 0;
-				}
-				return;
-			}
-			// Wallbuster
-			scripting_RunFormat("return settings.keys[%d].bust", i + 1);
-			scripting_GetIntegerResult(&key);
-			if (key == k) {
-				if (state == NEBU_INPUT_KEYSTATE_DOWN) {
-					if (getSettingi("wall_buster_on") &&
-						game->player[i].data.energy > getSettingf("wall_buster_min")) {
-						game->player[i].data.wall_buster_enabled = 1;
-					}
-				} else {
-					game->player[i].data.wall_buster_enabled = 0;
-				}
-				return;
-			}
+            int key;
+            if (state == NEBU_INPUT_KEYSTATE_DOWN) {
+                scripting_RunFormat("return settings.keys[%d].left", i + 1);
+                scripting_GetIntegerResult(&key);
+                if (key == k) {
+                    createEvent(i, EVENT_TURN_LEFT);
+                    return;
+                }
+                scripting_RunFormat("return settings.keys[%d].right", i + 1);
+                scripting_GetIntegerResult(&key);
+                if (key == k) {
+                    createEvent(i, EVENT_TURN_RIGHT);
+                    return;
+                }
+            }
+            // Glance left
+            scripting_RunFormat("return settings.keys[%d].glance_left", i + 1);
+            scripting_GetIntegerResult(&key);
+            if (key == k) {
+                gppPlayerVisuals[i]->camera.bIsGlancing = (state == NEBU_INPUT_KEYSTATE_DOWN) ? 1 : 0;
+                return;
+            }
+            // Glance right
+            scripting_RunFormat("return settings.keys[%d].glance_right", i + 1);
+            scripting_GetIntegerResult(&key);
+            if (key == k) {
+                gppPlayerVisuals[i]->camera.bIsGlancing = (state == NEBU_INPUT_KEYSTATE_DOWN) ? -1 : 0;
+                return;
+            }
+            // Boost
+            scripting_RunFormat("return settings.keys[%d].boost", i + 1);
+            scripting_GetIntegerResult(&key);
+            if (key == k) {
+                if (state == NEBU_INPUT_KEYSTATE_DOWN) {
+                    if (getSettingi("booster_on") &&
+                        game->player[i].data.energy > getSettingf("booster_min")) {
+                        game->player[i].data.boost_enabled = 1;
+                    }
+                } else {
+                    game->player[i].data.boost_enabled = 0;
+                }
+                return;
+            }
+            // Wallbuster
+            scripting_RunFormat("return settings.keys[%d].bust", i + 1);
+            scripting_GetIntegerResult(&key);
+            if (key == k) {
+                if (state == NEBU_INPUT_KEYSTATE_DOWN) {
+                    if (getSettingi("wall_buster_on") &&
+                        game->player[i].data.energy > getSettingf("wall_buster_min")) {
+                        game->player[i].data.wall_buster_enabled = 1;
+                    }
+                } else {
+                    game->player[i].data.wall_buster_enabled = 0;
+                }
+                return;
+            }
 #endif // USE_SCRIPTING
-		}
-	}
+        }
+    }
 
-	if (state == NEBU_INPUT_KEYSTATE_DOWN) {
-		displayMessage(TO_STDERR, "key '%s' (%d) is not bound",
-			nebu_Input_GetKeyname(k), k);
-	}
+    if (state == NEBU_INPUT_KEYSTATE_DOWN) {
+        displayMessage(TO_STDERR, "key '%s' (%d) is not bound",
+            SDL_GetKeyName(k), k);
+    }
 }
 
 void parse_args(int argc, const char *argv[]) {

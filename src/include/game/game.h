@@ -78,7 +78,7 @@ void Game_Idle(void);
 void enterGame(void);
 void exitGame(void);
 
-void gameMouse(int buttons, int state, int x, int y);
+void gameMouse(SDL_MouseButtonEvent *event);
 void video_ResetData(void);
 void resetPlayerData(void);
 
