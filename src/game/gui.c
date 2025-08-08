@@ -28,6 +28,8 @@
 
 #include <SDL2/SDL.h>
 
+// External window handle
+extern SDL_Window *gWindow;
 extern int gScreenWidth;
 extern int gScreenHeight;
 
@@ -70,16 +72,33 @@ nebu_Font *pFont = NULL;
 // Menu display and resolution logic
 void drawGuiMenu(Visual *d);
 void applyResolution(void);
+void drawGuiBackground(void);
+
+// GUI display and input logic
+void displayGui(void);
+void idleGui(void);
+void keyboardGui(int state, int key, int x, int y);
+void touchGuiMenu(SDL_TouchFingerEvent *event);
+
+// GUI resource management
+void initGui(void);
+void gui_LoadResources(void);
+void gui_ReleaseResources(void);
+void exitGui(void);
+
+// Main loop functions for different modes
+void runGame(void);
+void runGUI(void);
+void runPause(void);
+void runConfigure(void);
+void runCredits(void);
+void runTimedemo(void);
 
 // Global menu state
 static int gActiveMenuIndex = 0;
 static int gMenuItemCount = 4;
 
 static int gResIndex = 0; // Default to 800x600
-
-extern SDL_Window *gWindow;
-extern int gScreenWidth;
-extern int gScreenHeight;
 
 void applyResolution(void) {
     int width = gResOptions[gResIndex].width;
@@ -301,38 +320,159 @@ void runGame(void) {
                     running = 0;
                     break;
                 case SDL_KEYDOWN:
-                    // Handle game input here
+                case SDL_KEYUP:
+                case SDL_MOUSEBUTTONDOWN:
+                case SDL_MOUSEBUTTONUP:
+                case SDL_MOUSEMOTION:
+                    handleGameInput(&event);
                     break;
-                // Handle other events as needed...
+                default:
+                    break;
             }
         }
 
-        // Update game logic here
-
-        // Render the game scene
+        updateGameLogic();
         drawGame();
-
-        // Swap the OpenGL buffers to display the rendered frame
         SDL_GL_SwapWindow(gWindow);
     }
 }
 
 void runGUI(void) {
-    // Your GUI main loop or logic here
+    SDL_Event event;
+    int running = 1;
+
+    while (running) {
+        while (SDL_PollEvent(&event)) {
+            switch (event.type) {
+                case SDL_QUIT:
+                    running = 0;
+                    break;
+                case SDL_KEYDOWN:
+                case SDL_KEYUP:
+                case SDL_MOUSEBUTTONDOWN:
+                case SDL_MOUSEBUTTONUP:
+                case SDL_MOUSEMOTION:
+                    handleGUIInput(&event);
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        updateGUI();
+        drawGUI();
+        SDL_GL_SwapWindow(gWindow);
+    }
 }
 
 void runPause(void) {
-    // Your pause menu logic here
+    SDL_Event event;
+    int running = 1;
+
+    while (running) {
+        while (SDL_PollEvent(&event)) {
+            switch (event.type) {
+                case SDL_QUIT:
+                    running = 0;
+                    break;
+                case SDL_KEYDOWN:
+                case SDL_KEYUP:
+                case SDL_MOUSEBUTTONDOWN:
+                case SDL_MOUSEBUTTONUP:
+                case SDL_MOUSEMOTION:
+                    handlePauseInput(&event);
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        updatePauseMenu();
+        drawPauseMenu();
+        SDL_GL_SwapWindow(gWindow);
+    }
 }
 
 void runConfigure(void) {
-    // Your configuration menu logic here
+    SDL_Event event;
+    int running = 1;
+
+    while (running) {
+        while (SDL_PollEvent(&event)) {
+            switch (event.type) {
+                case SDL_QUIT:
+                    running = 0;
+                    break;
+                case SDL_KEYDOWN:
+                case SDL_KEYUP:
+                case SDL_MOUSEBUTTONDOWN:
+                case SDL_MOUSEBUTTONUP:
+                case SDL_MOUSEMOTION:
+                    handleConfigureInput(&event);
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        updateConfigureMenu();
+        drawConfigureMenu();
+        SDL_GL_SwapWindow(gWindow);
+    }
 }
 
 void runCredits(void) {
-    // Your credits screen logic here
+    SDL_Event event;
+    int running = 1;
+
+    while (running) {
+        while (SDL_PollEvent(&event)) {
+            switch (event.type) {
+                case SDL_QUIT:
+                    running = 0;
+                    break;
+                case SDL_KEYDOWN:
+                case SDL_KEYUP:
+                case SDL_MOUSEBUTTONDOWN:
+                case SDL_MOUSEBUTTONUP:
+                case SDL_MOUSEMOTION:
+                    handleCreditsInput(&event);
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        updateCreditsScreen();
+        drawCreditsScreen();
+        SDL_GL_SwapWindow(gWindow);
+    }
 }
 
 void runTimedemo(void) {
-    // Your timedemo logic here
+    SDL_Event event;
+    int running = 1;
+
+    while (running) {
+        while (SDL_PollEvent(&event)) {
+            switch (event.type) {
+                case SDL_QUIT:
+                    running = 0;
+                    break;
+                case SDL_KEYDOWN:
+                case SDL_KEYUP:
+                case SDL_MOUSEBUTTONDOWN:
+                case SDL_MOUSEBUTTONUP:
+                case SDL_MOUSEMOTION:
+                    handleTimedemoInput(&event);
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        updateTimedemo();
+        drawTimedemo();
+        SDL_GL_SwapWindow(gWindow);
+    }
 }
