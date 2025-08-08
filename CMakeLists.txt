@@ -387,6 +387,12 @@ add_subdirectory(nebu/system)
 add_subdirectory(nebu/video)
 add_subdirectory(src)
 
+# Add android-specific module if building for Android
+if(BUILD_ANDROID)
+  add_subdirectory(android)
+  message(STATUS "Android-specific module added from android/CMakeLists.txt")
+endif()
+
 # Summary message
 message(STATUS "\nGLTron Modular Configuration Summary:")
 message(STATUS "Platform: ${CMAKE_SYSTEM_NAME}")
