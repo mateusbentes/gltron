@@ -32,8 +32,6 @@ void initMenu(void) {
 
     initGui(); // Start GUI first
 
-    //runGUI(); // Start GUI
-
     nebu_System_SetCallback_Display(displayMenuCallback);
     nebu_System_SetCallback_Idle(menuIdle);
 
