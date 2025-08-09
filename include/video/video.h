@@ -11,6 +11,14 @@
 #include "video/video_level.h"
 #include "video/model.h" // gltron_Mesh
 #include "base/nebu_png_texture.h" // png_texture
+#include "game/resource.h"
+
+#ifdef __ANDROID__
+  #include <GLES2/gl2.h>
+#else
+  #include <GL/glew.h>
+  #include <GL/gl.h>
+#endif
 
 typedef struct Artpack {
   char *path;
@@ -107,7 +115,8 @@ extern int gTokenRecognizer;
 extern int gTokenRecognizerQuad;
 extern int gpTokenLightcycles[LC_LOD];
 extern int gpTokenCurrentLevel;
-extern int gpTokenCurrentFloor;
+extern resource_token *gpTokenCurrentFloor;
+extern GLuint currentShaderProgram;
 // extern gltron_Mesh *recognizer;
 // extern gltron_Mesh *recognizer_quad;
 // extern gltron_Mesh *lightcycle[];

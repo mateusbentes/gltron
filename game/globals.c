@@ -6,6 +6,8 @@
 #include "base/nebu_math.h"
 #include "video/nebu_renderer_gl.h"
 
+#include "game/resource.h"
+
 /* globals */
 Game *game = NULL;
 Game2 *game2 = NULL;
@@ -25,7 +27,7 @@ int gTokenRecognizer = 0;
 int gTokenRecognizerQuad = 0;
 int gpTokenLightcycles[LC_LOD];
 int gpTokenCurrentLevel = 0;
-int gpTokenCurrentFloor = 0;
+resource_token *gpTokenCurrentFloor = NULL;
 
 float rec_outline_color[] = {0.8f, 0.0, 0.0};
 float rec_spec_color[] = {0.05f, 0.14f, 0.05f, 0.50f};

@@ -15,6 +15,9 @@
 
 #include "base/nebu_assert.h"
 
+resource_token *gpTokenCurrentFloor = NULL;
+GLuint currentShaderProgram = 0;
+
 void displayGame(void) {
   drawGame();
   nebu_System_SwapBuffers();

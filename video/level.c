@@ -16,11 +16,35 @@
 #include <string.h>
 
 #include "base/nebu_debug_memory.h"
+#include "video/video.h"
 
 gltron_Mesh* loadMesh(void);
 
 void video_FreeLevel(video_level *l) {
-	// TODO (important): change texture handling
+
+	currentShaderProgram = myShaderProgram;
+	glUseProgram(currentShaderProgram);
+	
+	if (gpTokenCurrentFloor && gpTokenCurrentFloor->idTexture) {
+		// Bind the floor texture to texture unit 0
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, gpTokenCurrentFloor->idTexture);
+		
+		// Set the shader uniform to use the texture
+		GLint uTexture = glGetUniformLocation(currentShaderProgram, "uTexture");
+		GLint uUseTexture = glGetUniformLocation(currentShaderProgram, "uUseTexture");
+		glUniform1i(uTexture, 0);         // Texture unit 0
+		glUniform1f(uUseTexture, 1.0f);   // Enable texturing in the shader
+		
+	} else {
+		// No texture: disable texturing in the shader
+		GLint uUseTexture = glGetUniformLocation(currentShaderProgram, "uUseTexture");
+		glUniform1f(uUseTexture, 0.0f);
+	
+	}
+
+// Now draw the floor mesh as usual (using VBOs/VAOs and shaders)
+
 	if(gpTokenCurrentFloor)
 	{
 		resource_Free(gpTokenCurrentFloor);

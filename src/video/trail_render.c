@@ -140,28 +140,3 @@ void trailRenderModern(TrailMesh *pMesh, GLuint tex_id, int win_w, int win_h, in
     if (useTexture) glBindTexture(GL_TEXTURE_2D, 0);
     glUseProgram(0);
 }
-
-void trailRender(TrailMesh *pMesh) {
-    // Call your modern implementation, e.g.:
-    // trailRenderModern(pMesh, ...);
-}
-
-void trailStatesNormal(Player *pPlayer, int texture) {
-    // Implement or call your modern trail state setup
-}
-
-void trailStatesRestore(void) {
-    #ifdef HAVE_TRAILSTATESRESTORE_MODERN
-    trailStatesRestore_modern();
-    #else
-    fprintf(stderr, "[WARN] trailStatesRestore: Not implemented.\n");
-    #endif
-}
-
-void trailStatesShadowed(void) {
-    #ifdef HAVE_TRAILSTATESSHADOWED_MODERN
-    trailStatesShadowed_modern();
-    #else
-    fprintf(stderr, "[WARN] trailStatesShadowed: Not implemented.\n");
-    #endif
-}

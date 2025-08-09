@@ -10,6 +10,9 @@
   #include <GL/gl.h>
 #endif
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "video/stb_image.h"
+
 // --- 2D Texture Object ---
 typedef struct {
     GLuint tex_id;
@@ -74,13 +77,20 @@ static GLuint createProgram(const char *vs, const char *fs) {
 }
 
 // --- PNG Loader Placeholder ---
-// Replace this with stb_image, lodepng, or SDL_image for real PNG loading.
-static int load_png_rgba(const char *path, unsigned char **pixels, int *w, int *h) {
-    // For demonstration, always fail.
-    fprintf(stderr, "[WARN] load_png_rgba: Not implemented. Cannot load %s\n", path);
-    *pixels = NULL; *w = *h = 0;
-    return 0;
+int load_png_rgba(const char *path, unsigned char **pixels, int *w, int *h) {
+    int channels;
+    unsigned char *data = stbi_load(path, w, h, &channels, 4); // Force RGBA
+    if (!data) {
+        fprintf(stderr, "[ERROR] load_png_rgba: Failed to load %s: %s\n", path, stbi_failure_reason());
+        *pixels = NULL;
+        *w = *h = 0;
+        return 0;
+    }
+    *pixels = data;
+    return 1;
 }
+
+// When done with the pixel buffer, free it with stbi_image_free(*pixels);
 
 // --- 2D Texture Loader ---
 nebu_2d* nebu_2d_LoadPNG(const char* path, int flags) {

@@ -9,6 +9,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "video/stb_image.h"
+
 // --- Font Data Structure ---
 typedef struct {
     GLuint texture;      // Font atlas texture
@@ -88,13 +90,7 @@ static void ortho_matrix(float *out, float left, float right, float bottom, floa
     out[15] = 1.0f;
 }
 
-// --- Minimal PNG Loader Placeholder ---
-// Replace with stb_image, lodepng, or SDL_image for real PNG loading.
-static int load_png_rgba(const char *path, unsigned char **pixels, int *w, int *h) {
-    fprintf(stderr, "[WARN] load_png_rgba: Not implemented. Cannot load %s\n", path);
-    *pixels = NULL; *w = *h = 0;
-    return 0;
-}
+// Don't forget to free the returned pixel buffer with stbi_image_free(*pixels) when done!
 
 // --- Font Loader ---
 nebu_Font* nebu_Font_Load(const char *atlas_path, int glyph_w, int glyph_h, int first_char, int n_chars) {

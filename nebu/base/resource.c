@@ -108,7 +108,8 @@ void resource_Release(int token)
 	release( findToken(token) );
 }
 
-void resource_Free(int token)
+void resource_Free(resource_token *token)
+
 {
 	nebu_List *p;
 	nebu_List *pPrev = NULL;
@@ -221,7 +222,7 @@ static ResourceToken* findIdenticalToken(char *filename, int type)
 	return NULL;
 }
 
-int resource_GetToken(char *filename, int type)
+resource_token *resource_GetToken(const char *filename, EResourceType type)
 {
 	return resource_GetTokenMeta(filename, type, NULL, 0);
 }

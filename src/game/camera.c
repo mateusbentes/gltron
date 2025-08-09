@@ -26,6 +26,80 @@ float cam_defaults[][3] =  {
   { CAM_CIRCLE_DIST, PI / 3, 0 } /* free */
 };
 
+// Helper: column-major 4x4 matrix multiplication
+static void mat4_mult(float *out, const float *a, const float *b) {
+    for (int row = 0; row < 4; ++row)
+        for (int col = 0; col < 4; ++col) {
+            out[col*4+row] = 0.0f;
+            for (int k = 0; k < 4; ++k)
+                out[col*4+row] += a[k*4+row] * b[col*4+k];
+        }
+}
+
+// Helper: perspective projection matrix (OpenGL style, column-major)
+static void nebu_perspective(float *out, float fovy_deg, float aspect, float znear, float zfar) {
+    float fovy_rad = nebu_deg2rad(fovy_deg);
+    float f = 1.0f / nebu_tanf(fovy_rad / 2.0f);
+    memset(out, 0, sizeof(float) * 16);
+    out[0] = f / aspect;
+    out[5] = f;
+    out[10] = (zfar + znear) / (znear - zfar);
+    out[11] = -1.0f;
+    out[14] = (2.0f * zfar * znear) / (znear - zfar);
+}
+
+// Helper: look-at matrix (OpenGL style, column-major)
+static void nebu_lookat(float *out, const float *eye, const float *center, const float *up) {
+    float f[3], s[3], u[3];
+    for (int i = 0; i < 3; ++i) f[i] = center[i] - eye[i];
+    float flen = nebu_sqrtf(f[0]*f[0] + f[1]*f[1] + f[2]*f[2]);
+    for (int i = 0; i < 3; ++i) f[i] /= flen;
+
+    // s = up x f
+    s[0] = up[1]*f[2] - up[2]*f[1];
+    s[1] = up[2]*f[0] - up[0]*f[2];
+    s[2] = up[0]*f[1] - up[1]*f[0];
+    float slen = nebu_sqrtf(s[0]*s[0] + s[1]*s[1] + s[2]*s[2]);
+    for (int i = 0; i < 3; ++i) s[i] /= slen;
+
+    // u = f x s
+    u[0] = f[1]*s[2] - f[2]*s[1];
+    u[1] = f[2]*s[0] - f[0]*s[2];
+    u[2] = f[0]*s[1] - f[1]*s[0];
+
+    float m[16] = {
+        s[0], u[0], -f[0], 0,
+        s[1], u[1], -f[1], 0,
+        s[2], u[2], -f[2], 0,
+        0,    0,     0,    1
+    };
+
+    float t[16] = {
+        1,0,0,-eye[0],
+        0,1,0,-eye[1],
+        0,0,1,-eye[2],
+        0,0,0,1
+    };
+
+    mat4_mult(out, m, t);
+}
+
+// Main camera MVP function for OpenGL ES 2.0+/core profile
+// Fills mvp[16] with column-major MVP matrix
+void camera_get_mvp(Camera *pCamera, float *mvp, float aspect, float fovy_deg, float znear, float zfar) {
+    float proj[16], view[16];
+    // Use nebu_math for all calculations
+    nebu_perspective(proj, fovy_deg, aspect, znear, zfar);
+
+    // Use camera's position and target; up vector is Z+
+    const float *eye = pCamera->cam;
+    const float *center = pCamera->target;
+    float up[3] = {0, 0, 1};
+
+    nebu_lookat(view, eye, center, up);
+
+    mat4_mult(mvp, proj, view);
+}
 
 static void writeCamDefaults(Camera *cam, int type) {
 	cam_defaults[cam->type.type][type] = cam->movement[type];
