@@ -265,9 +265,10 @@ void initGui(void) {
 }
 
 void gui_LoadResources(void) {
-    char *path;
 
+    char *path;
     path = getPath(PATH_DATA, "babbage.ftx");
+    
     if (path) {
         pFont = nebu_Font_Load(path, PATH_ART);
         free(path);

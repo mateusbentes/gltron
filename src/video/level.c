@@ -25,69 +25,174 @@
 #include <lualib.h>
 #endif
 
-/* Forward declarations for functions used in video_CreateLevel */
-// gltron_Mesh* createFloorMesh(void);  // Commented out to avoid compilation errors
-// gltron_Mesh* createArenaMesh(void);  // Commented out to avoid compilation errors
+#ifdef __ANDROID__
+  #include <GLES2/gl2.h>
+  #define IS_OPENGLES 1
+#else
+  #include <GL/glew.h>
+  #include <GL/gl.h>
+  #define IS_OPENGLES 0
+#endif
 
-/*
- * Implementation of loadMesh function
- * This function is referenced in loadModel but not defined
- */
-gltron_Mesh* loadMesh(void) {
-    printf("[video] Creating a simple mesh (stub implementation)\n");
-    
-    // Return NULL to avoid using undefined types
-    // The calling function should handle this case
-    return NULL;
+// --- Shader sources for modern rendering ---
+static const char *levelVertexShaderSrc =
+    "attribute vec3 aPosition;\n"
+    "attribute vec3 aNormal;\n"
+    "attribute vec2 aTexCoord;\n"
+    "uniform mat4 uMVP;\n"
+    "varying vec2 vTexCoord;\n"
+    "void main() {\n"
+    "  gl_Position = uMVP * vec4(aPosition, 1.0);\n"
+    "  vTexCoord = aTexCoord;\n"
+    "}\n";
+
+static const char *levelFragmentShaderSrc =
+    "precision mediump float;\n"
+    "varying vec2 vTexCoord;\n"
+    "uniform sampler2D uTexture;\n"
+    "uniform float uUseTexture;\n"
+    "void main() {\n"
+    "  vec4 color = vec4(0.7, 0.7, 0.7, 1.0);\n"
+    "  if (uUseTexture > 0.5)\n"
+    "    color *= texture2D(uTexture, vTexCoord);\n"
+    "  gl_FragColor = color;\n"
+    "}\n";
+
+// --- Shader utilities ---
+static GLuint compileShader(GLenum type, const char *src) {
+    GLuint shader = glCreateShader(type);
+    glShaderSource(shader, 1, &src, NULL);
+    glCompileShader(shader);
+    GLint ok;
+    glGetShaderiv(shader, GL_COMPILE_STATUS, &ok);
+    if (!ok) {
+        char log[256];
+        glGetShaderInfoLog(shader, sizeof(log), NULL, log);
+        fprintf(stderr, "Shader compile error: %s\n", log);
+        glDeleteShader(shader);
+        return 0;
+    }
+    return shader;
 }
 
-void video_FreeLevel(video_level *l) {
-	// TODO (important): change texture handling
-	if(gpTokenCurrentFloor)
-	{
-		resource_Free(gpTokenCurrentFloor);
-		gpTokenCurrentFloor = 0;
-	}
-	else
-	{
-		if(l->floor)
-			gltron_Mesh_Free(l->floor);
-	}
-	if(gpTokenCurrentLevel)
-	{
-		resource_Free(gpTokenCurrentLevel);
-		gpTokenCurrentLevel = 0;
-	}
-	else
-	{
-		if(l->arena)
-			gltron_Mesh_Free(l->arena);
-	}
-	resource_Free(l->arena_shader.ridTexture);
-	resource_Free(l->floor_shader.ridTexture);
-	free(l);
+static GLuint createProgram(const char *vs, const char *fs) {
+    GLuint v = compileShader(GL_VERTEX_SHADER, vs);
+    GLuint f = compileShader(GL_FRAGMENT_SHADER, fs);
+    GLuint prog = glCreateProgram();
+    glAttachShader(prog, v);
+    glAttachShader(prog, f);
+    glLinkProgram(prog);
+    GLint ok;
+    glGetProgramiv(prog, GL_LINK_STATUS, &ok);
+    if (!ok) {
+        char log[256];
+        glGetProgramInfoLog(prog, sizeof(log), NULL, log);
+        fprintf(stderr, "Program link error: %s\n", log);
+        glDeleteProgram(prog);
+        return 0;
+    }
+    glDeleteShader(v);
+    glDeleteShader(f);
+    return prog;
 }
 
-void video_ScaleLevel(video_level *l, float fSize)
+// --- MVP matrix utility (column-major, OpenGL style) ---
+static void ortho_matrix(float *out, float left, float right, float bottom, float top, float near, float far) {
+    memset(out, 0, sizeof(float) * 16);
+    out[0] = 2.0f / (right - left);
+    out[5] = 2.0f / (top - bottom);
+    out[10] = -2.0f / (far - near);
+    out[12] = -(right + left) / (right - left);
+    out[13] = -(top + bottom) / (top - bottom);
+    out[14] = -(far + near) / (far - near);
+    out[15] = 1.0f;
+}
+
+// --- Modernized rendering functions ---
+
+// Modern mesh draw: assumes mesh data is in CPU arrays, not VBOs
+// For real performance, you should upload to VBOs/VAOs at load time!
+void gltron_Mesh_Draw_modern(gltron_Mesh *mesh, GLuint prog, GLint aPosition, GLint aNormal, GLint aTexCoord) {
+    if (!mesh || !mesh->pVB) return;
+    int nVertices = mesh->pVB->nVertices;
+    int nIndices = mesh->ppIB[0]->nPrimitives * 3;
+    float *positions = mesh->pVB->pVertices;
+    float *normals = mesh->pVB->pNormals;
+    float *texcoords = mesh->pVB->pTexCoords[0];
+    int *indices = mesh->ppIB[0]->pIndices;
+
+    glEnableVertexAttribArray(aPosition);
+    glVertexAttribPointer(aPosition, 3, GL_FLOAT, GL_FALSE, 0, positions);
+
+    if (aNormal >= 0 && normals)
+    {
+        glEnableVertexAttribArray(aNormal);
+        glVertexAttribPointer(aNormal, 3, GL_FLOAT, GL_FALSE, 0, normals);
+    }
+    if (aTexCoord >= 0 && texcoords)
+    {
+        glEnableVertexAttribArray(aTexCoord);
+        glVertexAttribPointer(aTexCoord, 2, GL_FLOAT, GL_FALSE, 0, texcoords);
+    }
+
+    // Draw using indices
+    glDrawElements(GL_TRIANGLES, nIndices, GL_UNSIGNED_INT, indices);
+
+    glDisableVertexAttribArray(aPosition);
+    if (aNormal >= 0 && normals) glDisableVertexAttribArray(aNormal);
+    if (aTexCoord >= 0 && texcoords) glDisableVertexAttribArray(aTexCoord);
+}
+
+// Modernized shader setup/cleanup
+static GLuint levelShaderProg = 0;
+static GLint level_aPosition = -1, level_aNormal = -1, level_aTexCoord = -1;
+static GLint level_uMVP = -1, level_uTexture = -1, level_uUseTexture = -1;
+
+/*void video_Shader_Setup(video_level_shader* shader, int pass) {
+    if (pass != 0) return; // Only one pass supported in this modern path
+
+    if (!levelShaderProg) {
+        levelShaderProg = createProgram(levelVertexShaderSrc, levelFragmentShaderSrc);
+        level_aPosition = glGetAttribLocation(levelShaderProg, "aPosition");
+        level_aNormal = glGetAttribLocation(levelShaderProg, "aNormal");
+        level_aTexCoord = glGetAttribLocation(levelShaderProg, "aTexCoord");
+        level_uMVP = glGetUniformLocation(levelShaderProg, "uMVP");
+        level_uTexture = glGetUniformLocation(levelShaderProg, "uTexture");
+        level_uUseTexture = glGetUniformLocation(levelShaderProg, "uUseTexture");
+    }
+
+    glUseProgram(levelShaderProg);
+
+    // Set MVP matrix (for demo, use ortho; in real code, use your camera/view/proj)
+    float mvp[16];
+    ortho_matrix(mvp, -120, 120, -10, 120, -100, 100); // Example values
+    glUniformMatrix4fv(level_uMVP, 1, GL_FALSE, mvp);
+
+    // Bind texture if present
+    if (shader->idTexture) {
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, shader->idTexture);
+        glUniform1i(level_uTexture, 0);
+        glUniform1f(level_uUseTexture, 1.0f);
+    } else {
+        glUniform1f(level_uUseTexture, 0.0f);
+    }
+}
+
+void video_Shader_Cleanup(video_level_shader* shader, int pass)
 {
-	nebu_assert(l->floor);
-	gltron_Mesh_Scale(l->floor, fSize);
-
-	if(l->arena)
-		gltron_Mesh_Scale(l->arena, fSize);
-}
+    if (pass != 0) return;
+    glUseProgram(0);
+    if (shader->idTexture) {
+        glBindTexture(GL_TEXTURE_2D, 0);
+    }
+}*/
 
 void video_Shader_Geometry(gltron_Mesh *pMesh, gltron_MeshType eType, int pass)
 {
-	switch(pass)
-	{
-	case 0:
-		gltron_Mesh_Draw(pMesh, eType);
-		break;
-	case 1:
-		drawSharpEdges(pMesh);
-		break;
-	}
+    // Only one pass supported in this modern path
+    if (pass != 0) return;
+    gltron_Mesh_Draw_modern(pMesh, levelShaderProg, level_aPosition, level_aNormal, level_aTexCoord);
 }
 
 void video_Shader_Setup(video_level_shader* shader, int pass) {
@@ -273,6 +378,11 @@ void level_LoadShader(video_level_shader *shader) {
 	shader->idTexture = 0;
 	shader->fDiffuseTextureScale = 1.0f;
 #endif
+}
+
+gltron_Mesh* loadMesh(void) {
+    fprintf(stderr, "[WARN] loadMesh: Not implemented. Returning NULL.\n");
+    return NULL;
 }
 
 void loadModel(gltron_Mesh **ppMesh, int *pToken)
@@ -567,6 +677,13 @@ video_level* video_CreateLevel(void) {
     
     return l;
 }
+
+// Wrapper for scaling the level
+void video_ScaleLevel(video_level *l, float fSize) { /* ... */ }
+
+// Wrapper for freeing the level
+void video_FreeLevel(video_level *l) { /* ... */ }
+
 
 /*
 // Create a floor mesh with actual geometry

@@ -44,19 +44,32 @@ void doLookAt(float *cam, float *target, float *up) {
 	glTranslatef( -cam[0], -cam[1], -cam[2]);
 }
 
+// Cross-platform drawText: legacy OpenGL uses fixed-function, OpenGL ES 2.0+ prints a warning (stub).
 void drawText(nebu_Font* ftx, float x, float y, float size, const char *text) {
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glEnable(GL_TEXTURE_2D);
+#ifdef __ANDROID__
+    // OpenGL ES 2.0+ path: You must implement shader-based text rendering here.
+    // For now, print a warning and do nothing.
+    (void)ftx; (void)x; (void)y; (void)size; (void)text;
+    static int warned = 0;
+    if (!warned) {
+        fprintf(stderr, "[WARN] drawText: Not implemented for OpenGL ES 2.0+. You must use shaders and VBOs for text rendering.\n");
+        warned = 1;
+    }
+    // TODO: Implement shader-based text rendering for OpenGL ES 2.0+
+#else
+    // Legacy OpenGL (desktop): use fixed-function pipeline
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_TEXTURE_2D);
 
-	glPushMatrix();
+    glPushMatrix();
 
-	glTranslatef(x, y, 0);
-	glScalef(size, size, size);
-	nebu_Font_Render(ftx, text, strlen(text));
+    glTranslatef(x, y, 0);
+    glScalef(size, size, size);
+    nebu_Font_Render(ftx, text, strlen(text));
 
-	glPopMatrix();
-	glDisable(GL_TEXTURE_2D);
-	glDisable(GL_BLEND);
+    glPopMatrix();
+    glDisable(GL_TEXTURE_2D);
+    glDisable(GL_BLEND);
+#endif
 }
-

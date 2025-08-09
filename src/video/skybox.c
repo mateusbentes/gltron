@@ -1,203 +1,196 @@
-// skybox.c
-#include "video/video.h"
-#include "game/game.h"
-#include "configuration/settings.h"
-#include "video/nebu_renderer_gl.h"
-#include "video/skybox.h"
+#include <SDL2/SDL.h>
+#ifdef __ANDROID__
+  #include <GLES2/gl2.h>
+#else
+  #include <GL/glew.h>
+  #include <GL/gl.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <png.h>
 
-// Function to load a texture from a PNG file using libpng
-GLuint loadTexture(const char* filename) {
-    printf("[debug] Loading texture: %s\n", filename);
+// --- Shader sources ---
+static const char *skyboxVertexShaderSrc =
+    "attribute vec3 aPosition;\n"
+    "attribute vec2 aTexCoord;\n"
+    "varying vec2 vTexCoord;\n"
+    "uniform mat4 uMVP;\n"
+    "void main() {\n"
+    "  gl_Position = uMVP * vec4(aPosition, 1.0);\n"
+    "  vTexCoord = aTexCoord;\n"
+    "}\n";
 
-    FILE *fp = fopen(filename, "rb");
-    if (!fp) {
-        fprintf(stderr, "Failed to open file: %s\n", filename);
+static const char *skyboxFragmentShaderSrc =
+    "precision mediump float;\n"
+    "varying vec2 vTexCoord;\n"
+    "uniform sampler2D uTexture;\n"
+    "void main() {\n"
+    "  gl_FragColor = texture2D(uTexture, vTexCoord);\n"
+    "}\n";
+
+// --- Shader utilities ---
+static GLuint compileShader(GLenum type, const char *src) {
+    GLuint shader = glCreateShader(type);
+    glShaderSource(shader, 1, &src, NULL);
+    glCompileShader(shader);
+    GLint ok;
+    glGetShaderiv(shader, GL_COMPILE_STATUS, &ok);
+    if (!ok) {
+        char log[256];
+        glGetShaderInfoLog(shader, sizeof(log), NULL, log);
+        fprintf(stderr, "Shader compile error: %s\n", log);
+        glDeleteShader(shader);
         return 0;
     }
-
-    png_structp png = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-    if (!png) { fclose(fp); return 0; }
-
-    png_infop info = png_create_info_struct(png);
-    if (!info) {
-        png_destroy_read_struct(&png, NULL, NULL);
-        fclose(fp);
-        return 0;
-    }
-
-    if (setjmp(png_jmpbuf(png))) {
-        png_destroy_read_struct(&png, &info, NULL);
-        fclose(fp);
-        return 0;
-    }
-
-    png_init_io(png, fp);
-    png_read_info(png, info);
-
-    int width = png_get_image_width(png, info);
-    int height = png_get_image_height(png, info);
-    png_byte color_type = png_get_color_type(png, info);
-    png_byte bit_depth = png_get_bit_depth(png, info);
-
-    if (bit_depth == 16) png_set_strip_16(png);
-    if (color_type == PNG_COLOR_TYPE_PALETTE) png_set_palette_to_rgb(png);
-    if (color_type == PNG_COLOR_TYPE_GRAY && bit_depth < 8) png_set_expand_gray_1_2_4_to_8(png);
-    if (png_get_valid(png, info, PNG_INFO_tRNS)) png_set_tRNS_to_alpha(png);
-    if (!(color_type & PNG_COLOR_MASK_ALPHA)) png_set_filler(png, 0xFF, PNG_FILLER_AFTER);
-    if (color_type == PNG_COLOR_TYPE_GRAY || color_type == PNG_COLOR_TYPE_GRAY_ALPHA)
-        png_set_gray_to_rgb(png);
-
-    png_set_interlace_handling(png);
-
-    png_read_update_info(png, info);
-
-    // Now safe: 4 bytes per pixel (RGBA)
-    unsigned char* image_data = (unsigned char*)malloc(width * height * 4);
-    if (!image_data) {
-        fprintf(stderr, "Failed to allocate memory\n");
-        png_destroy_read_struct(&png, &info, NULL);
-        fclose(fp);
-        return 0;
-    }
-
-    // Set row pointers to point to the correct positions in image_data
-    png_bytep* row_pointers = (png_bytep*)malloc(sizeof(png_bytep) * height);
-    if (!row_pointers) {
-        fprintf(stderr, "Failed to allocate row pointers\n");
-        free(image_data);
-        png_destroy_read_struct(&png, &info, NULL);
-        fclose(fp);
-        return 0;
-    }
-
-    // Invert lines (OpenGL uses bottom left origin)
-    for (int y = 0; y < height; y++) {
-        row_pointers[y] = image_data + y * width * 4;
-    }
-
-    png_read_image(png, row_pointers);
-
-    // Create OpenGL texture
-    GLuint texture;
-    glGenTextures(1, &texture);
-    glBindTexture(GL_TEXTURE_2D, texture);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    const GLubyte *renderer = glGetString(GL_RENDERER);
-    if (!renderer) {
-        fprintf(stderr, "[error] No OpenGL context found!\n");
-        exit(1);
-    }
-
-    if (!image_data) {
-        fprintf(stderr, "[error] image_data is NULL\n");
-        return 0;
-    }
-
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image_data);
-
-    GLenum err = glGetError();
-    if (err != GL_NO_ERROR) {
-        fprintf(stderr, "OpenGL error: %d\n", err);
-    }
-
-    // Clean up
-    free(row_pointers);
-    free(image_data);
-    png_destroy_read_struct(&png, &info, NULL);
-    fclose(fp);
-
-    printf("[debug] Texture loaded: %s (id=%u)\n", filename, texture);
-    return texture;
+    return shader;
 }
 
-static void bindSkyboxTexture(int index) {
-    glBindTexture(GL_TEXTURE_2D, gScreen->textures[TEX_SKYBOX0 + index]);
-    glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-}
-
-void drawSkybox(Skybox *skybox) {
-    /* these are the values for y == up, x == front */
-    /*
-    float sides[6][4][3] = {
-        { { 1, -1, -1 }, { 1, -1, 1 }, { 1, 1, 1 },  { 1, 1, -1 } }, // front
-        { { 1, 1, -1 }, { 1, 1, 1 }, { -1, 1, 1 }, { -1, 1, -1 } }, // top
-        { { -1, -1, -1 }, { 1, -1, -1 },  { 1, 1, -1 }, { -1, 1, -1 } }, // left
-        { { 1, -1, 1 }, { -1, -1, 1 }, { -1, 1, 1 }, { 1, 1, 1 } }, // right
-        { { -1, -1, -1 }, { 1, -1, -1 }, { 1, -1, 1 }, { -1, -1, 1 } }, // bottom
-        { { -1, -1, 1 }, { -1, -1, -1 }, { -1, 1, -1 }, { -1, 1, a1 } } // back
-        };
-    */
-
-    /* these values are for z == up, x == front */
-    float sides[6][12] = {
-        { 1, 1, -1,
-          1, -1, -1,
-          1, 1, 1,
-          1, -1, 1 }, /* front */
-        { 1, 1, 1,
-         -1, 1, 1,
-         1, -1, 1,
-         -1, -1, 1 }, /* top */
-        { -1, 1, -1,
-          1, 1, -1,
-          -1, 1, 1,
-          1, 1, 1 }, /* left */
-        { 1, -1, -1,
-        -1, -1, -1,
-        1, -1, 1,
-        -1, -1, 1 }, /* right */
-        { -1, 1, -1,
-          -1, -1, -1,
-          1, 1, -1,
-          1, -1, -1 }, /* bottom */
-        { -1, -1, -1,
-          -1, 1, -1,
-          -1, -1, 1,
-          -1, 1, 1 } /* back */
-    };
-
-    float uv[4][2] = { 0, 0, 1, 0, 0, 1, 1, 1 };
-    int i;
-
-    if (!gSettingsCache.show_skybox)
-        return;
-
-    glEnable(GL_TEXTURE_2D);
-    glColor4f(1.0, 1.0, 1.0, 1.0f);
-    glEnableClientState(GL_VERTEX_ARRAY);
-    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-    glTexCoordPointer(2, GL_FLOAT, 0, uv);
-    glPushMatrix();
-    glScalef(1.0f, 1.0f, 1.0f);
-
-    for (i = 0; i < 6; i++) {
-        bindSkyboxTexture(i);
-        glVertexPointer(3, GL_FLOAT, 0, sides[i]);
-        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+static GLuint createProgram(const char *vs, const char *fs) {
+    GLuint v = compileShader(GL_VERTEX_SHADER, vs);
+    GLuint f = compileShader(GL_FRAGMENT_SHADER, fs);
+    GLuint prog = glCreateProgram();
+    glAttachShader(prog, v);
+    glAttachShader(prog, f);
+    glLinkProgram(prog);
+    GLint ok;
+    glGetProgramiv(prog, GL_LINK_STATUS, &ok);
+    if (!ok) {
+        char log[256];
+        glGetProgramInfoLog(prog, sizeof(log), NULL, log);
+        fprintf(stderr, "Program link error: %s\n", log);
+        glDeleteProgram(prog);
+        return 0;
     }
-    glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-    glDisableClientState(GL_VERTEX_ARRAY);
-    glDisable(GL_TEXTURE_2D);
-    glPopMatrix();
+    glDeleteShader(v);
+    glDeleteShader(f);
+    return prog;
 }
 
-void loadSkyboxTextures(Skybox *skybox, const char* filenames[6]) {
+// --- Cube vertex data (positions and texcoords for 6 faces) ---
+static const GLfloat skyboxVertices[] = {
+    // 6 faces, 4 vertices per face, 3 position + 2 texcoord = 5 floats per vertex
+    // Front face (+Z)
+    1,  1,  1, 1, 1,
+   -1,  1,  1, 0, 1,
+   -1, -1,  1, 0, 0,
+    1, -1,  1, 1, 0,
+    // Back face (-Z)
+   -1,  1, -1, 1, 1,
+    1,  1, -1, 0, 1,
+    1, -1, -1, 0, 0,
+   -1, -1, -1, 1, 0,
+    // Left face (-X)
+   -1,  1,  1, 1, 1,
+   -1,  1, -1, 0, 1,
+   -1, -1, -1, 0, 0,
+   -1, -1,  1, 1, 0,
+    // Right face (+X)
+    1,  1, -1, 1, 1,
+    1,  1,  1, 0, 1,
+    1, -1,  1, 0, 0,
+    1, -1, -1, 1, 0,
+    // Top face (+Y)
+    1,  1, -1, 1, 1,
+   -1,  1, -1, 0, 1,
+   -1,  1,  1, 0, 0,
+    1,  1,  1, 1, 0,
+    // Bottom face (-Y)
+    1, -1,  1, 1, 1,
+   -1, -1,  1, 0, 1,
+   -1, -1, -1, 0, 0,
+    1, -1, -1, 1, 0,
+};
+
+static const GLushort skyboxIndices[] = {
+    0, 1, 2, 0, 2, 3,       // Front
+    4, 5, 6, 4, 6, 7,       // Back
+    8, 9,10, 8,10,11,       // Left
+   12,13,14,12,14,15,       // Right
+   16,17,18,16,18,19,       // Top
+   20,21,22,20,22,23        // Bottom
+};
+
+// --- Skybox state ---
+typedef struct {
+    GLuint textures[6]; // One texture per face
+    GLuint vao, vbo, ebo;
+    GLuint shaderProg;
+    GLint aPosition, aTexCoord, uMVP, uTexture;
+} ModernSkybox;
+
+// --- Initialize skybox (call once) ---
+void initModernSkybox(ModernSkybox *skybox) {
+    // Compile/link shaders
+    skybox->shaderProg = createProgram(skyboxVertexShaderSrc, skyboxFragmentShaderSrc);
+    skybox->aPosition = glGetAttribLocation(skybox->shaderProg, "aPosition");
+    skybox->aTexCoord = glGetAttribLocation(skybox->shaderProg, "aTexCoord");
+    skybox->uMVP = glGetUniformLocation(skybox->shaderProg, "uMVP");
+    skybox->uTexture = glGetUniformLocation(skybox->shaderProg, "uTexture");
+
+    // Create VAO/VBO/EBO
+    glGenVertexArrays(1, &skybox->vao);
+    glGenBuffers(1, &skybox->vbo);
+    glGenBuffers(1, &skybox->ebo);
+
+    glBindVertexArray(skybox->vao);
+    glBindBuffer(GL_ARRAY_BUFFER, skybox->vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(skyboxVertices), skyboxVertices, GL_STATIC_DRAW);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, skybox->ebo);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(skyboxIndices), skyboxIndices, GL_STATIC_DRAW);
+
+    glEnableVertexAttribArray(skybox->aPosition);
+    glVertexAttribPointer(skybox->aPosition, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (void*)0);
+
+    glEnableVertexAttribArray(skybox->aTexCoord);
+    glVertexAttribPointer(skybox->aTexCoord, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (void*)(3 * sizeof(GLfloat)));
+
+    glBindVertexArray(0);
+}
+
+// --- Load skybox textures (one per face) ---
+void loadModernSkyboxTextures(ModernSkybox *skybox, const char* filenames[6], GLuint (*loadTextureFunc)(const char*)) {
     for (int i = 0; i < 6; i++) {
-        printf("[debug] Loading skybox texture: %s\n", filenames[i]);
-        gScreen->textures[TEX_SKYBOX0 + i] = loadTexture(filenames[i]);
-        if (!gScreen->textures[TEX_SKYBOX0 + i]) {
+        skybox->textures[i] = loadTextureFunc(filenames[i]);
+        if (!skybox->textures[i]) {
             fprintf(stderr, "[FATAL] Failed to load skybox texture: %s\n", filenames[i]);
             exit(EXIT_FAILURE);
         }
-        printf("[debug] Skybox texture loaded: %s\n", filenames[i]);
     }
+}
+
+// --- Draw skybox (call each frame) ---
+void drawModernSkybox(ModernSkybox *skybox, const float *mvp) {
+    glUseProgram(skybox->shaderProg);
+    glUniformMatrix4fv(skybox->uMVP, 1, GL_FALSE, mvp);
+
+    glBindVertexArray(skybox->vao);
+
+    // Draw each face with its own texture
+    for (int i = 0; i < 6; i++) {
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, skybox->textures[i]);
+        glUniform1i(skybox->uTexture, 0);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, (void*)(i * 6 * sizeof(GLushort)));
+    }
+
+    glBindVertexArray(0);
+    glUseProgram(0);
+}
+
+// Skybox wrappers
+void drawSkybox(void) {
+    #ifdef HAVE_DRAWSKYBOX_MODERN
+    drawSkybox_modern();
+    #else
+    fprintf(stderr, "[WARN] drawSkybox: Not implemented.\n");
+    #endif
+}
+
+void loadSkyboxTextures(void) {
+    #ifdef HAVE_LOADSKYBOXTEXTURES_MODERN
+    loadSkyboxTextures_modern();
+    #else
+    fprintf(stderr, "[WARN] loadSkyboxTextures: Not implemented.\n");
+    #endif
 }
