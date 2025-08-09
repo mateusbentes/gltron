@@ -23,6 +23,8 @@
         "configuration.h": "c",
         "nebu_debug_memory.h": "c",
         "nebu_video_system.h": "c",
-        "nebu_renderer_gl.h": "c"
+        "nebu_renderer_gl.h": "c",
+        "shader_utils.h": "c",
+        "lauxlib.h": "c"
     }
 }

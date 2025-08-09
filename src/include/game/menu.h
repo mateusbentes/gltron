@@ -2,8 +2,11 @@
 #define MENU_H
 
 #include <SDL2/SDL.h>
-#include <GL/glew.h>
-#include <GL/gl.h>
+#ifdef __ANDROID__
+  #include <GLES2/gl2.h>
+#else
+  #include <GL/gl.h>
+#endif
 
 void gameIdle(void);
 void keyGame(SDL_KeyboardEvent *event);

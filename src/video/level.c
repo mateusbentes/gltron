@@ -29,7 +29,6 @@
   #include <GLES2/gl2.h>
   #define IS_OPENGLES 1
 #else
-  #include <GL/glew.h>
   #include <GL/gl.h>
   #define IS_OPENGLES 0
 #endif

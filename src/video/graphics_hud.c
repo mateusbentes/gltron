@@ -1,520 +1,224 @@
-#include "video/video.h"
-#include "game/game.h"
-#include "game/resource.h"
-#include "base/nebu_resource.h"
-#include "filesystem/path.h"
-#include "configuration/settings.h"
-
-#include "base/nebu_math.h"
-#include "scripting/nebu_scripting.h"
-#include "video/nebu_renderer_gl.h"
-
-#include <string.h>
-
-#include "base/nebu_debug_memory.h"
-
-void getPauseString(char *buf, float* color);
-
-void hud_MaskSetup(int maskId, int maskIndex) {
-	glEnable(GL_BLEND);
-	glEnable(GL_ALPHA_TEST);
-	glAlphaFunc(GL_GREATER, 0.1f);
-
-	glEnable(GL_STENCIL_TEST);
-	glStencilMask(~0);
-	glStencilFunc(GL_ALWAYS, maskIndex, ~0);
-	glStencilOp(GL_KEEP, GL_REPLACE, GL_REPLACE);
-
-	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
-	nebu_2d_Draw((nebu_2d*)resource_Get(gpTokenHUD[maskId], eRT_2d));
-	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-
-	glDisable(GL_ALPHA_TEST);
-	glDisable(GL_BLEND);
-
-	// draw gauge where stencil is set
-	glStencilFunc(GL_EQUAL, maskIndex, ~0);
-	glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
-}
-
-void hud_MaskFinish(void)
-{
-	glDisable(GL_STENCIL_TEST);
-}
-
-#define FPS_HSIZE 20
-
-
-int getFPS(void)
-{
-	/* draws FPS in upper left corner of Display d */
-	static int fps_h[FPS_HSIZE];
-	static int pos = -FPS_HSIZE;
-	static int fps_min = 0;
-	static int fps_avg = 0;
-
-	int dt = nebu_Time_GetTimeForLastFrame();
-	if(dt <= 0)
-		dt = 1;
-
-	if(pos < 0)
-	{
-		fps_avg = 1000 / dt;
-		fps_min = 1000 / dt;
-		fps_h[pos + FPS_HSIZE] = 1000 / dt;
-		pos++;
-	}
-	else
-	{
-		fps_h[pos] = 1000 / dt;
-		pos = (pos + 1) % FPS_HSIZE;
-		if(pos % 10 == 0)
-		{
-			int i;
-			int sum = 0;
-			int min = 1000;
-			for(i = 0; i < FPS_HSIZE; i++)
-			{
-				sum += fps_h[i];
-				if(fps_h[i] < min)
-					min = fps_h[i];
-			}
-			fps_min = min;
-			fps_avg = sum / FPS_HSIZE;
-			// printf("FPS: min = %d, avg = %d\n", fps_min, fps_avg);
-		}
-	}
-	return fps_avg;
-}
-
-void drawScore(int score) {
-    // Draw the player's score
-    printf("[drawScore] Score: %d\n", score);
-    // Render the score on the screen
-    // For example, use OpenGL to draw the score as text.
-}
-
-void drawAIStatus(const char *status) {
-    // Draw the AI status (whether the player is controlled by AI or not)
-    printf("[drawAIStatus] AI Status: %s\n", status);
-    // Render the AI status on the screen
-}
-
-void drawSpeed(float raw, float normalized) {
-    // Draw the speed of the player (raw and normalized values)
-    printf("[drawSpeed] Raw Speed: %f, Normalized Speed: %f\n", raw, normalized);
-    // Render the speed on the screen
-}
-
-void drawEnergy(float normalized) {
-    // Draw the player's energy (normalized value)
-    printf("[drawEnergy] Normalized Energy: %f\n", normalized);
-    // Render the energy on the screen
-}
-
-void drawPauseText(const char *text, float r, float g, float b) {
-    // Draw the pause message with the specified color
-    printf("[drawPauseText] Pause Text: %s, Color: (%f, %f, %f)\n", text, r, g, b);
-    // Render the pause text with the specified color
-}
-
-void drawHUD(Player *p, PlayerVisual *pV)
-{
-    char temp[1024];
-    char pause_message[128];
-    float pause_color[3];
-
-    printf("[drawHUD] Starting HUD rendering\n");
-
-    if (!game2) {
-        printf("[drawHUD] game2 is NULL\n");
-        return;
-    }
-
-    if (!p) {
-        printf("[drawHUD] Player pointer is NULL\n");
-        return;
-    }
-
-    if (!pV) {
-        printf("[drawHUD] PlayerVisual pointer is NULL\n");
-        return;
-    }
-
-    getPauseString(pause_message, pause_color);
-
-    glDisable(GL_DEPTH_TEST);
-    glDepthMask(GL_FALSE);
-    rasonly(&pV->display);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-    glScalef(pV->display.vp_w / 1024.0f,
-             pV->display.vp_w / 1024.0f, 1.0f);
-
-#ifdef USE_SCRIPTING
-    sprintf(temp,
-        "drawHUD(%d, %d, %d, \"%s\", %f, %f, %f, %f, %d, \"%s\", %f, %f, %f)",
-        pV->display.vp_w,
-        pV->display.vp_h,
-        gSettingsCache.show_scores ? p->data.score : -1,
-        gSettingsCache.show_ai_status
-            ? (p->ai.active ? "AI_COMPUTER" : "")
-            : "",
-        p->data.speed,
-        p->data.speed / (2 * game2->rules.speed),
-        p->data.energy / getSettingf("energy"),
-        0.0f,
-        (int)getFPS(),
-        pause_message,
-        pause_color[0],
-        pause_color[1],
-        pause_color[2]
-    );
-
-    scripting_Run(temp);
+#include <SDL2/SDL.h>
+#ifdef __ANDROID__
+  #include <GLES2/gl2.h>
 #else
-    if (gSettingsCache.show_scores)
-        drawScore(p->data.score);
-
-    if (gSettingsCache.show_ai_status && p->ai.active)
-        drawAIStatus("AI_COMPUTER");
-
-    drawSpeed(
-        p->data.speed,
-        p->data.speed / (2 * game2->rules.speed)
-    );
-
-    drawEnergy(p->data.energy / getSettingf("energy"));
-
-    drawPauseText(pause_message, pause_color[0], pause_color[1], pause_color[2]);
+  #include <GL/gl.h>
 #endif
 
-    glDisable(GL_BLEND);
-    glDepthMask(GL_TRUE);
-    glEnable(GL_DEPTH_TEST);
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
 
-    printf("[drawHUD] HUD rendering completed\n");
+// Simple shader sources for colored geometry
+static const char *vertexShaderSrc =
+    "attribute vec3 aPosition;\n"
+    "attribute vec3 aColor;\n"
+    "uniform mat4 uMVP;\n"
+    "varying vec3 vColor;\n"
+    "void main() {\n"
+    "  gl_Position = uMVP * vec4(aPosition, 1.0);\n"
+    "  vColor = aColor;\n"
+    "}\n";
+
+static const char *fragmentShaderSrc =
+    "precision mediump float;\n"
+    "varying vec3 vColor;\n"
+    "void main() {\n"
+    "  gl_FragColor = vec4(vColor, 1.0);\n"
+    "}\n";
+
+// Compile and link a shader program
+static GLuint createShaderProgram(const char *vs, const char *fs) {
+    GLuint v = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(v, 1, &vs, NULL);
+    glCompileShader(v);
+    GLuint f = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(f, 1, &fs, NULL);
+    glCompileShader(f);
+    GLuint prog = glCreateProgram();
+    glAttachShader(prog, v);
+    glAttachShader(prog, f);
+    glLinkProgram(prog);
+    glDeleteShader(v);
+    glDeleteShader(f);
+    return prog;
 }
 
-void getPauseString(char *buf, float* color) {
-  char pause[] = "Game is paused";
-  char winner[] = "Player %d wins!";
-  char nowinner[] = "No one wins!";
-  char starting[] = "Press a key to start";
-  static float d = 0;
-  static int lt = 0;
-  int now;
+// Ortho matrix helper (column-major)
+static void make_ortho_matrix(float *out, float left, float right, float bottom, float top, float near, float far) {
+    memset(out, 0, sizeof(float) * 16);
+    out[0] = 2.0f / (right - left);
+    out[5] = 2.0f / (top - bottom);
+    out[10] = -2.0f / (far - near);
+    out[12] = -(right + left) / (right - left);
+    out[13] = -(top + bottom) / (top - bottom);
+    out[14] = -(far + near) / (far - near);
+    out[15] = 1.0f;
+}
 
-  now = nebu_Time_GetElapsed();
-  d += (now - lt) / 500.0f;
-  lt = now;
-  /* printf("%.5f\n", delta); */
-  
-  if (d > 2 * PI) { 
-    d -= 2 * PI;
-  }
+// Modern drawRect using VBOs and shaders
+void drawRectModern(float x, float y, float width, float height, float *colors, float *mvp, GLuint shaderProg) {
+    GLfloat vertices[12] = {
+        x, y, 0,
+        x, y + height, 0,
+        x + width, y + height, 0,
+        x + width, y, 0
+    };
+    GLfloat vcolors[12];
+    memcpy(vcolors, colors, sizeof(float) * 12);
 
-  if ((game->pauseflag & PAUSE_GAME_FINISHED) && game->winner != -1) {
-    if (game->winner >= -1) {
+    GLushort indices[] = {0, 1, 2, 0, 2, 3};
 
-      float* player_color = game->player[game->winner].profile.pColorAlpha;
+    GLuint vbo[2], ibo;
+    glGenBuffers(2, vbo);
+    glGenBuffers(1, &ibo);
 
-      /* 
-         make the 'Player wins' message oscillate between 
-         white and the winning bike's color 
-       */
-      color[0] = ((player_color[0] + ((sinf(d) + 1) / 2) * (1 - player_color[0])));
-	  color[1] = ((player_color[1] + ((sinf(d) + 1) / 2) * (1 - player_color[1])));
-	  color[2] = ((player_color[2] + ((sinf(d) + 1) / 2) * (1 - player_color[2])));
-   
-      sprintf(buf, winner, game->winner + 1);
-    } else {
-		color[0] = 1.0f;
-		color[1] = (sinf(d) + 1) / 2;
-		color[2] = (sinf(d) + 1) / 2;
-	  sprintf(buf, "%s", nowinner);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+    glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vcolors), vcolors, GL_STATIC_DRAW);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+
+    glUseProgram(shaderProg);
+
+    GLint aPosition = glGetAttribLocation(shaderProg, "aPosition");
+    GLint aColor = glGetAttribLocation(shaderProg, "aColor");
+    GLint uMVP = glGetUniformLocation(shaderProg, "uMVP");
+
+    glUniformMatrix4fv(uMVP, 1, GL_FALSE, mvp);
+
+    glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
+    glVertexAttribPointer(aPosition, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    glEnableVertexAttribArray(aPosition);
+
+    glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
+    glVertexAttribPointer(aColor, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    glEnableVertexAttribArray(aColor);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, 0);
+
+    glDisableVertexAttribArray(aPosition);
+    glDisableVertexAttribArray(aColor);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+    glDeleteBuffers(2, vbo);
+    glDeleteBuffers(1, &ibo);
+
+    glUseProgram(0);
+}
+
+// Modern drawCircle using VBOs and shaders
+void drawCircleModern(float cx, float cy, float r1, float r2, float phiStart, float phiEnd, int nSegments, float *c1, float *c2, float *c3, float *c4, float *mvp, GLuint shaderProg) {
+    int nVerts = (nSegments + 1) * 2;
+    GLfloat *vertices = malloc(sizeof(GLfloat) * 3 * nVerts);
+    GLfloat *colors = malloc(sizeof(GLfloat) * 3 * nVerts);
+    GLushort *indices = malloc(sizeof(GLushort) * 6 * nSegments);
+
+    for (int i = 0; i <= nSegments; ++i) {
+        float t = i / (float)nSegments;
+        float rad = (1 - t) * phiStart + t * phiEnd;
+        float cosr = cosf(rad), sinr = sinf(rad);
+
+        // Inner ring
+        vertices[3 * (2 * i + 0) + 0] = cx + cosr * r1;
+        vertices[3 * (2 * i + 0) + 1] = cy + sinr * r1;
+        vertices[3 * (2 * i + 0) + 2] = 0;
+
+        // Outer ring
+        vertices[3 * (2 * i + 1) + 0] = cx + cosr * r2;
+        vertices[3 * (2 * i + 1) + 1] = cy + sinr * r2;
+        vertices[3 * (2 * i + 1) + 2] = 0;
+
+        // Color interpolation
+        for (int k = 0; k < 3; ++k) {
+            colors[3 * (2 * i + 0) + k] = c1[k] * (1 - t) + c2[k] * t;
+            colors[3 * (2 * i + 1) + k] = c3[k] * (1 - t) + c4[k] * t;
+        }
     }
-  } else if(game->pauseflag & PAUSE_GAME_SUSPENDED) {
-		color[0] = 1.0f;
-		color[1] = (sinf(d) + 1) / 2;
-		color[2] = (sinf(d) + 1) / 2;
-	  sprintf(buf, "%s", pause);
-  } else if(game->pauseflag & PAUSE_GAME_STARTING) {
-		color[0] = 1.0f;
-		color[1] = (sinf(d) + 1) / 2;
-		color[2] = (sinf(d) + 1) / 2;
-	  sprintf(buf, "%s", starting);
-  } else {
-	  // game is running
-	  color[0] = 0;
-	  color[1] = 0;
-	  color[2] = 0;
-	  buf[0] = 0;
-  }
+
+    for (int i = 0; i < nSegments; ++i) {
+        indices[6 * i + 0] = 2 * i + 0;
+        indices[6 * i + 1] = 2 * i + 1;
+        indices[6 * i + 2] = 2 * (i + 1) + 0;
+        indices[6 * i + 3] = 2 * (i + 1) + 0;
+        indices[6 * i + 4] = 2 * i + 1;
+        indices[6 * i + 5] = 2 * (i + 1) + 1;
+    }
+
+    GLuint vbo[2], ibo;
+    glGenBuffers(2, vbo);
+    glGenBuffers(1, &ibo);
+
+    glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 3 * nVerts, vertices, GL_STATIC_DRAW);
+
+    glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 3 * nVerts, colors, GL_STATIC_DRAW);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLushort) * 6 * nSegments, indices, GL_STATIC_DRAW);
+
+    glUseProgram(shaderProg);
+
+    GLint aPosition = glGetAttribLocation(shaderProg, "aPosition");
+    GLint aColor = glGetAttribLocation(shaderProg, "aColor");
+    GLint uMVP = glGetUniformLocation(shaderProg, "uMVP");
+
+    glUniformMatrix4fv(uMVP, 1, GL_FALSE, mvp);
+
+    glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
+    glVertexAttribPointer(aPosition, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    glEnableVertexAttribArray(aPosition);
+
+    glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
+    glVertexAttribPointer(aColor, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    glEnableVertexAttribArray(aColor);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+    glDrawElements(GL_TRIANGLES, 6 * nSegments, GL_UNSIGNED_SHORT, 0);
+
+    glDisableVertexAttribArray(aPosition);
+    glDisableVertexAttribArray(aColor);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+    glDeleteBuffers(2, vbo);
+    glDeleteBuffers(1, &ibo);
+
+    glUseProgram(0);
+
+    free(vertices);
+    free(colors);
+    free(indices);
 }
 
-/* new hud stuff starts here */
+// Example: Setup and use in your HUD rendering
+void drawHUDModern(/* ... HUD params ... */) {
+    static GLuint shaderProg = 0;
+    if (!shaderProg)
+        shaderProg = createShaderProgram(vertexShaderSrc, fragmentShaderSrc);
 
-void drawCircle(float phiStart, float phiEnd, 
-								int nSegments, 
-								float r1, float r2,
-								float *c1, float *c2, float *c3, float *c4);
-void drawRect(float width, float height, float *colors);
+    // Setup ortho projection for HUD
+    float mvp[16];
+    make_ortho_matrix(mvp, 0, 1024, 0, 768, -1, 1);
 
-static void getColor(lua_State *l, float *out) {
-	char *names[] = { "r", "g", "b" };
-	int i;
-	for(i = 0; i < 3; i++) {
-		lua_pushstring(l, names[i]);
-		lua_gettable(l, -2);
-		out[i] = (float) lua_tonumber(l, -1);
-		lua_pop(l, 1); // result
-	}
-	lua_pop(l, 1); // table
+    // Example: draw a rectangle at (100,100) size 200x50 with four corner colors
+    float rectColors[12] = {
+        1,0,0,  // bottom-left
+        0,1,0,  // top-left
+        0,0,1,  // top-right
+        1,1,0   // bottom-right
+    };
+    drawRectModern(100, 100, 200, 50, rectColors, mvp, shaderProg);
+
+    // Example: draw a circle at (512,384) with radii 50, 100, and color gradients
+    float c1[3] = {1,0,0}, c2[3] = {0,1,0}, c3[3] = {0,0,1}, c4[3] = {1,1,0};
+    drawCircleModern(512, 384, 50, 100, 0, 2 * 3.1415926f, 32, c1, c2, c3, c4, mvp, shaderProg);
 }
-
-int c_drawRectangle(lua_State *l) {
-	float width = 0, height = 0;
-	float colors[12];
-
-	getColor(l, colors + 9);
-	getColor(l, colors + 6);
-	getColor(l, colors + 3);
-	getColor(l, colors + 0);
-	
-	height = (float) lua_tonumber(l, -1);		lua_pop(l, 1);
-	width =  (float) lua_tonumber(l, -1);		lua_pop(l, 1);
-	
-	drawRect(width, height, colors);
-
-	return 0;
-}
-	
-int c_drawCircle(lua_State *l) {
-	float phiStart = 0, phiEnd = 0;
-	int nSegments = 0;
-	float r1 = 0, r2 = 0;
-
-	float c1[3] = { 0, 0, 0 };
-	float c2[3] = { 0, 0, 0 };
-	float c3[3] = { 0, 0, 0 };
-	float	c4[3] = { 0, 0, 0 };
-	
-	getColor(l, c4);
-	getColor(l, c3);
-	getColor(l, c2);
-	getColor(l, c1);
-
-	r2 = (float) lua_tonumber(l, -1);		lua_pop(l, 1);
-	r1 = (float) lua_tonumber(l, -1);		lua_pop(l, 1);
-	nSegments = (int) lua_tonumber(l, -1);		lua_pop(l, 1);
-	phiEnd = (float) lua_tonumber(l, -1);		lua_pop(l, 1);
-	phiStart = (float) lua_tonumber(l, -1);		lua_pop(l, 1);
-
-	drawCircle(phiStart, phiEnd, nSegments, r1, r2, c1, c2, c3, c4);
-
-	return 0;
-}
-
-int c_translate(lua_State *l) {
-	float x = 0, y = 0, z = 0;
-	z = (float) lua_tonumber(l, -1);		lua_pop(l, 1);
-	y = (float) lua_tonumber(l, -1);		lua_pop(l, 1);
-	x = (float) lua_tonumber(l, -1);		lua_pop(l, 1);
-	glTranslatef(x,y,z);
-
-	return 0;
-}
-
-int c_scale(lua_State *l) {
-	float x = 0, y = 0, z = 0;
-	z = (float) lua_tonumber(l, -1);		lua_pop(l, 1);
-	y = (float) lua_tonumber(l, -1);		lua_pop(l, 1);
-	x = (float) lua_tonumber(l, -1);		lua_pop(l, 1);
-	glScalef(x,y,z);
-
-	return 0;
-}
-
-int c_pushMatrix(lua_State *l) {
-	glPushMatrix();
-	return 0;
-}
-
-int c_popMatrix(lua_State *l) {
-	glPopMatrix();
-	return 0;
-}
-
-int c_color(lua_State *l)
-{
-	float r, g, b, a;
-	a = (float) lua_tonumber(l, -1);	lua_pop(l, 1);
-	b = (float) lua_tonumber(l, -1);	lua_pop(l, 1);
-	g = (float) lua_tonumber(l, -1);	lua_pop(l, 1);
-	r = (float) lua_tonumber(l, -1);	lua_pop(l, 1);
-	glColor4f(r, g, b, a);
-	return 0;
-}
-
-int c_drawTextFitIntoRect(lua_State *l) {
-#ifdef USE_SCRIPTING
-	// text, width, height, flags
-	char *text;
-	float width;
-	float height;
-	int flags;
-	box2 box;
-
-	scripting_GetIntegerResult(&flags);
-	scripting_GetFloatResult(&height);
-	scripting_GetFloatResult(&width);
-	scripting_GetStringResult(&text);
-	// these are ignored!
-	box.vMin.v[0] = 0;
-	box.vMin.v[1] = 0;
-	box.vMax.v[0] = width;
-	box.vMax.v[1] = height;
-	nebu_Font_RenderToBox((nebu_Font*)resource_Get(gTokenGameFont, eRT_Font), text, strlen(text), &box, flags);
-	scripting_StringResult_Free(text);
-
-	return 0;
-#endif
-}
-
-int c_draw2D(lua_State* l)
-{
-#ifdef USE_SCRIPTING
-	nebu_Rect rect = { 0, 0, 0, 0 };
-	scripting_GetIntegerResult(&rect.height);
-	scripting_GetIntegerResult(&rect.width);
-	draw2D(&rect);
-	return 0;
-#endif
-}
-
-int c_drawHUDSurface(lua_State* l)
-{
-#ifdef USE_SCRIPTING
-	int surface;
-	scripting_GetIntegerResult(&surface);
-
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	nebu_2d_Draw((nebu_2d*)resource_Get(gpTokenHUD[surface], eRT_2d));
-	glDisable(GL_BLEND);
-	return 0;
-#endif
-}
-
-int c_drawHUDMask(lua_State* l)
-{
-#ifdef USE_SCRIPTING
-	int maskId, maskIndex;
-	scripting_GetIntegerResult(&maskIndex);
-	scripting_GetIntegerResult(&maskId);
-	if(maskId < 0)
-	{
-		hud_MaskFinish();
-	}
-	else
-	{
-		hud_MaskSetup(maskId, maskIndex);
-	}
-	return 0;
-#endif
-}
-		
-void rgb_interpolate(float *color, float t, float *c1, float *c2) {
-	int i;
-	// printf("%.2f\n", t);
-	for(i = 0; i < 3; i++) {
-		color[i] = c1[i] * (1 - t) + c2[i] * t;
-	}
-}
-
-void drawCircle(float phiStart, float phiEnd, 
-								int nSegments, 
-								float r1, float r2,
-								float *c1, float *c2, float *c3, float *c4) {
-	float *pVertices;
-	float *pColors;
-	unsigned short* pIndices;
-
-	int i;
-
-	if(nSegments < 1)
-		return;
-
-	pVertices = (float*) malloc( (nSegments + 1) * 2 * 3 * sizeof(float) );
-	pColors = (float*) malloc( (nSegments + 1) * 2 * 3 * sizeof(float) );
-
-	for(i = 0; i < nSegments + 1; i++) {
-		float t = i / (float)nSegments;
-		float rad = (1 - t) * phiStart + t * phiEnd;
-		pVertices[3 * (2 * i + 0) + 0] = cosf(rad) * r1;
-		pVertices[3 * (2 * i + 0) + 1] = sinf(rad) * r1;
-		pVertices[3 * (2 * i + 0) + 2] = 0;
-
-		pVertices[3 * (2 * i + 1) + 0] = cosf(rad) * r2;
-		pVertices[3 * (2 * i + 1) + 1] = sinf(rad) * r2;
-		pVertices[3 * (2 * i + 1) + 2] = 0;
-		
-		rgb_interpolate(pColors + 3 * (2 * i + 0), t, c1, c2);
-		rgb_interpolate(pColors + 3 * (2 * i + 1), t, c3, c4);
-	}
-	
-	pIndices = (unsigned short*) 
-		malloc( (nSegments) * 2 * 3 * sizeof(unsigned short) );
-
-	for(i = 0; i < nSegments; i++) {
-		pIndices[3 * (2 * i + 0) + 0] = (i + 0) * 2 + 0;
-		pIndices[3 * (2 * i + 0) + 1] = (i + 0) * 2 + 1;
-		pIndices[3 * (2 * i + 0) + 2] = (i + 1) * 2 + 0;
-
-		pIndices[3 * (2 * i + 1) + 0] = (i + 1) * 2 + 0;
-		pIndices[3 * (2 * i + 1) + 1] = (i + 0) * 2 + 1;
-		pIndices[3 * (2 * i + 1) + 2] = (i + 1) * 2 + 1;
-	}
-	
-	glVertexPointer(3, GL_FLOAT, 0, pVertices);
-	glEnableClientState(GL_VERTEX_ARRAY);
-	glColorPointer(3, GL_FLOAT, 0, pColors);
-	glEnableClientState(GL_COLOR_ARRAY);
-	
-	glDrawElements(GL_TRIANGLES, 3 * 2 * nSegments, GL_UNSIGNED_SHORT, pIndices);
-
-	glDisableClientState(GL_VERTEX_ARRAY);
-	glDisableClientState(GL_COLOR_ARRAY);
-
-	free(pVertices);
-	free(pColors);
-	free(pIndices);
-	
-}
-
-void drawRect(float width, float height, 
-							float *colors) {
-	float vertices[12] = { 
-		0, 0, 0, 
-		0, height, 0,
-		width, height, 0,
-		width, 0, 0
-	};
-		
-	unsigned short indices[] = { 
-		0, 1, 2, 0, 2, 3
-	};
-
-	glVertexPointer(3, GL_FLOAT, 0, vertices);
-	glEnableClientState(GL_VERTEX_ARRAY);
-	glColorPointer(3, GL_FLOAT, 0, colors);
-	glEnableClientState(GL_COLOR_ARRAY);
-	
-	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, indices);
-
-	glDisableClientState(GL_VERTEX_ARRAY);
-	glDisableClientState(GL_COLOR_ARRAY);
-}
-

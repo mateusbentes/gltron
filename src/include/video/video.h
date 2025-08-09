@@ -1,7 +1,6 @@
 #ifndef VIDEO_H
 #define VIDEO_H
 
-#include <GL/glew.h>  // Include glew.h first
 #include <GL/gl.h>    // Then include gl.h
 
 #include "game/game.h"
@@ -201,7 +200,7 @@ extern void doPngScreenShot(Visual *display);
 
 /* probably common graphics stuff -> graphics.c */
 
-extern void rasonly(Visual *d);
+extern void rasonly(Visual *d, GLuint shaderProgram, GLint uMVP);
 
 extern int hsv2rgb(float, float, float, float*, float*, float*);
 extern void colorDisc(void);

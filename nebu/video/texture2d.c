@@ -11,12 +11,11 @@
 #include "base/nebu_debug_memory.h"
 #include "base/nebu_assert.h"
 
-// Platform detection
+#include <SDL2/SDL.h>
 #ifdef __ANDROID__
-  #define IS_OPENGLES 1
+  #include <GLES2/gl2.h>
 #else
-  #define IS_OPENGLES 0
-  #include <GL/glew.h>
+  #include <GL/gl.h>
 #endif
 
 static void loadTexture(const char *path, int format);
@@ -31,8 +30,8 @@ void nebu_Texture2D_Free(nebu_Texture2D* pTexture)
 
 nebu_Texture2D* nebu_Texture2D_Load(const char *path, const nebu_Texture2D_meta* meta)
 {
-    nebu_Texture2D *pTexture;
-    pTexture = (nebu_Texture2D*)malloc(sizeof(nebu_Texture2D));
+    nebu_Texture2D *pTexture = (nebu_Texture2D*)malloc(sizeof(nebu_Texture2D));
+    if (!pTexture) return NULL;
 
     glGenTextures(1, &pTexture->id);
     glBindTexture(GL_TEXTURE_2D, pTexture->id);
@@ -44,18 +43,21 @@ nebu_Texture2D* nebu_Texture2D_Load(const char *path, const nebu_Texture2D_meta*
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, meta->wrap_s);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, meta->wrap_t);
 
-#if !IS_OPENGLES
-    // Anisotropic filtering is not available in OpenGL ES 2.0+
-    if (GLEW_EXT_texture_filter_anisotropic)
-    {
+#if !defined(__ANDROID__)
+    // On desktop OpenGL, check for anisotropic filtering support manually
+    // Here we do a basic extension check without GLEW:
+    const char *ext = (const char*)glGetString(GL_EXTENSIONS);
+    if (ext && strstr(ext, "GL_EXT_texture_filter_anisotropic")) {
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, meta->anisotropy);
     }
 #endif
+
     return pTexture;
 }
 
 void freeTextureData(png_texture *tex) {
-    free(tex->data);
+    if (!tex) return;
+    if (tex->data) free(tex->data);
     free(tex);
 }
 
@@ -64,7 +66,8 @@ png_texture* loadTextureData(const char *path) {
 
     if (tex == NULL) {
         fprintf(stderr, "fatal: failed loading %s, exiting...\n", path);
-        nebu_assert(0); exit(1); // OK: critical, installation corrupt
+        nebu_assert(0);
+        exit(1); // Critical error, abort program
     }
     return tex;
 }
@@ -77,12 +80,12 @@ void loadTexture(const char *path, int format) {
     glGetIntegerv(GL_MAX_TEXTURE_SIZE, &maxSize);
 
     tex = loadTextureData(path);
+
     if (tex->channels == 3)
         internal = GL_RGB;
     else
         internal = GL_RGBA;
 
-    // GL_DONT_CARE is not defined in OpenGL ES, so use 0 or a default
 #if defined(GL_DONT_CARE)
     if (format == GL_DONT_CARE)
 #else
@@ -95,7 +98,7 @@ void loadTexture(const char *path, int format) {
 
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
-    // Mipmap upload loop
+    // Upload mipmap levels
     {
         png_texture *newtex;
         int level = 0;
@@ -116,7 +119,7 @@ void loadTexture(const char *path, int format) {
             freeTextureData(tex);
             tex = newtex;
         }
-        // upload 1x1 mip level
+        // Upload 1x1 mip level
         glTexImage2D(GL_TEXTURE_2D, level, internal,
                      tex->width, tex->height,
                      0, format, GL_UNSIGNED_BYTE, tex->data);
@@ -127,8 +130,8 @@ void loadTexture(const char *path, int format) {
         freeTextureData(tex);
     }
 
-#if IS_OPENGLES
-    // In OpenGL ES 2.0+, you can also use glGenerateMipmap if you want:
+#if defined(__ANDROID__)
+    // Optionally generate mipmaps on OpenGLES
     // glGenerateMipmap(GL_TEXTURE_2D);
 #endif
 }

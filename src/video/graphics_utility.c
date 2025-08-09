@@ -8,8 +8,8 @@
 
 #include <string.h>
 
-void rasonly(Visual *d) {
-	nebu_Video_rasonly(d->vp_x, d->vp_y, d->vp_w, d->vp_h);
+void rasonly(Visual *d, GLuint shaderProgram, GLint uMVP) {
+    nebu_Video_rasonly(d->vp_x, d->vp_y, d->vp_w, d->vp_h, shaderProgram, uMVP);
 }
 
 void doPerspective(float fov, float ratio, float znear, float zfar) {

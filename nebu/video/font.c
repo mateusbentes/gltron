@@ -2,7 +2,6 @@
 #ifdef __ANDROID__
   #include <GLES2/gl2.h>
 #else
-  #include <GL/glew.h>
   #include <GL/gl.h>
 #endif
 #include <stdio.h>

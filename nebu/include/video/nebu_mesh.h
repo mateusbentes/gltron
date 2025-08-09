@@ -1,6 +1,14 @@
 #ifndef NEBU_MESH_H
 #define NEBU_MESH_H
 
+
+#include <SDL2/SDL.h>
+#ifdef __ANDROID__
+  #include <GLES2/gl2.h>
+#else
+  #include <GL/gl.h>
+#endif
+
 #include "base/nebu_vector.h"
 enum {
 	NEBU_MESH_POSITION    = 0x0001,
@@ -21,10 +29,16 @@ enum {
 };
 
 typedef struct {
-	int nVertices;
-	float *pVertices;
-	float *pNormals;
-	float *pTexCoords[NEBU_MESH_TEXCOORD_MAXCOUNT];
+    GLuint vboVertices; // Vertex buffer object ID
+    GLuint vboIndices;  // Index buffer object ID (if using indexed rendering)
+    int nVertices;      // Number of vertices
+    int nPrimitives;    // Number of primitives (triangles, quads, etc.)
+    int stride;         // Byte offset between consecutive vertices
+    float *pVertices;   // Vertex data (position)
+    float *pNormals;    // Normal data (if available)
+    float **pTexCoords; // Texture coordinate data (if available)
+    int hasNormals;     // Flag indicating if normals are present
+    int hasTexCoords;   // Flag indicating if texture coordinates are present
 	int *pColor0;
 	int *pColor1;
 	int vertexformat;

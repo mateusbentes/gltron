@@ -10,8 +10,13 @@
 #include "scripting/nebu_scripting.h"
 #include "input/nebu_input_system.h"
 #include "scripting/scripting.h"
+#include "video/shader_utils.h"
 
 static int coffset;
+
+// Declare the shader program and MVP uniform
+extern GLuint gShaderProgram;
+extern GLint gUniformMVP;
 
 char *credits[] = {
   "",
@@ -75,7 +80,8 @@ void drawCredits(void) {
   glClearColor(.0, .0, .0, .0);
   glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-  rasonly(gScreen);
+  rasonly(gScreen, gShaderProgram, gUniformMVP);
+  
   for(i = 0; i < time / 250; i++) {
     glColor4f(
 		colors[i % 2][0],
@@ -85,7 +91,7 @@ void drawCredits(void) {
     if(credits[i] == NULL) 
       break;
     y = gScreen->vp_h - 3.0f * h * (i + 1) / 2;
-    drawText((nebu_Font*)resource_Get(gTokenGameFont, eRT_Font), x, y, h, credits[i]);
+        drawText((nebu_Font*)resource_Get(gTokenGameFont, eRT_Font), x, y, h, credits[i], gShaderProgram, gUniformMVP);
   }
 }
 void displayCredits(void) {

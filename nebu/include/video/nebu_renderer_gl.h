@@ -1,44 +1,40 @@
 #ifndef NEBU_RENDERER_GL_H
 #define NEBU_RENDERER_GL_H
 
-// #define OPENGL_ES
-
-#ifdef OPENGL_ES
-#include <OpenGLES/ES1/gl.h>
-#else // OPENGL_ES
-#define GLEW_STATIC
-#include "../../glew/include/GL/glew.h"
-#endif // !OPENGL_ES
+// For SDL2 + OpenGL ES 2.0+ only
+#ifdef __ANDROID__
+  #include <GLES2/gl2.h>
+#else
+  #include <GLES2/gl2.h>
+#endif
 
 #include <stdio.h>
 
-#define POLY_COUNT
-
-#define RENDERER_TYPE_ALL 255
-#define RENDERER_TYPE_COLOR 1
-#define RENDERER_TYPE_NORMAL 2
+// Renderer type flags (for future use)
+#define RENDERER_TYPE_ALL           255
+#define RENDERER_TYPE_COLOR         1
+#define RENDERER_TYPE_NORMAL        2
 #define RENDERER_TYPE_TEXTURE_COORD 4
-#define RENDERER_TYPE_TEXTURE 8
-#define RENDERER_TYPE_TEXTURE_MODE 16
+#define RENDERER_TYPE_TEXTURE       8
+#define RENDERER_TYPE_TEXTURE_MODE  16
 
-extern void initRenderer();
-extern void printRendererInfo();
-extern void clearState();
-
+// Renderer state for OpenGL ES 2.0+ (no fixed-function pipeline)
 typedef struct GLstate {
-  int tex_id; /* current texture */
-  int tex_env_mode; /* current texture env mode */
-  int binds; /* texture bind changes - used for statistics only */
-  int mod_changes;   /* mode changes - used for statistics only */
-  int type_mask; /* which modes to change */
+  int tex_id;           // Currently bound texture ID (if any)
+  int type_mask;        // Which modes to change (for future use)
+  int binds;            // Texture bind changes (for statistics)
+  int mod_changes;      // Mode changes (for statistics)
 } GLstate;
 
 typedef struct Renderer {
-  /* shows capabilities of the renderer */
-  int ext_filter_anisotropic;
+  int ext_filter_anisotropic; // Anisotropic filtering support (for statistics/capabilities)
 } Renderer;
+
+extern void initRenderer(void);
+extern void printRendererInfo(void);
+extern void clearState(void);
 
 extern Renderer renderer;
 extern GLstate *state;
 
-#endif
+#endif // NEBU_RENDERER_GL_H

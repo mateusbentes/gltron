@@ -5,12 +5,15 @@
 
 #include "base/nebu_math.h"
 #include "video/nebu_renderer_gl.h"
+#include "video/nebu_mesh.h"
 #include <stdio.h>
 #include <zlib.h>
 #include <string.h>
 #include "base/nebu_assert.h"
 
 #include "base/nebu_debug_memory.h"
+
+extern GLuint gShaderProgram;
 
 typedef struct face {
   int vertex[3];
@@ -102,6 +105,68 @@ void readQuadFace(char *buf, quadFace *pFace, int *iFace, int iGroup) {
     fprintf(stderr, "*** failed parsing face %s\n", buf);
   }
 }
+
+// Enable the vertex buffer (bind VBOs, setup vertex attributes)
+void nebu_Mesh_VB_Enable(nebu_Mesh_VB* pVB) {
+    // Assuming pVB contains VBO IDs and format info
+    // Bind the vertex buffer and enable vertex attributes
+
+    glBindBuffer(GL_ARRAY_BUFFER, pVB->vboVertices);
+
+    // Enable position attribute (location 0)
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, pVB->stride, (void*)0);
+
+    if (pVB->hasNormals) {
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, pVB->stride, (void*)(3 * sizeof(float)));
+    }
+
+    if (pVB->hasTexCoords) {
+        glEnableVertexAttribArray(2);
+        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, pVB->stride, (void*)(6 * sizeof(float)));
+    }
+}
+
+// Disable the vertex buffer (disable vertex attributes and unbind VBO)
+void nebu_Mesh_VB_Disable(nebu_Mesh_VB* pVB) {
+    glDisableVertexAttribArray(0);
+    if (pVB->hasNormals) glDisableVertexAttribArray(1);
+    if (pVB->hasTexCoords) glDisableVertexAttribArray(2);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
+
+// Set the current material (bind textures, set uniforms, etc.)
+void gltron_Mesh_Material_Set(gltron_Mesh_Material *pMat) {
+    // Example: set material uniform colors, assume shader is active
+
+    GLint locAmbient = glGetUniformLocation(gShaderProgram, "uMaterialAmbient");
+    GLint locDiffuse = glGetUniformLocation(gShaderProgram, "uMaterialDiffuse");
+    GLint locSpecular = glGetUniformLocation(gShaderProgram, "uMaterialSpecular");
+    GLint locShininess = glGetUniformLocation(gShaderProgram, "uMaterialShininess");
+
+    if (locAmbient >= 0)
+        glUniform4fv(locAmbient, 1, pMat->ambient);
+    if (locDiffuse >= 0)
+        glUniform4fv(locDiffuse, 1, pMat->diffuse);
+    if (locSpecular >= 0)
+        glUniform4fv(locSpecular, 1, pMat->specular);
+    if (locShininess >= 0)
+        glUniform1f(locShininess, pMat->shininess);
+
+    // If you have textures or other state to bind, do it here
+}
+
+// Scale vertex buffer positions by scale factor
+void nebu_Mesh_VB_Scale(nebu_Mesh_VB* pVB, float fScale) {
+    for (int i = 0; i < pVB->nVertices; i++) {
+        pVB->pVertices[3*i + 0] *= fScale;
+        pVB->pVertices[3*i + 1] *= fScale;
+        pVB->pVertices[3*i + 2] *= fScale;
+    }
+}
+
 
 void gltron_Mesh_Free(gltron_Mesh* pMesh)
 {

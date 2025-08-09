@@ -163,7 +163,7 @@ void drawGuiMenu(Visual *d) {
             snprintf(line, sizeof(line), "%s", menuItems[i]);
         }
 
-        drawText(pFont, x, y - size * i, size, line);
+        void drawText(nebu_Font* ftx, float x, float y, float size, const char *text, GLuint shaderProgram, GLint uMVP);
     }
 
     glDisable(GL_BLEND);
