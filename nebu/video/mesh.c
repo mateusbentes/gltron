@@ -214,36 +214,31 @@ nebu_Mesh_VB* nebu_Mesh_VB_Create(int flags, int nVertices)
     int i;
 
     nebu_Mesh_VB* pVB = (nebu_Mesh_VB*) malloc(sizeof(nebu_Mesh_VB));
+    if (!pVB) return NULL;
+
+    memset(pVB, 0, sizeof(nebu_Mesh_VB));  // zero all pointers and fields
+
     pVB->nVertices = nVertices;
     pVB->vertexformat = flags;
 
     if(flags & NEBU_MESH_POSITION)
         pVB->pVertices = (float*) malloc(3 * sizeof(float) * nVertices);
-    else
-        pVB->pVertices = NULL;
 
     if(flags & NEBU_MESH_NORMAL)
         pVB->pNormals = (float*) malloc(3 * sizeof(float) * nVertices);
-    else
-        pVB->pNormals = NULL;
 
     if(flags & NEBU_MESH_COLOR0)
-        pVB->pColor0 = (int*) malloc( sizeof(int) * nVertices);
-    else
-        pVB->pColor0 = NULL;
+        pVB->pColor0 = (int*) malloc(sizeof(int) * nVertices);
 
     if(flags & NEBU_MESH_COLOR1)
-        pVB->pColor1 = (int*) malloc( sizeof(int) * nVertices);
-    else
-        pVB->pColor1 = NULL;
+        pVB->pColor1 = (int*) malloc(sizeof(int) * nVertices);
 
     for(i = 0; i < NEBU_MESH_TEXCOORD_MAXCOUNT; i++)
     {
         if(flags & (NEBU_MESH_TEXCOORD0 << i))
             pVB->pTexCoords[i] = (float*) malloc(2 * sizeof(float) * nVertices);
-        else
-            pVB->pTexCoords[i] = NULL;
     }
+
     return pVB;
 }
 
