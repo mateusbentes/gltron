@@ -13,7 +13,7 @@ add_common_platform_definitions(nebu_video)
 target_link_libraries(nebu_video PUBLIC
   nebu_filesystem
   nebu_base
-  GLEW::GLEW
+  #GLEW::GLEW
   ${PNG_LIBRARIES}
   ${OPENGL_LIBRARIES}
 )

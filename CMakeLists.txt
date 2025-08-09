@@ -108,19 +108,19 @@ else()
   find_package(OpenGL REQUIRED)
 
   # Try to find GLEW
-  find_package(GLEW)
-  if(NOT GLEW_FOUND)
-    find_package(PkgConfig REQUIRED)
-    pkg_check_modules(GLEW REQUIRED glew)
-  endif()
+  #find_package(GLEW)
+  #if(NOT GLEW_FOUND)
+    #find_package(PkgConfig REQUIRED)
+    #pkg_check_modules(GLEW REQUIRED glew)
+  #endif()
 
   # Ensure GLEW::GLEW target
-  if(NOT TARGET GLEW::GLEW)
-    add_library(GLEW::GLEW UNKNOWN IMPORTED)
-    set_target_properties(GLEW::GLEW PROPERTIES
-      IMPORTED_LOCATION "${GLEW_LIBRARIES}"
-      INTERFACE_INCLUDE_DIRECTORIES "${GLEW_INCLUDE_DIRS}")
-  endif()
+  #if(NOT TARGET GLEW::GLEW)
+    #add_library(GLEW::GLEW UNKNOWN IMPORTED)
+    #set_target_properties(GLEW::GLEW PROPERTIES
+      #IMPORTED_LOCATION "${GLEW_LIBRARIES}"
+      #INTERFACE_INCLUDE_DIRECTORIES "${GLEW_INCLUDE_DIRS}")
+  #endif()
 
   # SDL_mixer support
   if(ENABLE_SOUND)
@@ -245,7 +245,6 @@ if(NOT BUILD_ANDROID)
 
 /* Linux-specific includes */
 #include <SDL2/SDL.h>
-#include <GL/glew.h>
 #include <GL/gl.h>
 
 /* Linux-specific logging macros */
@@ -376,7 +375,7 @@ if(NOT BUILD_ANDROID)
 endif()
 
 # Add subdirectories for modular build
-add_subdirectory(glew)
+#add_subdirectory(glew)
 add_subdirectory(lua5)
 add_subdirectory(nebu/audio)
 add_subdirectory(nebu/base)

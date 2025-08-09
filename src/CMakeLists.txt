@@ -67,7 +67,7 @@ target_link_libraries(gltron PRIVATE
     
     # External libraries
     lua5
-    glew
+    #glew
 )
 
 # FIXED: Only add scripting libraries if they actually exist
@@ -103,7 +103,7 @@ else()
     target_link_libraries(gltron PRIVATE
         ${ZLIB_LIBRARIES}
         ${PNG_LIBRARIES}
-        GLEW::GLEW
+        #GLEW::GLEW
         ${OPENGL_LIBRARIES}
     )
     
