@@ -80,14 +80,11 @@ void mouseMenu(SDL_MouseButtonEvent *event) {
 void touchMenu(SDL_TouchFingerEvent *event) {
     if (!isMenuActive()) return;
 
-    // Convert normalized coordinates to screen pixels
     int screenW = gScreen ? gScreen->vp_w : 800;
     int screenH = gScreen ? gScreen->vp_h : 600;
-    int x = (int)(event->x * screenW);
     int y = (int)(event->y * screenH);
 
     if (event->type == SDL_FINGERDOWN) {
-        // Simple detection of button by y coordinate
         if (y > 300 && y < 340) {
             printf("Touched 'Start Game' button\n");
             deactivateMenu();
@@ -98,7 +95,6 @@ void touchMenu(SDL_TouchFingerEvent *event) {
         } else if (y > 360 && y < 400) {
             printf("Touched 'Exit' button\n");
             SDL_Quit();
-            // On Android, SDL_Quit will close the app gracefully
         }
     }
 }
@@ -127,7 +123,6 @@ void keyGuiMenu(SDL_KeyboardEvent *event) {
 void mouseGuiMenu(SDL_MouseButtonEvent *event) {
     if (event->type == SDL_MOUSEBUTTONDOWN) {
         if (event->button == SDL_BUTTON_LEFT) {
-            int x = event->x;
             int y = event->y;
             if (y > 300 && y < 340) {
                 printf("Clicked 'Start Game' button\n");

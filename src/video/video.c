@@ -19,11 +19,72 @@
 #include "video/skybox.h"
 #include <SDL2/SDL.h>
 
+#ifdef __ANDROID__
+  #include <GLES2/gl2.h>
+#else
+  #include <GL/gl.h>
+#endif
+
+#include <stdio.h>
+#include <stdlib.h>
+
+// Global variables
 int gScreenWidth = 800;
 int gScreenHeight = 600;
-
 SDL_Window *gWindow = NULL;
 SDL_GLContext gGLContext = NULL;
+
+// Platform detection
+#ifdef __ANDROID__
+#define IS_ANDROID 1
+#else
+#define IS_ANDROID 0
+#endif
+
+// Utility: Print OpenGL info
+static void printGLInfo() {
+    const char* vendor = (const char*)glGetString(GL_VENDOR);
+    const char* renderer = (const char*)glGetString(GL_RENDERER);
+    const char* version = (const char*)glGetString(GL_VERSION);
+    printf("[opengl] Vendor: %s\n", vendor ? vendor : "Unknown");
+    printf("[opengl] Renderer: %s\n", renderer ? renderer : "Unknown");
+    printf("[opengl] Version: %s\n", version ? version : "Unknown");
+}
+
+// Utility: Set Android immersive mode (hides nav/status bars)
+static void setAndroidImmersiveMode() {
+#if IS_ANDROID
+    SDL_SetHint(SDL_HINT_ANDROID_TRAP_BACK_BUTTON, "1");
+    SDL_SetHint(SDL_HINT_VIDEO_FULLSCREEN_MODE, "immersive");
+    // SDL2 will handle immersive mode if the hint is set before window creation
+#endif
+}
+
+// Example usage in your setupDisplay or main
+void setupDisplayCrossPlatform() {
+    int width = 800;
+    int height = 600;
+    int fullscreen = 0;
+#if IS_ANDROID
+    fullscreen = 1; // Always fullscreen on Android
+#else
+    // Read from config or user settings for PC
+    // fullscreen = getSettingi("fullscreen");
+#endif
+    initWindow(width, height, fullscreen);
+}
+
+void shutdownDisplayCrossPlatform() {
+    if (gGLContext) {
+        SDL_GL_DeleteContext(gGLContext);
+        gGLContext = NULL;
+    }
+    if (gWindow) {
+        SDL_DestroyWindow(gWindow);
+        gWindow = NULL;
+    }
+    SDL_Quit();
+}
 
 void displayGame(void) {
     printf("[display] Drawing game\n");
@@ -41,94 +102,70 @@ void video_ReleaseResources(void)
 {
 }
 
-int initWindow(void) {
-    int win_id;
-    int flags;
+// Main window/context initialization
+int initWindow(int width, int height, int fullscreen) {
+    printf("[init] Initializing window: %dx%d fullscreen=%d\n", width, height, fullscreen);
 
-    printf("[init] Initializing window\n");
-
-    /* Use default values instead of reading from Lua */
-    int width = 800;
-    int height = 600;
-    int bitdepth_32 = 1;
-    int windowMode = 1;  // Changed to 1 for windowed mode
-    int use_stencil = 1;
-    int mouse_warp = 1;
-
-    printf("[init] Setting window mode: %dx%d\n", width, height);
-    nebu_Video_SetWindowMode(0, 0, width, height);
-
-    flags = SYSTEM_RGBA | SYSTEM_DOUBLE | SYSTEM_DEPTH | SYSTEM_STENCIL;
-    if(bitdepth_32)
-        flags |= SYSTEM_32_BIT;
-    if(windowMode == 0)  // This is now false
-        flags |= SYSTEM_FULLSCREEN;
-
-    printf("[init] Setting display mode: flags=%d\n", flags);
-    nebu_Video_SetDisplayMode(flags);
-
-    printf("[init] Creating window\n");
-    win_id = nebu_Video_Create("gltron");
-    printf("[init] Window created: win_id=%d\n", win_id);
-
-    // Check OpenGL initialization
-    const char* vendor = (const char*)glGetString(GL_VENDOR);
-    const char* renderer = (const char*)glGetString(GL_RENDERER);
-    const char* version = (const char*)glGetString(GL_VERSION);
-
-    printf("[opengl] Vendor: %s\n", vendor ? vendor : "Unknown");
-    printf("[opengl] Renderer: %s\n", renderer ? renderer : "Unknown");
-    printf("[opengl] Version: %s\n", version ? version : "Unknown");
-
-    // Check for OpenGL errors
-    GLenum error = glGetError();
-    if (error != GL_NO_ERROR) {
-        printf("[opengl] Error initializing OpenGL: %d\n", error);
-    } else {
-        printf("[opengl] OpenGL initialized successfully\n");
+    // SDL2 video init
+    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+        fprintf(stderr, "[fatal] SDL_Init failed: %s\n", SDL_GetError());
+        exit(1);
     }
 
-    // check if we have destination alpha,
-    // if not, display warning
-    {
-        int r, g, b, a;
-        nebu_Video_GetDisplayDepth(&r, &g, &b, &a);
-        printf("[init] Display depth: r=%d, g=%d, b=%d, a=%d\n", r, g, b, a);
-        if(a == 0) {
-            /* Skip executing Lua code */
-            printf("[warning] No destination alpha available\n");
-        }
+#if IS_ANDROID
+    setAndroidImmersiveMode();
+    // On Android, SDL2 always creates a fullscreen window, ignore 'fullscreen' param
+    gWindow = SDL_CreateWindow("gltron",
+                               SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+                               width, height,
+                               SDL_WINDOW_OPENGL | SDL_WINDOW_FULLSCREEN | SDL_WINDOW_SHOWN);
+#else
+    Uint32 winFlags = SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN;
+    if (fullscreen)
+        winFlags |= SDL_WINDOW_FULLSCREEN;
+    gWindow = SDL_CreateWindow("gltron",
+                               SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+                               width, height,
+                               winFlags);
+#endif
+
+    if (!gWindow) {
+        fprintf(stderr, "[fatal] SDL_CreateWindow failed: %s\n", SDL_GetError());
+        exit(1);
     }
 
-    if (win_id < 0) {
-        if(use_stencil) {
-            flags &= ~SYSTEM_STENCIL;
-            printf("[init] Retrying without stencil: flags=%d\n", flags);
-            nebu_Video_SetDisplayMode(flags);
-            win_id = nebu_Video_Create("gltron");
-            printf("[init] Window created: win_id=%d\n", win_id);
-            if(win_id >= 0) {
-                /* Skip updating setting in Lua */
-                use_stencil = 0;
-                goto SKIP;
-            }
-        }
-        printf("[fatal] could not create window...exiting\n");
-        nebu_assert(0); exit(1); /* OK: critical, no visual */
+    // OpenGL context attributes
+#if IS_ANDROID
+    // OpenGL ES 2.0 context
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+#else
+    // Desktop OpenGL 2.1 context (or higher if you want)
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
+#endif
+
+    gGLContext = SDL_GL_CreateContext(gWindow);
+    if (!gGLContext) {
+        fprintf(stderr, "[fatal] SDL_GL_CreateContext failed: %s\n", SDL_GetError());
+        exit(1);
     }
 
-    SKIP:
+    SDL_GL_MakeCurrent(gWindow, gGLContext);
 
-    if(windowMode == 0 || mouse_warp == 1) {
-        printf("[init] Grabbing input\n");
-        nebu_Input_Grab();
-    } else {
-        printf("[init] Not grabbing input\n");
-        nebu_Input_Ungrab();
-    }
+    // Vsync (optional)
+    SDL_GL_SetSwapInterval(1);
 
-    printf("[init] Window initialized with default values\n");
-    return win_id;
+    // Print OpenGL info
+    printGLInfo();
+
+    // Set viewport
+    glViewport(0, 0, width, height);
+
+    printf("[init] Window and OpenGL context initialized successfully\n");
+    return 0;
 }
 
 void reshape(int x, int y) {
@@ -176,7 +213,7 @@ void setupDisplay(void) {
 
     /* Create the window */
     printf("[video] Creating window\n");
-    gScreen->win_id = initWindow();
+    gScreen->win_id = initWindow(width, height, fullscreen);
     printf("[video] Window created with ID: %d\n", gScreen->win_id);
 
     printf("[video] Display setup complete\n");
