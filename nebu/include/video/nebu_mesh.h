@@ -36,7 +36,7 @@ typedef struct {
     int stride;         // Byte offset between consecutive vertices
     float *pVertices;   // Vertex data (position)
     float *pNormals;    // Normal data (if available)
-    float **pTexCoords; // Texture coordinate data (if available)
+    float *pTexCoords[NEBU_MESH_TEXCOORD_MAXCOUNT]; // Texture coordinate data (if available)
     int hasNormals;     // Flag indicating if normals are present
     int hasTexCoords;   // Flag indicating if texture coordinates are present
 	int *pColor0;
