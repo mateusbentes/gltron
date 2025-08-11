@@ -11,7 +11,7 @@
 void initFonts(void) {
 	char *path;
 
-	path = getPath(PATH_DATA, "xenotron.ftx");
+	path = getPath(PATH_ART, "default/xenotron.0.png");
 	if(!gTokenGameFont)
 		gTokenGameFont = resource_GetToken(path, eRT_Font);
 	if(!gTokenGameFont)
