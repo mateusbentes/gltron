@@ -52,7 +52,7 @@ static void release2d(void *pData)
 
 void* getFont(char *filename, void *dummy)
 {
-	return nebu_Font_Load(filename, PATH_ART);
+	return nebu_Font_Load(filename, 16, 16, 32, 96);
 }
 
 static void releaseFont(void *pData)

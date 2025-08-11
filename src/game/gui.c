@@ -270,7 +270,7 @@ void gui_LoadResources(void) {
     path = getPath(PATH_DATA, "babbage.ftx");
     
     if (path) {
-        pFont = nebu_Font_Load(path, PATH_ART);
+        pFont = nebu_Font_Load(path, 16, 16, 32, 96);
         free(path);
     } else {
         fprintf(stderr, "[fatal]: can't find babbage.ftx!\n");

@@ -35,7 +35,7 @@ enum {
 	eFontFormatWordWrap					=	0x00000080
 };
 
-nebu_Font* nebu_Font_Load(const char *filename, int fs_tag);
+nebu_Font* nebu_Font_Load(const char *atlas_path, int glyph_w, int glyph_h, int first_char, int n_chars);
 void nebu_Font_Free(nebu_Font* font);
 
 void nebu_Font_Render(nebu_Font* font, const char *text, int len);
