@@ -34,15 +34,24 @@ endif()
 if(BUILD_ANDROID)
   # Do not force old-style NDK paths; modern toolchains provide includes/libs.
 
-  # Check if Android log.h is available
+  # Check if Android headers are available
   include(CheckIncludeFile)
   check_include_file(android/log.h ANDROID_LOG_H_AVAILABLE)
+  check_include_file(jni.h ANDROID_JNI_H_AVAILABLE)
 
   if(ANDROID_LOG_H_AVAILABLE)
     message(STATUS "Android log.h available")
     add_definitions(-DANDROID_LOG_H_AVAILABLE)
   else()
     message(WARNING "Android log.h not found, using printf for logging")
+  endif()
+
+  if(ANDROID_JNI_H_AVAILABLE)
+    message(STATUS "Android jni.h available")
+    add_definitions(-DHAVE_JNI_H)
+    add_compile_definitions(HAVE_JNI_H)
+  else()
+    message(WARNING "Android jni.h not found; JNI support disabled for this build")
   endif()
 
   # Android platform setup
