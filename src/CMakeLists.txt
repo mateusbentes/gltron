@@ -101,7 +101,7 @@ endif()
 
 # Platform-specific linking
 if(BUILD_ANDROID)
-    target_compile_definitions(gltron PRIVATE GLTRON_BUILD_ANDROID=1)
+    target_compile_definitions(gltron PRIVATE SDL_MAIN_HANDLED GLTRON_BUILD_ANDROID=1)
     target_link_libraries(gltron PRIVATE
         ${ANDROID_LIB}
         ${LOG_LIB}
@@ -123,7 +123,7 @@ if(BUILD_ANDROID)
     message(STATUS "✓ Added Android-specific libraries")
 else()
     # Ensure target-level platform macro to avoid ambiguity
-    target_compile_definitions(gltron PRIVATE GLTRON_BUILD_ANDROID=0 ANDROID=0)
+    target_compile_definitions(gltron PRIVATE SDL_MAIN_HANDLED GLTRON_BUILD_ANDROID=0 ANDROID=0)
 
     # Linux/Desktop linking
     add_common_sdl_linking(gltron)
