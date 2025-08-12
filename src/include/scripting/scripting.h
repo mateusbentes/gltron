@@ -47,7 +47,11 @@ void init_c_interface(void);
 /*
  * Get the Lua state from the scripting module
  */
+#ifdef USE_SCRIPTING
 lua_State* scripting_GetLuaState(void);
+#else
+void* scripting_GetLuaState(void);
+#endif
 
 /*
  * Run a Lua script from a file

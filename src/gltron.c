@@ -2,8 +2,9 @@
   gltron
   Copyright (C) 1999 by Andreas Umbach <marvin@dataway.ch>
 */
+
 #include "config.h"
-#include <stdio.h>
+#include "gltron-config.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -14,23 +15,22 @@
 #include "game/init.h"
 #include "game/menu.h"
 #include "video/nebu_video_system.h"
-#include "gltron-config.h"
 #include "game/menu.h"
 
-#ifdef ANDROID
-  #include "android_config.h"
-  #include "Nebu_filesystem.h"
-  #include "Nebu_scripting.h"
-  #include "game/game.h"
-  #include "android/android_audio.h"
-  #include "android/android_resolution.h"
-  #include "android/android_settings_menu.h"
-  #include <jni.h>
-  #include <android/log.h>
-  #define LOGI(...) ((void)__android_log_print(ANDROID_LOG_INFO, "GLTron", __VA_ARGS__))
+#ifdef __ANDROID__
+#include "android_config.h"
+#include "Nebu_filesystem.h"
+#include "Nebu_scripting.h"
+#include "game/game.h"
+#include "android/android_audio.h"
+#include "android/android_resolution.h"
+#include "android/android_settings_menu.h"
+#include <jni.h>
+#include <android/log.h>
+#define LOGI(...) ((void)__android_log_print(ANDROID_LOG_INFO, "GLTron", __VA_ARGS__))
 #endif
 
-#ifdef ANDROID
+#ifdef __ANDROID__
 int android_main(int argc, char *argv[]) {
   LOGI("GLTron Android starting...");
   android_audio_init();
@@ -67,7 +67,9 @@ JNIEXPORT jint JNICALL
 Java_com_gltron_android_MainActivity_nativeMain(JNIEnv *env, jobject thiz) {
   return android_main(0, NULL);
 }
-#else
+#endif
+
+#ifndef __ANDROID__
 int main(int argc, char *argv[]) {
   printf("GLTron PC starting...\n");
   nebu_debug_memory_CheckLeaksOnExit();

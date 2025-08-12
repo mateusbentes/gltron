@@ -17,7 +17,7 @@ int c_set_touch_mode(lua_State *L) {
     /* Use lua_tonumber instead of lua_tonumberx for Lua 5 compatibility */
     mode = (int)lua_tonumber(L, 1);
     /* Call the function if it exists, otherwise just return */
-#ifdef ANDROID
+#ifdef __ANDROID__
     nebu_Input_SetTouchMode(mode);
 #endif
     

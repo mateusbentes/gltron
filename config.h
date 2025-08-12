@@ -3,7 +3,7 @@
 #define CONFIG_H
 
 /* Version information */
-#define VERSION "0.71-dev"
+#define VERSION "0.7.1"
 #define PACKAGE "gltron"
 
 /* Platform detection */
@@ -14,7 +14,7 @@
 #endif
 
 /* Feature flags */
-#define USE_SCRIPTING 1
+#define USE_SCRIPTING 0
 #define USE_OPENGL 1
 
 /* Path separator */

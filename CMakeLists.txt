@@ -1,14 +1,16 @@
 # Modular Main CMakeLists.txt for GLTron
 cmake_minimum_required(VERSION 3.10)
-project(gltron VERSION 0.71 LANGUAGES C CXX)
+project(gltron VERSION 0.7.1 LANGUAGES C CXX)
 
+# Set output directories
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
+# Add cmake module path
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
 
-# Set policy CMP0079 to NEW to allow linking targets from different directories
+# Set CMake policies
 if(POLICY CMP0079)
   cmake_policy(SET CMP0079 NEW)
 endif()
@@ -18,35 +20,106 @@ if(POLICY CMP0072)
   cmake_policy(SET CMP0072 NEW)
 endif()
 
-# Detect platform automatically
-if(ANDROID OR CMAKE_SYSTEM_NAME STREQUAL "Android")
+# Enhanced Android detection
+set(BUILD_ANDROID OFF)
+
+# Primary Android detection methods
+if(ANDROID)
   set(BUILD_ANDROID ON)
-  message(STATUS "Detected Android platform")
-  message(STATUS "Android ABI: ${ANDROID_ABI}")
-  message(STATUS "Android Platform: ${ANDROID_PLATFORM}")
-else()
-  set(BUILD_ANDROID OFF)
-  message(STATUS "Detected Linux/Desktop platform")
+  message(STATUS "Android detected via ANDROID variable")
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Android")
+  set(BUILD_ANDROID ON)
+  message(STATUS "Android detected via CMAKE_SYSTEM_NAME")
+elseif(DEFINED ANDROID_NDK)
+  set(BUILD_ANDROID ON)
+  message(STATUS "Android detected via ANDROID_NDK")
+elseif(DEFINED ANDROID_ABI)
+  set(BUILD_ANDROID ON)
+  message(STATUS "Android detected via ANDROID_ABI")
+elseif(CMAKE_ANDROID_ARCH_ABI)
+  set(BUILD_ANDROID ON)
+  message(STATUS "Android detected via CMAKE_ANDROID_ARCH_ABI")
+elseif(CMAKE_TOOLCHAIN_FILE AND CMAKE_TOOLCHAIN_FILE MATCHES "android")
+  set(BUILD_ANDROID ON)
+  message(STATUS "Android detected via toolchain file")
 endif()
 
-# Options
+# Additional Android environment checks
+if(NOT BUILD_ANDROID)
+  # Check for Android-specific environment variables
+  if(DEFINED ENV{ANDROID_HOME} OR DEFINED ENV{ANDROID_SDK_ROOT})
+    message(STATUS "Android SDK detected in environment")
+  endif()
+
+  # Check for common Android cross-compilation indicators
+  if(CMAKE_C_COMPILER MATCHES "android" OR CMAKE_CXX_COMPILER MATCHES "android")
+    set(BUILD_ANDROID ON)
+    message(STATUS "Android detected via compiler name")
+  endif()
+
+  # Check for Android-specific system processor
+  if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm|aarch64|i686|x86_64)$" AND
+     (DEFINED ANDROID_PLATFORM OR DEFINED ANDROID_API))
+    set(BUILD_ANDROID ON)
+    message(STATUS "Android detected via processor and platform")
+  endif()
+endif()
+
+# Platform-specific configuration
+if(BUILD_ANDROID)
+  # Android platform setup
+  include_directories(${CMAKE_SOURCE_DIR}/android/include)
+  add_definitions(-DANDROID -D__ANDROID__)
+  add_compile_definitions(ANDROID __ANDROID__)
+
+  # Set Android-specific variables if not already set
+  if(NOT ANDROID_ABI AND CMAKE_ANDROID_ARCH_ABI)
+    set(ANDROID_ABI ${CMAKE_ANDROID_ARCH_ABI})
+  endif()
+
+  if(NOT ANDROID_PLATFORM AND CMAKE_ANDROID_API)
+    set(ANDROID_PLATFORM "android-${CMAKE_ANDROID_API}")
+  endif()
+
+  # Default values for Android
+  if(NOT ANDROID_ABI)
+    set(ANDROID_ABI "arm64-v8a")
+    message(STATUS "Using default Android ABI: ${ANDROID_ABI}")
+  endif()
+
+  if(NOT ANDROID_PLATFORM)
+    set(ANDROID_PLATFORM "android-24")
+    message(STATUS "Using default Android platform: ${ANDROID_PLATFORM}")
+  endif()
+
+  message(STATUS "=== Android Build Configuration ===")
+  message(STATUS "Android ABI: ${ANDROID_ABI}")
+  message(STATUS "Android Platform: ${ANDROID_PLATFORM}")
+  message(STATUS "Android NDK: ${ANDROID_NDK}")
+  message(STATUS "Toolchain File: ${CMAKE_TOOLCHAIN_FILE}")
+  message(STATUS "===================================")
+
+elseif(APPLE)
+  set(MACOSX TRUE)
+  message(STATUS "Building for macOS platform")
+elseif(UNIX AND NOT APPLE)
+  set(LINUX TRUE)
+  message(STATUS "Building for Linux/Desktop platform")
+elseif(WIN32)
+  message(STATUS "Building for Windows platform")
+else()
+  message(FATAL_ERROR "Unsupported platform")
+endif()
+
+# Build options
 option(ENABLE_STATIC_LINKING "Enable static linking" OFF)
 option(LOCAL_DATA "Use local data directory" ON)
 option(ENABLE_SOUND "Enable sound support" ON)
-option(ENABLE_TTF "Enable SDL2_ttf support" ON)  # Add this option
+option(ENABLE_TTF "Enable SDL2_ttf support" ON)
 
-# Set default build type if not specified
+# Set default build type
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build." FORCE)
-endif()
-
-# Platform detection
-if(APPLE)
-  set(MACOSX TRUE)
-elseif(WIN32)
-  # WIN32 is already defined by CMake
-elseif(UNIX AND NOT APPLE AND NOT ANDROID)
-  set(LINUX TRUE)
 endif()
 
 # Force LOCAL_DATA to be ON during development
@@ -55,12 +128,12 @@ message(STATUS "Platform: ${CMAKE_SYSTEM_NAME}")
 message(STATUS "LOCAL_DATA is set to: ${LOCAL_DATA}")
 message(STATUS "ENABLE_SOUND is set to: ${ENABLE_SOUND}")
 message(STATUS "BUILD_ANDROID is set to: ${BUILD_ANDROID}")
-message(STATUS "ENABLE_TTF is set to: ${ENABLE_TTF}")  # Add this message
+message(STATUS "ENABLE_TTF is set to: ${ENABLE_TTF}")
 
 # Add compiler definitions
 if(BUILD_ANDROID)
-  add_definitions(-DANDROID)
-  add_compile_definitions(ANDROID)
+  add_definitions(-DANDROID -D__ANDROID__ -DIS_ANDROID=1)
+  add_compile_definitions(ANDROID __ANDROID__ IS_ANDROID=1)
 endif()
 
 if(LOCAL_DATA)
@@ -72,33 +145,63 @@ endif()
 # Platform-specific package finding
 if(BUILD_ANDROID)
   # Android-specific setup
-  if(NOT ANDROID_NDK)
-    message(FATAL_ERROR "Android NDK not found. Please set ANDROID_NDK or use Android toolchain.")
+  if(NOT ANDROID_NDK AND NOT CMAKE_ANDROID_NDK)
+    message(WARNING "Android NDK path not explicitly set. Relying on toolchain configuration.")
   endif()
 
-  set(CMAKE_ANDROID_API 24)
+  # Set minimum API level
+  if(NOT ANDROID_MIN_API)
+    set(ANDROID_MIN_API 24 CACHE STRING "Minimum Android API level")
+  endif()
 
-  if(NOT CMAKE_ANDROID_ARCH_ABI)
+  # Set default ABI if not specified
+  if(NOT CMAKE_ANDROID_ARCH_ABI AND NOT ANDROID_ABI)
     set(CMAKE_ANDROID_ARCH_ABI arm64-v8a)
+    set(ANDROID_ABI arm64-v8a)
   endif()
 
-  # Find Android native libraries
+  # Find Android native libraries with better error handling
   find_library(ANDROID_LIB android)
   find_library(LOG_LIB log)
   find_library(EGL_LIB EGL)
   find_library(GLES_LIB GLESv2)
 
+  # Verify critical Android libraries
+  if(NOT ANDROID_LIB)
+    message(FATAL_ERROR "Android native library not found. Check NDK configuration.")
+  endif()
+
+  if(NOT LOG_LIB)
+    message(FATAL_ERROR "Android log library not found. Check NDK configuration.")
+  endif()
+
+  if(NOT EGL_LIB)
+    message(WARNING "EGL library not found. OpenGL ES may not work properly.")
+  endif()
+
+  if(NOT GLES_LIB)
+    message(WARNING "GLESv2 library not found. OpenGL ES may not work properly.")
+  endif()
+
+  # Android audio support
   if(ENABLE_SOUND)
     find_library(OPENSLES_LIB OpenSLES)
     if(OPENSLES_LIB)
       add_definitions(-DHAVE_ANDROID_AUDIO)
       add_compile_definitions(HAVE_ANDROID_AUDIO)
-      message(STATUS "Android audio support enabled")
+      message(STATUS "Android audio support enabled with OpenSL ES")
     else()
       message(WARNING "OpenSL ES not found. Building without Android audio.")
       set(ENABLE_SOUND OFF)
     endif()
   endif()
+
+  # Android-specific compiler flags
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC -ffunction-sections -fdata-sections")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -ffunction-sections -fdata-sections")
+
+  # Android-specific linker flags
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--gc-sections -Wl,--strip-all")
 
 else()
   # Linux/Desktop packages
@@ -106,21 +209,6 @@ else()
   find_package(PNG REQUIRED)
   find_package(SDL2 REQUIRED)
   find_package(OpenGL REQUIRED)
-
-  # Try to find GLEW
-  #find_package(GLEW)
-  #if(NOT GLEW_FOUND)
-    #find_package(PkgConfig REQUIRED)
-    #pkg_check_modules(GLEW REQUIRED glew)
-  #endif()
-
-  # Ensure GLEW::GLEW target
-  #if(NOT TARGET GLEW::GLEW)
-    #add_library(GLEW::GLEW UNKNOWN IMPORTED)
-    #set_target_properties(GLEW::GLEW PROPERTIES
-      #IMPORTED_LOCATION "${GLEW_LIBRARIES}"
-      #INTERFACE_INCLUDE_DIRECTORIES "${GLEW_INCLUDE_DIRS}")
-  #endif()
 
   # SDL_mixer support
   if(ENABLE_SOUND)
@@ -156,29 +244,84 @@ endif()
 # Create the cmake directory if it doesn't exist
 file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/cmake)
 
-# Generate config.h.in file
+# Generate config.h.in file based on platform
 if(BUILD_ANDROID)
   file(WRITE ${CMAKE_BINARY_DIR}/cmake/config.h.in
-"#ifndef CONFIG_H
+"/* GLTron Configuration Header */
+#ifndef CONFIG_H
 #define CONFIG_H
 
+/* Version information */
+#define VERSION \"0.7.1\"
+#define PACKAGE \"gltron\"
+
+/* Platform detection */
+#define ANDROID 1
+#define __ANDROID__ 1
+#define IS_ANDROID 1
+
+/* Feature flags */
+#define USE_SCRIPTING 0
+#define USE_OPENGL 1
+
+/* Path separator */
+#define PATH_SEPARATOR '/'
+
+/* Debug macros */
+#include <stdio.h>
+#include <android/log.h>
+#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, \"GLTron\", __VA_ARGS__)
+#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, \"GLTron\", __VA_ARGS__)
+#define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, \"GLTron\", __VA_ARGS__)
+#define LOGW(...) __android_log_print(ANDROID_LOG_WARN, \"GLTron\", __VA_ARGS__)
+
+/* Platform-specific options */
 #cmakedefine LOCAL_DATA
 #cmakedefine HAVE_ANDROID_AUDIO
 #cmakedefine ANDROID
 
-#endif /* CONFIG_H */
-")
+#endif /* CONFIG_H */"
+  )
 else()
   file(WRITE ${CMAKE_BINARY_DIR}/cmake/config.h.in
-"#ifndef CONFIG_H
+"/* GLTron Configuration Header */
+#ifndef CONFIG_H
 #define CONFIG_H
 
+/* Version information */
+#define VERSION \"0.7.1\"
+#define PACKAGE \"gltron\"
+
+/* Platform detection */
+#define ANDROID 0
+#define __ANDROID__ 0
+#define IS_ANDROID 0
+
+/* Feature flags */
+#define USE_SCRIPTING 0
+#define USE_OPENGL 1
+
+/* Path separator */
+#ifdef _WIN32
+#define PATH_SEPARATOR '\\\\'
+#else
+#define PATH_SEPARATOR '/'
+#endif
+
+/* Debug macros */
+#include <stdio.h>
+#define LOGI(...) printf(\"[INFO] \" __VA_ARGS__); printf(\"\\n\")
+#define LOGE(...) fprintf(stderr, \"[ERROR] \" __VA_ARGS__); fprintf(stderr, \"\\n\")
+#define LOGD(...) printf(\"[DEBUG] \" __VA_ARGS__); printf(\"\\n\")
+#define LOGW(...) printf(\"[WARN] \" __VA_ARGS__); printf(\"\\n\")
+
+/* Platform-specific options */
 #cmakedefine LOCAL_DATA
 #cmakedefine HAVE_SDL_SOUND
-#cmakedefine HAVE_SDL_TTF  # Add this line
+#cmakedefine HAVE_SDL_TTF
 
-#endif /* CONFIG_H */
-")
+#endif /* CONFIG_H */"
+  )
 endif()
 
 # Generate configuration header
@@ -204,8 +347,13 @@ if(BUILD_ANDROID)
 /* Android-specific definitions */
 #define ANDROID_PACKAGE \"com.gltron.android\"
 
-#endif /* GLTRON_CONFIG_H */
-")
+/* Android platform macros */
+#define ANDROID 1
+#define __ANDROID__ 1
+#define IS_ANDROID 1
+
+#endif /* GLTRON_CONFIG_H */"
+  )
 else()
   file(WRITE ${CMAKE_BINARY_DIR}/src/include/gltron-config.h
 "/* Linux/Desktop configuration for GLtron */
@@ -228,8 +376,39 @@ else()
   #define acosf(x) acos(x)
 #endif
 
-#endif /* GLTRON_CONFIG_H */
-")
+/* Non-Android platform */
+#define ANDROID 0
+#define __ANDROID__ 0
+#define IS_ANDROID 0
+
+#endif /* GLTRON_CONFIG_H */"
+  )
+endif()
+
+# Create android_config.h if building for Android
+if(BUILD_ANDROID)
+  file(WRITE ${CMAKE_BINARY_DIR}/src/include/android_config.h
+"/* Android-specific configuration for GLtron */
+#ifndef ANDROID_CONFIG_H
+#define ANDROID_CONFIG_H
+
+/* Android-specific configuration */
+#define ANDROID 1
+#define __ANDROID__ 1
+#define IS_ANDROID 1
+
+/* Android-specific settings */
+#define ANDROID_PACKAGE \"com.gltron.android\"
+#define ANDROID_MIN_API ${ANDROID_MIN_API}
+
+/* Android ABI settings */
+#define ANDROID_ABI \"${ANDROID_ABI}\"
+
+/* Android platform settings */
+#define ANDROID_PLATFORM \"${ANDROID_PLATFORM}\"
+
+#endif /* ANDROID_CONFIG_H */"
+  )
 endif()
 
 # Create a platform compatibility header
@@ -251,10 +430,12 @@ if(NOT BUILD_ANDROID)
 #include <stdio.h>
 #define LOGI(fmt, ...) printf(\"[INFO] \" fmt \"\\n\", ##__VA_ARGS__)
 #define LOGE(fmt, ...) fprintf(stderr, \"[ERROR] \" fmt \"\\n\", ##__VA_ARGS__)
+#define LOGD(fmt, ...) printf(\"[DEBUG] \" fmt \"\\n\", ##__VA_ARGS__)
+#define LOGW(fmt, ...) printf(\"[WARN] \" fmt \"\\n\", ##__VA_ARGS__)
 #define LOG_TAG \"GLTron\"
 
-#endif /* PLATFORM_CONFIG_H */
-")
+#endif /* PLATFORM_CONFIG_H */"
+  )
 endif()
 
 # Include directories for generated headers
@@ -270,13 +451,23 @@ function(add_common_includes target_name)
     ${CMAKE_SOURCE_DIR}/nebu/include
     ${CMAKE_SOURCE_DIR}/lua5/include
     ${SDL2_INCLUDE_DIRS}
-    ${SDL2_TTF_INCLUDE_DIRS}  # Add this line
+    ${SDL2_TTF_INCLUDE_DIRS}
   )
 endfunction()
 
 function(add_common_platform_definitions target_name)
   if(BUILD_ANDROID)
-    target_compile_definitions(${target_name} PRIVATE ANDROID)
+    target_compile_definitions(${target_name} PRIVATE
+      ANDROID=1
+      __ANDROID__=1
+      IS_ANDROID=1
+    )
+  else()
+    target_compile_definitions(${target_name} PRIVATE
+      ANDROID=0
+      __ANDROID__=0
+      IS_ANDROID=0
+    )
   endif()
 
   if(LOCAL_DATA)
@@ -312,11 +503,13 @@ function(create_standard_library module_name)
 endfunction()
 
 function(add_common_sdl_linking target_name)
-  target_link_libraries(${target_name} PUBLIC
-    sdl_compat
-    ${SDL2_LIBRARIES}
-    ${SDL2_TTF_LIBRARIES}  # Add this line
-  )
+  if(NOT BUILD_ANDROID)
+    target_link_libraries(${target_name} PUBLIC
+      sdl_compat
+      ${SDL2_LIBRARIES}
+      ${SDL2_TTF_LIBRARIES}
+    )
+  endif()
 endfunction()
 
 # Create SDL compatibility library (Linux only)
@@ -357,7 +550,7 @@ if(NOT BUILD_ANDROID)
   foreach(asset_dir ${ASSET_DIRS})
     if(EXISTS "${CMAKE_SOURCE_DIR}/${asset_dir}")
       # Copy the entire directory
-      file(COPY "${CMAKE_SOURCE_DIR}/${asset_dir}" 
+      file(COPY "${CMAKE_SOURCE_DIR}/${asset_dir}"
            DESTINATION "${CMAKE_BINARY_DIR}")
       message(STATUS "Copied asset directory: ${asset_dir}")
     endif()
@@ -367,7 +560,7 @@ if(NOT BUILD_ANDROID)
   set(ASSET_FILES README CREDITS COPYING)
   foreach(asset_file ${ASSET_FILES})
     if(EXISTS "${CMAKE_SOURCE_DIR}/${asset_file}")
-      file(COPY "${CMAKE_SOURCE_DIR}/${asset_file}" 
+      file(COPY "${CMAKE_SOURCE_DIR}/${asset_file}"
            DESTINATION "${CMAKE_BINARY_DIR}")
       message(STATUS "Copied asset file: ${asset_file}")
     endif()
@@ -388,14 +581,25 @@ add_subdirectory(src)
 
 # Add android-specific module if building for Android
 if(BUILD_ANDROID)
-  add_subdirectory(android)
-  message(STATUS "Android-specific module added from android/CMakeLists.txt")
+  if(EXISTS "${CMAKE_SOURCE_DIR}/android/CMakeLists.txt")
+    add_subdirectory(android)
+    message(STATUS "Android-specific module added from android/CMakeLists.txt")
+  else()
+    message(WARNING "Android build detected but android/CMakeLists.txt not found")
+  endif()
 endif()
 
 # Summary message
-message(STATUS "\nGLTron Modular Configuration Summary:")
+message(STATUS "\n=== GLTron Modular Configuration Summary ===")
 message(STATUS "Platform: ${CMAKE_SYSTEM_NAME}")
 message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
+message(STATUS "Android Build: ${BUILD_ANDROID}")
+if(BUILD_ANDROID)
+  message(STATUS "Android ABI: ${ANDROID_ABI}")
+  message(STATUS "Android Platform: ${ANDROID_PLATFORM}")
+  message(STATUS "Android NDK: ${ANDROID_NDK}")
+endif()
 message(STATUS "Local Data: ${LOCAL_DATA}")
 message(STATUS "Sound Support: ${ENABLE_SOUND}")
 message(STATUS "TTF Support: ${ENABLE_TTF}")
+message(STATUS "=============================================")

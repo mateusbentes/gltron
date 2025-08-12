@@ -401,6 +401,11 @@ void enterGame(void) { /* called when game mode is entered */
 }
 
 void gameMouse(SDL_MouseButtonEvent *event) {
+    // First, extract the necessary information from the SDL_MouseButtonEvent
+    int state = (event->type == SDL_MOUSEBUTTONDOWN) ? SYSTEM_MOUSEPRESSED : SYSTEM_MOUSERELEASED;
+    int x = event->x;
+    int y = event->y;
+
     if (event->type == SDL_MOUSEBUTTONDOWN) {
         if (event->button == SYSTEM_MOUSEBUTTON_LEFT) gInput.mouse1 = 1;
         if (event->button == SYSTEM_MOUSEBUTTON_RIGHT) gInput.mouse2 = 1;
@@ -409,29 +414,15 @@ void gameMouse(SDL_MouseButtonEvent *event) {
         if (event->button == SYSTEM_MOUSEBUTTON_RIGHT) gInput.mouse2 = 0;
     }
 
-  /*
-  if(getSettingi("camType") == CAM_TYPE_MOUSE) 
-    if(state == SYSTEM_MOUSEPRESSED) {
-      if(buttons == SYSTEM_MOUSEBUTTON_LEFT) {
-	cam_r -= CAM_DR;
-	if(cam_r < CAM_R_MIN) cam_r = CAM_R_MIN;
-      } else if(buttons == SYSTEM_MOUSEBUTTON_RIGHT) {
-	cam_r += CAM_DR;
-	if(cam_r > CAM_R_MAX) cam_r = CAM_R_MAX;
-      }
-    }
-  */
-  /* fprintf(stderr, "new cam_r: %.2f\n", cam_r); */
-  
-  // On touch-enabled platforms, also handle this as a touch event
-  #if defined(ANDROID) || defined(__ANDROID__) || defined(IOS) || defined(__IOS__)
-  int screenWidth = 800, screenHeight = 600;
-  nebu_Video_GetDimension(&screenWidth, &screenHeight);
-  
-  int touchState = (state == SYSTEM_MOUSEPRESSED) ? 1 : 
-                  ((state == SYSTEM_MOUSERELEASED) ? 0 : 2);
-  touchGame(touchState, x, y, screenWidth, screenHeight);
-  #endif
+    // On touch-enabled platforms, also handle this as a touch event
+    #if defined(ANDROID) || defined(__ANDROID__) || defined(IOS) || defined(__IOS__)
+    int screenWidth = 800, screenHeight = 600;
+    nebu_Video_GetDimension(&screenWidth, &screenHeight);
+
+    int touchState = (state == SYSTEM_MOUSEPRESSED) ? 1 :
+                    ((state == SYSTEM_MOUSERELEASED) ? 0 : 2);
+    touchGame(touchState, x, y, screenWidth, screenHeight);
+    #endif
 }
 
 // Function prototype for reshape callback

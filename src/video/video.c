@@ -54,9 +54,13 @@ static void printGLInfo() {
 // Utility: Set Android immersive mode (hides nav/status bars)
 static void setAndroidImmersiveMode() {
 #if IS_ANDROID
+    // For Android, we need to set the window flags to immersive mode
+    // This is typically done when creating the window
     SDL_SetHint(SDL_HINT_ANDROID_TRAP_BACK_BUTTON, "1");
-    SDL_SetHint(SDL_HINT_VIDEO_FULLSCREEN_MODE, "immersive");
-    // SDL2 will handle immersive mode if the hint is set before window creation
+
+    // For immersive mode, we need to set the window flags when creating the window
+    // The actual immersive mode is handled by the system UI flags
+    // We'll set these flags when creating the window in initWindow()
 #endif
 }
 
@@ -112,15 +116,28 @@ int initWindow(int width, int height, int fullscreen) {
         exit(1);
     }
 
+    Uint32 winFlags = SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN;
+
 #if IS_ANDROID
-    setAndroidImmersiveMode();
-    // On Android, SDL2 always creates a fullscreen window, ignore 'fullscreen' param
+    // On Android, we want fullscreen immersive mode
+    winFlags |= SDL_WINDOW_FULLSCREEN;
+
+    // Set hints for Android immersive mode
+    SDL_SetHint(SDL_HINT_ANDROID_TRAP_BACK_BUTTON, "1");
+
+    // Create window with immersive mode flags
     gWindow = SDL_CreateWindow("gltron",
                                SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
                                width, height,
-                               SDL_WINDOW_OPENGL | SDL_WINDOW_FULLSCREEN | SDL_WINDOW_SHOWN);
+                               winFlags);
+
+    // Set immersive mode flags after window creation
+    if (gWindow) {
+        SDL_SetWindowFullscreen(gWindow, SDL_WINDOW_FULLSCREEN);
+        // For immersive mode, we need to set system UI flags
+        // This is typically done through native Android code
+    }
 #else
-    Uint32 winFlags = SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN;
     if (fullscreen)
         winFlags |= SDL_WINDOW_FULLSCREEN;
     gWindow = SDL_CreateWindow("gltron",
