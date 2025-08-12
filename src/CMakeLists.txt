@@ -36,7 +36,19 @@ message(STATUS "✓ Added game module")
 
 # Create the main executable
 message(STATUS "=== Creating GLTron Executable ===")
-add_executable(gltron ${CMAKE_CURRENT_SOURCE_DIR}/gltron.c)
+
+# Resolve and verify main source file
+set(GLTRON_MAIN "${CMAKE_CURRENT_SOURCE_DIR}/gltron.c")
+if(NOT EXISTS "${GLTRON_MAIN}")
+    message(FATAL_ERROR "Expected main source not found: ${GLTRON_MAIN}")
+endif()
+message(STATUS "Using main source for gltron: ${GLTRON_MAIN}")
+
+add_executable(gltron "${GLTRON_MAIN}")
+
+# Print actual sources on the target
+get_target_property(GLTRON_SOURCES gltron SOURCES)
+message(STATUS "gltron sources: ${GLTRON_SOURCES}")
 
 # Add includes and definitions
 add_common_includes(gltron)
@@ -84,6 +96,7 @@ endif()
 
 # Platform-specific linking
 if(BUILD_ANDROID)
+    target_compile_definitions(gltron PRIVATE GLTRON_BUILD_ANDROID=1)
     target_link_libraries(gltron PRIVATE
         ${ANDROID_LIB}
         ${LOG_LIB}
@@ -97,8 +110,8 @@ if(BUILD_ANDROID)
     
     message(STATUS "✓ Added Android-specific libraries")
 else()
-    # Ensure ANDROID is explicitly 0 for this target to avoid accidental Android code paths
-    target_compile_definitions(gltron PRIVATE ANDROID=0)
+    # Ensure target-level platform macro to avoid ambiguity
+    target_compile_definitions(gltron PRIVATE GLTRON_BUILD_ANDROID=0 ANDROID=0)
 
     # Linux/Desktop linking
     add_common_sdl_linking(gltron)
@@ -136,6 +149,9 @@ if(GLTRON_LINK_LIBS)
 else()
     message(STATUS "  → No link libraries found")
 endif()
+
+get_target_property(GLTRON_SOURCES gltron SOURCES)
+message(STATUS "gltron sources: ${GLTRON_SOURCES}") 
 
 # Debug: Check what targets exist
 if(TARGET game)
