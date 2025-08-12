@@ -36,7 +36,7 @@ message(STATUS "✓ Added game module")
 
 # Create the main executable
 message(STATUS "=== Creating GLTron Executable ===")
-add_executable(gltron gltron.c)
+add_executable(gltron ${CMAKE_CURRENT_SOURCE_DIR}/gltron.c)
 
 # Add includes and definitions
 add_common_includes(gltron)
@@ -97,6 +97,9 @@ if(BUILD_ANDROID)
     
     message(STATUS "✓ Added Android-specific libraries")
 else()
+    # Ensure ANDROID is explicitly 0 for this target to avoid accidental Android code paths
+    target_compile_definitions(gltron PRIVATE ANDROID=0)
+
     # Linux/Desktop linking
     add_common_sdl_linking(gltron)
     
