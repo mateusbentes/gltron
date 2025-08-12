@@ -99,30 +99,6 @@ void touchMenu(SDL_TouchFingerEvent *event) {
     }
 }
 
-// TouchGuiMenu function definition
-void touchGuiMenu(SDL_TouchFingerEvent *event) {
-    // Implement touch handling for the GUI menu
-    if (!isMenuActive()) return;
-
-    int screenW = gScreen ? gScreen->vp_w : 800;
-    int screenH = gScreen ? gScreen->vp_h : 600;
-    int y = (int)(event->y * screenH);
-
-    if (event->type == SDL_FINGERDOWN) {
-        if (y > 300 && y < 340) {
-            printf("Touched 'Start Game' button\n");
-            deactivateMenu();
-            initGame();
-            nebu_System_SetCallback_Display(displayGame);
-            nebu_System_SetCallback_Idle(Game_Idle);
-            nebu_System_SetCallback_Key((void*)keyGame);
-        } else if (y > 360 && y < 400) {
-            printf("Touched 'Exit' button\n");
-            SDL_Quit();
-        }
-    }
-}
-
 void keyGuiMenu(SDL_KeyboardEvent *event) {
     if (event->type == SDL_KEYDOWN) {
         switch (event->keysym.sym) {
