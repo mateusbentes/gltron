@@ -1,7 +1,12 @@
 #ifdef __ANDROID__
   #include <GLES2/gl2.h>
-  #include <android/log.h>
-  #define LOGI(...) ((void)__android_log_print(ANDROID_LOG_INFO, "GLTRON", __VA_ARGS__))
+  #ifdef ANDROID_LOG_H_AVAILABLE
+    #include <android/log.h>
+    #define LOGI(...) ((void)__android_log_print(ANDROID_LOG_INFO, "GLTRON", __VA_ARGS__))
+  #else
+    #include <stdio.h>
+    #define LOGI(...) printf(__VA_ARGS__); printf("\n")
+  #endif
 #else
   #include <GL/gl.h>
   #include <stdio.h>

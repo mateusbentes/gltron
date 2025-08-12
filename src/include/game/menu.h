@@ -47,6 +47,7 @@ void mouseMenu(SDL_MouseButtonEvent *event);
 // GUI input handlers (for callbacks)
 void keyGuiMenu(SDL_KeyboardEvent *event);
 void mouseGuiMenu(SDL_MouseButtonEvent *event);
+void touchGuiMenu(SDL_TouchFingerEvent *event);
 
 // Display callback for menu
 void displayMenuCallback(void);

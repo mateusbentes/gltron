@@ -65,6 +65,11 @@ if(NOT BUILD_ANDROID)
   endif()
 endif()
 
+# Explicitly disable Android if not detected
+if(NOT BUILD_ANDROID)
+  message(STATUS "Building for non-Android platform")
+endif()
+
 # Platform-specific configuration
 if(BUILD_ANDROID)
   # Android platform setup
@@ -411,7 +416,7 @@ if(BUILD_ANDROID)
   )
 endif()
 
-# Create a platform compatibility header
+# For non-Android builds
 if(NOT BUILD_ANDROID)
   file(WRITE ${CMAKE_BINARY_DIR}/src/include/platform_config.h
 "/* Platform compatibility header for Linux */
