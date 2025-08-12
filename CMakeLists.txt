@@ -72,6 +72,29 @@ endif()
 
 # Platform-specific configuration
 if(BUILD_ANDROID)
+  # Check if Android NDK is properly set up
+  if(NOT ANDROID_NDK)
+    message(FATAL_ERROR "Android NDK path not set. Please set ANDROID_NDK environment variable.")
+  endif()
+
+  # Add Android NDK include paths
+  include_directories(${ANDROID_NDK}/sysroot/usr/include)
+  include_directories(${ANDROID_NDK}/sysroot/usr/include/android)
+
+  # Add Android platform-specific includes
+  include_directories(${ANDROID_NDK}/platforms/${ANDROID_PLATFORM}/arch-${ANDROID_ABI}/usr/include)
+
+  # Check if Android log.h is available
+  include(CheckIncludeFile)
+  check_include_file(android/log.h ANDROID_LOG_H_AVAILABLE)
+
+  if(ANDROID_LOG_H_AVAILABLE)
+    message(STATUS "Android log.h available")
+    add_definitions(-DANDROID_LOG_H_AVAILABLE)
+  else()
+    message(WARNING "Android log.h not found, using printf for logging")
+  endif()
+
   # Android platform setup
   include_directories(${CMAKE_SOURCE_DIR}/android/include)
   add_definitions(-DANDROID -D__ANDROID__)
@@ -274,11 +297,18 @@ if(BUILD_ANDROID)
 
 /* Debug macros */
 #include <stdio.h>
+#ifdef ANDROID_LOG_H_AVAILABLE
 #include <android/log.h>
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, \"GLTron\", __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, \"GLTron\", __VA_ARGS__)
 #define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, \"GLTron\", __VA_ARGS__)
 #define LOGW(...) __android_log_print(ANDROID_LOG_WARN, \"GLTron\", __VA_ARGS__)
+#else
+#define LOGI(...) printf(\"[INFO] \" __VA_ARGS__); printf(\"\\n\")
+#define LOGE(...) fprintf(stderr, \"[ERROR] \" __VA_ARGS__); fprintf(stderr, \"\\n\")
+#define LOGD(...) printf(\"[DEBUG] \" __VA_ARGS__); printf(\"\\n\")
+#define LOGW(...) printf(\"[WARN] \" __VA_ARGS__); printf(\"\\n\")
+#endif
 
 /* Platform-specific options */
 #cmakedefine LOCAL_DATA

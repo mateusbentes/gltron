@@ -17,7 +17,10 @@
 #include "video/nebu_video_system.h"
 #include "game/menu.h"
 
+// Platform-specific includes and definitions
 #ifdef __ANDROID__
+#include <jni.h>
+#include <android/log.h>
 #include "android_config.h"
 #include "Nebu_filesystem.h"
 #include "Nebu_scripting.h"
@@ -25,12 +28,12 @@
 #include "android/android_audio.h"
 #include "android/android_resolution.h"
 #include "android/android_settings_menu.h"
-#include <jni.h>
-#include <android/log.h>
-#define LOGI(...) ((void)__android_log_print(ANDROID_LOG_INFO, "GLTron", __VA_ARGS__))
-#endif
 
-#ifdef __ANDROID__
+#define LOGI(...) ((void)__android_log_print(ANDROID_LOG_INFO, "GLTron", __VA_ARGS__))
+#define LOGD(...) ((void)__android_log_print(ANDROID_LOG_DEBUG, "GLTron", __VA_ARGS__))
+#define LOGW(...) ((void)__android_log_print(ANDROID_LOG_WARN, "GLTron", __VA_ARGS__))
+#define LOGE(...) ((void)__android_log_print(ANDROID_LOG_ERROR, "GLTron", __VA_ARGS__))
+
 int android_main(int argc, char *argv[]) {
   LOGI("GLTron Android starting...");
   android_audio_init();
@@ -58,7 +61,6 @@ int android_main(int argc, char *argv[]) {
 
   int result = nebu_System_MainLoop();
 
-  // If you have Android-specific exit routines, call them here
   LOGI("GLTron Android exiting with code %d", result);
   return result;
 }
@@ -70,15 +72,22 @@ Java_com_gltron_android_MainActivity_nativeMain(JNIEnv *env, jobject thiz) {
 #endif
 
 #ifndef __ANDROID__
+#include <stdio.h>
+
+#define LOGI(...) printf("[INFO] " __VA_ARGS__); printf("\n")
+#define LOGD(...) printf("[DEBUG] " __VA_ARGS__); printf("\n")
+#define LOGW(...) printf("[WARN] " __VA_ARGS__); printf("\n")
+#define LOGE(...) fprintf(stderr, "[ERROR] " __VA_ARGS__); fprintf(stderr, "\n")
+
 int main(int argc, char *argv[]) {
-  printf("GLTron PC starting...\n");
+  LOGI("GLTron PC starting...");
   nebu_debug_memory_CheckLeaksOnExit();
 
   initSubsystems(argc, (const char**)argv);
 
   int screenWidth = 800, screenHeight = 600;
   nebu_Video_GetDimension(&screenWidth, &screenHeight);
-  printf("[main] Window size: %dx%d\n", screenWidth, screenHeight);
+  LOGI("[main] Window size: %dx%d", screenWidth, screenHeight);
 
   initMenu();
   initGuiMenuItems();
@@ -93,7 +102,7 @@ int main(int argc, char *argv[]) {
 
   exitSubsystems();
 
-  printf("GLTron exiting with code %d\n", result);
+  LOGI("GLTron exiting with code %d", result);
   return result;
 }
 #endif
