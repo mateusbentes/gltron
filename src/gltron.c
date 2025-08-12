@@ -59,14 +59,13 @@ int main(int argc, char *argv[]) {
     LOGI("GLTron PC starting...");
     nebu_debug_memory_CheckLeaksOnExit();
     initSubsystems(argc, (const char**)argv);
-#endif
 
     // Get screen dimensions
     int screenWidth = 800, screenHeight = 600;
+#endif
 #if GLTRON_BUILD_ANDROID
     screenWidth = 1920;
     screenHeight = 1080;
-#endif
     nebu_Video_GetDimension(&screenWidth, &screenHeight);
     LOGI("[main] Window size: %dx%d", screenWidth, screenHeight);
 
@@ -78,7 +77,7 @@ int main(int argc, char *argv[]) {
     // Set appropriate callbacks
     nebu_System_SetCallback_Display(displayMenuCallback);
     nebu_System_SetCallback_Idle(menuIdle);
-
+#endif
 #if GLTRON_BUILD_ANDROID
     nebu_System_SetCallback_Key((void*)keyGuiMenu);
     nebu_System_SetCallback_Touch((void*)touchGuiMenu);
