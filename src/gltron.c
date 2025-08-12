@@ -71,7 +71,7 @@ Java_com_gltron_android_MainActivity_nativeMain(JNIEnv *env, jobject thiz) {
 }
 #endif
 
-#ifndef __ANDROID__
+#if !defined(ANDROID) || (ANDROID + 0) == 0
 #include <stdio.h>
 
 #define LOGI(...) printf("[INFO] " __VA_ARGS__); printf("\n")
