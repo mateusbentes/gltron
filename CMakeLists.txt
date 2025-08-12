@@ -33,19 +33,16 @@ endif()
 # Platform-specific configuration
 if(BUILD_ANDROID)
   # Do not force old-style NDK paths; modern toolchains provide includes/libs.
-
   # Check if Android headers are available
   include(CheckIncludeFile)
   check_include_file(android/log.h ANDROID_LOG_H_AVAILABLE)
   check_include_file(jni.h ANDROID_JNI_H_AVAILABLE)
-
   if(ANDROID_LOG_H_AVAILABLE)
     message(STATUS "Android log.h available")
     add_definitions(-DANDROID_LOG_H_AVAILABLE)
   else()
     message(WARNING "Android log.h not found, using printf for logging")
   endif()
-
   if(ANDROID_JNI_H_AVAILABLE)
     message(STATUS "Android jni.h available")
     add_definitions(-DHAVE_JNI_H)
@@ -53,51 +50,48 @@ if(BUILD_ANDROID)
   else()
     message(WARNING "Android jni.h not found; JNI support disabled for this build")
   endif()
-
   # Android platform setup
   include_directories(${CMAKE_SOURCE_DIR}/android/include)
   add_definitions(-DANDROID -D__ANDROID__)
   add_compile_definitions(ANDROID __ANDROID__)
-
+  add_definitions(-DGLTRON_BUILD_ANDROID=1)
+  message(STATUS "GLTRON_BUILD_ANDROID is set to: 1")
   # Set Android-specific variables if not already set
   if(NOT ANDROID_ABI AND CMAKE_ANDROID_ARCH_ABI)
     set(ANDROID_ABI ${CMAKE_ANDROID_ARCH_ABI})
   endif()
-
   if(NOT ANDROID_PLATFORM AND CMAKE_ANDROID_API)
     set(ANDROID_PLATFORM "android-${CMAKE_ANDROID_API}")
   endif()
-
   # Default values for Android
   if(NOT ANDROID_ABI)
     set(ANDROID_ABI "arm64-v8a")
     message(STATUS "Using default Android ABI: ${ANDROID_ABI}")
   endif()
-
   if(NOT ANDROID_PLATFORM)
     set(ANDROID_PLATFORM "android-24")
     message(STATUS "Using default Android platform: ${ANDROID_PLATFORM}")
   endif()
-
   message(STATUS "=== Android Build Configuration ===")
   message(STATUS "Android ABI: ${ANDROID_ABI}")
   message(STATUS "Android Platform: ${ANDROID_PLATFORM}")
   message(STATUS "Android NDK: ${ANDROID_NDK}")
   message(STATUS "Toolchain File: ${CMAKE_TOOLCHAIN_FILE}")
   message(STATUS "===================================")
-
-elseif(APPLE)
-  set(MACOSX TRUE)
-  message(STATUS "Building for macOS platform")
-elseif(WIN32)
-  message(STATUS "Building for Windows platform")
-elseif(UNIX)
-  set(LINUX TRUE)
-  message(STATUS "Building for Linux/Desktop platform")
-elseif(WIN32)
-  message(STATUS "Building for Windows platform")
 else()
-  message(FATAL_ERROR "Unsupported platform")
+  add_definitions(-DGLTRON_BUILD_ANDROID=0)
+  message(STATUS "GLTRON_BUILD_ANDROID is set to: 0")
+  if(APPLE)
+    set(MACOSX TRUE)
+    message(STATUS "Building for macOS platform")
+  elseif(WIN32)
+    message(STATUS "Building for Windows platform")
+  elseif(UNIX)
+    set(LINUX TRUE)
+    message(STATUS "Building for Linux/Desktop platform")
+  else()
+    message(FATAL_ERROR "Unsupported platform")
+  endif()
 endif()
 
 # Build options

@@ -45,11 +45,15 @@ endif()
 message(STATUS "Using main source for gltron: ${GLTRON_MAIN}")
 
 # Add the executable
-add_executable(gltron "${CMAKE_CURRENT_SOURCE_DIR}/gltron.c")
-
-# Print actual sources on the target
-get_target_property(GLTRON_SOURCES gltron SOURCES)
-message(STATUS "gltron sources: ${GLTRON_SOURCES}")
+if(BUILD_ANDROID)
+    # For Android, we need to create a shared library that will be loaded by Java
+    add_library(gltron SHARED "${CMAKE_CURRENT_SOURCE_DIR}/gltron.c")
+    message(STATUS "Created Android shared library for gltron")
+else()
+    # For desktop, create a regular executable
+    add_executable(gltron "${CMAKE_CURRENT_SOURCE_DIR}/gltron.c")
+    message(STATUS "Created desktop executable for gltron")
+endif()
 
 # Add includes and definitions
 add_common_includes(gltron)
@@ -61,7 +65,7 @@ message(STATUS "Linking libraries to gltron executable...")
 target_link_libraries(gltron PRIVATE
     # Main game library first (it uses functions from other modules)
     game
-    
+
     # Then the modules that game depends on
     video
     audio
@@ -69,7 +73,7 @@ target_link_libraries(gltron PRIVATE
     configuration
     filesystem
     base
-    
+
     # Nebu engine libraries (in dependency order)
     nebu_video
     nebu_audio
@@ -77,7 +81,7 @@ target_link_libraries(gltron PRIVATE
     nebu_filesystem
     nebu_system
     nebu_base
-    
+
     # External libraries
     lua5
     #glew
@@ -104,11 +108,18 @@ if(BUILD_ANDROID)
         ${EGL_LIB}
         ${GLES_LIB}
     )
-    
+
     if(ENABLE_SOUND AND OPENSLES_LIB)
         target_link_libraries(gltron PRIVATE ${OPENSLES_LIB})
     endif()
-    
+
+    # Set proper output name for Android
+    set_target_properties(gltron PROPERTIES
+        OUTPUT_NAME "libgltron"
+        PREFIX ""
+        SUFFIX ".so"
+    )
+
     message(STATUS "✓ Added Android-specific libraries")
 else()
     # Ensure target-level platform macro to avoid ambiguity
@@ -116,22 +127,22 @@ else()
 
     # Linux/Desktop linking
     add_common_sdl_linking(gltron)
-    
+
     target_link_libraries(gltron PRIVATE
         ${ZLIB_LIBRARIES}
         ${PNG_LIBRARIES}
         #GLEW::GLEW
         ${OPENGL_LIBRARIES}
     )
-    
+
     if(ENABLE_SOUND)
         target_link_libraries(gltron PRIVATE ${SDL2_MIXER_LIBRARIES})
     endif()
-    
+
     if(ENABLE_TTF)
         target_link_libraries(gltron PRIVATE ${SDL2_TTF_LIBRARIES})
     endif()
-    
+
     message(STATUS "✓ Added Linux/Desktop libraries")
 endif()
 

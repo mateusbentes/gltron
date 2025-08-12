@@ -18,7 +18,7 @@
 #include "game/menu.h"
 
 // Platform-specific includes and definitions
-#if defined(GLTRON_BUILD_ANDROID) && ((GLTRON_BUILD_ANDROID + 0) == 1)
+#if GLTRON_BUILD_ANDROID
 #if defined(HAVE_JNI_H)
 #include <jni.h>
 #include <android/log.h>
@@ -73,7 +73,7 @@ Java_com_gltron_android_MainActivity_nativeMain(JNIEnv *env, jobject thiz) {
 }
 #endif
 
-#if !defined(GLTRON_BUILD_ANDROID) || ((GLTRON_BUILD_ANDROID + 0) == 0)
+#if !GLTRON_BUILD_ANDROID
 #include <stdio.h>
 
 #define LOGI(...) printf("[INFO] " __VA_ARGS__); printf("\n")
