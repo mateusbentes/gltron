@@ -1,6 +1,6 @@
 #include "config.h"
 
-#ifdef __ANDROID__
+#if defined(__ANDROID__)
 #include "android_config.h"
 #else
 #include "platform_config.h"

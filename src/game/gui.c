@@ -20,7 +20,7 @@
 #include <string.h>
 #include "base/nebu_debug_memory.h"
 
-#ifdef __ANDROID__
+#if defined(__ANDROID__)
   #include <GLES2/gl2.h>
 #else
   #include <GL/gl.h>

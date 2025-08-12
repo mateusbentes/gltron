@@ -20,83 +20,19 @@ if(POLICY CMP0072)
   cmake_policy(SET CMP0072 NEW)
 endif()
 
-# Enhanced Android detection
+# Canonical Android detection (avoid false positives)
+# Rely only on CMake-provided indicators from the Android toolchain.
 set(BUILD_ANDROID OFF)
-
-# Primary Android detection methods with additional checks
-if(ANDROID AND (DEFINED ANDROID_NDK OR DEFINED ANDROID_ABI OR CMAKE_ANDROID_ARCH_ABI))
-  if(EXISTS "${ANDROID_NDK}" AND EXISTS "${ANDROID_SDK_ROOT}")
-    set(BUILD_ANDROID ON)
-    message(STATUS "Android detected via ANDROID variable and additional checks")
-  endif()
-elseif(CMAKE_SYSTEM_NAME STREQUAL "Android" AND (DEFINED ANDROID_NDK OR DEFINED ANDROID_ABI OR CMAKE_ANDROID_ARCH_ABI))
-  if(EXISTS "${ANDROID_NDK}" AND EXISTS "${ANDROID_SDK_ROOT}")
-    set(BUILD_ANDROID ON)
-    message(STATUS "Android detected via CMAKE_SYSTEM_NAME and additional checks")
-  endif()
-elseif(DEFINED ANDROID_NDK AND (DEFINED ANDROID_ABI OR CMAKE_ANDROID_ARCH_ABI))
-  if(EXISTS "${ANDROID_NDK}" AND EXISTS "${ANDROID_SDK_ROOT}")
-    set(BUILD_ANDROID ON)
-    message(STATUS "Android detected via ANDROID_NDK and additional checks")
-  endif()
-elseif(CMAKE_TOOLCHAIN_FILE AND CMAKE_TOOLCHAIN_FILE MATCHES "android" AND (DEFINED ANDROID_NDK OR DEFINED ANDROID_ABI OR CMAKE_ANDROID_ARCH_ABI))
-  if(EXISTS "${ANDROID_NDK}" AND EXISTS "${ANDROID_SDK_ROOT}")
-    set(BUILD_ANDROID ON)
-    message(STATUS "Android detected via toolchain file and additional checks")
-  endif()
-endif()
-
-# Additional Android environment checks
-if(NOT BUILD_ANDROID)
-  # Check for Android-specific environment variables
-  if(DEFINED ENV{ANDROID_HOME} OR DEFINED ENV{ANDROID_SDK_ROOT})
-    message(STATUS "Android SDK detected in environment")
-    # Only set BUILD_ANDROID if explicitly requested
-    if(DEFINED ENV{GLTRON_ANDROID_BUILD} AND ENV{GLTRON_ANDROID_BUILD} STREQUAL "ON")
-      set(BUILD_ANDROID ON)
-      message(STATUS "Android build explicitly requested via environment variable")
-    endif()
-  endif()
-
-  # Check for common Android cross-compilation indicators
-  if(CMAKE_C_COMPILER MATCHES "android" OR CMAKE_CXX_COMPILER MATCHES "android")
-    # Only set if explicitly requested
-    if(DEFINED ENV{GLTRON_ANDROID_BUILD} AND ENV{GLTRON_ANDROID_BUILD} STREQUAL "ON")
-      set(BUILD_ANDROID ON)
-      message(STATUS "Android detected via compiler name (explicitly requested)")
-    endif()
-  endif()
-
-  # Check for Android-specific system processor
-  if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm|aarch64|i686|x86_64)$")
-    if(DEFINED ANDROID_PLATFORM OR DEFINED ANDROID_API)
-      # Only set if explicitly requested
-      if(DEFINED ENV{GLTRON_ANDROID_BUILD} AND ENV{GLTRON_ANDROID_BUILD} STREQUAL "ON")
-        set(BUILD_ANDROID ON)
-        message(STATUS "Android detected via processor and platform (explicitly requested)")
-      endif()
-    endif()
-  endif()
-endif()
-
-# Explicitly disable Android if not detected
-if(NOT BUILD_ANDROID)
+if(ANDROID OR CMAKE_SYSTEM_NAME STREQUAL "Android")
+  set(BUILD_ANDROID ON)
+  message(STATUS "Android detected via canonical CMake variables (ANDROID/CMAKE_SYSTEM_NAME)")
+else()
   message(STATUS "Building for non-Android platform")
 endif()
 
 # Platform-specific configuration
 if(BUILD_ANDROID)
-  # Check if Android NDK is properly set up
-  if(NOT ANDROID_NDK)
-    message(FATAL_ERROR "Android NDK path not set. Please set ANDROID_NDK environment variable.")
-  endif()
-
-  # Add Android NDK include paths
-  include_directories(${ANDROID_NDK}/sysroot/usr/include)
-  include_directories(${ANDROID_NDK}/sysroot/usr/include/android)
-
-  # Add Android platform-specific includes
-  include_directories(${ANDROID_NDK}/platforms/${ANDROID_PLATFORM}/arch-${ANDROID_ABI}/usr/include)
+  # Do not force old-style NDK paths; modern toolchains provide includes/libs.
 
   # Check if Android log.h is available
   include(CheckIncludeFile)
@@ -144,7 +80,9 @@ if(BUILD_ANDROID)
 elseif(APPLE)
   set(MACOSX TRUE)
   message(STATUS "Building for macOS platform")
-elseif(UNIX AND NOT APPLE)
+elseif(WIN32)
+  message(STATUS "Building for Windows platform")
+elseif(UNIX)
   set(LINUX TRUE)
   message(STATUS "Building for Linux/Desktop platform")
 elseif(WIN32)
@@ -512,11 +450,7 @@ function(add_common_platform_definitions target_name)
       IS_ANDROID=1
     )
   else()
-    target_compile_definitions(${target_name} PRIVATE
-      ANDROID=0
-      __ANDROID__=0
-      IS_ANDROID=0
-    )
+    # Do not define ANDROID/__ANDROID__/IS_ANDROID on non-Android to avoid #ifdef pitfalls
   endif()
 
   if(LOCAL_DATA)

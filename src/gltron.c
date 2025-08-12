@@ -18,7 +18,7 @@
 #include "game/menu.h"
 
 // Platform-specific includes and definitions
-#ifdef __ANDROID__
+#if defined(__ANDROID__) && (__ANDROID__ + 0)
 #include <jni.h>
 #include <android/log.h>
 #include "android_config.h"

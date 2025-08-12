@@ -415,7 +415,7 @@ void gameMouse(SDL_MouseButtonEvent *event) {
     }
 
     // On touch-enabled platforms, also handle this as a touch event
-    #if defined(ANDROID) || defined(__ANDROID__) || defined(IOS) || defined(__IOS__)
+    #if defined(__ANDROID__)
     int screenWidth = 800, screenHeight = 600;
     nebu_Video_GetDimension(&screenWidth, &screenHeight);
 

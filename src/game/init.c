@@ -600,7 +600,7 @@ void initGUIs(void)
     runScript(PATH_SCRIPTS, "gauge.lua");
     
     // Android touch configuration
-#if defined(ANDROID) || defined(__ANDROID__)
+#if defined(__ANDROID__)
     runScript(PATH_SCRIPTS, "android_touch.lua");
 #endif
 #endif

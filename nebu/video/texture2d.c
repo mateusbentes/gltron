@@ -12,7 +12,7 @@
 #include "base/nebu_assert.h"
 
 #include <SDL2/SDL.h>
-#ifdef __ANDROID__
+#if defined(__ANDROID__)
   #include <GLES2/gl2.h>
 #else
   #include <GL/gl.h>

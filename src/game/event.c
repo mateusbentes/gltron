@@ -515,7 +515,7 @@ void Game_Idle(void) {
 	doRecognizerMovement();
 
 	// renderizar controles de toque, se aplicável
-	#if defined(ANDROID) || defined(__ANDROID__) || defined(IOS) || defined(__IOS__)
+	#if defined(__ANDROID__)
 	{
 		int screenWidth = 800;
 		int screenHeight = 600;

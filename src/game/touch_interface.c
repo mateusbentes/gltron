@@ -37,7 +37,7 @@ int c_set_touch_swipe_threshold(lua_State *L) {
     /* Use lua_tonumber instead of lua_tonumberx for Lua 5 compatibility */
     threshold = (int)lua_tonumber(L, 1);
     /* Call the function if it exists, otherwise just return */
-#ifdef ANDROID
+#if defined(__ANDROID__)
     nebu_Input_SetTouchSwipeThreshold(threshold);
 #endif
     
@@ -59,7 +59,7 @@ int c_get_screen_dimensions(lua_State *L) {
 
 /* Check if we're on Android */
 int c_is_android(lua_State *L) {
-#if defined(ANDROID) || defined(__ANDROID__)
+#if defined(__ANDROID__)
     lua_pushboolean(L, 1);
 #else
     lua_pushboolean(L, 0);
