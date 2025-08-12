@@ -44,7 +44,8 @@ if(NOT EXISTS "${GLTRON_MAIN}")
 endif()
 message(STATUS "Using main source for gltron: ${GLTRON_MAIN}")
 
-add_executable(gltron "${GLTRON_MAIN}")
+# Add the executable
+add_executable(gltron "${CMAKE_CURRENT_SOURCE_DIR}/gltron.c")
 
 # Print actual sources on the target
 get_target_property(GLTRON_SOURCES gltron SOURCES)
