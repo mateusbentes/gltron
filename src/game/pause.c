@@ -147,13 +147,6 @@ void pauseReshape(int x, int y) {
     /* This function can be empty or handle window resizing if needed */
 }
 
-
-Callbacks pauseCallbacks = {
-    displayGame, idlePause, keyboardPause,
-    initPause, exitPause, gameMouse, pauseReshape, 
-    "pause"
-};
-
 void keyboardPrompt(int state, int key, int x, int y) {
     if(state == NEBU_INPUT_KEYSTATE_UP)
         return;
@@ -176,13 +169,3 @@ void exitPrompt(void) { }
 void promptReshape(int x, int y) {
     /* This function can be empty or handle window resizing if needed */
 }
-
-Callbacks promptCallbacks = {
-    displayGame, idlePause, keyboardPrompt,
-    initPrompt, exitPrompt, NULL /* mouse button */, promptReshape, 
-    "prompt"
-};
-
-
-
-

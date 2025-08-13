@@ -21,6 +21,12 @@
 #include "base/nebu_debug_memory.h"
 #include "base/nebu_assert.h"
 
+// Forward declarations for GUI functions
+void initGui(void);
+void exitGui(void);
+void idleGui(void);
+void keyboardGui(int state, int key, int x, int y);
+
 // Forward declarations for game functions
 void game_Init(void);
 void game_Exit(void);
@@ -78,35 +84,15 @@ ExtendedCallbacks gameCallbacks = {
     .touchRotate = NULL
 };
 
+// Initialize guiCallbacks with the appropriate functions from gui.c
 ExtendedCallbacks guiCallbacks = {
     .base = {
         .name = "gui",
-        .init = NULL,
-        .exit = NULL,
-        .idle = NULL,
+        .init = initGui,
+        .exit = exitGui,
+        .idle = idleGui,
         .reshape = NULL,
-        .keyboard = NULL,
-        .mouse = NULL,
-        .mouseMotion = NULL
-    },
-    .special = NULL,
-    .specialUp = NULL,
-    .mouseWheel = NULL,
-    .touch = NULL,
-    .touchUp = NULL,
-    .touchMotion = NULL,
-    .touchPinch = NULL,
-    .touchRotate = NULL
-};
-
-ExtendedCallbacks pauseCallbacks = {
-    .base = {
-        .name = "pause",
-        .init = NULL,
-        .exit = NULL,
-        .idle = NULL,
-        .reshape = NULL,
-        .keyboard = NULL,
+        .keyboard = keyboardGui,
         .mouse = NULL,
         .mouseMotion = NULL
     },

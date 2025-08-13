@@ -428,10 +428,6 @@ void gameMouse(SDL_MouseButtonEvent *event) {
 // Function prototype for reshape callback
 void gameReshape(int x, int y);
 
-Callbacks gameCallbacks = { 
-  displayGame, GameMode_Idle, keyGame, enterGame, exitGame, gameMouse, gameReshape, "game"
-};
-
 // Implementation of the reshape callback
 void gameReshape(int x, int y) {
     // This function is called when the window is resized

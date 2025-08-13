@@ -28,6 +28,12 @@
 
 #include <SDL2/SDL.h>
 
+// Forward declarations for GUI functions
+void initGui(void);
+void exitGui(void);
+void idleGui(void);
+void keyboardGui(int state, int key, int x, int y);
+
 // External window handle
 extern SDL_Window *gWindow;
 extern int gScreenWidth;
@@ -180,54 +186,20 @@ void displayGui(void) {
 }
 
 void idleGui(void) {
+    // Update audio system
     Sound_idle();
+
+    // Update video system
     Video_Idle();
+
+    // Update input system
     Input_Idle();
+
+    // Frame delay to control update rate
     nebu_Time_FrameDelay(50);
+
+    // Request redisplay
     nebu_System_PostRedisplay();
-}
-
-void keyboardGui(int state, int key, int x, int y) {
-    if (state != NEBU_INPUT_KEYSTATE_DOWN) return;
-
-    switch (key) {
-        case 27: // ESC
-            nebu_System_ExitLoop(eSRC_GUI_Escape);
-            break;
-
-        case SYSTEM_KEY_UP:
-            gActiveMenuIndex = (gActiveMenuIndex - 1 + gMenuItemCount) % gMenuItemCount;
-            break;
-
-        case SYSTEM_KEY_DOWN:
-            gActiveMenuIndex = (gActiveMenuIndex + 1) % gMenuItemCount;
-            break;
-
-        case SYSTEM_KEY_LEFT:
-            if (gActiveMenuIndex == 2) {
-                gResIndex = (gResIndex - 1 + NUM_RES_OPTIONS) % NUM_RES_OPTIONS;
-                applyResolution();
-            }
-            break;
-
-        case SYSTEM_KEY_RIGHT:
-            if (gActiveMenuIndex == 2) {
-                gResIndex = (gResIndex + 1) % NUM_RES_OPTIONS;
-                applyResolution();
-            }
-            break;
-
-        case SYSTEM_KEY_RETURN:
-        case ' ':
-            if (gActiveMenuIndex == 0) {
-                printf("[GUI] Start Game selected\n");
-                // TODO: Trigger game start
-            } else if (gActiveMenuIndex == 3) {
-                printf("[GUI] Exit selected\n");
-                nebu_System_ExitLoop(eSRC_GUI_Escape);
-            }
-            break;
-    }
 }
 
 // --- Android Touch Support ---
@@ -259,9 +231,22 @@ void touchGuiMenu(SDL_TouchFingerEvent *event) {
     }
 }
 
+// Implement GUI functions
 void initGui(void) {
+    printf("[GUI] Initializing GUI\n");
+
+    // Load GUI resources
     gui_LoadResources();
-    updateSettingsCache();
+
+    // Initialize GUI state
+    gActiveMenuIndex = 0;
+    gMenuItemCount = 4;
+    gResIndex = 0; // Default to 800x600
+
+    // Set up initial resolution
+    applyResolution();
+
+    printf("[GUI] GUI initialized successfully\n");
 }
 
 void gui_LoadResources(void) {
@@ -301,14 +286,16 @@ void gui_ReleaseResources(void) {
 }
 
 void exitGui(void) {
-    gui_ReleaseResources();
-    updateSettingsCache();
-}
+    printf("[GUI] Exiting GUI\n");
 
-Callbacks guiCallbacks = {
-    displayGui, idleGui, keyboardGui, initGui, exitGui,
-    NULL /* mouse button */, NULL /* mouse motion */, NULL /* reshape */, "gui"
-};
+    // Release GUI resources
+    gui_ReleaseResources();
+
+    // Update settings cache
+    updateSettingsCache();
+
+    printf("[GUI] GUI exited successfully\n");
+}
 
 void runGame(void) {
     SDL_Event event;
