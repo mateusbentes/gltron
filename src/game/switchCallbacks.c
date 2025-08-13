@@ -8,42 +8,17 @@
 #include <stdio.h>
 #include "base/nebu_assert.h"
 
-typedef struct {
-    Callbacks base;  // Inherit from the base Callbacks struct
-    void (*special)(int key, int x, int y);
-    void (*specialUp)(int key, int x, int y);
-    void (*mouseWheel)(int wheel, int direction, int x, int y);
+// Declare the external callback variables
+extern ExtendedCallbacks gameCallbacks;
+extern ExtendedCallbacks guiCallbacks;
+extern ExtendedCallbacks pauseCallbacks;
+extern ExtendedCallbacks promptCallbacks;
+extern ExtendedCallbacks creditsCallbacks;
+extern ExtendedCallbacks timedemoCallbacks;
+extern ExtendedCallbacks _32bit_warningCallbacks;
 
-    // Touch callbacks
-    void (*touch)(int id, int x, int y);
-    void (*touchUp)(int id, int x, int y);
-    void (*touchMotion)(int id, int x, int y);
-    void (*touchPinch)(int id1, int id2, float scale);
-    void (*touchRotate)(int id1, int id2, float angle);
-} ExtendedCallbacks;
-
-ExtendedCallbacks configureCallbacks = {
-    .base = {
-        .name = "configure",
-        .init = NULL,
-        .exit = NULL,
-        .idle = NULL,
-        .reshape = NULL,
-        .keyboard = NULL,
-        .mouse = NULL,
-        .mouseMotion = NULL
-    },
-    .special = NULL,
-    .specialUp = NULL,
-    .mouseWheel = NULL,
-
-    // Initialize touch callbacks
-    .touch = NULL,
-    .touchUp = NULL,
-    .touchMotion = NULL,
-    .touchPinch = NULL,
-    .touchRotate = NULL
-};
+// Declare the configureCallbacks variable
+extern ExtendedCallbacks configureCallbacks;
 
 Callbacks *last_callback = NULL;
 Callbacks *current_callback = NULL;
@@ -63,8 +38,8 @@ void game_Callbacks_InitCurrent(void)
 
 #define N_CALLBACKS 7
 Callbacks *callbackList[N_CALLBACKS] = {
-    &gameCallbacks, &guiCallbacks, &pauseCallbacks, &configureCallbacks.base,
-    &promptCallbacks, &creditsCallbacks, &timedemoCallbacks
+    &gameCallbacks.base, &guiCallbacks.base, &pauseCallbacks.base, &configureCallbacks.base,
+    &promptCallbacks.base, &creditsCallbacks.base, &timedemoCallbacks.base
 };
 
 void setCallback(const char *name) {

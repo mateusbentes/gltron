@@ -21,6 +21,211 @@
 #include "base/nebu_debug_memory.h"
 #include "base/nebu_assert.h"
 
+// Forward declarations for game functions
+void game_Init(void);
+void game_Exit(void);
+void game_Idle(void);
+void game_Reshape(int width, int height);
+void game_Keyboard(unsigned char key, int x, int y);
+void game_Mouse(int button, int state, int x, int y);
+
+// Forward declarations for other functions
+void video_Init(void);
+void resource_LoadInitial(void);
+void game_ApplySettings(void);
+void hud_Init(void);
+void game_SaveState(void);
+void resource_Cleanup(void);
+void video_Shutdown(void);
+void Audio_Shutdown(void);
+void game_FreeData(void);
+void game_Update(void);
+void physics_Update(void);
+void Audio_Update(void);
+void hud_Update(void);
+int game_CheckGameOver(void);
+void game_HandleGameOver(void);
+void video_SetViewport(int width, int height);
+void camera_UpdateProjection(int width, int height);
+void hud_UpdateLayout(int width, int height);
+void game_Pause(void);
+void game_Reset(void);
+void game_ToggleMute(void);
+void input_HandleKey(unsigned char key);
+void input_HandleMouseClick(int x, int y);
+void camera_ZoomIn(void);
+void camera_ZoomOut(void);
+
+// Define the callback variables
+ExtendedCallbacks gameCallbacks = {
+    .base = {
+        .name = "game",
+        .init = game_Init,
+        .exit = game_Exit,
+        .idle = game_Idle,
+        .reshape = game_Reshape,
+        .keyboard = game_Keyboard,
+        .mouse = game_Mouse,
+        .mouseMotion = NULL
+    },
+    .special = NULL,
+    .specialUp = NULL,
+    .mouseWheel = NULL,
+    .touch = NULL,
+    .touchUp = NULL,
+    .touchMotion = NULL,
+    .touchPinch = NULL,
+    .touchRotate = NULL
+};
+
+ExtendedCallbacks guiCallbacks = {
+    .base = {
+        .name = "gui",
+        .init = NULL,
+        .exit = NULL,
+        .idle = NULL,
+        .reshape = NULL,
+        .keyboard = NULL,
+        .mouse = NULL,
+        .mouseMotion = NULL
+    },
+    .special = NULL,
+    .specialUp = NULL,
+    .mouseWheel = NULL,
+    .touch = NULL,
+    .touchUp = NULL,
+    .touchMotion = NULL,
+    .touchPinch = NULL,
+    .touchRotate = NULL
+};
+
+ExtendedCallbacks pauseCallbacks = {
+    .base = {
+        .name = "pause",
+        .init = NULL,
+        .exit = NULL,
+        .idle = NULL,
+        .reshape = NULL,
+        .keyboard = NULL,
+        .mouse = NULL,
+        .mouseMotion = NULL
+    },
+    .special = NULL,
+    .specialUp = NULL,
+    .mouseWheel = NULL,
+    .touch = NULL,
+    .touchUp = NULL,
+    .touchMotion = NULL,
+    .touchPinch = NULL,
+    .touchRotate = NULL
+};
+
+ExtendedCallbacks promptCallbacks = {
+    .base = {
+        .name = "prompt",
+        .init = NULL,
+        .exit = NULL,
+        .idle = NULL,
+        .reshape = NULL,
+        .keyboard = NULL,
+        .mouse = NULL,
+        .mouseMotion = NULL
+    },
+    .special = NULL,
+    .specialUp = NULL,
+    .mouseWheel = NULL,
+    .touch = NULL,
+    .touchUp = NULL,
+    .touchMotion = NULL,
+    .touchPinch = NULL,
+    .touchRotate = NULL
+};
+
+ExtendedCallbacks creditsCallbacks = {
+    .base = {
+        .name = "credits",
+        .init = NULL,
+        .exit = NULL,
+        .idle = NULL,
+        .reshape = NULL,
+        .keyboard = NULL,
+        .mouse = NULL,
+        .mouseMotion = NULL
+    },
+    .special = NULL,
+    .specialUp = NULL,
+    .mouseWheel = NULL,
+    .touch = NULL,
+    .touchUp = NULL,
+    .touchMotion = NULL,
+    .touchPinch = NULL,
+    .touchRotate = NULL
+};
+
+ExtendedCallbacks timedemoCallbacks = {
+    .base = {
+        .name = "timedemo",
+        .init = NULL,
+        .exit = NULL,
+        .idle = NULL,
+        .reshape = NULL,
+        .keyboard = NULL,
+        .mouse = NULL,
+        .mouseMotion = NULL
+    },
+    .special = NULL,
+    .specialUp = NULL,
+    .mouseWheel = NULL,
+    .touch = NULL,
+    .touchUp = NULL,
+    .touchMotion = NULL,
+    .touchPinch = NULL,
+    .touchRotate = NULL
+};
+
+ExtendedCallbacks _32bit_warningCallbacks = {
+    .base = {
+        .name = "32bit_warning",
+        .init = NULL,
+        .exit = NULL,
+        .idle = NULL,
+        .reshape = NULL,
+        .keyboard = NULL,
+        .mouse = NULL,
+        .mouseMotion = NULL
+    },
+    .special = NULL,
+    .specialUp = NULL,
+    .mouseWheel = NULL,
+    .touch = NULL,
+    .touchUp = NULL,
+    .touchMotion = NULL,
+    .touchPinch = NULL,
+    .touchRotate = NULL
+};
+
+// Define configureCallbacks as a variable
+ExtendedCallbacks configureCallbacks = {
+    .base = {
+        .name = "configure",
+        .init = NULL,
+        .exit = NULL,
+        .idle = NULL,
+        .reshape = NULL,
+        .keyboard = NULL,
+        .mouse = NULL,
+        .mouseMotion = NULL
+    },
+    .special = NULL,
+    .specialUp = NULL,
+    .mouseWheel = NULL,
+    .touch = NULL,
+    .touchUp = NULL,
+    .touchMotion = NULL,
+    .touchPinch = NULL,
+    .touchRotate = NULL
+};
+
 typedef enum {
     eSRC_MainMenu = 15,
     eSRC_OptionsMenu = 16,
@@ -733,27 +938,6 @@ void scripting_Register(const char* name, lua_CFunction func) {
 
     // Store the function in a lookup table if needed
     // This would be the actual implementation for a non-Lua system
-}
-
-// Implement the configureCallbacks function
-void configureCallbacks(void) {
-    printf("[callbacks] Configuring callbacks\n");
-
-    // In a non-Lua implementation, we might set up callback functions directly
-    // For GLtron, we would configure the game's event handling system
-
-    // Example: Set up game callbacks
-    gameCallbacks.init = game_Init;
-    gameCallbacks.exit = game_Exit;
-    gameCallbacks.idle = game_Idle;
-    gameCallbacks.reshape = game_Reshape;
-    gameCallbacks.keyboard = game_Keyboard;
-    gameCallbacks.mouse = game_Mouse;
-
-    // Set the current callbacks
-    setCallback("game");
-
-    printf("[callbacks] Callbacks configured successfully\n");
 }
 
 // Implement the scripting_RunGC function

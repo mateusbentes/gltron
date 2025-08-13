@@ -146,7 +146,6 @@ void gauge(void);
 void android_touch(void);
 
 // Other functions
-void configureCallbacks(void);
 void scripting_RunGC(void);
 void exitGame(void);
 
