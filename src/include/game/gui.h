@@ -3,6 +3,34 @@
 
 #include "video/video.h"
 
+// HUD structure declaration
+typedef struct {
+    struct {
+        int x, y;
+        float angle;
+        float speed;
+    } SpeedDial;
+
+    struct {
+        int x, y;
+        int w, h;
+        char* text;
+    } SpeedText;
+
+    struct {
+        int x, y;
+        int active;
+    } Buster;
+
+    struct {
+        int x, y;
+        int w, h;
+    } MapFrame;
+} HUD_t;
+
+// Declare the HUD variable as extern
+extern HUD_t HUD;
+
 // Function prototypes
 void drawGuiBackground(void);
 void displayGui(void);
@@ -19,4 +47,4 @@ void guiMouseMotion(int mx, int my);
 int guiMainLoop(void);
 void drawGuiMenu(Visual *d);
 
-#endif
+#endif /* GUI_H */

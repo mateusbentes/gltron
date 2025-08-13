@@ -122,6 +122,9 @@ typedef struct {
 /* Global HUD configuration instance */
 HUDConfigType HUDConfig;
 
+/* Global HUD instance */
+HUDType globalHUD;
+
 /* Function prototypes for menu actions */
 void JoyThresholdUp(void);
 void JoyThresholdDown(void);
@@ -538,55 +541,63 @@ void menu(void) {
 }
 
 // Function to initialize HUD configuration
-void hudconfig(void) {
-    // Initialize HUD configuration based on hud-config.lua
-    // This is a simplified version of what hud-config.lua does
-    printf("[init] Initializing HUD configuration\n");
+void draw_hud(int score, const char* ai_message) {
+    printf("[hud] Drawing HUD with score: %d, AI message: %s\n", score, ai_message);
 
-    // Initialize HUD configuration
-    HUDConfig.aspect = 1.333f; // aspect ratio (4:3)
-    HUDConfig.Speed.x = 776;
-    HUDConfig.Speed.y = 0;
-    HUDConfig.Speed_Text.x = 150;
-    HUDConfig.Speed_Text.y = 60;
-    HUDConfig.Speed_Text.w = 44;
-    HUDConfig.Speed_Text.h = 28;
-    HUDConfig.Buster.x = 776;
-    HUDConfig.Buster.y = 41;
-    HUDConfig.MapFrame.x = 10;
-    HUDConfig.MapFrame.y = 10;
+    // Draw speed dial
+    float angle = angle_MathFromClock360(globalHUD.SpeedDial.angle);
+    printf("[hud] Drawing speed dial at angle: %f\n", angle);
 
-    printf("[init] HUD configuration initialized\n");
+    // Draw speed text
+    printf("[hud] Drawing speed text: %s\n", globalHUD.SpeedText.text);
+
+    // Draw buster status
+    if (globalHUD.Buster.active) {
+        printf("[hud] Drawing active buster\n");
+    } else {
+        printf("[hud] Drawing inactive buster\n");
+    }
+
+    // Draw map frame
+    printf("[hud] Drawing map frame at (%d, %d)\n", globalHUD.MapFrame.x, globalHUD.MapFrame.y);
+
+    // Draw score
+    printf("[hud] Drawing score: %d\n", score);
+
+    // Draw AI message if present
+    if (ai_message && strlen(ai_message) > 0) {
+        printf("[hud] Drawing AI message: %s\n", ai_message);
+    }
 }
 
 // Function to initialize HUD
-void hud(void) {
-    // Initialize HUD based on hud.lua
-    // This is a simplified version of what hud.lua does
-    printf("[init] Initializing HUD\n");
+void hud(int score, const char* ai_message) {
+    printf("[hud] Drawing HUD with score: %d, AI message: %s\n", score, ai_message);
 
-    // Initialize HUD elements
-    HUD.SpeedDial.x = HUDConfig.Speed.x;
-    HUD.SpeedDial.y = HUDConfig.Speed.y;
-    HUD.SpeedDial.angle = 0.0f;
-    HUD.SpeedDial.speed = 0.0f;
+    // Draw speed dial
+    float angle = angle_MathFromClock360(globalHUD.SpeedDial.angle);
+    printf("[hud] Drawing speed dial at angle: %f\n", angle);
 
-    HUD.SpeedText.x = HUDConfig.Speed_Text.x;
-    HUD.SpeedText.y = HUDConfig.Speed_Text.y;
-    HUD.SpeedText.w = HUDConfig.Speed_Text.w;
-    HUD.SpeedText.h = HUDConfig.Speed_Text.h;
-    HUD.SpeedText.text = "0";
+    // Draw speed text
+    printf("[hud] Drawing speed text: %s\n", globalHUD.SpeedText.text);
 
-    HUD.Buster.x = HUDConfig.Buster.x;
-    HUD.Buster.y = HUDConfig.Buster.y;
-    HUD.Buster.active = 0;
+    // Draw buster status
+    if (globalHUD.Buster.active) {
+        printf("[hud] Drawing active buster\n");
+    } else {
+        printf("[hud] Drawing inactive buster\n");
+    }
 
-    HUD.MapFrame.x = HUDConfig.MapFrame.x;
-    HUD.MapFrame.y = HUDConfig.MapFrame.y;
-    HUD.MapFrame.w = 100;
-    HUD.MapFrame.h = 100;
+    // Draw map frame
+    printf("[hud] Drawing map frame at (%d, %d)\n", globalHUD.MapFrame.x, globalHUD.MapFrame.y);
 
-    printf("[init] HUD initialized\n");
+    // Draw score
+    printf("[hud] Drawing score: %d\n", score);
+
+    // Draw AI message if present
+    if (ai_message && strlen(ai_message) > 0) {
+        printf("[hud] Drawing AI message: %s\n", ai_message);
+    }
 }
 
 // Function to initialize gauge

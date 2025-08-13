@@ -589,7 +589,10 @@ void initGUIs(void)
     menu_functions();
     menu();
     hudconfig();
-    hud();
+
+    // Call hud with appropriate parameters
+    hud(0, "");  // Initialize with score 0 and empty AI message
+
     gauge();
 
     // Android touch configuration
@@ -605,7 +608,7 @@ void initGUIs(void)
     runScript(PATH_SCRIPTS, "hud-config.lua");
     runScript(PATH_SCRIPTS, "hud.lua");
     runScript(PATH_SCRIPTS, "gauge.lua");
-    
+
     // Android touch configuration
 #if defined(__ANDROID__)
     runScript(PATH_SCRIPTS, "android_touch.lua");

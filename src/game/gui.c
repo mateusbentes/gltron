@@ -1,3 +1,4 @@
+#include "game/gui.h"
 #include "audio/audio.h"
 #include "video/video.h"
 #include "video/graphics_utility.h"
@@ -28,11 +29,15 @@
 
 #include <SDL2/SDL.h>
 
+// Define the HUD variable
+HUD_t HUD;
+
 // Forward declarations for GUI functions
 void initGui(void);
 void exitGui(void);
 void idleGui(void);
 void keyboardGui(int state, int key, int x, int y);
+void touchGuiMenu(SDL_TouchFingerEvent *event);
 
 // External window handle
 extern SDL_Window *gWindow;
@@ -80,12 +85,6 @@ void drawGuiMenu(Visual *d);
 void applyResolution(void);
 void drawGuiBackground(void);
 
-// GUI display and input logic
-void displayGui(void);
-void idleGui(void);
-void keyboardGui(int state, int key, int x, int y);
-void touchGuiMenu(SDL_TouchFingerEvent *event);
-
 // GUI resource management
 void initGui(void);
 void gui_LoadResources(void);
@@ -105,6 +104,35 @@ static int gActiveMenuIndex = 0;
 static int gMenuItemCount = 4;
 
 static int gResIndex = 0; // Default to 800x600
+
+void keyboardGui(int state, int key, int x, int y) {
+    fprintf(stderr, "[debug] keyboardGui: state=%d, key=%d\n", state, key);
+
+    if(state == NEBU_INPUT_KEYSTATE_UP)
+        return;
+
+    switch(key) {
+    case 27:
+        fprintf(stderr, "[debug] keyboardGui: ESC key pressed, exiting with eSRC_Pause_Escape\n");
+        nebu_System_ExitLoop(eSRC_Pause_Escape);
+        break;
+    case SYSTEM_KEY_F1: changeDisplay(0); break;
+    case SYSTEM_KEY_F2: changeDisplay(1); break;
+    case SYSTEM_KEY_F3: changeDisplay(2); break;
+    case SYSTEM_KEY_F4: changeDisplay(3); break;
+    case SYSTEM_KEY_F10: nextCameraType(); break;
+    case SYSTEM_KEY_F11: doBmpScreenShot(gScreen); break;
+    case SYSTEM_KEY_F12: doPngScreenShot(gScreen); break;
+    case SYSTEM_KEY_UP: console_Seek(-1); break;
+    case SYSTEM_KEY_DOWN: console_Seek(1); break;
+    case SYSTEM_KEY_TAB:
+        // nebu_System_ExitLoop(RETURN_MENU_PROMPT);
+        break;
+    default:
+        fprintf(stderr, "[debug] keyboardGui: default case, key=%d\n", key);
+        break;
+    }
+}
 
 void applyResolution(void) {
     int width = gResOptions[gResIndex].width;
@@ -233,6 +261,27 @@ void touchGuiMenu(SDL_TouchFingerEvent *event) {
 
 // Implement GUI functions
 void initGui(void) {
+    // Initialize HUD configuration
+    HUD.SpeedDial.x = 776;
+    HUD.SpeedDial.y = 0;
+    HUD.SpeedDial.angle = 0.0f;
+    HUD.SpeedDial.speed = 0.0f;
+
+    HUD.SpeedText.x = 150;
+    HUD.SpeedText.y = 60;
+    HUD.SpeedText.w = 44;
+    HUD.SpeedText.h = 28;
+    HUD.SpeedText.text = "0";
+
+    HUD.Buster.x = 776;
+    HUD.Buster.y = 41;
+    HUD.Buster.active = 0;
+
+    HUD.MapFrame.x = 10;
+    HUD.MapFrame.y = 10;
+    HUD.MapFrame.w = 100;
+    HUD.MapFrame.h = 100;
+    
     printf("[GUI] Initializing GUI\n");
 
     // Load GUI resources

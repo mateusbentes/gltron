@@ -44,8 +44,8 @@ typedef struct {
     } MapFrame;
 } HUDType;
 
-// Declare the global HUD instance
-extern HUDType HUD;
+// Rename the global HUD instance to avoid naming conflict
+extern HUDType globalHUD;
 
 // make sure this list matches the one in main.lua
 typedef enum EScriptingReturnCode {
@@ -135,13 +135,13 @@ void QuitGameAction(void);
 // HUD and gauge functions
 void JoyThresholdUp(void);
 void JoyThresholdDown(void);
-void draw_hud(int score, const char* ai_message);
+void draw_hud(int score, const char* ai_message);  // Renamed from hud to draw_hud
 
 // Initialization functions
 void menu_functions(void);
 void menu(void);
 void hudconfig(void);
-void hud(void);
+void hud(int score, const char* ai_message);  // Properly declare the hud function with parameters
 void gauge(void);
 void android_touch(void);
 

@@ -343,21 +343,21 @@ void draw_hud(int score, const char* ai_message) {
     printf("[hud] Drawing HUD with score: %d, AI message: %s\n", score, ai_message);
 
     // Draw speed dial
-    float angle = angle_MathFromClock360(HUD.SpeedDial.angle);
+    float angle = angle_MathFromClock360(globalHUD.SpeedDial.angle);
     printf("[hud] Drawing speed dial at angle: %f\n", angle);
 
     // Draw speed text
-    printf("[hud] Drawing speed text: %s\n", HUD.SpeedText.text);
+    printf("[hud] Drawing speed text: %s\n", globalHUD.SpeedText.text);
 
     // Draw buster status
-    if (HUD.Buster.active) {
+    if (globalHUD.Buster.active) {
         printf("[hud] Drawing active buster\n");
     } else {
         printf("[hud] Drawing inactive buster\n");
     }
 
     // Draw map frame
-    printf("[hud] Drawing map frame at (%d, %d)\n", HUD.MapFrame.x, HUD.MapFrame.y);
+    printf("[hud] Drawing map frame at (%d, %d)\n", globalHUD.MapFrame.x, globalHUD.MapFrame.y);
 
     // Draw score
     printf("[hud] Drawing score: %d\n", score);
@@ -968,27 +968,28 @@ void exitGame(void) {
     printf("[game] Game exited successfully\n");
 }
 
+
 void init_c_interface(void) {
     // Initialize HUD configuration
-    HUD.SpeedDial.x = 776;
-    HUD.SpeedDial.y = 0;
-    HUD.SpeedDial.angle = 0.0f;
-    HUD.SpeedDial.speed = 0.0f;
+    globalHUD.SpeedDial.x = 776;
+    globalHUD.SpeedDial.y = 0;
+    globalHUD.SpeedDial.angle = 0.0f;
+    globalHUD.SpeedDial.speed = 0.0f;
 
-    HUD.SpeedText.x = 150;
-    HUD.SpeedText.y = 60;
-    HUD.SpeedText.w = 44;
-    HUD.SpeedText.h = 28;
-    HUD.SpeedText.text = "0";
+    globalHUD.SpeedText.x = 150;
+    globalHUD.SpeedText.y = 60;
+    globalHUD.SpeedText.w = 44;
+    globalHUD.SpeedText.h = 28;
+    globalHUD.SpeedText.text = "0";
 
-    HUD.Buster.x = 776;
-    HUD.Buster.y = 41;
-    HUD.Buster.active = 0;
+    globalHUD.Buster.x = 776;
+    globalHUD.Buster.y = 41;
+    globalHUD.Buster.active = 0;
 
-    HUD.MapFrame.x = 10;
-    HUD.MapFrame.y = 10;
-    HUD.MapFrame.w = 100;
-    HUD.MapFrame.h = 100;
+    globalHUD.MapFrame.x = 10;
+    globalHUD.MapFrame.y = 10;
+    globalHUD.MapFrame.w = 100;
+    globalHUD.MapFrame.h = 100;
 
     // Register C functions
     scripting_Register("c_drawHUD", draw_hud);
