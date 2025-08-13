@@ -65,7 +65,7 @@ void resource_UnregisterHandler(int type)
 }
 
 
-static ResourceToken* findToken(int token)
+ResourceToken* findToken(int token)
 {
 	nebu_List *p;
 	nebu_assert(token);
