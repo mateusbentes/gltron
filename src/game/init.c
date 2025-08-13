@@ -588,7 +588,6 @@ void initGUIs(void)
 #ifndef USE_SCRIPTING
     menu_functions();
     menu();
-    hudconfig();
 
     // Call hud with appropriate parameters
     hud(0, "");  // Initialize with score 0 and empty AI message

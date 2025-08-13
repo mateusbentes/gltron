@@ -106,27 +106,6 @@ ExtendedCallbacks guiCallbacks = {
     .touchRotate = NULL
 };
 
-ExtendedCallbacks promptCallbacks = {
-    .base = {
-        .name = "prompt",
-        .init = NULL,
-        .exit = NULL,
-        .idle = NULL,
-        .reshape = NULL,
-        .keyboard = NULL,
-        .mouse = NULL,
-        .mouseMotion = NULL
-    },
-    .special = NULL,
-    .specialUp = NULL,
-    .mouseWheel = NULL,
-    .touch = NULL,
-    .touchUp = NULL,
-    .touchMotion = NULL,
-    .touchPinch = NULL,
-    .touchRotate = NULL
-};
-
 ExtendedCallbacks creditsCallbacks = {
     .base = {
         .name = "credits",
@@ -251,7 +230,6 @@ int c_drawHUDMask(void *l);
 double angle_MathFromClock360(double angle);
 void JoyThresholdUp();
 void JoyThresholdDown();
-void draw_hud(int score, const char* ai_message);
 
 // Implement menu action functions
 void SinglePlayerAction(void) {
@@ -337,35 +315,6 @@ void JoyThresholdDown() {
     if (threshold < 0) threshold = 0;
     setSettingi("joy_threshold", threshold);
     printf("[input] New joystick threshold: %d\n", threshold);
-}
-
-void draw_hud(int score, const char* ai_message) {
-    printf("[hud] Drawing HUD with score: %d, AI message: %s\n", score, ai_message);
-
-    // Draw speed dial
-    float angle = angle_MathFromClock360(globalHUD.SpeedDial.angle);
-    printf("[hud] Drawing speed dial at angle: %f\n", angle);
-
-    // Draw speed text
-    printf("[hud] Drawing speed text: %s\n", globalHUD.SpeedText.text);
-
-    // Draw buster status
-    if (globalHUD.Buster.active) {
-        printf("[hud] Drawing active buster\n");
-    } else {
-        printf("[hud] Drawing inactive buster\n");
-    }
-
-    // Draw map frame
-    printf("[hud] Drawing map frame at (%d, %d)\n", globalHUD.MapFrame.x, globalHUD.MapFrame.y);
-
-    // Draw score
-    printf("[hud] Drawing score: %d\n", score);
-
-    // Draw AI message if present
-    if (ai_message && strlen(ai_message) > 0) {
-        printf("[hud] Drawing AI message: %s\n", ai_message);
-    }
 }
 
 // Implement graphics functions

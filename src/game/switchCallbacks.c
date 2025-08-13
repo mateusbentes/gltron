@@ -1,6 +1,11 @@
 #include "base/switchCallbacks.h"
 #include "base/nebu_callbacks.h"
 #include "base/nebu_system.h"
+#include "game/game.h"  // Include game.h for game callbacks
+#include "game/gui.h"   // Include gui.h for GUI callbacks
+#include "game/pause.h" // Include pause.h for pause callbacks
+#include "game/timedemo.h" // Include timedemo.h for timedemo callbacks
+#include "game/32bit_warning.h" // Include 32bit_warning.h for 32bit warning callbacks
 
 #include "base/nebu_debug_memory.h"
 

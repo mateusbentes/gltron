@@ -38,7 +38,7 @@ int initWindow(void) {
 
 	nebu_Video_SetWindowMode(0, 0, getSettingi("width"), getSettingi("height"));
 
-	flags = SYSTEM_RGBA | SYSTEM_DOUBLE | SYSTEM_DEPTH | SYSTEM_STENCIL; 
+	flags = SYSTEM_RGBA | SYSTEM_DOUBLE | SYSTEM_DEPTH | SYSTEM_STENCIL;
 	if(getSettingi("bitdepth_32"))
 		flags |= SYSTEM_32_BIT;
 	if(getSettingi("windowMode") == 0)
@@ -46,7 +46,7 @@ int initWindow(void) {
 
 	nebu_Video_SetDisplayMode(flags);
 
-	win_id = nebu_Video_Create("gltron");      
+	win_id = nebu_Video_Create("gltron");
 	// check if we have destination alpha,
 	// if not, display warning
 	{
@@ -59,11 +59,11 @@ int initWindow(void) {
 		}
 	}
 
-	if (win_id < 0) { 
+	if (win_id < 0) {
 		if( getSettingi("use_stencil") ) {
 			flags &= ~SYSTEM_STENCIL;
 			nebu_Video_SetDisplayMode(flags);
-			win_id = nebu_Video_Create("gltron");      
+			win_id = nebu_Video_Create("gltron");
 			if(win_id >= 0) {
 				setSettingi("use_stencil", 0);
 				goto SKIP;
@@ -178,12 +178,12 @@ void initVideoData(void) {
 	int i;
 
 	gScreen = (Visual*) malloc(sizeof(Visual));
-	gViewportType = getSettingi("display_type"); 
+	gViewportType = getSettingi("display_type");
 
 	{
 		Visual *d = gScreen;
-		d->w = getSettingi("width"); 
-		d->h = getSettingi("height"); 
+		d->w = getSettingi("width");
+		d->h = getSettingi("height");
 		d->vp_x = 0; d->vp_y = 0;
 		d->vp_w = d->w; d->vp_h = d->h;
 		d->onScreen = -1;
@@ -213,7 +213,7 @@ void initGameScreen(void)
 	Visual *d;
 	d = gScreen;
 	d->w = getSettingi("width");
-	d->h = getSettingi("height"); 
+	d->h = getSettingi("height");
 	d->vp_x = 0; d->vp_y = 0;
 	d->vp_w = d->w; d->vp_h = d->h;
 }
@@ -231,7 +231,7 @@ void video_LoadLevel(void) {
 	nebu_assert(!gWorld);
 	gWorld = video_CreateLevel();
 }
-	
+
 void video_ResetData(void) {
 	int i;
 
@@ -264,7 +264,7 @@ void initDisplay(Visual *d, int type, int p, int onScreen) {
 	d->vp_w = (int) ( vp_w[type][p] * field_x );
 	d->vp_h = (int) ( vp_h[type][p] * field_y );
 	d->onScreen = onScreen;
-}  
+}
 
 static void defaultViewportPositions(void) {
 	int i;
@@ -295,14 +295,14 @@ static void autoConfigureDisplay(void) {
 		{
 			gppPlayerVisuals[n_humans]->pPlayer = &game->player[i];
 			n_humans++;
-		}    
+		}
 	}
 
 	switch(n_humans) {
 	case 0 :
 		/*
 			Not sure what the default should be for
-			a game without human players. For now 
+			a game without human players. For now
 			just show a single viewport.
 		*/
 		/* fall thru */
@@ -315,7 +315,7 @@ static void autoConfigureDisplay(void) {
 	default :
 		defaultViewportPositions();
 		vp = VP_FOURWAY;
-	}  
+	}
 	updateDisplay(vp);
 }
 
@@ -326,11 +326,11 @@ void changeDisplay(int view) {
 	if (view == -1) {
 		view = getSettingi("display_type");
 	}
-	  
+
 	if (view == 3) {
-		autoConfigureDisplay(); 
+		autoConfigureDisplay();
 	} else {
-		defaultViewportPositions(); 
+		defaultViewportPositions();
 		updateDisplay(view);
 	}
 
