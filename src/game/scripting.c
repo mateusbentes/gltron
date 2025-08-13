@@ -122,37 +122,6 @@ typedef struct {
 /* Global HUD configuration instance */
 HUDConfigType HUDConfig;
 
-/* Define HUD structure */
-typedef struct {
-    struct {
-        int x;
-        int y;
-        float angle;
-        float speed;
-    } SpeedDial;
-    struct {
-        int x;
-        int y;
-        int w;
-        int h;
-        const char* text;
-    } SpeedText;
-    struct {
-        int x;
-        int y;
-        int active;
-    } Buster;
-    struct {
-        int x;
-        int y;
-        int w;
-        int h;
-    } MapFrame;
-} HUDType;
-
-/* Global HUD instance */
-HUDType HUD;
-
 /* Function prototypes for menu actions */
 void JoyThresholdUp(void);
 void JoyThresholdDown(void);

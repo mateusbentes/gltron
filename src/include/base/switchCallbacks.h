@@ -25,7 +25,6 @@ typedef enum {
 extern Callbacks gameCallbacks;
 extern Callbacks guiCallbacks;
 extern Callbacks pauseCallbacks;
-extern Callbacks configureCallbacks;
 extern Callbacks promptCallbacks;
 extern Callbacks creditsCallbacks;
 extern Callbacks timedemoCallbacks;

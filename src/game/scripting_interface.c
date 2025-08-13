@@ -21,11 +21,27 @@
 #include "base/nebu_debug_memory.h"
 #include "base/nebu_assert.h"
 
+typedef enum {
+    eSRC_MainMenu = 15,
+    eSRC_OptionsMenu = 16,
+    eSRC_KeyboardConfig = 17,
+    eSRC_MouseConfig = 18
+} eScriptingReturnCodesAdditional;
+
 /* External declaration for touch interface registration */
 extern void touch_interface_register(void);
 
 /* Define GAME_SUCCESS for backward compatibility */
 #define GAME_SUCCESS 0
+
+int c_startGame(void *L);
+int c_video_restart(void *L);
+void game_Init(void);
+void game_Exit(void);
+void game_Idle(void);
+void game_Reshape(int width, int height);
+void game_Keyboard(unsigned char key, int x, int y);
+void game_Mouse(int button, int state, int x, int y);
 
 // some functions defined elsewhere: graphics_hud.c
 int c_drawRectangle(void *l);
@@ -45,6 +61,274 @@ double angle_MathFromClock360(double angle);
 void JoyThresholdUp();
 void JoyThresholdDown();
 void draw_hud(int score, const char* ai_message);
+
+// Implement menu action functions
+void SinglePlayerAction(void) {
+    printf("[menu] Starting single player game\n");
+    // Set up single player game
+    setSettingi("players", 1);
+    setSettingi("ai_opponents", 0);
+    // Start the game
+    c_startGame(NULL);
+}
+
+void MultiplayerAction(void) {
+    printf("[menu] Starting multiplayer game\n");
+    // Set up multiplayer game
+    setSettingi("players", 2);
+    setSettingi("ai_opponents", 0);
+    // Start the game
+    c_startGame(NULL);
+}
+
+void SetResolution(const char* value) {
+    printf("[settings] Setting resolution to %s\n", value);
+    // Parse resolution string and set appropriate settings
+    if (strcmp(value, "800x600") == 0) {
+        setSettingi("width", 800);
+        setSettingi("height", 600);
+    } else if (strcmp(value, "1024x768") == 0) {
+        setSettingi("width", 1024);
+        setSettingi("height", 768);
+    } else if (strcmp(value, "1280x720") == 0) {
+        setSettingi("width", 1280);
+        setSettingi("height", 720);
+    } else if (strcmp(value, "1920x1080") == 0) {
+        setSettingi("width", 1920);
+        setSettingi("height", 1080);
+    }
+    // Restart video system with new resolution
+    c_video_restart(NULL);
+}
+
+void SetFullscreen(const char* value) {
+    printf("[settings] Setting fullscreen to %s\n", value);
+    // Set fullscreen mode
+    if (strcmp(value, "On") == 0) {
+        setSettingi("fullscreen", 1);
+    } else {
+        setSettingi("fullscreen", 0);
+    }
+    // Restart video system with new settings
+    c_video_restart(NULL);
+}
+
+void SetMusicVolume(int value) {
+    printf("[audio] Setting music volume to %d\n", value);
+    // Set music volume
+    setSettingf("musicVolume", value / 100.0f);
+    Sound_setMusicVolume(getSettingf("musicVolume"));
+}
+
+// Implement HUD and gauge functions
+// Implement HUD and gauge functions
+double angle_MathFromClock360(double angle) {
+    // Convert angle from clock format (0-12) to radians (0-2π)
+    printf("[math] Converting angle from clock format: %f\n", angle);
+    return (angle / 12.0) * 2.0 * M_PI;
+}
+
+void JoyThresholdUp() {
+    printf("[input] Increasing joystick threshold\n");
+    // Increase joystick threshold
+    int threshold = getSettingi("joy_threshold");
+    threshold += 5;
+    if (threshold > 100) threshold = 100;
+    setSettingi("joy_threshold", threshold);
+    printf("[input] New joystick threshold: %d\n", threshold);
+}
+
+void JoyThresholdDown() {
+    printf("[input] Decreasing joystick threshold\n");
+    // Decrease joystick threshold
+    int threshold = getSettingi("joy_threshold");
+    threshold -= 5;
+    if (threshold < 0) threshold = 0;
+    setSettingi("joy_threshold", threshold);
+    printf("[input] New joystick threshold: %d\n", threshold);
+}
+
+void draw_hud(int score, const char* ai_message) {
+    printf("[hud] Drawing HUD with score: %d, AI message: %s\n", score, ai_message);
+
+    // Draw speed dial
+    float angle = angle_MathFromClock360(HUD.SpeedDial.angle);
+    printf("[hud] Drawing speed dial at angle: %f\n", angle);
+
+    // Draw speed text
+    printf("[hud] Drawing speed text: %s\n", HUD.SpeedText.text);
+
+    // Draw buster status
+    if (HUD.Buster.active) {
+        printf("[hud] Drawing active buster\n");
+    } else {
+        printf("[hud] Drawing inactive buster\n");
+    }
+
+    // Draw map frame
+    printf("[hud] Drawing map frame at (%d, %d)\n", HUD.MapFrame.x, HUD.MapFrame.y);
+
+    // Draw score
+    printf("[hud] Drawing score: %d\n", score);
+
+    // Draw AI message if present
+    if (ai_message && strlen(ai_message) > 0) {
+        printf("[hud] Drawing AI message: %s\n", ai_message);
+    }
+}
+
+// Implement graphics functions
+int c_drawRectangle(void *l) {
+    // Get parameters from Lua stack
+    float x = luaL_checknumber(l, 1);
+    float y = luaL_checknumber(l, 2);
+    float w = luaL_checknumber(l, 3);
+    float h = luaL_checknumber(l, 4);
+
+    printf("[graphics] Drawing rectangle at (%f, %f) with size (%f, %f)\n", x, y, w, h);
+
+    // Draw rectangle using graphics system
+    // Implementation would depend on your graphics library
+    // This is a placeholder for the actual drawing code
+
+    return 0;
+}
+
+int c_drawCircle(void *l) {
+    // Get parameters from Lua stack
+    float x = luaL_checknumber(l, 1);
+    float y = luaL_checknumber(l, 2);
+    float radius = luaL_checknumber(l, 3);
+
+    printf("[graphics] Drawing circle at (%f, %f) with radius %f\n", x, y, radius);
+
+    // Draw circle using graphics system
+    // Implementation would depend on your graphics library
+    // This is a placeholder for the actual drawing code
+
+    return 0;
+}
+
+int c_translate(void *l) {
+    // Get parameters from Lua stack
+    float x = luaL_checknumber(l, 1);
+    float y = luaL_checknumber(l, 2);
+
+    printf("[graphics] Translating by (%f, %f)\n", x, y);
+
+    // Apply translation using graphics system
+    // Implementation would depend on your graphics library
+    // This is a placeholder for the actual transformation code
+
+    return 0;
+}
+
+int c_scale(void *l) {
+    // Get parameters from Lua stack
+    float x = luaL_checknumber(l, 1);
+    float y = luaL_checknumber(l, 2);
+
+    printf("[graphics] Scaling by (%f, %f)\n", x, y);
+
+    // Apply scaling using graphics system
+    // Implementation would depend on your graphics library
+    // This is a placeholder for the actual transformation code
+
+    return 0;
+}
+
+int c_pushMatrix(void *l) {
+    printf("[graphics] Pushing matrix\n");
+
+    // Push matrix using graphics system
+    // Implementation would depend on your graphics library
+    // This is a placeholder for the actual matrix operation
+
+    return 0;
+}
+
+int c_popMatrix(void *l) {
+    printf("[graphics] Popping matrix\n");
+
+    // Pop matrix using graphics system
+    // Implementation would depend on your graphics library
+    // This is a placeholder for the actual matrix operation
+
+    return 0;
+}
+
+int c_drawTextFitIntoRect(void *l) {
+    // Get parameters from Lua stack
+    const char* text = luaL_checkstring(l, 1);
+    float x = luaL_checknumber(l, 2);
+    float y = luaL_checknumber(l, 3);
+    float w = luaL_checknumber(l, 4);
+    float h = luaL_checknumber(l, 5);
+
+    printf("[graphics] Drawing text '%s' in rectangle (%f, %f, %f, %f)\n", text, x, y, w, h);
+
+    // Draw text using graphics system
+    // Implementation would depend on your graphics library
+    // This is a placeholder for the actual text drawing code
+
+    return 0;
+}
+
+int c_color(void *l) {
+    // Get parameters from Lua stack
+    float r = luaL_checknumber(l, 1);
+    float g = luaL_checknumber(l, 2);
+    float b = luaL_checknumber(l, 3);
+    float a = luaL_optnumber(l, 4, 1.0f);
+
+    printf("[graphics] Setting color to (%f, %f, %f, %f)\n", r, g, b, a);
+
+    // Set color using graphics system
+    // Implementation would depend on your graphics library
+    // This is a placeholder for the actual color setting code
+
+    return 0;
+}
+
+int c_draw2D(void *l) {
+    printf("[graphics] Drawing 2D elements\n");
+
+    // Draw 2D elements using graphics system
+    // Implementation would depend on your graphics library
+    // This is a placeholder for the actual drawing code
+
+    return 0;
+}
+
+int c_drawHUDSurface(void *l) {
+    // Get parameters from Lua stack
+    const char* surface_name = luaL_checkstring(l, 1);
+    float x = luaL_checknumber(l, 2);
+    float y = luaL_checknumber(l, 3);
+
+    printf("[graphics] Drawing HUD surface '%s' at (%f, %f)\n", surface_name, x, y);
+
+    // Draw HUD surface using graphics system
+    // Implementation would depend on your graphics library
+    // This is a placeholder for the actual drawing code
+
+    return 0;
+}
+
+int c_drawHUDMask(void *l) {
+    // Get parameters from Lua stack
+    const char* mask_name = luaL_checkstring(l, 1);
+    float x = luaL_checknumber(l, 2);
+    float y = luaL_checknumber(l, 3);
+
+    printf("[graphics] Drawing HUD mask '%s' at (%f, %f)\n", mask_name, x, y);
+
+    // Draw HUD mask using graphics system
+    // Implementation would depend on your graphics library
+    // This is a placeholder for the actual drawing code
+
+    return 0;
+}
 
 int c_quitGame(void *L) {
     saveSettings();
@@ -312,8 +596,231 @@ int c_game_ComputeTimeDelta(void *l)
     return dt;
 }
 
+// Implement the game callback functions
+void game_Init(void) {
+    printf("[game] Initializing game\n");
+
+    // Initialize game state
+    game_ResetData();
+
+    // Initialize video system
+    video_Init();
+
+    // Initialize audio system
+    Audio_Init();
+
+    // Load initial resources
+    resource_LoadInitial();
+
+    // Set up initial game settings
+    game_ApplySettings();
+
+    // Initialize HUD
+    hud_Init();
+
+    printf("[game] Game initialized successfully\n");
+}
+
+void game_Exit(void) {
+    printf("[game] Exiting game\n");
+
+    // Save game state
+    game_SaveState();
+
+    // Clean up resources
+    resource_Cleanup();
+
+    // Shutdown systems
+    video_Shutdown();
+    Audio_Shutdown();
+
+    // Free game data
+    game_FreeData();
+
+    printf("[game] Game exited successfully\n");
+}
+
+void game_Idle(void) {
+    // Update game state
+    game_Update();
+
+    // Update physics
+    physics_Update();
+
+    // Update audio
+    Audio_Update();
+
+    // Update HUD
+    hud_Update();
+
+    // Check for game over conditions
+    if (game_CheckGameOver()) {
+        game_HandleGameOver();
+    }
+}
+
+void game_Reshape(int width, int height) {
+    printf("[game] Reshaping window to %dx%d\n", width, height);
+
+    // Update viewport
+    video_SetViewport(width, height);
+
+    // Update projection matrix
+    camera_UpdateProjection(width, height);
+
+    // Update HUD elements
+    hud_UpdateLayout(width, height);
+}
+
+void game_Keyboard(unsigned char key, int x, int y) {
+    printf("[game] Key pressed: %c at (%d, %d)\n", key, x, y);
+
+    // Handle special keys
+    switch (key) {
+        case 27: // ESC key
+            game_Pause();
+            break;
+        case 'p':
+        case 'P':
+            game_Pause();
+            break;
+        case 'r':
+        case 'R':
+            game_Reset();
+            break;
+        case 'm':
+        case 'M':
+            game_ToggleMute();
+            break;
+        default:
+            // Handle regular key presses
+            input_HandleKey(key);
+            break;
+    }
+}
+
+void game_Mouse(int button, int state, int x, int y) {
+    printf("[game] Mouse button %d %s at (%d, %d)\n",
+           button, state == 0 ? "pressed" : "released", x, y);
+
+    // Handle mouse button events
+    if (state == 0) { // Button pressed
+        switch (button) {
+            case 0: // Left button
+                input_HandleMouseClick(x, y);
+                break;
+            case 1: // Middle button
+                camera_ZoomIn();
+                break;
+            case 2: // Right button
+                camera_ZoomOut();
+                break;
+            default:
+                break;
+        }
+    } else { // Button released
+        // Handle button release if needed
+    }
+}
+
+// Implement the scripting_Register function
+void scripting_Register(const char* name, lua_CFunction func) {
+    printf("[scripting] Registering function: %s\n", name);
+
+    // In a non-Lua implementation, we might store these functions in a lookup table
+    // For now, we'll just log the registration
+    printf("[scripting] Function %s registered (non-Lua implementation)\n", name);
+
+    // Store the function in a lookup table if needed
+    // This would be the actual implementation for a non-Lua system
+}
+
+// Implement the configureCallbacks function
+void configureCallbacks(void) {
+    printf("[callbacks] Configuring callbacks\n");
+
+    // In a non-Lua implementation, we might set up callback functions directly
+    // For GLtron, we would configure the game's event handling system
+
+    // Example: Set up game callbacks
+    gameCallbacks.init = game_Init;
+    gameCallbacks.exit = game_Exit;
+    gameCallbacks.idle = game_Idle;
+    gameCallbacks.reshape = game_Reshape;
+    gameCallbacks.keyboard = game_Keyboard;
+    gameCallbacks.mouse = game_Mouse;
+
+    // Set the current callbacks
+    setCallback("game");
+
+    printf("[callbacks] Callbacks configured successfully\n");
+}
+
+// Implement the scripting_RunGC function
+void scripting_RunGC(void) {
+    printf("[scripting] Running garbage collection\n");
+
+    // In a non-Lua implementation, we might perform memory cleanup
+    // For GLtron, we would clean up game resources
+
+    // Example: Clean up unused resources
+    resource_Cleanup();
+
+    printf("[scripting] Garbage collection completed\n");
+}
+
+// Implement the exitGame function
+void exitGame(void) {
+    printf("[game] Exiting game\n");
+
+    // Save any necessary game state
+    saveSettings();
+
+    // Clean up resources
+    if (game) {
+        game_FreeGame(game);
+        game = NULL;
+    }
+    if (game2) {
+        game_FreeGame2(game2);
+        game2 = NULL;
+    }
+
+    // Clean up video resources
+    video_Shutdown();
+
+    // Clean up audio resources
+    Audio_Shutdown();
+
+    // Exit the main loop
+    nebu_System_ExitLoop(eSRC_Quit);
+
+    printf("[game] Game exited successfully\n");
+}
+
 void init_c_interface(void) {
-    // Register C functions instead of Lua functions
+    // Initialize HUD configuration
+    HUD.SpeedDial.x = 776;
+    HUD.SpeedDial.y = 0;
+    HUD.SpeedDial.angle = 0.0f;
+    HUD.SpeedDial.speed = 0.0f;
+
+    HUD.SpeedText.x = 150;
+    HUD.SpeedText.y = 60;
+    HUD.SpeedText.w = 44;
+    HUD.SpeedText.h = 28;
+    HUD.SpeedText.text = "0";
+
+    HUD.Buster.x = 776;
+    HUD.Buster.y = 41;
+    HUD.Buster.active = 0;
+
+    HUD.MapFrame.x = 10;
+    HUD.MapFrame.y = 10;
+    HUD.MapFrame.w = 100;
+    HUD.MapFrame.h = 100;
+
+    // Register C functions
     scripting_Register("c_drawHUD", draw_hud);
     scripting_Register("c_JoyThresholdUp", JoyThresholdUp);
     scripting_Register("c_JoyThresholdDown", JoyThresholdDown);
