@@ -3,6 +3,14 @@
 #include "game/game_data.h"
 #include "game/camera.h"
 #include "game/engine.h"
+#include "video/video.h"          // For video_Init, video_Shutdown, etc.
+#include "game/resource.h"       // For resource_LoadInitial, resource_Cleanup
+#include "audio/audio.h"         // For Audio_Init, Audio_Shutdown, etc.
+#include "video/hud.h"           // For hud_Init, hud_Update, etc.
+#include "input/input.h"         // For input_HandleKey, input_HandleMouseClick
+#include "game/camera.h"        // For camera_UpdateProjection, camera_ZoomIn, etc.
+//#include "game/physics.h"       // For physics_Update
+#include "game/game_data.h"    // For game_Update, game_CheckGameOver, etc
 #include "audio/sound_glue.h"
 #include "video/video.h"
 #include "configuration/settings.h"
