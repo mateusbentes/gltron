@@ -13,11 +13,15 @@
 #include "input/input.h"
 #include "video/nebu_console.h"
 
+#include <SDL2/SDL.h>
+#include <stdio.h>
 #include <base/nebu_debug_memory.h>
 
 int isAltLeftPressed = 0;
 int isAltRightPressed = 0;
 int isCapsLockPressed = 0;
+
+static SDL_Event event;
 
 int ReservedKeyCodes[eReservedKeys] = {
   27,
@@ -37,6 +41,68 @@ int ReservedKeyCodes[eReservedKeys] = {
   SYSTEM_KEY_ALT_LEFT
 };
 
+void nebu_Input_GetMousePosition(int* x, int* y) {
+    printf("[input] Getting mouse position\n");
+
+    // Get the current mouse state
+    int mouseX, mouseY;
+    Uint32 mouseState = SDL_GetMouseState(&mouseX, &mouseY);
+
+    // Set the output parameters
+    *x = mouseX;
+    *y = mouseY;
+
+    printf("[input] Mouse position: (%d, %d)\n", *x, *y);
+}
+
+int nebu_Input_GetMouseButtonState(int button) {
+    printf("[input] Getting state for mouse button %d\n", button);
+
+    // Get the current mouse state
+    int mouseX, mouseY;
+    Uint32 mouseState = SDL_GetMouseState(&mouseX, &mouseY);
+
+    // Check the state of the requested button
+    switch (button) {
+        case 0: // Left button
+            return (mouseState & SDL_BUTTON(SDL_BUTTON_LEFT)) ? 1 : 0;
+        case 1: // Middle button
+            return (mouseState & SDL_BUTTON(SDL_BUTTON_MIDDLE)) ? 1 : 0;
+        case 2: // Right button
+            return (mouseState & SDL_BUTTON(SDL_BUTTON_RIGHT)) ? 1 : 0;
+        default:
+            printf("[input] Invalid mouse button requested: %d\n", button);
+            return 0;
+    }
+}
+
+void nebu_Input_HandleEvents(void) {
+    // Poll for events
+    while (SDL_PollEvent(&event)) {
+        switch (event.type) {
+            case SDL_QUIT:
+                // Handle quit event
+                break;
+            case SDL_KEYDOWN:
+                // Handle key down events
+                break;
+            case SDL_KEYUP:
+                // Handle key up events
+                break;
+            case SDL_MOUSEBUTTONDOWN:
+                // Handle mouse button down events
+                break;
+            case SDL_MOUSEBUTTONUP:
+                // Handle mouse button up events
+                break;
+            case SDL_MOUSEMOTION:
+                // Handle mouse motion events
+                break;
+            default:
+                break;
+        }
+    }
+}
 
 void keyGame(SDL_KeyboardEvent *event)
 {

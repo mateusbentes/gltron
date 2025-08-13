@@ -6,6 +6,9 @@
 // Function prototypes
 void initInput(void);
 void shutdownInput(void);
+void nebu_Input_GetMousePosition(int* x, int* y);
+int nebu_Input_GetMouseButtonState(int button);
+void nebu_Input_HandleEvents(void);
 
 typedef struct Input {
   int mouse1;

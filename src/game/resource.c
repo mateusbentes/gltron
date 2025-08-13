@@ -1,3 +1,4 @@
+#include <GL/gl.h>
 #include "game/resource.h"
 #include "base/nebu_util.h"
 #include "base/nebu_resource.h"
@@ -13,89 +14,133 @@
 
 #include "base/nebu_debug_memory.h"
 
+// Add this enum for resource types
+typedef enum {
+    RESOURCE_TEXTURE = 1,
+    RESOURCE_FONT,
+    RESOURCE_2D,
+    RESOURCE_GLTRON_TRI_MESH,
+    RESOURCE_GLTRON_QUAD_MESH
+} ResourceType;
+
+// Forward declaration of resource_Get function
+void* resource_Get(int token, int type);
+
 void* getTriMesh(char *filename, void *dummy)
 {
-	return gltron_Mesh_LoadFromFile(filename, TRI_MESH);
+    return gltron_Mesh_LoadFromFile(filename, TRI_MESH);
 }
 
 void* getQuadMesh(char *filename, void *dummy)
 {
-	return gltron_Mesh_LoadFromFile(filename, QUAD_MESH);
+    return gltron_Mesh_LoadFromFile(filename, QUAD_MESH);
 }
 
 static void releaseMesh(void *pData)
 {
-	gltron_Mesh_Free((gltron_Mesh*)pData);
+    gltron_Mesh_Free((gltron_Mesh*)pData);
 }
 
 void* get2d(char *filename, void *dummy)
 {
-	char *path;
-	path = nebu_FS_GetPath_WithFilename(PATH_ART, filename);
-	if(path)
-	{
-		void *pData = nebu_2d_LoadPNG(path, 0);
-		free(path);
-		return pData;
-	}
-	else
-	{
-		fprintf(stderr, "failed to locate %s", filename);
-		nebu_assert(0); exit(1); // installation corrupt
-	}
+    char *path;
+    path = nebu_FS_GetPath_WithFilename(PATH_ART, filename);
+    if(path)
+    {
+        void *pData = nebu_2d_LoadPNG(path, 0);
+        free(path);
+        return pData;
+    }
+    else
+    {
+        fprintf(stderr, "failed to locate %s", filename);
+        nebu_assert(0); exit(1); // installation corrupt
+    }
 }
 
 static void release2d(void *pData)
 {
-	nebu_2d_Free((nebu_2d*)pData);
+    nebu_2d_Free((nebu_2d*)pData);
 }
 
 void* getFont(char *filename, void *dummy)
 {
-	return nebu_Font_Load(filename, 16, 16, 32, 96);
+    return nebu_Font_Load(filename, 16, 16, 32, 96);
 }
 
 static void releaseFont(void *pData)
 {
-	nebu_Font_Free(pData);
+    nebu_Font_Free(pData);
 }
 
 void* getTexture(char *filename, void *meta)
 {
-	char *path;
-	path = nebu_FS_GetPath_WithFilename(PATH_ART, filename);
-	if(path)
-	{
-		void *pData = nebu_Texture2D_Load(path, (nebu_Texture2D_meta*) meta);
-		free(path);
-		return pData;
-	}
-	else
-	{
-		fprintf(stderr, "failed to locate %s", filename);
-		nebu_assert(0); exit(1); // installation corrupt
-	}
+    char *path;
+    path = nebu_FS_GetPath_WithFilename(PATH_ART, filename);
+    if(path)
+    {
+        void *pData = nebu_Texture2D_Load(path, (nebu_Texture2D_meta*) meta);
+        free(path);
+        return pData;
+    }
+    else
+    {
+        fprintf(stderr, "failed to locate %s", filename);
+        nebu_assert(0); exit(1); // installation corrupt
+    }
 }
 
 static void releaseTexture(void *pData)
 {
-	nebu_Texture2D_Free((nebu_Texture2D*)pData);
+    nebu_Texture2D_Free((nebu_Texture2D*)pData);
 }
 
 void resource_Init()
 {
-	resource_RegisterHandler(eRT_GLtronTriMesh, getTriMesh, releaseMesh);
-	resource_RegisterHandler(eRT_GLtronQuadMesh, getQuadMesh, releaseMesh);
-	resource_RegisterHandler(eRT_2d, get2d, release2d);
-	resource_RegisterHandler(eRT_Font, getFont, releaseFont);
-	resource_RegisterHandler(eRT_Texture, getTexture, releaseTexture);
+    resource_RegisterHandler(eRT_GLtronTriMesh, getTriMesh, releaseMesh);
+    resource_RegisterHandler(eRT_GLtronQuadMesh, getQuadMesh, releaseMesh);
+    resource_RegisterHandler(eRT_2d, get2d, release2d);
+    resource_RegisterHandler(eRT_Font, getFont, releaseFont);
+    resource_RegisterHandler(eRT_Texture, getTexture, releaseTexture);
 }
 
 void resource_Shutdown(void)
 {
-	resource_UnregisterHandler(eRT_GLtronTriMesh);
-	resource_UnregisterHandler(eRT_GLtronQuadMesh);
-	resource_UnregisterHandler(eRT_2d);
-	resource_UnregisterHandler(eRT_Font);
-	resource_UnregisterHandler(eRT_Texture);
+    resource_UnregisterHandler(eRT_GLtronTriMesh);
+    resource_UnregisterHandler(eRT_GLtronQuadMesh);
+    resource_UnregisterHandler(eRT_2d);
+    resource_UnregisterHandler(eRT_Font);
+    resource_UnregisterHandler(eRT_Texture);
+}
+
+void resource_GetTextureDimensions(int textureId, int* width, int* height) {
+    printf("[resource] Getting dimensions for texture %d\n", textureId);
+
+    // Get the texture data using the correct resource type
+    void* textureData = resource_Get(textureId, RESOURCE_TEXTURE);
+
+    if (!textureData) {
+        printf("[resource] Error: Texture %d not found\n", textureId);
+        *width = 0;
+        *height = 0;
+        return;
+    }
+
+    // Cast the texture data to the appropriate type
+    nebu_Texture2D* texture = (nebu_Texture2D*)textureData;
+
+    // Get the texture dimensions using OpenGL functions
+    GLint texWidth = 0;
+    GLint texHeight = 0;
+
+    // Bind the texture to get its dimensions
+    glBindTexture(GL_TEXTURE_2D, texture->id);
+    glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &texWidth);
+    glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &texHeight);
+
+    // Set the output parameters
+    *width = texWidth;
+    *height = texHeight;
+
+    printf("[resource] Texture %d dimensions: %dx%d\n", textureId, *width, *height);
 }

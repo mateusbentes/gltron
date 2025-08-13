@@ -180,7 +180,6 @@ void Sound_checkCompleted(void);
 void nebu_Input_GetMousePosition(int* x, int* y);
 void Sound_playSample(int sampleId, float volume);
 int nebu_Input_GetMouseButtonState(int button);
-int resource_LoadTexture(const char* path, int type);
 void resource_GetTextureDimensions(int textureId, int* width, int* height);
 
 // Forward declarations for GUI functions
@@ -1225,14 +1224,6 @@ void resource_Cleanup(void) {
     resource_ReleaseType(eRT_Texture);
 
     printf("[resource] Resources cleaned up\n");
-}
-
-int resource_LoadTexture(const char* filename, int type) {
-    printf("[resource] Loading texture %s of type %d\n", filename, type);
-    // Load a texture from file
-
-    // Implementation would depend on your resource management system
-    printf("[resource] Texture %s loaded\n", filename);
 }
 
 void resource_LoadFont(const char* filename, int type) {
