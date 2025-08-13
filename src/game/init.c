@@ -586,9 +586,16 @@ void initVideo(void) {
 void initGUIs(void)
 {
 #ifndef USE_SCRIPTING
-    printf("[init] Scripting is disabled, skipping Lua setup\n");
-    return;
+    menu_functions();
+    menu();
+    hudconfig();
+    hud();
+    gauge();
 
+    // Android touch configuration
+#if defined(__ANDROID__)
+    android_touch();
+#endif
 #else
     // menu
     runScript(PATH_SCRIPTS, "menu_functions.lua");

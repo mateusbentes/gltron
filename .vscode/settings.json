@@ -25,6 +25,11 @@
         "nebu_video_system.h": "c",
         "nebu_renderer_gl.h": "c",
         "shader_utils.h": "c",
-        "lauxlib.h": "c"
+        "lauxlib.h": "c",
+        "ratio": "c",
+        "system_error": "c",
+        "tuple": "c",
+        "type_traits": "c",
+        "utility": "c"
     }
 }
