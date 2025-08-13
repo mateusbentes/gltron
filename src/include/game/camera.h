@@ -10,13 +10,17 @@ typedef struct CameraType {
 } CameraType;
 
 typedef struct Camera {
-	float cam[3];
-	float target[3];
-	float movement[4]; /* indices CAM_R, CAM_CHI, CAM_PHI, CAM_PHI_OFFSET */
-	float pUser[16]; // static user data
-	void *pUserData; // dynamic user data
-	int bIsGlancing;
-	CameraType type;
+    float cam[3];
+    float target[3];
+    float movement[4]; /* indices CAM_R, CAM_CHI, CAM_PHI, CAM_PHI_OFFSET */
+    float pUser[16]; // static user data
+    void *pUserData; // dynamic user data
+    int bIsGlancing;
+    CameraType type;
+    float fov;    // Additional member
+    float near;    // Additional member
+    float far;    // Additional member
+    float projection[16]; // Add this line for the projection matrix
 } Camera;
 
 typedef enum eCamType { 

@@ -38,43 +38,45 @@ typedef struct RuleSet {
 } RuleSet;
 
 typedef struct Game2 {
-	game_level *level;
-	RuleSet rules;
-	SystemTime time;
-	nebu_List events;
-	FILE *record;
-	FILE *play;
-	// Input input;
+    game_level *level;
+    RuleSet rules;
+    SystemTime time;
+    nebu_List events;
+    FILE *record;
+    FILE *play;
+    int paused;
+    // Input input;
 } Game2;
 
 typedef struct Data {
-	int dir;
+    int dir;
 
-	int score;
-	float speed; /* set to -1 when dead */
-	int boost_enabled;
-	// float booster;
-	// float wall_buster;
-	float energy;
-	int wall_buster_enabled;
-	float trail_height;
+    int score;
+    float speed; /* set to -1 when dead */
+    int boost_enabled;
+    // float booster;
+    // float wall_buster;
+    float energy;
+    int wall_buster_enabled;
+    float trail_height;
+    float trail_width;  // Add this line
 
-	int last_dir;
-	/* for cycle animation */
-	unsigned int turn_time; 
-	/* explosion  & impact stuff */
-	float impact_radius;
-	float exp_radius;
+    int last_dir;
+    /* for cycle animation */
+    unsigned int turn_time;
+    /* explosion  & impact stuff */
+    float impact_radius;
+    float exp_radius;
 
-	segment2 *trails; // light cycle trail segments
-	int nTrails; // segments currently in use
-	int maxTrails; // segments where memory is allocated for
-	// maxTrails is set to INITIAL_TRAIL_COUNT on creation
-	
-	// Position coordinates
-	float posx;
-	float posy;
-	float posz;
+    segment2 *trails; // light cycle trail segments
+    int nTrails; // segments currently in use
+    int maxTrails; // segments where memory is allocated for
+    // maxTrails is set to INITIAL_TRAIL_COUNT on creation
+
+    // Position coordinates
+    float posx;
+    float posy;
+    float posz;
 } Data;
 
 typedef struct AI {
@@ -91,6 +93,7 @@ typedef struct Player_Profile {
 } Player_Profile;
 
 typedef struct Player {
+	int id;
 	Data data;
 	AI ai;
 	Player_Profile profile;

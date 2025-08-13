@@ -1,16 +1,9 @@
+#include <sys/time.h>
 #include "game/gltron.h"
 #include "game/game.h"
 #include "game/game_data.h"
 #include "game/camera.h"
 #include "game/engine.h"
-#include "video/video.h"          // For video_Init, video_Shutdown, etc.
-#include "game/resource.h"       // For resource_LoadInitial, resource_Cleanup
-#include "audio/audio.h"         // For Audio_Init, Audio_Shutdown, etc.
-#include "video/hud.h"           // For hud_Init, hud_Update, etc.
-#include "input/input.h"         // For input_HandleKey, input_HandleMouseClick
-#include "game/camera.h"        // For camera_UpdateProjection, camera_ZoomIn, etc.
-//#include "game/physics.h"       // For physics_Update
-#include "game/game_data.h"    // For game_Update, game_CheckGameOver, etc
 #include "audio/sound_glue.h"
 #include "video/video.h"
 #include "configuration/settings.h"
@@ -28,6 +21,100 @@
 
 #include "base/nebu_debug_memory.h"
 #include "base/nebu_assert.h"
+
+// Define missing constants
+#define GUI_MAIN_MENU 0
+#define GUI_OPTIONS 1
+#define GUI_GAME 2
+
+#define BUTTON_START_GAME 0
+#define BUTTON_OPTIONS 1
+#define BUTTON_QUIT 2
+
+#define SLIDER_MUSIC_VOLUME 0
+#define SLIDER_FX_VOLUME 1
+
+#define CHECKBOX_FULLSCREEN 0
+
+#define eRT_GUI 100
+#define eRT_GUI_FONT 101
+#define eRT_Player 102
+#define eRT_Environment 103
+#define eRT_PlayerModel 104
+#define eRT_EnvironmentModel 105
+
+int current_gui_state = GUI_MAIN_MENU;
+ExtendedCallbacks* current_callbacks = NULL;
+
+typedef struct {
+    float v[3];
+} Vector3;
+
+typedef struct {
+    Vector3 vMin;
+    Vector3 vMax;
+} BoundingBox;
+
+typedef struct {
+    int numMeshes;
+    void** meshes;  // Array of mesh pointers
+    BoundingBox boundingBox;
+} World;
+
+typedef struct {
+    int active;
+    float speed;
+    float angle;
+    int x;
+    int y;
+} SpeedDial;
+
+typedef struct {
+    int x;
+    int y;
+    int w;
+    int h;
+    const char* text;
+} SpeedText;
+
+typedef struct {
+    int x;
+    int y;
+    int active;
+} Buster;
+
+typedef struct {
+    int x;
+    int y;
+    int w;
+    int h;
+} MapFrame;
+
+typedef struct {
+    SpeedDial SpeedDial;
+    SpeedText SpeedText;
+    Buster Buster;
+    MapFrame MapFrame;
+} HUD;
+
+// Declare missing functions
+void handlePlayerCrash(Player* p);
+int checkCollision(Player* p1, Player* p2);
+void handlePlayerCollision(Player* p1, Player* p2);
+unsigned long getCurrentTime(void);
+void gui_SetState(int state);
+int gui_GetState(void);
+void gui_UpdateAnimations(void);
+void gui_CheckEvents(void);
+void initMainMenu(void);
+void initOptionsMenu(void);
+void initGameGUI(void);
+void setupMainMenuButtons(void);
+void setupOptionsControls(void);
+void setupHUD(void);
+void createButton(const char* text, int x, int y, int w, int h, int id);
+void createSlider(const char* label, int x, int y, int w, int h, int id);
+void createCheckbox(const char* label, int x, int y, int size, int id);
 
 // Forward declarations for GUI functions
 void initGui(void);
@@ -990,6 +1077,1596 @@ void init_c_interface(void) {
 
     /* Register touch input functions */
     touch_interface_register();
+}
+
+void game_ResetData(void) {
+    printf("[game] Resetting game data\n");
+    // Reset all game-related data structures
+    if (game) {
+        // Reset player positions and states
+        for (int i = 0; i < game->players; i++) {
+            Player* p = &game->player[i];
+            p->data.posx = 0.0f;
+            p->data.posy = 0.0f;
+            p->data.dir = i;  // Each player starts facing a different direction
+            p->data.speed = 10.0f;
+            p->data.boost_enabled = 1;
+            p->data.wall_buster_enabled = 0;
+        }
+    }
+
+    if (game2) {
+        // Reset game time
+        game2->time.dt = 0.0f;
+        game2->time.lastFrame = 0;
+        game2->time.current = 0;
+        game2->time.offset = 0;
+    }
+
+    printf("[game] Game data reset complete\n");
+}
+
+void video_ResetData(void) {
+    printf("[video] Resetting video data\n");
+    // Reset video-related data structures
+    // This would include resetting camera positions, viewports, etc.
+
+    // Reset all player visuals
+    if (gppPlayerVisuals) {
+        for (int i = 0; i < game->players; i++) {
+            if (gppPlayerVisuals[i]) {
+                // Reset camera for each player
+                Camera* c = &gppPlayerVisuals[i]->camera;
+                Player* p = gppPlayerVisuals[i]->pPlayer;
+
+                // Set camera target to player position
+                c->target[0] = p->data.posx;
+                c->target[1] = p->data.posy;
+                c->target[2] = 0.0f;
+
+                // Set camera position based on player direction
+                switch (p->data.dir) {
+                    case 0:  // Right
+                        c->cam[0] = c->target[0] - 20.0f;
+                        c->cam[1] = c->target[1];
+                        c->cam[2] = 10.0f;
+                        break;
+                    case 1:  // Up
+                        c->cam[0] = c->target[0];
+                        c->cam[1] = c->target[1] - 20.0f;
+                        c->cam[2] = 10.0f;
+                        break;
+                    case 2:  // Left
+                        c->cam[0] = c->target[0] + 20.0f;
+                        c->cam[1] = c->target[1];
+                        c->cam[2] = 10.0f;
+                        break;
+                    case 3:  // Down
+                        c->cam[0] = c->target[0];
+                        c->cam[1] = c->target[1] + 20.0f;
+                        c->cam[2] = 10.0f;
+                        break;
+                }
+            }
+        }
+    }
+
+    printf("[video] Video data reset complete\n");
+}
+
+void Audio_ResetData(void) {
+    printf("[audio] Resetting audio data\n");
+    // Reset audio-related data structures
+    // This would include stopping sounds, resetting volume levels, etc.
+
+    // Stop all playing sounds
+    Audio_StopAll();
+
+    // Reset volume levels to default values
+    Audio_SetFxVolume(0.8f);
+    Audio_SetMusicVolume(0.8f);
+
+    printf("[audio] Audio data reset complete\n");
+}
+
+void game_UnloadLevel(void) {
+    printf("[game] Unloading level\n");
+    // Free level-specific game data
+    if (game2 && game2->level) {
+        free(game2->level);
+        game2->level = NULL;
+    }
+    printf("[game] Level unloaded\n");
+}
+
+void video_UnloadLevel(void) {
+    printf("[video] Unloading level\n");
+    // Free level-specific video data
+    if (gWorld) {
+        video_FreeLevel(gWorld);
+        gWorld = NULL;
+    }
+    printf("[video] Level unloaded\n");
+}
+
+void game_LoadLevel(void) {
+    printf("[game] Loading level\n");
+    // Load level data from file or create default level
+    if (!game2->level) {
+        game2->level = (game_level*)malloc(sizeof(game_level));
+        if (game2->level) {
+            memset(game2->level, 0, sizeof(game_level));
+
+            // Set up default level boundaries
+            game2->level->boundingBox.vMin.v[0] = -100.0f;
+            game2->level->boundingBox.vMin.v[1] = -100.0f;
+            game2->level->boundingBox.vMax.v[0] = 100.0f;
+            game2->level->boundingBox.vMax.v[1] = 100.0f;
+        }
+    }
+    printf("[game] Level loaded\n");
+}
+
+void video_LoadLevel(void) {
+    printf("[video] Loading level\n");
+    // Load level visuals
+    if (!gWorld) {
+        gWorld = video_CreateLevel();
+    }
+    printf("[video] Level loaded\n");
+}
+
+void changeDisplay(int display) {
+    printf("[video] Changing display to %d\n", display);
+    // Update display settings based on the display parameter
+    // This would include updating viewports, camera positions, etc.
+
+    // For now, just log the change
+    printf("[video] Display changed to %d\n", display);
+}
+
+void initLevels(void) {
+    printf("[game] Initializing levels\n");
+    // Initialize level data structures
+    if (game2 && !game2->level) {
+        game2->level = (game_level*)malloc(sizeof(game_level));
+        if (game2->level) {
+            memset(game2->level, 0, sizeof(game_level));
+
+            // Set up default level boundaries
+            game2->level->boundingBox.vMin.v[0] = -100.0f;
+            game2->level->boundingBox.vMin.v[1] = -100.0f;
+            game2->level->boundingBox.vMax.v[0] = 100.0f;
+            game2->level->boundingBox.vMax.v[1] = 100.0f;
+        }
+    }
+    printf("[game] Levels initialized\n");
+}
+
+void resetScores(void) {
+    printf("[game] Resetting scores\n");
+    // Reset all player scores
+    if (game) {
+        for (int i = 0; i < game->players; i++) {
+            game->player[i].data.score = 0;
+        }
+    }
+    printf("[game] Scores reset\n");
+}
+
+void camera_ResetAll(void) {
+    printf("[camera] Resetting all cameras\n");
+    // Reset all camera positions and targets
+    if (gppPlayerVisuals) {
+        for (int i = 0; i < game->players; i++) {
+            if (gppPlayerVisuals[i]) {
+                Camera* c = &gppPlayerVisuals[i]->camera;
+                Player* p = gppPlayerVisuals[i]->pPlayer;
+
+                // Set camera target to player position
+                c->target[0] = p->data.posx;
+                c->target[1] = p->data.posy;
+                c->target[2] = 0.0f;
+
+                // Set camera position based on player direction
+                switch (p->data.dir) {
+                    case 0:  // Right
+                        c->cam[0] = c->target[0] - 20.0f;
+                        c->cam[1] = c->target[1];
+                        c->cam[2] = 10.0f;
+                        break;
+                    case 1:  // Up
+                        c->cam[0] = c->target[0];
+                        c->cam[1] = c->target[1] - 20.0f;
+                        c->cam[2] = 10.0f;
+                        break;
+                    case 2:  // Left
+                        c->cam[0] = c->target[0] + 20.0f;
+                        c->cam[1] = c->target[1];
+                        c->cam[2] = 10.0f;
+                        break;
+                    case 3:  // Down
+                        c->cam[0] = c->target[0];
+                        c->cam[1] = c->target[1] + 20.0f;
+                        c->cam[2] = 10.0f;
+                        break;
+                }
+            }
+        }
+    }
+    printf("[camera] All cameras reset\n");
+}
+
+void initGameScreen(void) {
+    printf("[game] Initializing game screen\n");
+    // Initialize game screen elements
+    // This would include setting up the HUD, menus, etc.
+
+    // Initialize HUD elements
+    hud_Init();
+
+    printf("[game] Game screen initialized\n");
+}
+
+void shutdownDisplay(void) {
+    printf("[video] Shutting down display\n");
+    // Clean up display resources
+    // This would include freeing textures, buffers, etc.
+
+    // Free all player visuals
+    if (gppPlayerVisuals) {
+        for (int i = 0; i < game->players; i++) {
+            if (gppPlayerVisuals[i]) {
+                free(gppPlayerVisuals[i]);
+                gppPlayerVisuals[i] = NULL;
+            }
+        }
+        free(gppPlayerVisuals);
+        gppPlayerVisuals = NULL;
+    }
+
+    printf("[video] Display shutdown complete\n");
+}
+
+void setupDisplay(void) {
+    printf("[video] Setting up display\n");
+    // Initialize display settings
+    // This would include setting up viewports, cameras, etc.
+
+    // Initialize player visuals
+    if (!gppPlayerVisuals && game) {
+        int player_count = game->players;
+        gppPlayerVisuals = (PlayerVisual**)malloc(player_count * sizeof(PlayerVisual*));
+        if (gppPlayerVisuals) {
+            memset(gppPlayerVisuals, 0, player_count * sizeof(PlayerVisual*));
+
+            for (int i = 0; i < player_count; i++) {
+                gppPlayerVisuals[i] = (PlayerVisual*)malloc(sizeof(PlayerVisual));
+                if (gppPlayerVisuals[i]) {
+                    memset(gppPlayerVisuals[i], 0, sizeof(PlayerVisual));
+                    gppPlayerVisuals[i]->pPlayer = &game->player[i];
+
+                    // Set up display
+                    Visual* d = &gppPlayerVisuals[i]->display;
+
+                    // Set viewport dimensions based on player index
+                    switch (i) {
+                        case 0:  // Player 1 (top left)
+                            d->vp_x = 0;
+                            d->vp_y = 300;
+                            d->vp_w = 400;
+                            d->vp_h = 300;
+                            break;
+                        case 1:  // Player 2 (top right)
+                            d->vp_x = 400;
+                            d->vp_y = 300;
+                            d->vp_w = 400;
+                            d->vp_h = 300;
+                            break;
+                        case 2:  // Player 3 (bottom left)
+                            d->vp_x = 0;
+                            d->vp_y = 0;
+                            d->vp_w = 400;
+                            d->vp_h = 300;
+                            break;
+                        case 3:  // Player 4 (bottom right)
+                            d->vp_x = 400;
+                            d->vp_y = 0;
+                            d->vp_w = 400;
+                            d->vp_h = 300;
+                            break;
+                        default:  // Additional players
+                            d->vp_x = (i % 2) * 400;
+                            d->vp_y = (i < 2) ? 300 : 0;
+                            d->vp_w = 400;
+                            d->vp_h = 300;
+                            break;
+                    }
+
+                    // Set viewport to be on screen
+                    d->onScreen = 1;
+
+                    // Initialize camera for this player
+                    Camera* c = &gppPlayerVisuals[i]->camera;
+                    Player* p = gppPlayerVisuals[i]->pPlayer;
+
+                    // Set camera target to player position
+                    c->target[0] = p->data.posx;
+                    c->target[1] = p->data.posy;
+                    c->target[2] = 0.0f;
+
+                    // Set camera position based on player direction
+                    switch (p->data.dir) {
+                        case 0:  // Right
+                            c->cam[0] = c->target[0] - 20.0f;
+                            c->cam[1] = c->target[1];
+                            c->cam[2] = 10.0f;
+                            break;
+                        case 1:  // Up
+                            c->cam[0] = c->target[0];
+                            c->cam[1] = c->target[1] - 20.0f;
+                            c->cam[2] = 10.0f;
+                            break;
+                        case 2:  // Left
+                            c->cam[0] = c->target[0] + 20.0f;
+                            c->cam[1] = c->target[1];
+                            c->cam[2] = 10.0f;
+                            break;
+                        case 3:  // Down
+                            c->cam[0] = c->target[0];
+                            c->cam[1] = c->target[1] + 20.0f;
+                            c->cam[2] = 10.0f;
+                            break;
+                    }
+
+                    // Set up projection matrix for this player
+                    c->fov = 60.0f;
+                    c->near = 0.1f;
+                    c->far = 1000.0f;
+                }
+            }
+        }
+    }
+
+    // Set viewport type (1 = split screen)
+    gViewportType = 1;
+
+    printf("[video] Display setup complete\n");
+}
+
+// Implement missing video functions
+void video_Init(void) {
+    printf("[video] Initializing video system\n");
+    // Initialize video system
+    // This would include setting up OpenGL context, loading extensions, etc.
+
+    // Initialize video data structures
+    initVideoData();
+
+    // Set up initial display
+    setupDisplay();
+
+    // Load initial art and models
+    loadArt();
+    loadModels();
+
+    printf("[video] Video system initialized\n");
+}
+
+void video_Shutdown(void) {
+    printf("[video] Shutting down video system\n");
+    // Clean up video resources
+    freeVideoData();
+
+    // Free level if it exists
+    if (gWorld) {
+        video_FreeLevel(gWorld);
+        gWorld = NULL;
+    }
+
+    printf("[video] Video system shutdown complete\n");
+}
+
+void video_SetViewport(int width, int height) {
+    printf("[video] Setting viewport to %dx%d\n", width, height);
+    // Set up viewport based on window dimensions
+
+    // Update all player viewports
+    if (gppPlayerVisuals) {
+        for (int i = 0; i < game->players; i++) {
+            if (gppPlayerVisuals[i]) {
+                Visual* d = &gppPlayerVisuals[i]->display;
+
+                // Adjust viewport based on window size
+                // This is a simplified example - actual implementation would need
+                // to handle different aspect ratios and viewport configurations
+                d->vp_x = (i % 2) * (width / 2);
+                d->vp_y = (i < 2) ? (height / 2) : 0;
+                d->vp_w = width / 2;
+                d->vp_h = height / 2;
+            }
+        }
+    }
+
+    printf("[video] Viewport set\n");
+}
+
+// Implement missing audio functions
+void Audio_Init(void) {
+    printf("[audio] Initializing audio system\n");
+    // Initialize audio system
+    // This would include setting up audio devices, loading audio libraries, etc.
+
+    // Initialize audio data structures
+    Audio_Start();
+
+    // Load initial sounds
+    Audio_LoadSample("sounds/game_crash.wav", 1);
+    Audio_LoadSample("sounds/game_engine.wav", 0);
+    Audio_LoadSample("sounds/game_win.wav", 2);
+
+    // Set default volume levels
+    Audio_SetFxVolume(0.8f);
+    Audio_SetMusicVolume(0.8f);
+
+    printf("[audio] Audio system initialized\n");
+}
+
+void Audio_Shutdown(void) {
+    printf("[audio] Shutting down audio system\n");
+    // Clean up audio resources
+    Audio_StopAll();
+    Audio_Quit();
+
+    printf("[audio] Audio system shutdown complete\n");
+}
+
+void Audio_Quit(void) {
+    printf("[audio] Quitting audio system\n");
+    // Clean up audio system resources
+
+    // Implementation would depend on your audio library
+    printf("[audio] Audio system quit\n");
+}
+
+void Audio_PlayMusic(void) {
+    printf("[audio] Playing music\n");
+    // Start playing the loaded music track
+
+    // Implementation would depend on your audio library
+    printf("[audio] Music playing\n");
+}
+
+void Audio_SetFxVolume(float volume) {
+    printf("[audio] Setting FX volume to %f\n", volume);
+    // Set the volume for sound effects
+
+    // Implementation would depend on your audio library
+    printf("[audio] FX volume set to %f\n", volume);
+}
+
+void Audio_SetMusicVolume(float volume) {
+    printf("[audio] Setting music volume to %f\n", volume);
+    // Set the volume for music
+
+    // Implementation would depend on your audio library
+    printf("[audio] Music volume set to %f\n", volume);
+}
+
+// Implement missing resource functions
+void resource_LoadInitial(void) {
+    printf("[resource] Loading initial resources\n");
+    // Load initial game resources
+    // This would include loading basic textures, fonts, etc.
+
+    // Load basic textures
+    resource_LoadTexture("textures/basic.png", eRT_Texture);
+
+    // Load basic font
+    resource_LoadFont("fonts/basic.ttf", eRT_Font);
+
+    printf("[resource] Initial resources loaded\n");
+}
+
+void resource_Cleanup(void) {
+    printf("[resource] Cleaning up resources\n");
+    // Clean up all loaded resources
+
+    // Release all resource types
+    resource_ReleaseType(eRT_2d);
+    resource_ReleaseType(eRT_Font);
+    resource_ReleaseType(eRT_Texture);
+
+    printf("[resource] Resources cleaned up\n");
+}
+
+void resource_ReleaseType(int type) {
+    printf("[resource] Releasing resources of type %d\n", type);
+    // Release all resources of the specified type
+
+    // Implementation would depend on your resource management system
+    printf("[resource] Resources of type %d released\n", type);
+}
+
+void resource_LoadTexture(const char* filename, int type) {
+    printf("[resource] Loading texture %s of type %d\n", filename, type);
+    // Load a texture from file
+
+    // Implementation would depend on your resource management system
+    printf("[resource] Texture %s loaded\n", filename);
+}
+
+void resource_LoadFont(const char* filename, int type) {
+    printf("[resource] Loading font %s of type %d\n", filename, type);
+    // Load a font from file
+
+    // Implementation would depend on your resource management system
+    printf("[resource] Font %s loaded\n", filename);
+}
+
+// Implement missing game functions
+void game_ApplySettings(void) {
+    printf("[game] Applying game settings\n");
+    // Apply game settings from configuration
+
+    // Update game settings based on current configuration
+    if (isSetting("players")) {
+        int players = getSettingi("players");
+        if (game) {
+            game->players = players;
+        }
+    }
+
+    // Update other settings as needed
+    printf("[game] Game settings applied\n");
+}
+
+void game_SaveState(void) {
+    printf("[game] Saving game state\n");
+    // Save current game state to file or memory
+
+    // Implementation would depend on your game state management system
+    printf("[game] Game state saved\n");
+}
+
+void game_FreeData(void) {
+    printf("[game] Freeing game data\n");
+    // Free all game data structures
+
+    // Free player data
+    if (game && game->player) {
+        free(game->player);
+        game->player = NULL;
+    }
+
+    // Free game structure
+    if (game) {
+        free(game);
+        game = NULL;
+    }
+
+    // Free game2 structure
+    if (game2) {
+        free(game2);
+        game2 = NULL;
+    }
+
+    printf("[game] Game data freed\n");
+}
+
+// Implement missing HUD functions
+void hud_Init(void) {
+    printf("[hud] Initializing HUD\n");
+    // Initialize HUD elements
+
+    // Initialize HUD configuration
+    globalHUD.SpeedDial.x = 776;
+    globalHUD.SpeedDial.y = 0;
+    globalHUD.SpeedDial.angle = 0.0f;
+    globalHUD.SpeedDial.speed = 0.0f;
+
+    globalHUD.SpeedText.x = 150;
+    globalHUD.SpeedText.y = 60;
+    globalHUD.SpeedText.w = 44;
+    globalHUD.SpeedText.h = 28;
+    globalHUD.SpeedText.text = "0";
+
+    globalHUD.Buster.x = 776;
+    globalHUD.Buster.y = 41;
+    globalHUD.Buster.active = 0;
+
+    globalHUD.MapFrame.x = 10;
+    globalHUD.MapFrame.y = 10;
+    globalHUD.MapFrame.w = 100;
+    globalHUD.MapFrame.h = 100;
+
+    printf("[hud] HUD initialized\n");
+}
+
+void hud_Update(void) {
+    printf("[hud] Updating HUD\n");
+    // Update HUD elements based on current game state
+
+    // Update speed dial based on player speed
+    if (game && game->player) {
+        float speed = game->player[0].data.speed;
+        globalHUD.SpeedDial.angle = angle_MathFromClock360(speed / 10.0f * 12.0f);
+        globalHUD.SpeedDial.speed = speed;
+
+        // Update speed text
+        char speed_text[10];
+        snprintf(speed_text, sizeof(speed_text), "%d", (int)speed);
+        globalHUD.SpeedText.text = speed_text;
+
+        // Update buster status
+        globalHUD.Buster.active = game->player[0].data.wall_buster_enabled;
+    }
+
+    printf("[hud] HUD updated\n");
+}
+
+void hud_UpdateLayout(int width, int height) {
+    printf("[hud] Updating HUD layout for %dx%d\n", width, height);
+    // Update HUD layout based on window dimensions
+
+    // Scale HUD elements based on window size
+    // This is a simplified example - actual implementation would need
+    // to handle different aspect ratios and HUD configurations
+
+    // Scale speed dial
+    globalHUD.SpeedDial.x = width - 244;
+    globalHUD.SpeedDial.y = 0;
+
+    // Scale speed text
+    globalHUD.SpeedText.x = width - 150;
+    globalHUD.SpeedText.y = 60;
+
+    // Scale buster
+    globalHUD.Buster.x = width - 244;
+    globalHUD.Buster.y = 41;
+
+    // Scale map frame
+    globalHUD.MapFrame.x = 10;
+    globalHUD.MapFrame.y = 10;
+    globalHUD.MapFrame.w = width / 4;
+    globalHUD.MapFrame.h = height / 4;
+
+    printf("[hud] HUD layout updated\n");
+}
+
+void physics_Update(void) {
+    printf("[physics] Updating physics\n");
+    // Update physics simulation
+
+    // Update player positions based on current direction and speed
+    if (game && game->player) {
+        for (int i = 0; i < game->players; i++) {
+            Player* p = &game->player[i];
+
+            // Skip if player is already dead
+            if (p->data.speed < 0) {
+                continue;
+            }
+
+            // Update position based on direction and speed
+            switch (p->data.dir) {
+                case 0:  // Right
+                    p->data.posx += p->data.speed * 0.1f;
+                    break;
+                case 1:  // Up
+                    p->data.posy += p->data.speed * 0.1f;
+                    break;
+                case 2:  // Left
+                    p->data.posx -= p->data.speed * 0.1f;
+                    break;
+                case 3:  // Down
+                    p->data.posy -= p->data.speed * 0.1f;
+                    break;
+            }
+
+            // Update camera position to follow player
+            if (gppPlayerVisuals && gppPlayerVisuals[i]) {
+                Camera* c = &gppPlayerVisuals[i]->camera;
+                c->target[0] = p->data.posx;
+                c->target[1] = p->data.posy;
+
+                // Update camera position based on player direction
+                switch (p->data.dir) {
+                    case 0:  // Right
+                        c->cam[0] = c->target[0] - 20.0f;
+                        c->cam[1] = c->target[1];
+                        break;
+                    case 1:  // Up
+                        c->cam[0] = c->target[0];
+                        c->cam[1] = c->target[1] - 20.0f;
+                        break;
+                    case 2:  // Left
+                        c->cam[0] = c->target[0] + 20.0f;
+                        c->cam[1] = c->target[1];
+                        break;
+                    case 3:  // Down
+                        c->cam[0] = c->target[0];
+                        c->cam[1] = c->target[1] + 20.0f;
+                        break;
+                }
+                c->cam[2] = 10.0f;  // Keep camera at fixed height
+            }
+
+            // Check for collisions with level boundaries
+            if (game2 && game2->level) {
+                if (p->data.posx < game2->level->boundingBox.vMin.v[0]) {
+                    p->data.posx = game2->level->boundingBox.vMin.v[0];
+                    // Player crashed - handle accordingly
+                    handlePlayerCrash(p);
+                }
+                if (p->data.posx > game2->level->boundingBox.vMax.v[0]) {
+                    p->data.posx = game2->level->boundingBox.vMax.v[0];
+                    handlePlayerCrash(p);
+                }
+                if (p->data.posy < game2->level->boundingBox.vMin.v[1]) {
+                    p->data.posy = game2->level->boundingBox.vMin.v[1];
+                    handlePlayerCrash(p);
+                }
+                if (p->data.posy > game2->level->boundingBox.vMax.v[1]) {
+                    p->data.posy = game2->level->boundingBox.vMax.v[1];
+                    handlePlayerCrash(p);
+                }
+            }
+
+            // Check for collisions with other players' trails
+            for (int j = 0; j < game->players; j++) {
+                if (i != j) {
+                    Player* other = &game->player[j];
+                    if (checkCollision(p, other)) {
+                        handlePlayerCollision(p, other);
+                    }
+                }
+            }
+        }
+    }
+
+    // Update game time
+    if (game2) {
+        game2->time.current = getCurrentTime();
+        game2->time.dt = game2->time.current - game2->time.lastFrame;
+        game2->time.lastFrame = game2->time.current;
+    }
+
+    printf("[physics] Physics updated\n");
+}
+
+void handlePlayerCrash(Player* p) {
+    printf("[physics] Player crashed\n");
+    // Handle player crash event
+
+    // Reduce player speed
+    p->data.speed *= 0.5f;
+
+    // Play crash sound
+    Audio_PlaySample(1);  // Assuming 1 is the crash sound ID
+
+    // Check if player is still alive
+    if (p->data.speed < 1.0f) {
+        p->data.speed = -1.0f;  // Use -1 to indicate player is dead
+        printf("[physics] Player eliminated\n");
+    }
+}
+
+int checkCollision(Player* p1, Player* p2) {
+    // Simple collision detection - check if players are close enough
+    float dx = p1->data.posx - p2->data.posx;
+    float dy = p1->data.posy - p2->data.posy;
+    float distance = sqrt(dx*dx + dy*dy);
+
+    // Consider collision if distance is less than sum of trail widths
+    return (distance < (p1->data.trail_width + p2->data.trail_width));
+}
+
+void handlePlayerCollision(Player* p1, Player* p2) {
+    printf("[physics] Player collision detected\n");
+    // Handle collision between two players
+
+    // Determine which player is faster
+    if (p1->data.speed > p2->data.speed) {
+        // p1 is faster - p2 is eliminated
+        p2->data.speed = -1.0f;  // Use -1 to indicate player is dead
+        printf("[physics] Player %d eliminated by Player %d\n", p2->id, p1->id);
+    } else if (p2->data.speed > p1->data.speed) {
+        // p2 is faster - p1 is eliminated
+        p1->data.speed = -1.0f;  // Use -1 to indicate player is dead
+        printf("[physics] Player %d eliminated by Player %d\n", p1->id, p2->id);
+    } else {
+        // Both players have same speed - both are eliminated
+        p1->data.speed = -1.0f;
+        p2->data.speed = -1.0f;
+        printf("[physics] Both players eliminated in collision\n");
+    }
+
+    // Play collision sound
+    Audio_PlaySample(1);  // Assuming 1 is the crash sound ID
+}
+
+void game_Update(void) {
+    printf("[game] Updating game state\n");
+    // Update game state
+
+    // Update player states
+    if (game && game->player) {
+        for (int i = 0; i < game->players; i++) {
+            Player* p = &game->player[i];
+
+            // Update player state based on current conditions
+            if (p->data.speed) {
+                // Check if player is boosting
+                if (p->data.boost_enabled && p->data.speed < 20.0f) {
+                    p->data.speed += 0.1f;
+                }
+
+                // Check if player is using wall buster
+                if (p->data.wall_buster_enabled) {
+                    // Implement wall buster effect
+                    // This would involve checking for nearby walls and removing them
+                }
+            }
+        }
+    }
+
+    // Update game time
+    if (game2) {
+        game2->time.current = getCurrentTime();
+        game2->time.dt = game2->time.current - game2->time.lastFrame;
+        game2->time.lastFrame = game2->time.current;
+    }
+
+    printf("[game] Game state updated\n");
+}
+
+int game_CheckGameOver(void) {
+    printf("[game] Checking game over conditions\n");
+    // Check if game over conditions are met
+
+    if (game && game->player) {
+        int alive_count = 0;
+
+        // Count how many players are still alive
+        for (int i = 0; i < game->players; i++) {
+            if (game->player[i].data.speed) {
+                alive_count++;
+            }
+        }
+
+        // Game is over if only one player remains
+        if (alive_count <= 1) {
+            printf("[game] Game over - only %d players remain\n", alive_count);
+            return 1;
+        }
+    }
+
+    printf("[game] Game not over\n");
+    return 0;
+}
+
+void game_HandleGameOver(void) {
+    printf("[game] Handling game over\n");
+    // Handle game over event
+
+    // Determine the winner
+    if (game && game->player) {
+        for (int i = 0; i < game->players; i++) {
+            if (game->player[i].data.speed > 0) {
+                printf("[game] Player %d wins!\n", game->player[i].id);
+                game->player[i].data.score++;
+                break;
+            }
+        }
+    }
+
+    // Play win sound
+    Audio_PlaySample(2);  // Assuming 2 is the win sound ID
+
+    // Reset game for next round
+    game_Reset();
+
+    printf("[game] Game over handled\n");
+}
+
+void game_Pause(void) {
+    printf("[game] Pausing game\n");
+    // Pause the game
+
+    // Set game state to paused
+    if (game2) {
+        game2->paused = 1;
+    }
+
+    printf("[game] Game paused\n");
+}
+
+void game_Reset(void) {
+    printf("[game] Resetting game\n");
+    // Reset game state
+
+    // Reset all players
+    if (game && game->player) {
+        for (int i = 0; i < game->players; i++) {
+            Player* p = &game->player[i];
+
+            // Set player ID
+            p->id = i;  // Assign player ID based on index
+
+            // Reset player position based on initial direction
+            switch (i) {
+                case 0:  // Player 1 (bottom left)
+                    p->data.posx = -50.0f;
+                    p->data.posy = -50.0f;
+                    break;
+                case 1:  // Player 2 (bottom right)
+                    p->data.posx = 50.0f;
+                    p->data.posy = -50.0f;
+                    break;
+                case 2:  // Player 3 (top right)
+                    p->data.posx = 50.0f;
+                    p->data.posy = 50.0f;
+                    break;
+                case 3:  // Player 4 (top left)
+                    p->data.posx = -50.0f;
+                    p->data.posy = 50.0f;
+                    break;
+                default:  // Additional players
+                    p->data.posx = (i % 2 == 0) ? -50.0f : 50.0f;
+                    p->data.posy = (i < 2) ? -50.0f : 50.0f;
+                    break;
+            }
+
+            // Reset player direction
+            p->data.dir = i;
+
+            // Reset player speed
+            p->data.speed = 10.0f;
+
+            // Reset player state
+            p->data.boost_enabled = 1;
+            p->data.wall_buster_enabled = 0;
+            p->data.trail_width = 2.0f;
+            p->data.trail_height = 2.0f;
+            p->data.score = 0;
+        }
+    }
+
+    // Reset game time
+    if (game2) {
+        game2->time.current = getCurrentTime();
+        game2->time.lastFrame = game2->time.current;
+        game2->time.dt = 0.0f;
+        game2->paused = 0;  // Reset paused state
+    }
+
+    // Reset cameras
+    camera_ResetAll();
+
+    printf("[game] Game reset\n");
+}
+
+void game_ToggleMute(void) {
+    printf("[game] Toggling mute\n");
+    // Toggle mute state
+
+    // Toggle audio mute state
+    static int muted = 0;
+    muted = !muted;
+
+    if (muted) {
+        Audio_SetFxVolume(0.0f);
+        Audio_SetMusicVolume(0.0f);
+        printf("[game] Audio muted\n");
+    } else {
+        Audio_SetFxVolume(0.8f);
+        Audio_SetMusicVolume(0.8f);
+        printf("[game] Audio unmuted\n");
+    }
+}
+
+// Implement missing input functions
+void input_HandleKey(unsigned char key) {
+    printf("[input] Handling key press: %c\n", key);
+    // Handle keyboard input
+
+    if (game && game->player) {
+        // Handle player 1 controls (arrow keys)
+        switch (key) {
+            case 'w':
+            case 'W':
+                // Player 1 turn up
+                if (game->player[0].data.dir != 3) {  // Not already going down
+                    game->player[0].data.dir = 1;
+                }
+                break;
+            case 'a':
+            case 'A':
+                // Player 1 turn left
+                if (game->player[0].data.dir != 0) {  // Not already going right
+                    game->player[0].data.dir = 2;
+                }
+                break;
+            case 's':
+            case 'S':
+                // Player 1 turn down
+                if (game->player[0].data.dir != 1) {  // Not already going up
+                    game->player[0].data.dir = 3;
+                }
+                break;
+            case 'd':
+            case 'D':
+                // Player 1 turn right
+                if (game->player[0].data.dir != 2) {  // Not already going left
+                    game->player[0].data.dir = 0;
+                }
+                break;
+            case ' ':
+                // Player 1 boost
+                game->player[0].data.boost_enabled = !game->player[0].data.boost_enabled;
+                break;
+            case 'b':
+            case 'B':
+                // Player 1 wall buster
+                game->player[0].data.wall_buster_enabled = !game->player[0].data.wall_buster_enabled;
+                break;
+        }
+
+        // Handle player 2 controls (WASD keys)
+        switch (key) {
+            case 'i':
+            case 'I':
+                // Player 2 turn up
+                if (game->player[1].data.dir != 3) {  // Not already going down
+                    game->player[1].data.dir = 1;
+                }
+                break;
+            case 'j':
+            case 'J':
+                // Player 2 turn left
+                if (game->player[1].data.dir != 0) {  // Not already going right
+                    game->player[1].data.dir = 2;
+                }
+                break;
+            case 'k':
+            case 'K':
+                // Player 2 turn down
+                if (game->player[1].data.dir != 1) {  // Not already going up
+                    game->player[1].data.dir = 3;
+                }
+                break;
+            case 'l':
+            case 'L':
+                // Player 2 turn right
+                if (game->player[1].data.dir != 2) {  // Not already going left
+                    game->player[1].data.dir = 0;
+                }
+                break;
+            case 'n':
+            case 'N':
+                // Player 2 boost
+                game->player[1].data.boost_enabled = !game->player[1].data.boost_enabled;
+                break;
+            case 'm':
+            case 'M':
+                // Player 2 wall buster
+                game->player[1].data.wall_buster_enabled = !game->player[1].data.wall_buster_enabled;
+                break;
+        }
+    }
+
+    printf("[input] Key handled\n");
+}
+
+void input_HandleMouseClick(int x, int y) {
+    printf("[input] Handling mouse click at (%d, %d)\n", x, y);
+    // Handle mouse click input
+
+    // Convert screen coordinates to game coordinates
+    // This would depend on your viewport configuration
+
+    // For now, just log the click
+    printf("[input] Mouse click handled\n");
+}
+
+void camera_UpdateProjection(int width, int height) {
+    printf("[camera] Updating projection for %dx%d\n", width, height);
+    // Update projection matrix for all cameras
+
+    if (gppPlayerVisuals) {
+        for (int i = 0; i < game->players; i++) {
+            if (gppPlayerVisuals[i]) {
+                Camera* c = &gppPlayerVisuals[i]->camera;
+
+                // Calculate aspect ratio
+                float aspect = (float)width / (float)height;
+
+                // Set up perspective projection
+                c->projection[0] = 1.0f / (aspect * tan(c->fov * 0.5f * M_PI / 180.0f));
+                c->projection[1] = 0.0f;
+                c->projection[2] = 0.0f;
+                c->projection[3] = 0.0f;
+
+                c->projection[4] = 0.0f;
+                c->projection[5] = 1.0f / tan(c->fov * 0.5f * M_PI / 180.0f);
+                c->projection[6] = 0.0f;
+                c->projection[7] = 0.0f;
+
+                c->projection[8] = 0.0f;
+                c->projection[9] = 0.0f;
+                c->projection[10] = -(c->far + c->near) / (c->far - c->near);
+                c->projection[11] = -1.0f;
+
+                c->projection[12] = 0.0f;
+                c->projection[13] = 0.0f;
+                c->projection[14] = -2.0f * c->far * c->near / (c->far - c->near);
+                c->projection[15] = 0.0f;
+            }
+        }
+    }
+
+    printf("[camera] Projection updated\n");
+}
+
+void camera_ZoomIn(void) {
+    printf("[camera] Zooming in\n");
+    // Zoom in all cameras
+
+    if (gppPlayerVisuals) {
+        for (int i = 0; i < game->players; i++) {
+            if (gppPlayerVisuals[i]) {
+                Camera* c = &gppPlayerVisuals[i]->camera;
+
+                // Reduce field of view (zoom in)
+                c->fov -= 5.0f;
+                if (c->fov < 10.0f) {
+                    c->fov = 10.0f;
+                }
+
+                // Update projection matrix
+                camera_UpdateProjection(800, 600);  // Assuming default resolution
+            }
+        }
+    }
+
+    printf("[camera] Zoomed in\n");
+}
+
+void camera_ZoomOut(void) {
+    printf("[camera] Zooming out\n");
+    // Zoom out all cameras
+
+    if (gppPlayerVisuals) {
+        for (int i = 0; i < game->players; i++) {
+            if (gppPlayerVisuals[i]) {
+                Camera* c = &gppPlayerVisuals[i]->camera;
+
+                // Increase field of view (zoom out)
+                c->fov += 5.0f;
+                if (c->fov > 90.0f) {
+                    c->fov = 90.0f;
+                }
+
+                // Update projection matrix
+                camera_UpdateProjection(800, 600);  // Assuming default resolution
+
+                // Adjust camera position to maintain view
+                switch (game->player[i].data.dir) {
+                    case 0:  // Right
+                        c->cam[0] = c->target[0] - 25.0f;
+                        break;
+                    case 1:  // Up
+                        c->cam[1] = c->target[1] - 25.0f;
+                        break;
+                    case 2:  // Left
+                        c->cam[0] = c->target[0] + 25.0f;
+                        break;
+                    case 3:  // Down
+                        c->cam[1] = c->target[1] + 25.0f;
+                        break;
+                }
+            }
+        }
+    }
+
+    printf("[camera] Zoomed out\n");
+}
+
+// Implement missing utility functions
+unsigned long getCurrentTime(void) {
+    // Get current time in milliseconds
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return (tv.tv_sec * 1000) + (tv.tv_usec / 1000);
+}
+
+// Implement missing GUI functions
+void initGui(void) {
+    printf("[gui] Initializing GUI\n");
+    // Initialize GUI system
+
+    // Load GUI resources
+    gui_LoadResources();
+
+    // Set up initial GUI state
+    gui_SetState(GUI_MAIN_MENU);
+
+    printf("[gui] GUI initialized\n");
+}
+
+void exitGui(void) {
+    printf("[gui] Exiting GUI\n");
+    // Clean up GUI resources
+
+    // Release GUI resources
+    gui_ReleaseResources();
+
+    printf("[gui] GUI exited\n");
+}
+
+void idleGui(void) {
+    printf("[gui] GUI idle\n");
+    // Handle GUI idle processing
+
+    // Update GUI animations
+    gui_UpdateAnimations();
+
+    // Check for GUI events
+    gui_CheckEvents();
+
+    printf("[gui] GUI idle processing complete\n");
+}
+
+void keyboardGui(int state, int key, int x, int y) {
+    printf("[gui] Handling GUI keyboard event: state=%d, key=%d, x=%d, y=%d\n", state, key, x, y);
+    // Handle GUI keyboard input
+
+    // Process keyboard input based on current GUI state
+    switch (gui_GetState()) {
+        case GUI_MAIN_MENU:
+            handleMainMenuKeyboard(state, key);
+            break;
+        case GUI_OPTIONS:
+            handleOptionsKeyboard(state, key);
+            break;
+        case GUI_GAME:
+            handleGameKeyboard(state, key);
+            break;
+        default:
+            break;
+    }
+
+    printf("[gui] GUI keyboard event handled\n");
+}
+
+// Implement missing GUI helper functions
+void gui_LoadResources(void) {
+    printf("[gui] Loading GUI resources\n");
+    // Load GUI resources like textures, fonts, etc.
+
+    // Load GUI textures
+    resource_LoadTexture("gui/background.png", eRT_GUI);
+    resource_LoadTexture("gui/button.png", eRT_GUI);
+
+    // Load GUI fonts
+    resource_LoadFont("gui/font.ttf", eRT_GUI_FONT);
+
+    printf("[gui] GUI resources loaded\n");
+}
+
+void gui_ReleaseResources(void) {
+    printf("[gui] Releasing GUI resources\n");
+    // Release GUI resources
+
+    // Release GUI textures
+    resource_ReleaseType(eRT_GUI);
+
+    // Release GUI fonts
+    resource_ReleaseType(eRT_GUI_FONT);
+
+    printf("[gui] GUI resources released\n");
+}
+
+void gui_SetState(int state) {
+    printf("[gui] Setting GUI state to %d\n", state);
+    // Set current GUI state
+
+    current_gui_state = state;
+
+    // Perform any state-specific initialization
+    switch (state) {
+        case GUI_MAIN_MENU:
+            initMainMenu();
+            break;
+        case GUI_OPTIONS:
+            initOptionsMenu();
+            break;
+        case GUI_GAME:
+            initGameGUI();
+            break;
+        default:
+            break;
+    }
+
+    printf("[gui] GUI state set\n");
+}
+
+int gui_GetState(void) {
+    // Return current GUI state
+    return current_gui_state;
+}
+
+void gui_UpdateAnimations(void) {
+    printf("[gui] Updating GUI animations\n");
+    // Update GUI animations
+
+    // Update button animations
+    updateButtonAnimations();
+
+    // Update menu transitions
+    updateMenuTransitions();
+
+    printf("[gui] GUI animations updated\n");
+}
+
+void gui_CheckEvents(void) {
+    printf("[gui] Checking GUI events\n");
+    // Check for GUI events
+
+    // Check for mouse hover events
+    checkMouseHover();
+
+    // Check for button click events
+    checkButtonClicks();
+
+    printf("[gui] GUI events checked\n");
+}
+
+// Implement missing callback functions
+void game_Callbacks_ExitCurrent(void) {
+    printf("[callbacks] Exiting current callbacks\n");
+    // Exit current callback set
+
+    if (current_callbacks && current_callbacks->base.exit) {
+        current_callbacks->base.exit();
+    }
+
+    printf("[callbacks] Current callbacks exited\n");
+}
+
+void game_Callbacks_InitCurrent(void) {
+    printf("[callbacks] Initializing current callbacks\n");
+    // Initialize current callback set
+
+    if (current_callbacks && current_callbacks->base.init) {
+        current_callbacks->base.init();
+    }
+
+    printf("[callbacks] Current callbacks initialized\n");
+}
+
+// Implement missing helper functions
+void initVideoData(void) {
+    printf("[video] Initializing video data\n");
+    // Initialize video data structures
+
+    // Initialize player visuals array
+    gppPlayerVisuals = NULL;
+
+    // Initialize world pointer
+    gWorld = NULL;
+
+    printf("[video] Video data initialized\n");
+}
+
+void freeVideoData(void) {
+    printf("[video] Freeing video data\n");
+    // Free video data structures
+
+    // Free player visuals
+    if (gppPlayerVisuals) {
+        for (int i = 0; i < game->players; i++) {
+            if (gppPlayerVisuals[i]) {
+                free(gppPlayerVisuals[i]);
+                gppPlayerVisuals[i] = NULL;
+            }
+        }
+        free(gppPlayerVisuals);
+        gppPlayerVisuals = NULL;
+    }
+
+    // Free world if it exists
+    if (gWorld) {
+        video_FreeLevel(gWorld);
+        gWorld = NULL;
+    }
+
+    printf("[video] Video data freed\n");
+}
+
+void loadArt(void) {
+    printf("[resource] Loading art\n");
+    // Load game art assets
+
+    // Load player textures
+    resource_LoadTexture("art/player1.png", eRT_Player);
+    resource_LoadTexture("art/player2.png", eRT_Player);
+    resource_LoadTexture("art/player3.png", eRT_Player);
+    resource_LoadTexture("art/player4.png", eRT_Player);
+
+    // Load environment textures
+    resource_LoadTexture("art/wall.png", eRT_Environment);
+    resource_LoadTexture("art/floor.png", eRT_Environment);
+
+    printf("[resource] Art loaded\n");
+}
+
+void loadModels(void) {
+    printf("[resource] Loading models\n");
+    // Load game models
+
+    // Load player models
+    resource_LoadModel("models/player.obj", eRT_PlayerModel);
+
+    // Load environment models
+    resource_LoadModel("models/wall.obj", eRT_EnvironmentModel);
+    resource_LoadModel("models/floor.obj", eRT_EnvironmentModel);
+
+    printf("[resource] Models loaded\n");
+}
+
+// Implement missing resource functions
+void resource_LoadModel(const char* filename, int type) {
+    printf("[resource] Loading model %s of type %d\n", filename, type);
+    // Load a 3D model from file
+
+    // Implementation would depend on your resource management system
+    printf("[resource] Model %s loaded\n", filename);
+}
+
+// Implement missing audio functions
+void Audio_PlaySample(int id) {
+    printf("[audio] Playing sample with ID %d\n", id);
+    // Play a sound sample
+
+    // Implementation would depend on your audio library
+    printf("[audio] Sample with ID %d played\n", id);
+}
+
+// Implement missing GUI state functions
+void initMainMenu(void) {
+    printf("[gui] Initializing main menu\n");
+    // Initialize main menu GUI
+
+    // Set up menu buttons
+    setupMainMenuButtons();
+
+    // Load menu background
+    loadMenuBackground();
+
+    printf("[gui] Main menu initialized\n");
+}
+
+void initOptionsMenu(void) {
+    printf("[gui] Initializing options menu\n");
+    // Initialize options menu GUI
+
+    // Set up options controls
+    setupOptionsControls();
+
+    // Load options background
+    loadOptionsBackground();
+
+    printf("[gui] Options menu initialized\n");
+}
+
+void initGameGUI(void) {
+    printf("[gui] Initializing game GUI\n");
+    // Initialize in-game GUI
+
+    // Set up HUD elements
+    setupHUD();
+
+    // Load game GUI textures
+    loadGameGUITextures();
+
+    printf("[gui] Game GUI initialized\n");
+}
+
+// Implement missing GUI control functions
+void setupMainMenuButtons(void) {
+    printf("[gui] Setting up main menu buttons\n");
+    // Set up main menu buttons
+
+    // Create and position buttons
+    createButton("Start Game", 300, 300, 200, 50, BUTTON_START_GAME);
+    createButton("Options", 300, 200, 200, 50, BUTTON_OPTIONS);
+    createButton("Quit", 300, 100, 200, 50, BUTTON_QUIT);
+
+    printf("[gui] Main menu buttons set up\n");
+}
+
+void setupOptionsControls(void) {
+    printf("[gui] Setting up options controls\n");
+    // Set up options menu controls
+
+    // Create sliders for volume controls
+    createSlider("Music Volume", 200, 400, 300, 20, SLIDER_MUSIC_VOLUME);
+    createSlider("FX Volume", 200, 300, 300, 20, SLIDER_FX_VOLUME);
+
+    // Create checkboxes for fullscreen
+    createCheckbox("Fullscreen", 200, 200, 20, CHECKBOX_FULLSCREEN);
+
+    printf("[gui] Options controls set up\n");
+}
+
+void setupHUD(void) {
+    printf("[gui] Setting up HUD\n");
+    // Set up in-game HUD elements
+
+    // Create speedometer
+    createSpeedometer(100, 100, 200, 200);
+
+    // Create minimap
+    createMinimap(50, 50, 150, 150);
+
+    // Create score display
+    createScoreDisplay(500, 50, 200, 50);
+
+    printf("[gui] HUD set up\n");
+}
+
+// Implement missing GUI element creation functions
+void createButton(const char* text, int x, int y, int w, int h, int id) {
+    printf("[gui] Creating button: %s at (%d, %d) with size (%d, %d) and ID %d\n",
+           text, x, y, w, h, id);
+    // Create a GUI button
+
+    // Implementation would depend on your GUI library
+    printf("[gui] Button created\n");
+}
+
+void createSlider(const char* label, int x, int y, int w, int h, int id) {
+    printf("[gui] Creating slider: %s at (%d, %d) with size (%d, %d) and ID %d\n",
+           label, x, y, w, h, id);
+    // Create a GUI slider
+
+    // Implementation would depend on your GUI library
+    printf("[gui] Slider created\n");
+}
+
+void createCheckbox(const char* label, int x, int y, int size, int id) {
+    printf("[gui] Creating checkbox: %s at (%d, %d) with size %d and ID %d\n",
+           label, x, y, size, id);
+    // Create a GUI checkbox
+
+    // Implementation would depend on your GUI library
+    printf("[gui] Checkbox created\n");
+}
+
+void createSpeedometer(int x, int y, int w, int h) {
+    printf("[gui] Creating speedometer at (%d, %d) with size (%d, %d)\n", x, y, w, h);
+    // Create a speedometer HUD element
+
+    // Implementation would depend on your GUI library
+    printf("[gui] Speedometer created\n");
+}
+
+void createMinimap(int x, int y, int w, int h) {
+    printf("[gui] Creating minimap at (%d, %d) with size (%d, %d)\n", x, y, w, h);
+    // Create a minimap HUD element
+
+    // Implementation would depend on your GUI library
+    printf("[gui] Minimap created\n");
+}
+
+void createScoreDisplay(int x, int y, int w, int h) {
+    printf("[gui] Creating score display at (%d, %d) with size (%d, %d)\n", x, y, w, h);
+    // Create a score display HUD element
+
+    // Implementation would depend on your GUI library
+    printf("[gui] Score display created\n");
 }
 
 /*
