@@ -26,6 +26,69 @@ typedef enum {
 // Forward declaration of resource_Get function
 void* resource_Get(int token, int type);
 
+// Forward declaration of findToken function
+resource_token* findToken(int token);
+
+// Function to load a texture
+int resource_LoadTexture(const char* filename, int type) {
+    printf("[resource] Loading texture %s of type %d\n", filename, type);
+
+    // Get the full path to the texture file
+    char* path = nebu_FS_GetPath_WithFilename(PATH_ART, filename);
+    if (!path) {
+        fprintf(stderr, "[resource] Failed to locate texture file: %s\n", filename);
+        return -1;
+    }
+
+    // Load the texture using the appropriate loader
+    void* textureData = nebu_Texture2D_Load(path, NULL);
+    free(path);
+
+    if (!textureData) {
+        fprintf(stderr, "[resource] Failed to load texture: %s\n", filename);
+        return -1;
+    }
+
+    // Get the texture ID from the loaded data
+    nebu_Texture2D* texture = (nebu_Texture2D*)textureData;
+    int textureId = texture->id;
+
+    // Store the texture in the resource system
+    // Create a non-const copy of the filename
+    char* filenameCopy = strdup(filename);
+    if (!filenameCopy) {
+        fprintf(stderr, "[resource] Failed to allocate memory for filename copy\n");
+        nebu_Texture2D_Free(texture);
+        return -1;
+    }
+
+    int token = resource_GetTokenMeta(filenameCopy, type, NULL, 0);
+    free(filenameCopy);
+
+    if (token == 0) {
+        fprintf(stderr, "[resource] Failed to create resource token for texture: %s\n", filename);
+        nebu_Texture2D_Free(texture);
+        return -1;
+    }
+
+    // Store the texture data in the resource system
+    resource_token* pToken = findToken(token);
+    if (!pToken) {
+        fprintf(stderr, "[resource] Failed to find resource token for texture: %s\n", filename);
+        nebu_Texture2D_Free(texture);
+        return -1;
+    }
+
+    // Assign the texture data to the resource token
+    pToken->data = textureData;
+    pToken->type = type;
+    pToken->id = textureId;
+    pToken->name = filename;
+
+    printf("[resource] Texture %s loaded with ID %d\n", filename, textureId);
+    return textureId;
+}
+
 void* getTriMesh(char *filename, void *dummy)
 {
     return gltron_Mesh_LoadFromFile(filename, TRI_MESH);
