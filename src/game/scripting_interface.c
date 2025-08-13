@@ -6,6 +6,9 @@
 #include "game/camera.h"
 #include "game/engine.h"
 #include "audio/sound_glue.h"
+#include "audio/audio.h"
+#include "input/input.h"
+#include "game/resource.h"
 #include "video/video.h"
 #include "configuration/settings.h"
 #include "configuration/configuration.h"
@@ -44,9 +47,60 @@
 #define eRT_PlayerModel 104
 #define eRT_EnvironmentModel 105
 
+// Add these declarations at the beginning of the file
+#define MAX_BUTTONS 10
+#define HOVER_ANIMATION_DURATION 500
+#define CLICK_ANIMATION_DURATION 300
+#define MENU_TRANSITION_DURATION 1000
+
+typedef struct {
+    int textureId;
+    int width;
+    int height;
+} BackgroundTexture;
+
+// Define the background textures
+BackgroundTexture menuBackground;
+BackgroundTexture optionsBackground;
+
+typedef struct {
+    int active;
+    int hover;
+    int pressed;
+    int clicked;
+    int x;
+    int y;
+    int width;
+    int height;
+    unsigned long hoverTime;
+    unsigned long clickTime;
+    unsigned long lastUpdateTime;
+    void (*action)(void);
+    int hoverSound;
+    int clickSound;
+} Button;
+
+Button buttons[MAX_BUTTONS];
+
+typedef struct {
+    int active;
+    int targetState;
+    unsigned long progress;
+    unsigned long lastUpdateTime;
+} MenuTransition;
+
+MenuTransition menuTransition;
+
+typedef struct {
+    int speedometer;
+    int minimap;
+    int score;
+} HUDTextures;
+
+HUDTextures hudTextures;
+
 int current_gui_state = GUI_MAIN_MENU;
 ExtendedCallbacks* current_callbacks = NULL;
-
 typedef struct {
     float v[3];
 } Vector3;
@@ -109,6 +163,25 @@ void setupHUD(void);
 void createButton(const char* text, int x, int y, int w, int h, int id);
 void createSlider(const char* label, int x, int y, int w, int h, int id);
 void createCheckbox(const char* label, int x, int y, int size, int id);
+void Audio_Shutdown(void);
+void Audio_Update(void);
+void updateButtonAnimations(void);
+void updateMenuTransitions(void);
+void checkMouseHover(void);
+void checkButtonClicks(void);
+void loadMenuBackground(void);
+void loadOptionsBackground(void);
+void loadGameGUITextures(void);
+void Sound_stopAll(void);
+void Sound_freeAllSamples(void);
+void Sound_freeMusic(void);
+void Sound_update(void);
+void Sound_checkCompleted(void);
+void nebu_Input_GetMousePosition(int* x, int* y);
+void Sound_playSample(int sampleId, float volume);
+int nebu_Input_GetMouseButtonState(int button);
+int resource_LoadTexture(const char* path, int type);
+void resource_GetTextureDimensions(int textureId, int* width, int* height);
 
 // Forward declarations for GUI functions
 void exitGui(void);
@@ -1154,7 +1227,7 @@ void resource_Cleanup(void) {
     printf("[resource] Resources cleaned up\n");
 }
 
-void resource_LoadTexture(const char* filename, int type) {
+int resource_LoadTexture(const char* filename, int type) {
     printf("[resource] Loading texture %s of type %d\n", filename, type);
     // Load a texture from file
 
@@ -2076,6 +2149,248 @@ void createScoreDisplay(int x, int y, int w, int h) {
 
     // Implementation would depend on your GUI library
     printf("[gui] Score display created\n");
+}
+
+// Audio functions
+void Audio_Shutdown(void) {
+    printf("[audio] Shutting down audio system\n");
+
+    // Stop all playing sounds
+    Sound_stopAll();
+
+    // Free loaded samples
+    Sound_freeAllSamples();
+
+    // Free loaded music
+    Sound_freeMusic();
+
+    // Shutdown the audio system
+    Sound_shutdown();
+
+    printf("[audio] Audio system shutdown complete\n");
+}
+
+void Audio_Update(void) {
+    printf("[audio] Updating audio system\n");
+
+    // Update the audio system
+    Sound_update();
+
+    // Check for completed sounds and free them
+    Sound_checkCompleted();
+
+    printf("[audio] Audio system updated\n");
+}
+
+// GUI animation functions
+void updateButtonAnimations(void) {
+    printf("[gui] Updating button animations\n");
+
+    // Get current time for animation calculations
+    unsigned long currentTime = getCurrentTime();
+
+    // Update all buttons
+    for (int i = 0; i < MAX_BUTTONS; i++) {
+        if (buttons[i].active) {
+            // Update hover animation
+            if (buttons[i].hover) {
+                buttons[i].hoverTime += currentTime - buttons[i].lastUpdateTime;
+                if (buttons[i].hoverTime > HOVER_ANIMATION_DURATION) {
+                    buttons[i].hoverTime = HOVER_ANIMATION_DURATION;
+                }
+            } else {
+                buttons[i].hoverTime -= currentTime - buttons[i].lastUpdateTime;
+                if (buttons[i].hoverTime < 0) {
+                    buttons[i].hoverTime = 0;
+                }
+            }
+
+            // Update click animation
+            if (buttons[i].clicked) {
+                buttons[i].clickTime += currentTime - buttons[i].lastUpdateTime;
+                if (buttons[i].clickTime > CLICK_ANIMATION_DURATION) {
+                    buttons[i].clicked = 0;
+                    buttons[i].clickTime = 0;
+                }
+            }
+
+            buttons[i].lastUpdateTime = currentTime;
+        }
+    }
+
+    printf("[gui] Button animations updated\n");
+}
+
+void updateMenuTransitions(void) {
+    printf("[gui] Updating menu transitions\n");
+
+    // Get current time for transition calculations
+    unsigned long currentTime = getCurrentTime();
+
+    // Update menu transition state
+    if (menuTransition.active) {
+        menuTransition.progress += currentTime - menuTransition.lastUpdateTime;
+
+        // Check if transition is complete
+        if (menuTransition.progress >= MENU_TRANSITION_DURATION) {
+            menuTransition.active = 0;
+            menuTransition.progress = MENU_TRANSITION_DURATION;
+
+            // Switch to new menu state
+            gui_SetState(menuTransition.targetState);
+        }
+
+        menuTransition.lastUpdateTime = currentTime;
+    }
+
+    printf("[gui] Menu transitions updated\n");
+}
+
+// GUI event functions
+void checkMouseHover(void) {
+    printf("[gui] Checking mouse hover events\n");
+
+    // Get current mouse position
+    int mouseX, mouseY;
+    nebu_Input_GetMousePosition(&mouseX, &mouseY);
+
+    // Check each button for hover
+    for (int i = 0; i < MAX_BUTTONS; i++) {
+        if (buttons[i].active) {
+            // Check if mouse is over the button
+            if (mouseX >= buttons[i].x && mouseX <= buttons[i].x + buttons[i].width &&
+                mouseY >= buttons[i].y && mouseY <= buttons[i].y + buttons[i].height) {
+                if (!buttons[i].hover) {
+                    buttons[i].hover = 1;
+                    buttons[i].hoverTime = 0;
+                    buttons[i].lastUpdateTime = getCurrentTime();
+
+                    // Play hover sound if enabled
+                    if (buttons[i].hoverSound) {
+                        Sound_playSample(buttons[i].hoverSound, 1.0f);
+                    }
+                }
+            } else {
+                if (buttons[i].hover) {
+                    buttons[i].hover = 0;
+                    buttons[i].hoverTime = HOVER_ANIMATION_DURATION;
+                    buttons[i].lastUpdateTime = getCurrentTime();
+                }
+            }
+        }
+    }
+
+    printf("[gui] Mouse hover events checked\n");
+}
+
+void checkButtonClicks(void) {
+    printf("[gui] Checking button click events\n");
+
+    // Check for mouse button events
+    int mouseButton = nebu_Input_GetMouseButtonState(0); // Left mouse button
+
+    // Check each button for click
+    for (int i = 0; i < MAX_BUTTONS; i++) {
+        if (buttons[i].active && buttons[i].hover) {
+            if (mouseButton == 1) { // Button pressed
+                if (!buttons[i].pressed) {
+                    buttons[i].pressed = 1;
+                    buttons[i].clickTime = 0;
+                    buttons[i].lastUpdateTime = getCurrentTime();
+
+                    // Play click sound if enabled
+                    if (buttons[i].clickSound) {
+                        Sound_playSample(buttons[i].clickSound, 1.0f);
+                    }
+                }
+            } else { // Button released
+                if (buttons[i].pressed) {
+                    buttons[i].pressed = 0;
+                    buttons[i].clicked = 1;
+                    buttons[i].clickTime = 0;
+                    buttons[i].lastUpdateTime = getCurrentTime();
+
+                    // Execute button action
+                    if (buttons[i].action) {
+                        buttons[i].action();
+                    }
+                }
+            }
+        }
+    }
+
+    printf("[gui] Button click events checked\n");
+}
+
+// Resource loading functions
+void loadMenuBackground(void) {
+    printf("[resource] Loading menu background\n");
+
+    // Load menu background texture
+    char* path = getPath(PATH_DATA, "textures/menu_background.png");
+    int textureId = resource_LoadTexture(path, eRT_Texture);
+    free(path);
+
+    if (textureId != -1) {
+        // Set the menu background texture
+        menuBackground.textureId = textureId;
+
+        // Get texture dimensions
+        int width, height;
+        resource_GetTextureDimensions(textureId, &width, &height);
+        menuBackground.width = width;
+        menuBackground.height = height;
+
+        printf("[resource] Menu background loaded with texture ID %d\n", textureId);
+    } else {
+        printf("[resource] Failed to load menu background texture\n");
+    }
+}
+
+void loadOptionsBackground(void) {
+    printf("[resource] Loading options background\n");
+
+    // Load options background texture
+    char* path = getPath(PATH_DATA, "textures/options_background.png");
+    int textureId = resource_LoadTexture(path, eRT_Texture);
+    free(path);
+
+    if (textureId != -1) {
+        // Set the options background texture
+        optionsBackground.textureId = textureId;
+
+        // Get texture dimensions
+        int width, height;
+        resource_GetTextureDimensions(textureId, &width, &height);
+        optionsBackground.width = width;
+        optionsBackground.height = height;
+
+        printf("[resource] Options background loaded with texture ID %d\n", textureId);
+    } else {
+        printf("[resource] Failed to load options background texture\n");
+    }
+}
+
+void loadGameGUITextures(void) {
+    printf("[resource] Loading game GUI textures\n");
+
+    // Load HUD textures
+    char* path = getPath(PATH_DATA, "textures/hud_speedometer.png");
+    hudTextures.speedometer = resource_LoadTexture(path, eRT_Texture);
+    free(path);
+
+    path = getPath(PATH_DATA, "textures/hud_minimap.png");
+    hudTextures.minimap = resource_LoadTexture(path, eRT_Texture);
+    free(path);
+
+    path = getPath(PATH_DATA, "textures/hud_score.png");
+    hudTextures.score = resource_LoadTexture(path, eRT_Texture);
+    free(path);
+
+    // Load other GUI textures as needed
+    // ...
+
+    printf("[resource] Game GUI textures loaded\n");
 }
 
 /*
