@@ -12,14 +12,18 @@
 #include "video/nebu_2d.h"
 #include "video/nebu_renderer_gl.h"
 #include "video/nebu_video_system.h"
+#include "video/nebu_font.h"
 #include "input/nebu_input_system.h"
 #include "base/nebu_math.h"
+#include "base/nebu_vector.h"
 #include "scripting/nebu_scripting.h"
 #include "filesystem/nebu_filesystem.h"
 
 #include "base/nebu_assert.h"
 #include <string.h>
 #include "base/nebu_debug_memory.h"
+
+#include <stdio.h>
 
 #if defined(__ANDROID__)
   #include <GLES2/gl2.h>
@@ -160,6 +164,26 @@ void drawGuiBackground(void) {
     nebu_2d_Draw(pBackground);
 }
 
+void nebu_Font_RenderToBox(nebu_Font* font, const char *text, int flags, box2 *box, int align) {
+    // Basic implementation - in a real game, this would render text to a box
+    printf("[nebu_Font_RenderToBox] Rendering text: %s\n", text);
+
+    // For now, just draw a rectangle where the text would be
+    glBegin(GL_QUADS);
+    glColor3f(0.5, 0.5, 0.5); // Gray rectangle
+    glVertex2f(box->vMin.v[0], box->vMin.v[1]);  // Top-left (vMin)
+    glVertex2f(box->vMax.v[0], box->vMin.v[1]);  // Top-right
+    glVertex2f(box->vMax.v[0], box->vMax.v[1]);  // Bottom-right (vMax)
+    glVertex2f(box->vMin.v[0], box->vMax.v[1]);  // Bottom-left
+    glEnd();
+
+    // In a real implementation, you would:
+    // 1. Set up the font texture
+    // 2. Calculate text dimensions
+    // 3. Render each character
+    // 4. Handle alignment and flags
+}
+
 void drawGuiMenu(Visual *d) {
     if (!d) {
         fprintf(stderr, "[drawGuiMenu] Visual pointer is NULL!\n");
@@ -190,14 +214,22 @@ void drawGuiMenu(Visual *d) {
         else
             glColor3f(1, 1, 1); // White text
 
-        char line[128];
+        char line[128];  // Declare the line variable here
         if (i == 2) {
             snprintf(line, sizeof(line), "%s: %s", menuItems[i], gResOptions[gResIndex].label);
         } else {
             snprintf(line, sizeof(line), "%s", menuItems[i]);
         }
 
-        void drawText(nebu_Font* ftx, float x, float y, float size, const char *text, GLuint shaderProgram, GLint uMVP);
+        // Create a box2 structure for the text position
+        box2 textBox;
+        textBox.vMin.v[0] = (float)x;                     // x1 (left)
+        textBox.vMin.v[1] = (float)(y - i * (size + 10)); // y1 (top)
+        textBox.vMax.v[0] = (float)(x + size);             // x2 (right)
+        textBox.vMax.v[1] = (float)(y - i * (size + 10) + size + 10); // y2 (bottom)
+
+        // Render text using the correct function signature
+        nebu_Font_RenderToBox(pFont, line, 0, &textBox, 0);
     }
 
     glDisable(GL_BLEND);

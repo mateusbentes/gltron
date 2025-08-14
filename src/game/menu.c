@@ -32,7 +32,8 @@ void initMenu(void) {
 
     initGui(); // Start GUI first
 
-    nebu_System_SetCallback_Display(displayMenuCallback);
+    // Use full GUI display routine to ensure clearing, background, and buffer swap
+    nebu_System_SetCallback_Display(displayGui);
     nebu_System_SetCallback_Idle(menuIdle);
 
 #ifdef __ANDROID__
@@ -161,7 +162,8 @@ void mouseGuiMenu(SDL_MouseButtonEvent *event) {
 
 void returnToMenu(void) {
     activateMenu();
-    nebu_System_SetCallback_Display(displayMenuCallback);
+    // Use full GUI display routine to ensure clearing, background, and buffer swap
+    nebu_System_SetCallback_Display(displayGui);
     nebu_System_SetCallback_Idle(menuIdle);
     nebu_System_SetCallback_Key((void*)keyGuiMenu);
     nebu_System_SetCallback_Mouse((void*)mouseGuiMenu);
