@@ -2318,7 +2318,7 @@ void loadMenuBackground(void) {
     printf("[resource] Loading menu background\n");
 
     // Load menu background texture
-    char* path = getPath(PATH_DATA, "textures/menu_background.png");
+    char* path = getPath(PATH_ART, "default/png.png");
     int textureId = resource_LoadTexture(path, eRT_Texture);
     free(path);
 
@@ -2342,7 +2342,7 @@ void loadOptionsBackground(void) {
     printf("[resource] Loading options background\n");
 
     // Load options background texture
-    char* path = getPath(PATH_DATA, "textures/options_background.png");
+    char* path = getPath(PATH_ART, "default/png.png");
     int textureId = resource_LoadTexture(path, eRT_Texture);
     free(path);
 
@@ -2366,17 +2366,17 @@ void loadGameGUITextures(void) {
     printf("[resource] Loading game GUI textures\n");
 
     // Load HUD textures
-    char* path = getPath(PATH_DATA, "textures/hud_speedometer.png");
-    hudTextures.speedometer = resource_LoadTexture(path, eRT_Texture);
-    free(path);
+    //char* path = getPath(PATH_DATA, "textures/hud_speedometer.png");
+    //hudTextures.speedometer = resource_LoadTexture(path, eRT_Texture);
+    //free(path);
 
-    path = getPath(PATH_DATA, "textures/hud_minimap.png");
-    hudTextures.minimap = resource_LoadTexture(path, eRT_Texture);
-    free(path);
+    //path = getPath(PATH_DATA, "textures/hud_minimap.png");
+    //hudTextures.minimap = resource_LoadTexture(path, eRT_Texture);
+    //free(path);
 
-    path = getPath(PATH_DATA, "textures/hud_score.png");
-    hudTextures.score = resource_LoadTexture(path, eRT_Texture);
-    free(path);
+    //path = getPath(PATH_DATA, "textures/hud_score.png");
+    //hudTextures.score = resource_LoadTexture(path, eRT_Texture);
+    //free(path);
 
     // Load other GUI textures as needed
     // ...
