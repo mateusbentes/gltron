@@ -121,27 +121,41 @@ void keyGuiMenu(SDL_KeyboardEvent *event) {
 }
 
 void mouseGuiMenu(SDL_MouseButtonEvent *event) {
-    if (event->type == SDL_MOUSEBUTTONDOWN && event->button == SDL_BUTTON_LEFT) {
-        // Get screen dimensions with fallback values
-        int screenW = gScreen ? gScreen->vp_w : 800;
-        int screenH = gScreen ? gScreen->vp_h : 600;
+    if (!event) {
+        fprintf(stderr, "[mouseGuiMenu] ERROR: event is NULL\n");
+        return;
+    }
+    if (!isMenuActive()) {
+        return;
+    }
 
-        // Calculate button positions based on screen dimensions
-        int startButtonY = screenH / 2 - 50;  // Centered vertically
-        int exitButtonY = startButtonY + 60;   // 60px below start button
+    // Only process left mouse button down events
+    if (event->type != SDL_MOUSEBUTTONDOWN || event->button != SDL_BUTTON_LEFT) {
+        return;
+    }
 
-        // Check if mouse click is within button areas
-        if (event->y >= startButtonY && event->y <= startButtonY + 40) {
-            printf("Clicked 'Start Game' button\n");
-            deactivateMenu();
-            initGame();
-            nebu_System_SetCallback_Display(displayGame);
-            nebu_System_SetCallback_Idle(Game_Idle);
-            nebu_System_SetCallback_Key((void*)keyGame);
-        } else if (event->y >= exitButtonY && event->y <= exitButtonY + 40) {
-            printf("Clicked 'Exit' button\n");
-            SDL_Quit();
-        }
+    // Get screen dimensions with safe fallbacks
+    int screenW = (gScreen && gScreen->vp_w > 0) ? gScreen->vp_w : 800;
+    int screenH = (gScreen && gScreen->vp_h > 0) ? gScreen->vp_h : 600;
+
+    // Calculate button positions based on screen dimensions
+    int startButtonY = screenH / 2 - 50;  // Centered vertically
+    int exitButtonY = startButtonY + 60;   // 60px below start button
+
+    // Sanity log
+    // fprintf(stderr, "[mouseGuiMenu] click at y=%d, startY=%d exitY=%d screenH=%d\n", event->y, startButtonY, exitButtonY, screenH);
+
+    // Check if mouse click is within button areas
+    if (event->y >= startButtonY && event->y <= startButtonY + 40) {
+        printf("Clicked 'Start Game' button\n");
+        deactivateMenu();
+        initGame();
+        nebu_System_SetCallback_Display(displayGame);
+        nebu_System_SetCallback_Idle(Game_Idle);
+        nebu_System_SetCallback_Key((void*)keyGame);
+    } else if (event->y >= exitButtonY && event->y <= exitButtonY + 40) {
+        printf("Clicked 'Exit' button\n");
+        SDL_Quit();
     }
 }
 
@@ -156,14 +170,19 @@ void returnToMenu(void) {
 
 // --- Event dispatcher for SDL2 main loop ---
 void menuHandleSDLEvent(const SDL_Event *event) {
+    if (!event) return;
+
     switch (event->type) {
         case SDL_KEYDOWN:
         case SDL_KEYUP:
             keyMenu((SDL_KeyboardEvent *)&event->key);
             break;
         case SDL_MOUSEBUTTONDOWN:
-        case SDL_MOUSEBUTTONUP:
+            // Only handle button down in menu for clicks
             mouseMenu((SDL_MouseButtonEvent *)&event->button);
+            break;
+        case SDL_MOUSEBUTTONUP:
+            // ignore for now
             break;
         case SDL_FINGERDOWN:
         case SDL_FINGERUP:
