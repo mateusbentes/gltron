@@ -121,20 +121,26 @@ void keyGuiMenu(SDL_KeyboardEvent *event) {
 }
 
 void mouseGuiMenu(SDL_MouseButtonEvent *event) {
-    if (event->type == SDL_MOUSEBUTTONDOWN) {
-        if (event->button == SDL_BUTTON_LEFT) {
-            int y = event->y;
-            if (y > 300 && y < 340) {
-                printf("Clicked 'Start Game' button\n");
-                deactivateMenu();
-                initGame();
-                nebu_System_SetCallback_Display(displayGame);
-                nebu_System_SetCallback_Idle(Game_Idle);
-                nebu_System_SetCallback_Key((void*)keyGame);
-            } else if (y > 360 && y < 400) {
-                printf("Clicked 'Exit' button\n");
-                SDL_Quit();
-            }
+    if (event->type == SDL_MOUSEBUTTONDOWN && event->button == SDL_BUTTON_LEFT) {
+        // Get screen dimensions with fallback values
+        int screenW = gScreen ? gScreen->vp_w : 800;
+        int screenH = gScreen ? gScreen->vp_h : 600;
+
+        // Calculate button positions based on screen dimensions
+        int startButtonY = screenH / 2 - 50;  // Centered vertically
+        int exitButtonY = startButtonY + 60;   // 60px below start button
+
+        // Check if mouse click is within button areas
+        if (event->y >= startButtonY && event->y <= startButtonY + 40) {
+            printf("Clicked 'Start Game' button\n");
+            deactivateMenu();
+            initGame();
+            nebu_System_SetCallback_Display(displayGame);
+            nebu_System_SetCallback_Idle(Game_Idle);
+            nebu_System_SetCallback_Key((void*)keyGame);
+        } else if (event->y >= exitButtonY && event->y <= exitButtonY + 40) {
+            printf("Clicked 'Exit' button\n");
+            SDL_Quit();
         }
     }
 }
