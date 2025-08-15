@@ -4,8 +4,8 @@
 // Include SDL2 headers instead of SDL
 #include <SDL2/SDL.h>
 
-// Forward declaration for libxmp context
-typedef struct xmp_context xmp_context;
+// Include libxmp headers
+#include <xmp.h>
 
 #include "audio/nebu_Source.h"
 
@@ -42,8 +42,8 @@ namespace Sound {
     char *_filename;
     SDL_RWops *_rwops;
 
-    // Add this for libxmp support
-    xmp_context *_xmp_context;
+    // Use the actual xmp_context type from libxmp
+    xmp_context _xmp_context;
   };
 }
 

@@ -4,9 +4,16 @@
 #include <string.h>
 #include <stdio.h>
 
-// Add these includes for IT file support
-#include <xmp.h>  // libxmp library for module file support
-#include <xmp_const.h>
+// Include libxmp headers
+#include <xmp.h>
+
+// Add these declarations if they're not in the header
+#ifndef XMP_STATE_ENDED
+#define XMP_STATE_ENDED 3
+#endif
+
+// Forward declaration for xmp_get_error if needed
+const char *xmp_get_error(xmp_context ctx);
 
 #include "base/nebu_debug_memory.h"
 
@@ -21,7 +28,7 @@ SourceMusic::SourceMusic(System *system) {
     _read = 0;
     _filename = NULL;
     _rwops = NULL;
-    _xmp_context = NULL;  // Add this for libxmp context
+    _xmp_context = NULL;  // Initialize to NULL
     Reset();
 }
 
@@ -155,7 +162,7 @@ void SourceMusic::LoadIT(char *filename) {
     printf("[audio]   - Tracks: %d\n", info.mod->trk);
     printf("[audio]   - Samples: %d\n", info.mod->smp);
 
-    // Set playback parameters
+    // Set playback parameters using constants from xmp.h
     xmp_set_player(_xmp_context, XMP_PLAYER_INTERP, XMP_INTERP_LINEAR);
     xmp_set_player(_xmp_context, XMP_PLAYER_MIX, 100);  // 100% mixing
 
