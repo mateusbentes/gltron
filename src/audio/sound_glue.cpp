@@ -225,8 +225,8 @@ extern "C" {
   void Audio_Init(void) {
     // Initialize SDL audio subsystem instead of SDL_sound
     if (SDL_InitSubSystem(SDL_INIT_AUDIO) != 0) {
-      fprintf(stderr, "[error] SDL audio initialization failed: %s\n", SDL_GetError());
-      return;
+        fprintf(stderr, "[error] SDL audio initialization failed: %s\n", SDL_GetError());
+        return;
     }
 
     printf("[audio] SDL audio subsystem initialized\n");
@@ -245,18 +245,23 @@ extern "C" {
     SDL_AudioSpec obtained;
 
     if(SDL_OpenAudio(spec, &obtained) != 0) {
-      fprintf(stderr, "[error] %s\n", SDL_GetError());
-      sound->SetStatus(Sound::eUninitialized);
+        fprintf(stderr, "[error] %s\n", SDL_GetError());
+        sound->SetStatus(Sound::eUninitialized);
     } else {
-      sound->SetStatus(Sound::eInitialized);
-      printf("[audio] Audio device opened successfully\n");
-      printf("[audio] frequency: %d\n", obtained.freq);
-      printf("[audio] format: %d\n", obtained.format);
-      printf("[audio] channels: %d\n", obtained.channels);
-      printf("[audio] silence: %d\n", obtained.silence);
-      printf("[audio] buffer in samples: %d\n", obtained.samples);
-      printf("[audio] buffer in bytes: %d\n", obtained.size);
+        sound->SetStatus(Sound::eInitialized);
+        printf("[audio] Audio device opened successfully\n");
+        printf("[audio] frequency: %d\n", obtained.freq);
+        printf("[audio] format: %d\n", obtained.format);
+        printf("[audio] channels: %d\n", obtained.channels);
+        printf("[audio] silence: %d\n", obtained.silence);
+        printf("[audio] buffer in samples: %d\n", obtained.samples);
+        printf("[audio] buffer in bytes: %d\n", obtained.size);
     }
+
+    // Load the sound samples
+    Audio_LoadPlayers();
+
+    // Set the audio volumes
     sound->SetMixMusic(gSettingsCache.playMusic);
     sound->SetMixFX(gSettingsCache.playEffects);
   }
@@ -431,37 +436,32 @@ extern "C" {
   }
   
   void Audio_SetFxVolume(float volume) {
-    printf("[audio] Audio_SetFxVolume called with volume: %.2f\n", volume);
-    
-    if (!sound) {
-      fprintf(stderr, "[error] Cannot set FX volume - sound system not initialized\n");
-      return;
+    // Load the sound samples if they are not already loaded
+    if (!sample_engine || !sample_crash || !sample_recognizer) {
+        Audio_LoadPlayers();
     }
-    
+
+    // Set the volumes for the sound samples
     if (sample_engine) {
-      sample_engine->SetVolume(volume);
-      printf("[audio] Engine sample volume set to %.2f\n", volume);
+        sample_engine->SetVolume(volume);
     } else {
-      fprintf(stderr, "[error] Cannot set engine volume - sample not loaded\n");
+        fprintf(stderr, "[error] Cannot set engine volume - sample not loaded\n");
     }
-    
+
     if (sample_crash) {
-      sample_crash->SetVolume(volume);
-      printf("[audio] Crash sample volume set to %.2f\n", volume);
+        sample_crash->SetVolume(volume);
     } else {
-      fprintf(stderr, "[error] Cannot set crash volume - sample not loaded\n");
+        fprintf(stderr, "[error] Cannot set crash volume - sample not loaded\n");
     }
-    
+
     if (sample_recognizer) {
-      if(volume > 0.8f) {
-        sample_recognizer->SetVolume(volume);
-        printf("[audio] Recognizer sample volume set to %.2f\n", volume);
-      } else {
-        sample_recognizer->SetVolume(volume * 1.25f);
-        printf("[audio] Recognizer sample volume set to %.2f\n", volume * 1.25f);
-      }
+        if (volume > 0.8f) {
+            sample_recognizer->SetVolume(volume);
+        } else {
+            sample_recognizer->SetVolume(volume * 1.25f);
+        }
     } else {
-      fprintf(stderr, "[error] Cannot set recognizer volume - sample not loaded\n");
+        fprintf(stderr, "[error] Cannot set recognizer volume - sample not loaded\n");
     }
   }
 
