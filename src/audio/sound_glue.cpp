@@ -309,19 +309,19 @@ extern "C" {
 
   void Audio_LoadMusic(char *name) {
     printf("[audio] Audio_LoadMusic called with name: %s\n", name ? name : "NULL");
-    
+
     if (!sound) {
         fprintf(stderr, "[error] Cannot load music - sound system not initialized\n");
         return;
     }
-    
+
     if (!name || name[0] == '\0') {
         fprintf(stderr, "[error] Cannot load music - invalid filename\n");
         return;
     }
-    
+
     printf("[audio] Loading music: %s\n", name);
-    
+
     // Check if file exists
     FILE *f = fopen(name, "rb");
     if (!f) {
@@ -334,10 +334,10 @@ extern "C" {
         } else {
             basename = name;
         }
-        
+
         sprintf(music_path, "music/%s", basename);
         f = fopen(music_path, "rb");
-        
+
         if (f) {
             fclose(f);
             printf("[audio] Found music in music directory: %s\n", music_path);
@@ -347,7 +347,7 @@ extern "C" {
             // Try looking in the sounds directory
             sprintf(music_path, "sounds/%s", basename);
             f = fopen(music_path, "rb");
-            
+
             if (f) {
                 fclose(f);
                 printf("[audio] Found music in sounds directory: %s\n", music_path);
@@ -362,20 +362,54 @@ extern "C" {
     } else {
         fclose(f);
     }
-    
+
+    // Check file extension to determine format
+    const char *ext = strrchr(name, '.');
+    if (ext) {
+        ext++; // Skip the '.'
+        if (strcasecmp(ext, "wav") == 0) {
+            printf("[audio] Detected WAV format for music file: %s\n", name);
+        } else if (strcasecmp(ext, "ogg") == 0) {
+            printf("[audio] Detected OGG format for music file: %s\n", name);
+            fprintf(stderr, "[error] OGG format is not supported for music playback\n");
+            fprintf(stderr, "[error] Please convert your music to WAV format\n");
+            return;
+        } else if (strcasecmp(ext, "mp3") == 0) {
+            printf("[audio] Detected MP3 format for music file: %s\n", name);
+            fprintf(stderr, "[error] MP3 format is not supported for music playback\n");
+            fprintf(stderr, "[error] Please convert your music to WAV format\n");
+            return;
+        } else if (strcasecmp(ext, "it") == 0) {
+            printf("[audio] Detected IT format for music file: %s\n", name);
+            fprintf(stderr, "[error] IT format is not supported for music playback\n");
+            fprintf(stderr, "[error] Please convert your music to WAV format\n");
+            return;
+        } else {
+            printf("[audio] Detected unknown format for music file: %s\n", name);
+            fprintf(stderr, "[error] Unknown music file format: %s\n", ext);
+            fprintf(stderr, "[error] Please convert your music to WAV format\n");
+            return;
+        }
+    } else {
+        printf("[audio] No file extension found for music file: %s\n", name);
+        fprintf(stderr, "[error] Cannot determine music file format\n");
+        fprintf(stderr, "[error] Please ensure your music file has a proper extension\n");
+        return;
+    }
+
     if(music != NULL) {
         printf("[audio] Stopping previous music track\n");
         music->Stop();
         music->SetRemovable();
     }
-    
+
     music = new Sound::SourceMusic(sound);
-    
+
     printf("[audio] Attempting to load music file: %s\n", name);
     // SourceMusic::Load returns void, not bool, so we can't check its return value
     music->Load(name);
     printf("[audio] Music file loaded into memory\n");
-    
+
     int loopSetting = getSettingi("loopMusic");
     printf("[audio] Loop setting: %d\n", loopSetting);
     if(loopSetting)
@@ -383,7 +417,7 @@ extern "C" {
     music->SetType(Sound::eSoundMusic);
     music->SetName("music");
     sound->AddSource(music);
-    
+
     if(music) {
         printf("[audio] Music object details:\n");
         printf("  - Name: %s\n", music->GetName());
@@ -392,7 +426,7 @@ extern "C" {
         printf("  - Volume: %.2f\n", music->GetVolume());
         printf("  - Is playing: %s\n", music->IsPlaying() ? "yes" : "no");
     }
-    
+
     printf("[audio] Music loaded successfully: %s\n", name);
   }
 
