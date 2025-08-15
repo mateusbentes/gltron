@@ -3,6 +3,7 @@
 #include <SDL2/SDL.h>
 #include <string.h>
 #include <stdio.h>
+#include <errno.h>
 
 // Include libxmp headers
 #include <xmp.h>
@@ -11,9 +12,6 @@
 #ifndef XMP_STATE_ENDED
 #define XMP_STATE_ENDED 3
 #endif
-
-// Forward declaration for xmp_get_error if needed
-const char *xmp_get_error(xmp_context ctx);
 
 #include "base/nebu_debug_memory.h"
 
@@ -284,11 +282,28 @@ int SourceMusic::MixIT(Uint8 *data, int len) {
     // Generate audio from libxmp
     int ret = xmp_play_buffer(_xmp_context, data, len, 0);
 
-    if (ret < 0) {
-        fprintf(stderr, "[error] Error playing IT file: %s\n", xmp_get_error(_xmp_context));
-        return 0;
-    }
-
+	if (ret < 0) {
+    	const char* errMsg;
+    	switch (ret) {
+        	case -XMP_ERROR_FORMAT:
+            	errMsg = "Unrecognized module format";
+            	break;
+        	case -XMP_ERROR_LOAD:
+            	errMsg = "Module recognized but failed to load";
+            	break;
+        	case -XMP_ERROR_DEPACK:
+            	errMsg = "Decompression of module failed";
+            	break;
+        	case -XMP_ERROR_SYSTEM:
+            	errMsg = strerror(errno);
+            	break;
+        	default:
+            	errMsg = "Unknown libxmp error";
+        	    break;
+    	}
+    	fprintf(stderr, "[error] Error playing IT file: %s (code %d)\n", errMsg, ret);
+    	return 0;
+	}
     // Apply volume to the generated audio
     SDL_AudioSpec *spec = _system->GetSpec();
     if (spec->format == AUDIO_S16SYS) {
