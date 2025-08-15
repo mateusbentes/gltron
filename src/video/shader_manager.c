@@ -74,7 +74,7 @@ GLuint createShaderProgram(const char *vsrc, const char *fsrc) {
     GLint linked;
     glGetProgramiv(program, GL_LINK_STATUS, &linked);
     if (!linked) {
-        char log[512];
+        char log[256];
         glGetProgramInfoLog(program, sizeof(log), NULL, log);
         fprintf(stderr, "Program link error: %s\n", log);
         glDeleteProgram(program);
