@@ -129,61 +129,89 @@ void SourceMusic::LoadWAV(char *filename) {
     }
 }
 
-void SourceMusic::LoadIT(char *filename) {
-    // Initialize libxmp context
-    _xmp_context = xmp_create_context();
+bool SourceMusic::LoadIT(const char* filename) {
+    // Clean up any existing context
+    CleanUp();
 
-    if (!_xmp_context) {
-        fprintf(stderr, "[error] Could not create libxmp context\n");
-        return;
+    // Create a new context
+    xmp_context ctx = xmp_create_context();
+    if (!ctx) {
+        LOGE("Failed to create xmp context");
+        return false;
     }
 
-    // Load the IT file
-    int ret = xmp_load_module(_xmp_context, filename);
-
+    // Load the module
+    int ret = xmp_load_module(ctx, filename);
     if (ret != 0) {
-        fprintf(stderr, "[error] Could not load IT file: %s\n", xmp_get_error(_xmp_context));
-        xmp_free_context(_xmp_context);
-        _xmp_context = NULL;
-        return;
+        LOGE("Failed to load module: %s", xmp_get_error(ctx));
+        xmp_free_context(ctx);
+        return false;
     }
 
-    // Get module information
-    xmp_module_info info;
-    xmp_get_module_info(_xmp_context, &info);
-
-    printf("[audio] IT file loaded successfully: %s\n", filename);
-    printf("[audio] Module info:\n");
-    printf("[audio]   - Name: %s\n", info.mod->name);
-    printf("[audio]   - Type: %s\n", info.mod->type);
-    printf("[audio]   - Channels: %d\n", info.mod->chn);
-    printf("[audio]   - Instruments: %d\n", info.mod->ins);
-    printf("[audio]   - Patterns: %d\n", info.mod->pat);
-    printf("[audio]   - Tracks: %d\n", info.mod->trk);
-    printf("[audio]   - Samples: %d\n", info.mod->smp);
-
-    // Set playback parameters using constants from xmp.h
-    xmp_set_player(_xmp_context, XMP_PLAYER_INTERP, XMP_INTERP_LINEAR);
-    xmp_set_player(_xmp_context, XMP_PLAYER_MIX, 100);  // 100% mixing
-
-    // Start playback
-    ret = xmp_start_player(_xmp_context, 44100, 0);  // 44100 Hz, no flags
-
+    // Get module info
+    xmp_module_info mi;
+    ret = xmp_get_module_info(ctx, &mi);
     if (ret != 0) {
-        fprintf(stderr, "[error] Could not start player: %s\n", xmp_get_error(_xmp_context));
-        xmp_release_module(_xmp_context);
-        xmp_free_context(_xmp_context);
-        _xmp_context = NULL;
-        return;
+        LOGE("Failed to get module info: %s", xmp_get_error(ctx));
+        xmp_release_module(ctx);
+        xmp_free_context(ctx);
+        return false;
     }
 
-    // Allocate buffer for decoded audio
-    _buffersize = 44100 * 4 * 2;  // 1 second of stereo 16-bit audio
-    _buffer = new Uint8[_buffersize];
-    _decoded = 0;
-    _read = 0;
+    // Set player parameters
+    xmp_player_interface pi;
+    ret = xmp_get_player(ctx, &pi);
+    if (ret != 0) {
+        LOGE("Failed to get player interface: %s", xmp_get_error(ctx));
+        xmp_release_module(ctx);
+        xmp_free_context(ctx);
+        return false;
+    }
 
-    printf("[audio] IT file prepared for playback\n");
+    // Start the player
+    ret = xmp_start_player(ctx, 44100, 0);
+    if (ret != 0) {
+        LOGE("Failed to start player: %s", xmp_get_error(ctx));
+        xmp_release_module(ctx);
+        xmp_free_context(ctx);
+        return false;
+    }
+
+    // Store the context
+    m_xmpContext = ctx;
+    m_loaded = true;
+    return true;
+}
+
+// Update the CleanUp function
+void SourceMusic::CleanUp() {
+    if (m_xmpContext) {
+        xmp_end_player(m_xmpContext);
+        xmp_release_module(m_xmpContext);
+        xmp_free_context(m_xmpContext);
+        m_xmpContext = nullptr;
+    }
+    m_loaded = false;
+}
+
+// Update the MixIT function
+int SourceMusic::MixIT(unsigned char* buffer, int length) {
+    if (!m_xmpContext || !m_loaded) {
+        return 0;
+    }
+
+    xmp_frame_info fi;
+    int ret = xmp_play_frame(m_xmpContext, &fi);
+    if (ret != 0) {
+        LOGE("Failed to play frame: %s", xmp_get_error(m_xmpContext));
+        return 0;
+    }
+
+    // Copy the audio data to the buffer
+    // Note: You'll need to adjust this based on your actual audio format
+    memcpy(buffer, fi.buffer, fi.buffer_size);
+
+    return fi.buffer_size;
 }
 
 void SourceMusic::CleanUp(void) {
