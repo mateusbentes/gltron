@@ -242,13 +242,15 @@ else()
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(LIBXMP REQUIRED libxmp)
 
-
     if(LIBXMP_FOUND)
         message(STATUS "Found libxmp: ${LIBXMP_LIBRARIES}")
         add_definitions(-DHAVE_LIBXMP)
         add_compile_definitions(HAVE_LIBXMP)
         include_directories(${LIBXMP_INCLUDE_DIRS})
         link_directories(${LIBXMP_LIBRARY_DIRS})
+
+        # Add the library to the target
+        target_link_libraries(nebu_audio ${LIBXMP_LIBRARIES})
 
         # Check for xmp.h
         if(EXISTS "${LIBXMP_INCLUDE_DIRS}/xmp.h")
