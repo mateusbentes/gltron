@@ -259,6 +259,11 @@ extern "C" {
     }
 
     // Load the sound samples
+    Audio_LoadSample("engine.wav", 0); // Load engine sample
+    Audio_LoadSample("crash.wav", 1);  // Load crash sample
+    Audio_LoadSample("recognizer.wav", 2); // Load recognizer sample
+
+    // Load the player sources
     Audio_LoadPlayers();
 
     // Set the audio volumes
