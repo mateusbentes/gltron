@@ -249,9 +249,6 @@ else()
         include_directories(${LIBXMP_INCLUDE_DIRS})
         link_directories(${LIBXMP_LIBRARY_DIRS})
 
-        # Add the library to the target
-        target_link_libraries(nebu_audio ${LIBXMP_LIBRARIES})
-
         # Check for xmp.h
         if(EXISTS "${LIBXMP_INCLUDE_DIRS}/xmp.h")
             message(STATUS "Found xmp.h in: ${LIBXMP_INCLUDE_DIRS}")
