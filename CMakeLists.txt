@@ -221,6 +221,18 @@ else()
       message(WARNING "SDL2_ttf not found. Building without TTF support.")
       set(ENABLE_TTF OFF)
     endif()
+
+      # Add SDL2_image support
+      pkg_check_modules(SDL2_IMAGE REQUIRED SDL2_image)
+
+    if(SDL2_IMAGE_FOUND)
+      message(STATUS "Found SDL2_image: ${SDL2_IMAGE_LIBRARIES}")
+      add_definitions(-DHAVE_SDL_IMAGE)
+      add_compile_definitions(HAVE_SDL_IMAGE)
+    else()
+      message(WARNING "SDL2_ttf not found. Building without TTF support.")
+      set(ENABLE_TTF OFF)
+    endif()
   endif()
 endif()
 

@@ -160,9 +160,7 @@ void initSkyboxShaders() {
 
     // Vertex shader for skybox with version directive
     const char *vsrc =
-        "#ifdef GL_ES\n"
-        "precision highp float;\n"
-        "#endif\n"
+        "#version 100\n"  // OpenGL ES 2.0
         "uniform mat4 uMVP;\n"
         "attribute vec3 aPosition;\n"
         "varying vec3 vTexCoord;\n"
@@ -173,17 +171,12 @@ void initSkyboxShaders() {
 
     // Fragment shader for skybox with version directive
     const char *fsrc =
-        "#ifdef GL_ES\n"
+        "#version 100\n"  // OpenGL ES 2.0
         "precision mediump float;\n"
-        "#endif\n"
         "uniform samplerCube uSkybox;\n"
         "varying vec3 vTexCoord;\n"
         "void main() {\n"
-        "#ifdef GL_ES\n"
         "    gl_FragColor = textureCube(uSkybox, vTexCoord);\n"
-        "#else\n"
-        "    gl_FragColor = textureCube(uSkybox, vTexCoord);\n"
-        "#endif\n"
         "}\n";
 
     // Print shader sources for debugging

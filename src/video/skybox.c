@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <SDL2/SDL_image.h>
 
 // --- Shader sources ---
 static const char *skyboxVertexShaderSrc =
@@ -126,12 +127,11 @@ typedef struct {
 
 // --- Initialize skybox (call once) ---
 void initModernSkybox(ModernSkybox *skybox) {
-    // Compile/link shaders
-    skybox->shaderProg = createProgram(skyboxVertexShaderSrc, skyboxFragmentShaderSrc);
-    skybox->aPosition = glGetAttribLocation(skybox->shaderProg, "aPosition");
-    skybox->aTexCoord = glGetAttribLocation(skybox->shaderProg, "aTexCoord");
-    skybox->uMVP = glGetUniformLocation(skybox->shaderProg, "uMVP");
-    skybox->uTexture = glGetUniformLocation(skybox->shaderProg, "uTexture");
+    // Use the shader program from shader_manager
+    skybox->shaderProg = gSkyboxShaderProgram;
+    skybox->aPosition = gSkyboxAttribPosition;
+    skybox->uMVP = gSkyboxUniformMVP;
+    skybox->uTexture = gSkyboxUniformSkybox;
 
     // Create VAO/VBO/EBO
     #ifdef __ANDROID__
@@ -152,9 +152,6 @@ void initModernSkybox(ModernSkybox *skybox) {
     glEnableVertexAttribArray(skybox->aPosition);
     glVertexAttribPointer(skybox->aPosition, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (void*)0);
 
-    glEnableVertexAttribArray(skybox->aTexCoord);
-    glVertexAttribPointer(skybox->aTexCoord, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (void*)(3 * sizeof(GLfloat)));
-
     #ifdef __ANDROID__
     glBindVertexArray(0);
     #endif
@@ -162,7 +159,18 @@ void initModernSkybox(ModernSkybox *skybox) {
 
 // --- Load skybox textures using TextureInfo ---
 void loadSkyboxTextures(Skybox *skybox, const TextureInfo textures[6]) {
-    // Load each texture and assign it to the skybox
+    // Create a cube map texture
+    glGenTextures(1, &((ModernSkybox*)skybox)->textures[0]);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, ((ModernSkybox*)skybox)->textures[0]);
+
+    // Set texture parameters
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+    // Load each face of the cube map
     for (int i = 0; i < 6; i++) {
         // Get the full path to the texture file
         char* path = nebu_FS_GetPath_WithFilename(PATH_ART, textures[i].filename);
@@ -171,19 +179,28 @@ void loadSkyboxTextures(Skybox *skybox, const TextureInfo textures[6]) {
             exit(EXIT_FAILURE);
         }
 
-        // Load the texture using the resource system
-        int textureId = resource_LoadTexture(textures[i].filename, textures[i].texture_type);
-        if (textureId < 0) {
-            fprintf(stderr, "[FATAL] Failed to load skybox texture: %s\n", textures[i].filename);
+        // Load the texture data
+        SDL_Surface *surface = IMG_Load(path);
+        if (!surface) {
+            fprintf(stderr, "[FATAL] Failed to load skybox texture: %s\n", path);
             free(path);
             exit(EXIT_FAILURE);
         }
 
-        // Assign the texture to the skybox
-        ((ModernSkybox*)skybox)->textures[i] = textureId;
+        // Convert to RGBA format
+        SDL_Surface *rgbaSurface = SDL_ConvertSurfaceFormat(surface, SDL_PIXELFORMAT_RGBA32, 0);
+        SDL_FreeSurface(surface);
 
+        // Upload to GPU
+        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGBA,
+                     rgbaSurface->w, rgbaSurface->h, 0, GL_RGBA,
+                     GL_UNSIGNED_BYTE, rgbaSurface->pixels);
+
+        SDL_FreeSurface(rgbaSurface);
         free(path);
     }
+
+    glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
 }
 
 // --- Draw skybox (call each frame) ---
