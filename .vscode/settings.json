@@ -31,6 +31,9 @@
         "tuple": "c",
         "type_traits": "c",
         "utility": "c",
-        "resource.h": "c"
+        "resource.h": "c",
+        "nebu_input.h": "c",
+        "nebu_resource.h": "c",
+        "video.h": "c"
     }
 }

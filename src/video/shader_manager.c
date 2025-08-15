@@ -1,7 +1,14 @@
 #include "video/shader_manager.h"
-#include <GLES2/gl2.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+#include <SDL2/SDL.h>
+
+#ifdef __ANDROID__
+  #include <GLES2/gl2.h>
+#else
+  #include <GL/gl.h>
+#endif
 
 GLuint gShaderProgram = 0;
 GLint gUniformMVP = -1;
