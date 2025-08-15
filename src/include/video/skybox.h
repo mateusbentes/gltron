@@ -5,6 +5,10 @@
 #include "video/model.h" // gltron_Mesh
 
 typedef struct {
+    GLuint textures[6]; // One texture per face
+    GLuint vao, vbo, ebo;
+    GLuint shaderProg;
+    GLint aPosition, aTexCoord, uMVP, uTexture;
     gltron_Mesh *skyboxMesh;
     // Other Skybox members...
 } Skybox;

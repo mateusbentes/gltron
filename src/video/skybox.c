@@ -1,3 +1,9 @@
+#include "video/skybox.h"
+#include "video/texture.h"
+#include "video/nebu_texture2d.h"
+#include "filesystem/path.h"
+#include "filesystem/nebu_filesystem.h"
+#include "game/resource.h"
 #include <SDL2/SDL.h>
 #if defined(__ANDROID__)
   #include <GLES2/gl2.h>
@@ -147,14 +153,29 @@ void initModernSkybox(ModernSkybox *skybox) {
     glBindVertexArray(0);
 }
 
-// --- Load skybox textures (one per face) ---
-void loadModernSkyboxTextures(ModernSkybox *skybox, const char* filenames[6], GLuint (*loadTextureFunc)(const char*)) {
+// --- Load skybox textures using TextureInfo ---
+void loadSkyboxTextures(Skybox *skybox, const TextureInfo textures[6]) {
+    // Load each texture and assign it to the skybox
     for (int i = 0; i < 6; i++) {
-        skybox->textures[i] = loadTextureFunc(filenames[i]);
-        if (!skybox->textures[i]) {
-            fprintf(stderr, "[FATAL] Failed to load skybox texture: %s\n", filenames[i]);
+        // Get the full path to the texture file
+        char* path = nebu_FS_GetPath_WithFilename(PATH_ART, textures[i].filename);
+        if (!path) {
+            fprintf(stderr, "[FATAL] Failed to locate skybox texture: %s\n", textures[i].filename);
             exit(EXIT_FAILURE);
         }
+
+        // Load the texture using the resource system
+        int textureId = resource_LoadTexture(textures[i].filename, textures[i].texture_type);
+        if (textureId < 0) {
+            fprintf(stderr, "[FATAL] Failed to load skybox texture: %s\n", textures[i].filename);
+            free(path);
+            exit(EXIT_FAILURE);
+        }
+
+        // Assign the texture to the skybox
+        ((ModernSkybox*)skybox)->textures[i] = textureId;
+
+        free(path);
     }
 }
 
@@ -178,18 +199,17 @@ void drawModernSkybox(ModernSkybox *skybox, const float *mvp) {
 }
 
 // Skybox wrappers
-void drawSkybox(void) {
-    #ifdef HAVE_DRAWSKYBOX_MODERN
-    drawSkybox_modern();
-    #else
-    fprintf(stderr, "[WARN] drawSkybox: Not implemented.\n");
-    #endif
-}
+void drawSkybox(Skybox *skybox) {
+    // Get the current view matrix (without translation)
+    GLfloat view[16];
+    glGetFloatv(GL_MODELVIEW_MATRIX, view);
+    view[12] = view[13] = view[14] = 0.0f; // Remove translation
 
-void loadSkyboxTextures(void) {
-    #ifdef HAVE_LOADSKYBOXTEXTURES_MODERN
-    loadSkyboxTextures_modern();
-    #else
-    fprintf(stderr, "[WARN] loadSkyboxTextures: Not implemented.\n");
-    #endif
+    // Combine with projection matrix
+    GLfloat mvp[16];
+    glGetFloatv(GL_PROJECTION_MATRIX, mvp);
+    matrixMultiply(mvp, view, mvp);
+
+    // Draw the skybox
+    drawModernSkybox((ModernSkybox*)skybox, mvp);
 }

@@ -14,15 +14,6 @@
 
 #include "base/nebu_debug_memory.h"
 
-// Add this enum for resource types
-typedef enum {
-    RESOURCE_TEXTURE = 1,
-    RESOURCE_FONT,
-    RESOURCE_2D,
-    RESOURCE_GLTRON_TRI_MESH,
-    RESOURCE_GLTRON_QUAD_MESH
-} ResourceType;
-
 // Forward declaration of resource_Get function
 void* resource_Get(int token, int type);
 

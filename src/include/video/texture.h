@@ -9,6 +9,8 @@ typedef struct TextureInfo {
   int wrap_t;
   int id;
   float anisotropy;
+  const char* filename;
+  int texture_type;
 } TextureInfo;
 
 enum {
@@ -22,4 +24,3 @@ enum {
 };
 
 #endif
-

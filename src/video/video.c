@@ -1,5 +1,6 @@
 #include "video/video.h"
 #include "game/game.h"
+#include "video/skybox.h"
 #include "game/resource.h"
 #include "base/nebu_resource.h"
 #include "filesystem/path.h"
@@ -389,30 +390,55 @@ void video_LoadLevel(void) {
 
     printf("[video] Creating new world\n");
 
-    // Call our simplified video_CreateLevel function
-    gWorld = video_CreateLevel();
+    // Allocate memory for the world
+    gWorld = (video_level*)malloc(sizeof(video_level));
     if (!gWorld) {
-        fprintf(stderr, "[FATAL] Failed to create world\n");
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "[ERROR] Failed to allocate memory for world\n");
+        return;
     }
+
+    // Initialize the world structure
+    memset(gWorld, 0, sizeof(video_level));
 
     // Initialize the skybox
     gWorld->Skybox = (Skybox*)malloc(sizeof(Skybox));
     if (!gWorld->Skybox) {
-        fprintf(stderr, "[FATAL] Failed to allocate memory for skybox\n");
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "[ERROR] Failed to allocate memory for skybox\n");
+        free(gWorld);
+        gWorld = NULL;
+        return;
     }
 
-    // Load skybox textures
-    const char* skyboxFilenames[6] = {
-        "art/classic/skybox0.png", //front
-        "art/classic/skybox2.png", //back
-        "art/classic/skybox3.png", //left
-        "art/classic/skybox4.png", //right
-        "art/classic/skybox5.png", //top
-        "art/classic/skybox1.png" //bottom
-    };
-    loadSkyboxTextures(gWorld->Skybox, skyboxFilenames);
+    // Initialize the skybox
+    Skybox* skybox = gWorld->Skybox;
+    initModernSkybox(skybox);
+
+    // Load skybox textures using the TextureInfo array
+    for (int i = 0; i < TEX_COUNT; i++) {
+        if (textures[i].type == TEX_SKYBOX0 || textures[i].type == TEX_SKYBOX1 ||
+            textures[i].type == TEX_SKYBOX2 || textures[i].type == TEX_SKYBOX3 ||
+            textures[i].type == TEX_SKYBOX4 || textures[i].type == TEX_SKYBOX5) {
+
+            int textureId = resource_LoadTexture(textures[i].filename, textures[i].texture_type);
+            if (textureId < 0) {
+                fprintf(stderr, "[ERROR] Failed to load skybox texture: %s\n", textures[i].filename);
+                free(gWorld->Skybox);
+                free(gWorld);
+                gWorld = NULL;
+                return;
+            }
+
+            // Assign the texture to the appropriate skybox face
+            switch (textures[i].type) {
+                case TEX_SKYBOX0: skybox->textures[0] = textureId; break;
+                case TEX_SKYBOX1: skybox->textures[1] = textureId; break;
+                case TEX_SKYBOX2: skybox->textures[2] = textureId; break;
+                case TEX_SKYBOX3: skybox->textures[3] = textureId; break;
+                case TEX_SKYBOX4: skybox->textures[4] = textureId; break;
+                case TEX_SKYBOX5: skybox->textures[5] = textureId; break;
+            }
+        }
+    }
 
     printf("[video] World created successfully\n");
 }
