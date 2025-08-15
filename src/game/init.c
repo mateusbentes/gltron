@@ -447,16 +447,16 @@ void initConfiguration(int argc, const char *argv[])
 
 void initAudio(void) {
     int audio_available = 1;
-    
+
     fprintf(stderr, "[audio] Initializing audio system\n");
-    
+
     /* Initialize the audio system */
     fprintf(stderr, "[audio] Calling Audio_Init()\n");
     Audio_Init();
-    
+
     fprintf(stderr, "[audio] Calling Audio_Start()\n");
     Audio_Start();
-    
+
     /* Load audio scripts with error checking */
     fprintf(stderr, "[audio] Loading audio scripts\n");
 
@@ -482,7 +482,7 @@ void initAudio(void) {
     } else {
         fprintf(stderr, "[error] Failed to load music_functions.lua\n");
         if (music_functions_script) free(music_functions_script);
-    
+
         /* CHANGE: Would create nextTrack and previousTrack functions in Lua (stub) */
         fprintf(stderr, "[audio] Would create nextTrack and previousTrack functions (stub)\n");
     }
@@ -500,7 +500,7 @@ void initAudio(void) {
         if (crash_sound) free(crash_sound);
         audio_available = 0;
     }
-    
+
     char *engine_sound = getPossiblePath(PATH_DATA, "game_engine.wav");
     if (engine_sound && nebu_FS_Test(engine_sound)) {
         fprintf(stderr, "[audio] Loading engine sound from: %s\n", engine_sound);
@@ -511,8 +511,8 @@ void initAudio(void) {
         if (engine_sound) free(engine_sound);
         audio_available = 0;
     }
-    
-    char *recognizer_sound = getPossiblePath(PATH_DATA, "game_win.wav");
+
+    char *recognizer_sound = getPossiblePath(PATH_DATA, "game_recognizer.wav");
     if (recognizer_sound && nebu_FS_Test(recognizer_sound)) {
         fprintf(stderr, "[audio] Loading recognizer sound from: %s\n", recognizer_sound);
         Audio_LoadSample(recognizer_sound, 2);
@@ -522,10 +522,10 @@ void initAudio(void) {
         if (recognizer_sound) free(recognizer_sound);
         audio_available = 0;
     }
-    
+
     /* Set up audio volumes with error checking */
     fprintf(stderr, "[audio] Setting audio volumes\n");
-    
+
     if (isSetting("fxVolume")) {
         float volume = getSettingf("fxVolume");
         fprintf(stderr, "[audio] Setting FX volume to: %f\n", volume);
@@ -534,7 +534,7 @@ void initAudio(void) {
         fprintf(stderr, "[warning] fxVolume setting not found, using default\n");
         Audio_SetFxVolume(0.8f);
     }
-    
+
     if (isSetting("musicVolume")) {
         float volume = getSettingf("musicVolume");
         fprintf(stderr, "[audio] Setting music volume to: %f\n", volume);
@@ -543,13 +543,13 @@ void initAudio(void) {
         fprintf(stderr, "[warning] musicVolume setting not found, using default\n");
         Audio_SetMusicVolume(0.8f);
     }
-    
+
     /* Try to load and play music with error checking */
     fprintf(stderr, "[audio] Checking if music is enabled\n");
-    
+
     if (audio_available && isSetting("playMusic") && getSettingi("playMusic")) {
         fprintf(stderr, "[audio] Music is enabled, trying to play\n");
-        
+
         // Play music
         char *music_path = getPossiblePath(PATH_MUSIC, "song_revenge_of_cats.it");
         if (music_path && nebu_FS_Test(music_path)) {
@@ -566,7 +566,7 @@ void initAudio(void) {
     }
 
 #endif
-    
+
     fprintf(stderr, "[audio] Audio initialization complete\n");
 }
 
