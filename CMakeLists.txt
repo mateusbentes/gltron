@@ -99,6 +99,7 @@ option(ENABLE_STATIC_LINKING "Enable static linking" OFF)
 option(LOCAL_DATA "Use local data directory" ON)
 option(ENABLE_SOUND "Enable sound support" ON)
 option(ENABLE_TTF "Enable SDL2_ttf support" ON)
+option(ENABLE_XMP "Enable libxmp support for IT file playback" ON)
 
 # Set default build type
 if(NOT CMAKE_BUILD_TYPE)
@@ -112,6 +113,7 @@ message(STATUS "LOCAL_DATA is set to: ${LOCAL_DATA}")
 message(STATUS "ENABLE_SOUND is set to: ${ENABLE_SOUND}")
 message(STATUS "BUILD_ANDROID is set to: ${BUILD_ANDROID}")
 message(STATUS "ENABLE_TTF is set to: ${ENABLE_TTF}")
+message(STATUS "ENABLE_XMP is set to: ${ENABLE_XMP}")
 
 # Add compiler definitions
 if(BUILD_ANDROID)
@@ -234,6 +236,23 @@ else()
       set(ENABLE_TTF OFF)
     endif()
   endif()
+
+  # libxmp support for IT file playback
+  if(ENABLE_XMP)
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(LIBXMP REQUIRED libxmp)
+
+    if(LIBXMP_FOUND)
+      message(STATUS "Found libxmp: ${LIBXMP_LIBRARIES}")
+      add_definitions(-DHAVE_LIBXMP)
+      add_compile_definitions(HAVE_LIBXMP)
+      include_directories(${LIBXMP_INCLUDE_DIRS})
+      link_directories(${LIBXMP_LIBRARY_DIRS})
+    else()
+      message(WARNING "libxmp not found. Building without IT file support.")
+      set(ENABLE_XMP OFF)
+    endif()
+  endif()
 endif()
 
 # Create the cmake directory if it doesn't exist
@@ -321,6 +340,7 @@ else()
 #cmakedefine LOCAL_DATA
 #cmakedefine HAVE_SDL_SOUND
 #cmakedefine HAVE_SDL_TTF
+#cmakedefine HAVE_LIBXMP
 
 #endif /* CONFIG_H */"
   )
