@@ -16,6 +16,7 @@ extern "C" {
 #include "Nebu_audio.h"
 
 #include <SDL2/SDL.h>
+#include <unistd.h>
 // Using SDL2 without SDL_sound
 
 #include "base/nebu_debug_memory.h"
@@ -606,6 +607,8 @@ extern "C" {
             name = strdup(alt_name); // Note: This creates a memory leak, but it's small and one-time
         } else {
             fprintf(stderr, "[error] Sample file not found: %s (also tried %s)\n", name, alt_name);
+            fprintf(stderr, "[error] Current working directory: %s\n", getcwd(NULL, 0));
+            fprintf(stderr, "[error] Please ensure the file exists in the correct location\n");
             return;
         }
     } else {
@@ -615,7 +618,7 @@ extern "C" {
     // Try loading from data directory if not found in current location
     if (!f) {
         char data_path[1024];
-        snprintf(data_path, sizeof(data_path), "data/%s", name);
+        snprintf(data_path, sizeof(data_path), "%s", name);
         f = fopen(data_path, "rb");
         if (f) {
             fclose(f);
@@ -663,6 +666,8 @@ extern "C" {
         if (!sample_recognizer->Load(name)) {
             fprintf(stderr, "[error] Failed to load recognizer sample: %s\n", name);
             fprintf(stderr, "[error] Check if file exists and is in correct format\n");
+            fprintf(stderr, "[error] Current working directory: %s\n", getcwd(NULL, 0));
+            fprintf(stderr, "[error] Please ensure the file exists in the correct location\n");
             delete sample_recognizer;
             sample_recognizer = NULL;
         } else {
