@@ -393,36 +393,73 @@ extern "C" {
             return;
         } else if (strcasecmp(ext, "it") == 0) {
             printf("[audio] Detected IT format for music file: %s\n", name);
-            fprintf(stderr, "[error] IT format is not supported for music playback\n");
-            fprintf(stderr, "[error] Please convert your music to WAV format\n");
 
-            // Try to convert the IT file to WAV on the fly
-            char wav_path[512];
-            snprintf(wav_path, sizeof(wav_path), "%.*s.wav", (int)(ext - name - 1), name);
+            // Try to load IT file directly using libxmp
+            if (music != NULL) {
+                printf("[audio] Stopping previous music track\n");
+                music->Stop();
+                music->SetRemovable();
+            }
 
-            printf("[audio] Attempting to convert IT file to WAV: %s\n", wav_path);
+            music = new Sound::SourceMusic(sound);
+            printf("[audio] Attempting to load IT file directly: %s\n", name);
+            music->Load(name);
 
-            // Check if the WAV file already exists
-            FILE *wav_f = fopen(wav_path, "rb");
-            if (wav_f) {
-                fclose(wav_f);
-                printf("[audio] Found existing WAV file: %s\n", wav_path);
-                name = strdup(wav_path); // Note: This creates a memory leak, but it's small and one-time
-            } else {
-                // Try to convert the IT file to WAV using an external tool
-                char command[1024];
-                snprintf(command, sizeof(command), "timidity %s -Ow -o %s", name, wav_path);
+            // Check if loading was successful
+            if (!music == NULL) {
+                fprintf(stderr, "[error] Failed to load IT file directly: %s\n", name);
+                fprintf(stderr, "[error] Please ensure libxmp is properly installed and configured\n");
 
-                printf("[audio] Running conversion command: %s\n", command);
-                int result = system(command);
+                // Try to convert the IT file to WAV on the fly
+                char wav_path[512];
+                snprintf(wav_path, sizeof(wav_path), "%.*s.wav", (int)(ext - name - 1), name);
 
-                if (result == 0) {
-                    printf("[audio] Successfully converted IT file to WAV: %s\n", wav_path);
+                printf("[audio] Attempting to convert IT file to WAV: %s\n", wav_path);
+
+                // Check if the WAV file already exists
+                FILE *wav_f = fopen(wav_path, "rb");
+                if (wav_f) {
+                    fclose(wav_f);
+                    printf("[audio] Found existing WAV file: %s\n", wav_path);
                     name = strdup(wav_path); // Note: This creates a memory leak, but it's small and one-time
+
+                    // Load the WAV file
+                    if (music != NULL) {
+                        printf("[audio] Stopping previous music track\n");
+                        music->Stop();
+                        music->SetRemovable();
+                    }
+
+                    music = new Sound::SourceMusic(sound);
+                    printf("[audio] Attempting to load WAV file: %s\n", name);
+                    music->Load(name);
                 } else {
-                    fprintf(stderr, "[error] Failed to convert IT file to WAV: %s\n", wav_path);
-                    fprintf(stderr, "[error] Please manually convert your music to WAV format\n");
-                    return;
+                    // Try to convert the IT file to WAV using an external tool
+                    char command[1024];
+                    snprintf(command, sizeof(command), "timidity %s -Ow -o %s", name, wav_path);
+
+                    printf("[audio] Running conversion command: %s\n", command);
+                    int result = system(command);
+
+                    if (result == 0) {
+                        printf("[audio] Successfully converted IT file to WAV: %s\n", wav_path);
+                        name = strdup(wav_path); // Note: This creates a memory leak, but it's small and one-time
+
+                        // Load the WAV file
+                        if (music != NULL) {
+                            printf("[audio] Stopping previous music track\n");
+                            music->Stop();
+                            music->SetRemovable();
+                        }
+
+                        music = new Sound::SourceMusic(sound);
+                        printf("[audio] Attempting to load WAV file: %s\n", name);
+                        music->Load(name);
+                    } else {
+                        fprintf(stderr, "[error] Failed to convert IT file to WAV: %s\n", wav_path);
+                        fprintf(stderr, "[error] Please manually convert your music to WAV format\n");
+                        return;
+                    }
                 }
             }
         } else {
@@ -438,18 +475,10 @@ extern "C" {
         return;
     }
 
-    if(music != NULL) {
-        printf("[audio] Stopping previous music track\n");
-        music->Stop();
-        music->SetRemovable();
+    if (music == NULL) {
+        fprintf(stderr, "[error] Failed to load music file: %s\n", name);
+        return;
     }
-
-    music = new Sound::SourceMusic(sound);
-
-    printf("[audio] Attempting to load music file: %s\n", name);
-    // SourceMusic::Load returns void, not bool, so we can't check its return value
-    music->Load(name);
-    printf("[audio] Music file loaded into memory\n");
 
     int loopSetting = getSettingi("loopMusic");
     printf("[audio] Loop setting: %d\n", loopSetting);

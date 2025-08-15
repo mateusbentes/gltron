@@ -22,7 +22,8 @@ public:
 
     // Member variables
     xmp_context _xmp_context;
-    bool _loaded;
+
+    bool IsLoaded() const { return _loaded; }
 
 private:
     Uint8 *_buffer;
@@ -34,6 +35,8 @@ private:
 
     char *_filename;
     SDL_RWops *_rwops;
+
+    bool _loaded;
 };
 
 } // namespace Sound

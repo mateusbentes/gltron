@@ -50,6 +50,9 @@ void SourceMusic::Load(char *filename) {
 
     printf("[audio] Loading music file: %s\n", filename);
 
+	// After successfully loading the music, set _loaded to true
+    _loaded = true;
+
     // Determine file extension
     const char *ext = strrchr(filename, '.');
     if (ext) {
