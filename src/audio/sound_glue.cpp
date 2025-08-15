@@ -506,23 +506,22 @@ extern "C" {
 	  }
   }
 
-  void Audio_LoadPlayers(void) {
-	  nebu_assert(!ppPlayerSources);
-	  nPlayerSources = game->players;
-	ppPlayerSources = new Sound::SourceEngine*[nPlayerSources];
-    for(int i = 0; i < nPlayerSources; i++)
-	{
-		ppPlayerSources[i] = new Sound::SourceEngine(sound, sample_engine);
-		ppPlayerSources[i]->SetType(Sound::eSoundFX);
-		sound->AddSource(ppPlayerSources[i]);
+void Audio_LoadPlayers(void) {
+    nebu_assert(!ppPlayerSources);
+    nPlayerSources = game->players;
+    ppPlayerSources = new Sound::SourceEngine*[nPlayerSources];
+    for(int i = 0; i < nPlayerSources; i++) {
+        ppPlayerSources[i] = new Sound::SourceEngine(sound, sample_engine);
+        ppPlayerSources[i]->SetType(Sound::eSoundFX);
+        sound->AddSource(ppPlayerSources[i]);
 
-		char *name = new char[32];
-		sprintf(name, "player %d", i);
-		ppPlayerSources[i]->SetName(name);
-		delete[] name;
-	}
+        char *name = new char[32];
+        sprintf(name, "player %d", i);
+        ppPlayerSources[i]->SetName(name);
+        delete[] name;
+    }
 
-	nebu_assert(!recognizerEngine);
+    nebu_assert(!recognizerEngine);
     recognizerEngine = new Sound::Source3D(sound, sample_recognizer);
     recognizerEngine->SetType(Sound::eSoundFX);
     recognizerEngine->Start();
