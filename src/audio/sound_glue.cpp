@@ -612,12 +612,27 @@ extern "C" {
 
             // Try loading from data directory as a last resort
             char data_path[1024];
-            snprintf(data_path, sizeof(data_path), "%s", name);
+            snprintf(data_path, sizeof(data_path), "data/%s", name);
             FILE *data_f = fopen(data_path, "rb");
             if (data_f) {
                 fclose(data_f);
                 printf("[audio] Found sample in data directory: %s\n", data_path);
                 name = strdup(data_path); // Note: This creates a memory leak, but it's small and one-time
+            } else {
+                fprintf(stderr, "[error] Sample file not found in data directory: %s\n", data_path);
+
+                // Try loading from sounds directory as a last resort
+                char sounds_path[1024];
+                snprintf(sounds_path, sizeof(sounds_path), "sounds/%s", name);
+                FILE *sounds_f = fopen(sounds_path, "rb");
+                if (sounds_f) {
+                    fclose(sounds_f);
+                    printf("[audio] Found sample in sounds directory: %s\n", sounds_path);
+                    name = strdup(sounds_path); // Note: This creates a memory leak, but it's small and one-time
+                } else {
+                    fprintf(stderr, "[error] Sample file not found in sounds directory: %s\n", sounds_path);
+                    return;
+                }
             }
         }
     } else {
