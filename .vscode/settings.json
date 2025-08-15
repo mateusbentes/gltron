@@ -34,6 +34,7 @@
         "resource.h": "c",
         "nebu_input.h": "c",
         "nebu_resource.h": "c",
-        "video.h": "c"
+        "video.h": "c",
+        "model.h": "c"
     }
 }

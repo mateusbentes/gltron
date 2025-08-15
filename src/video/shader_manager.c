@@ -10,11 +10,23 @@
   #include <GL/gl.h>
 #endif
 
+// Basic shader variables
 GLuint gShaderProgram = 0;
 GLint gUniformMVP = -1;
 GLint gAttribPosition = -1;
 
+// Skybox shader variables
+GLuint gSkyboxShaderProgram = 0;
+GLint gSkyboxUniformMVP = -1;
+GLint gSkyboxUniformSkybox = -1;
+GLint gSkyboxAttribPosition = -1;
+
 static GLuint compileShader(GLenum type, const char *src) {
+    printf("Compiling shader of type %d\n", type);
+
+    // Print the shader source for debugging
+    printf("Shader source:\n%s\n", src);
+
     GLuint shader = glCreateShader(type);
     if (!shader) {
         fprintf(stderr, "Failed to create shader object\n");
@@ -27,12 +39,15 @@ static GLuint compileShader(GLenum type, const char *src) {
     GLint success;
     glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
     if (!success) {
-        char log[256];
+        char log[1024];  // Increased buffer size for more detailed error messages
         glGetShaderInfoLog(shader, sizeof(log), NULL, log);
-        fprintf(stderr, "Shader compile error: %s\n", log);
+        fprintf(stderr, "Shader compile error:\n%s\n", log);
+        fprintf(stderr, "Shader source that failed:\n%s\n", src);
         glDeleteShader(shader);
         return 0;
     }
+
+    printf("Shader compiled successfully\n");
     return shader;
 }
 
@@ -74,9 +89,9 @@ GLuint createShaderProgram(const char *vsrc, const char *fsrc) {
     GLint linked;
     glGetProgramiv(program, GL_LINK_STATUS, &linked);
     if (!linked) {
-        char log[256];
+        char log[1024];
         glGetProgramInfoLog(program, sizeof(log), NULL, log);
-        fprintf(stderr, "Program link error: %s\n", log);
+        fprintf(stderr, "Program link error:\n%s\n", log);
         glDeleteProgram(program);
         program = 0;
     }
@@ -89,6 +104,8 @@ GLuint createShaderProgram(const char *vsrc, const char *fsrc) {
 }
 
 void initBasicShader() {
+    printf("Entering initBasicShader()\n");
+
     // Vertex shader with proper vec4 output
     const char *vsrc =
         "#version 100\n"  // OpenGL ES 2.0
@@ -106,25 +123,69 @@ void initBasicShader() {
         "    gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);\n"
         "}\n";
 
+    // Print shader sources for debugging
+    printf("Vertex shader source:\n%s\n", vsrc);
+    printf("Fragment shader source:\n%s\n", fsrc);
+
     // Create the shader program
+    printf("Creating shader program...\n");
     gShaderProgram = createShaderProgram(vsrc, fsrc);
     if (!gShaderProgram) {
         fprintf(stderr, "Failed to create shader program\n");
         return;
     }
 
+    printf("Shader program created successfully\n");
+
     // Get uniform and attribute locations
+    printf("Getting uniform and attribute locations...\n");
     gUniformMVP = glGetUniformLocation(gShaderProgram, "uMVP");
     gAttribPosition = glGetAttribLocation(gShaderProgram, "aPosition");
+
+    printf("Uniform MVP location: %d\n", gUniformMVP);
+    printf("Attribute position location: %d\n", gAttribPosition);
 
     // Verify that the attribute location was set correctly
     if (gAttribPosition != 0) {
         fprintf(stderr, "Warning: Attribute 'aPosition' was not bound to location 0\n");
     }
 
-    printf("Shader program created successfully\n");
-    printf("Uniform MVP location: %d\n", gUniformMVP);
-    printf("Attribute position location: %d\n", gAttribPosition);
+    printf("Shader initialization complete\n");
+}
+
+void initSkyboxShaders() {
+    // Vertex shader for skybox
+    const char *vsrc =
+        "#version 100\n"  // OpenGL ES 2.0
+        "uniform mat4 uMVP;\n"
+        "attribute vec3 aPosition;\n"
+        "varying vec3 vTexCoord;\n"
+        "void main() {\n"
+        "    vTexCoord = aPosition;\n"
+        "    gl_Position = uMVP * vec4(aPosition, 1.0);\n"
+        "}\n";
+
+    // Fragment shader for skybox
+    const char *fsrc =
+        "#version 100\n"  // OpenGL ES 2.0
+        "precision mediump float;\n"
+        "uniform samplerCube uSkybox;\n"
+        "varying vec3 vTexCoord;\n"
+        "void main() {\n"
+        "    gl_FragColor = textureCube(uSkybox, vTexCoord);\n"
+        "}\n";
+
+    // Create the shader program
+    gSkyboxShaderProgram = createShaderProgram(vsrc, fsrc);
+    if (!gSkyboxShaderProgram) {
+        fprintf(stderr, "Failed to create skybox shader program\n");
+        return;
+    }
+
+    // Get uniform and attribute locations
+    gSkyboxUniformMVP = glGetUniformLocation(gSkyboxShaderProgram, "uMVP");
+    gSkyboxUniformSkybox = glGetUniformLocation(gSkyboxShaderProgram, "uSkybox");
+    gSkyboxAttribPosition = glGetAttribLocation(gSkyboxShaderProgram, "aPosition");
 }
 
 void cleanupShader() {

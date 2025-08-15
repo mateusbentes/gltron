@@ -3,13 +3,22 @@
 
 #include <GLES2/gl2.h>
 
-// Shader program and uniform/attribute locations
+// Basic shader program and uniform/attribute locations
 extern GLuint gShaderProgram;
 extern GLint gUniformMVP;
 extern GLint gAttribPosition;
 
+// Skybox shader program and uniform/attribute locations
+extern GLuint gSkyboxShaderProgram;
+extern GLint gSkyboxUniformMVP;
+extern GLint gSkyboxUniformSkybox;
+extern GLint gSkyboxAttribPosition;
+
 // Initialize the basic shader program
 void initBasicShader();
+
+// Initialize the skybox shader program
+void initSkyboxShaders();
 
 // Clean up shader resources
 void cleanupShader();

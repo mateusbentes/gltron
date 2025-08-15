@@ -1,5 +1,6 @@
 #include "video/skybox.h"
 #include "video/texture.h"
+#include "video/shader_manager.h"
 #include "video/nebu_texture2d.h"
 #include "filesystem/path.h"
 #include "filesystem/nebu_filesystem.h"
@@ -200,16 +201,79 @@ void drawModernSkybox(ModernSkybox *skybox, const float *mvp) {
 
 // Skybox wrappers
 void drawSkybox(Skybox *skybox) {
-    // Get the current view matrix (without translation)
+    // Create and set up the MVP matrix
+    float mvp[16];
+
+    // For a skybox, we typically want to use the view matrix without translation
+    // and combine it with the projection matrix
+
+    // Get the current view matrix
     GLfloat view[16];
     glGetFloatv(GL_MODELVIEW_MATRIX, view);
-    view[12] = view[13] = view[14] = 0.0f; // Remove translation
 
-    // Combine with projection matrix
-    GLfloat mvp[16];
-    glGetFloatv(GL_PROJECTION_MATRIX, mvp);
-    matrixMultiply(mvp, view, mvp);
+    // Remove translation from the view matrix
+    view[12] = view[13] = view[14] = 0.0f;
 
-    // Draw the skybox
-    drawModernSkybox((ModernSkybox*)skybox, mvp);
+    // Get the current projection matrix
+    GLfloat projection[16];
+    glGetFloatv(GL_PROJECTION_MATRIX, projection);
+
+    // Combine the projection and view matrices to create the MVP matrix
+    // Note: In OpenGL, matrix multiplication is right-to-left
+    // So we multiply projection * view to get the final MVP matrix
+    matrixMultiply(projection, view, mvp);
+
+    // Use the skybox shader program
+    glUseProgram(skybox->shaderProg);
+
+    // Set the MVP matrix uniform
+    glUniformMatrix4fv(skybox->uMVP, 1, GL_FALSE, mvp);
+
+    // Bind the skybox texture
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, skybox->textures[0]);
+    glUniform1i(skybox->uSkybox, 0);
+
+    // Enable the position attribute
+    glEnableVertexAttribArray(skybox->aPosition);
+
+    // Bind the VAO and draw the skybox
+    glBindVertexArray(skybox->vao);
+    glDrawElements(GL_TRIANGLES, sizeof(skyboxIndices)/sizeof(skyboxIndices[0]), GL_UNSIGNED_SHORT, 0);
+
+    // Disable the attribute when done
+    glDisableVertexAttribArray(skybox->aPosition);
+
+    // Unbind the shader program when done
+    glUseProgram(0);
+}
+
+void renderSkybox(Skybox *skybox) {
+    // Use the skybox shader program
+    glUseProgram(skybox->shaderProg);
+
+    // Set the MVP matrix uniform
+    float mvp[16];
+    // Set up your MVP matrix here (identity matrix for simplicity)
+    for (int i = 0; i < 16; i++) {
+        mvp[i] = (i % 5 == 0) ? 1.0f : 0.0f; // Simple identity matrix
+    }
+    glUniformMatrix4fv(skybox->uMVP, 1, GL_FALSE, mvp);
+
+    // Bind the skybox texture
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, skybox->textures[0]);
+    glUniform1i(skybox->uSkybox, 0);
+
+    // Enable the position attribute
+    glEnableVertexAttribArray(skybox->aPosition);
+
+    // Set up your vertex data and draw calls here
+    // ...
+
+    // Disable the attribute when done
+    glDisableVertexAttribArray(skybox->aPosition);
+
+    // Unbind the shader program when done
+    glUseProgram(0);
 }

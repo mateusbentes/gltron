@@ -110,12 +110,20 @@ void video_ReleaseResources(void)
 
 // In your initialization function
 void initShaders() {
+    printf("Initializing all shaders...\n");
+
+    // Initialize basic shaders
     initBasicShader();
 
-    if (!gShaderProgram) {
+    // Initialize skybox shaders
+    initSkyboxShaders();
+
+    if (!gShaderProgram || !gSkyboxShaderProgram) {
         fprintf(stderr, "Failed to initialize shaders\n");
         exit(1);
     }
+
+    printf("All shaders initialized successfully\n");
 }
 
 // In your rendering function
@@ -216,11 +224,22 @@ int initWindow(int width, int height, int fullscreen) {
     // Print OpenGL info
     printGLInfo();
 
+    // Verify OpenGL context
+    GLint contextFlags;
+    glGetIntegerv(GL_CONTEXT_FLAGS, &contextFlags);
+    printf("OpenGL context flags: 0x%X\n", contextFlags);
+
+    // Check OpenGL version
+    const char* version = (const char*)glGetString(GL_VERSION);
+    printf("OpenGL version: %s\n", version ? version : "Unknown");
+
     // Set viewport
     glViewport(0, 0, width, height);
 
     // Initialize shaders after OpenGL context is created
+    printf("Initializing shaders...\n");
     initShaders();
+    printf("Shaders initialized\n");
 
     printf("[init] Window and OpenGL context initialized successfully\n");
     return 0;
@@ -449,9 +468,15 @@ void video_LoadLevel(void) {
         return;
     }
 
-    // Initialize the skybox
+    // Initialize the skybox with proper shader setup
     Skybox* skybox = gWorld->Skybox;
     initModernSkybox(skybox);
+
+    // Set up skybox shaders
+    skybox->shaderProg = gSkyboxShaderProgram;
+    skybox->uMVP = gSkyboxUniformMVP;
+    skybox->uSkybox = gSkyboxUniformSkybox;
+    skybox->aPosition = gSkyboxAttribPosition;
 
     // Load skybox textures using the TextureInfo array
     for (int i = 0; i < TEX_COUNT; i++) {
