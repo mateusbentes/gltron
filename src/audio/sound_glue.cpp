@@ -506,8 +506,44 @@ extern "C" {
 	  }
   }
 
-void Audio_LoadPlayers(void) {
-    nebu_assert(!ppPlayerSources);
+  void Audio_LoadPlayers(void) {
+    // Check if game is initialized
+    if (!game) {
+        fprintf(stderr, "[error] Cannot load players - game not initialized\n");
+        return;
+    }
+
+    // Check if sound system is initialized
+    if (!sound) {
+        fprintf(stderr, "[error] Cannot load players - sound system not initialized\n");
+        return;
+    }
+
+    // Check if engine sample is loaded
+    if (!sample_engine) {
+        fprintf(stderr, "[error] Cannot load players - engine sample not loaded\n");
+        return;
+    }
+
+    // Check if recognizer sample is loaded
+    if (!sample_recognizer) {
+        fprintf(stderr, "[error] Cannot load players - recognizer sample not loaded\n");
+        return;
+    }
+
+    // Check if player sources are already loaded
+    if (ppPlayerSources) {
+        fprintf(stderr, "[error] Player sources already loaded\n");
+        return;
+    }
+
+    // Check if recognizer engine is already loaded
+    if (recognizerEngine) {
+        fprintf(stderr, "[error] Recognizer engine already loaded\n");
+        return;
+    }
+
+    // Load player sources
     nPlayerSources = game->players;
     ppPlayerSources = new Sound::SourceEngine*[nPlayerSources];
     for(int i = 0; i < nPlayerSources; i++) {
@@ -521,7 +557,7 @@ void Audio_LoadPlayers(void) {
         delete[] name;
     }
 
-    nebu_assert(!recognizerEngine);
+    // Load recognizer engine
     recognizerEngine = new Sound::Source3D(sound, sample_recognizer);
     recognizerEngine->SetType(Sound::eSoundFX);
     recognizerEngine->Start();
