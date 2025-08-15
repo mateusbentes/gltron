@@ -260,9 +260,9 @@ extern "C" {
     }
 
     // Load the sound samples
-    Audio_LoadSample("engine.wav", 0); // Load engine sample
-    Audio_LoadSample("crash.wav", 1);  // Load crash sample
-    Audio_LoadSample("recognizer.wav", 2); // Load recognizer sample
+    Audio_LoadSample("game_engine.wav", 0); // Load engine sample
+    Audio_LoadSample("game_crash.wav", 1);  // Load crash sample
+    Audio_LoadSample("game_recognizer.wav", 2); // Load recognizer sample
 
     // Load the player sources
     Audio_LoadPlayers();
@@ -620,7 +620,19 @@ extern "C" {
                 name = strdup(data_path); // Note: This creates a memory leak, but it's small and one-time
             } else {
                 fprintf(stderr, "[error] Sample file not found in data directory: %s\n", data_path);
-                return;
+
+                // Try loading from sounds directory as a last resort
+                char data_path[1024];
+                snprintf(data_path, sizeof(data_path), "data/%s", name);
+                FILE *sounds_f = fopen(data_path, "rb");
+                if (sounds_f) {
+                    fclose(sounds_f);
+                    printf("[audio] Found sample in sounds directory: %s\n", data_path);
+                    name = strdup(data_path); // Note: This creates a memory leak, but it's small and one-time
+                } else {
+                    fprintf(stderr, "[error] Sample file not found in sounds directory: %s\n", data_path);
+                    return;
+                }
             }
         }
     } else {
