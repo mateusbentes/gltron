@@ -1,4 +1,5 @@
 #include "video/video.h"
+#include "video/shader_manager.h"
 #include "game/game.h"
 #include "video/skybox.h"
 #include "game/resource.h"
@@ -107,6 +108,42 @@ void video_ReleaseResources(void)
 {
 }
 
+// In your initialization function
+void initShaders() {
+    initBasicShader();
+
+    if (!gShaderProgram) {
+        fprintf(stderr, "Failed to initialize shaders\n");
+        exit(1);
+    }
+}
+
+// In your rendering function
+void renderScene() {
+    // Use the shader program
+    glUseProgram(gShaderProgram);
+
+    // Set the MVP matrix uniform
+    float mvp[16];
+    // Set up your MVP matrix here (identity matrix for simplicity)
+    for (int i = 0; i < 16; i++) {
+        mvp[i] = (i % 5 == 0) ? 1.0f : 0.0f; // Simple identity matrix
+    }
+    glUniformMatrix4fv(gUniformMVP, 1, GL_FALSE, mvp);
+
+    // Enable the position attribute
+    glEnableVertexAttribArray(gAttribPosition);
+
+    // Set up your vertex data and draw calls here
+    // ...
+
+    // Disable the attribute when done
+    glDisableVertexAttribArray(gAttribPosition);
+
+    // Unbind the shader program when done
+    glUseProgram(0);
+}
+
 // Main window/context initialization
 int initWindow(int width, int height, int fullscreen) {
     printf("[init] Initializing window: %dx%d fullscreen=%d\n", width, height, fullscreen);
@@ -181,6 +218,9 @@ int initWindow(int width, int height, int fullscreen) {
 
     // Set viewport
     glViewport(0, 0, width, height);
+
+    // Initialize shaders after OpenGL context is created
+    initShaders();
 
     printf("[init] Window and OpenGL context initialized successfully\n");
     return 0;
