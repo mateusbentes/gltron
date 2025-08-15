@@ -132,11 +132,12 @@ void SourceMusic::LoadWAV(char *filename) {
     }
 }
 
+
 bool SourceMusic::LoadIT(const char* filename) {
-    // Clean up any existing context
+    // Clean past context
     CleanUp();
 
-    // Create a new context
+    // Create context
     xmp_context ctx = xmp_create_context();
     if (!ctx) {
         fprintf(stderr, "[error] Failed to create xmp context\n");
@@ -144,22 +145,28 @@ bool SourceMusic::LoadIT(const char* filename) {
     }
 
     // Load the module
-    int ret = xmp_load_module(ctx, filename);
-    if (ret != 0) {
-        fprintf(stderr, "[error] Failed to load module: %s\n", xmp_get_error(ctx));
+    if (xmp_load_module(ctx, filename) != 0) {
+        fprintf(stderr, "[error] Failed to load module: %s\n", filename);
         xmp_free_context(ctx);
         return false;
     }
 
-    // Get module info
-    xmp_module_info mi;
-    xmp_get_module_info(ctx, &mi);  // Remove the assignment to ret
+    // Configure player settings
+    xmp_set_player(ctx, XMP_PLAYER_VOLUME, 100); // volume 0–100
+    xmp_set_player(ctx, XMP_PLAYER_INTERP, XMP_INTERP_LINEAR); // interpolação
+    xmp_set_player(ctx, XMP_PLAYER_DSP, 1); // DSP ligado (opcional)
 
-    // Get player interface
-    xmp_player pi;  // Make sure xmp_player is defined in your headers
-    xmp_get_player(ctx, &pi);  // Remove the assignment to ret
+    // Start player (stereo 44100 Hz)
+    if (xmp_start_player(ctx, 44100, 0) != 0) {
+        fprintf(stderr, "[error] Failed to start player\n");
+        xmp_free_context(ctx);
+        return false;
+    }
 
-    // ... rest of the function ...
+    // Saving context
+    _xmp_context = ctx;
+    _loaded = true;
+    return true;
 }
 
 void SourceMusic::CleanUp(void) {
