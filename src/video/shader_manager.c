@@ -156,6 +156,8 @@ void initBasicShader() {
 }
 
 void initSkyboxShaders() {
+    printf("Initializing skybox shaders...\n");
+
     // Vertex shader for skybox with version directive
     const char *vsrc =
         "#ifdef GL_ES\n"
@@ -184,17 +186,36 @@ void initSkyboxShaders() {
         "#endif\n"
         "}\n";
 
+    // Print shader sources for debugging
+    printf("Skybox vertex shader source:\n%s\n", vsrc);
+    printf("Skybox fragment shader source:\n%s\n", fsrc);
+
     // Create the shader program
+    printf("Creating skybox shader program...\n");
     gSkyboxShaderProgram = createShaderProgram(vsrc, fsrc);
     if (!gSkyboxShaderProgram) {
         fprintf(stderr, "Failed to create skybox shader program\n");
         return;
     }
 
+    printf("Skybox shader program created successfully\n");
+
     // Get uniform and attribute locations
+    printf("Getting skybox uniform and attribute locations...\n");
     gSkyboxUniformMVP = glGetUniformLocation(gSkyboxShaderProgram, "uMVP");
     gSkyboxUniformSkybox = glGetUniformLocation(gSkyboxShaderProgram, "uSkybox");
     gSkyboxAttribPosition = glGetAttribLocation(gSkyboxShaderProgram, "aPosition");
+
+    printf("Skybox MVP location: %d\n", gSkyboxUniformMVP);
+    printf("Skybox sampler location: %d\n", gSkyboxUniformSkybox);
+    printf("Skybox position location: %d\n", gSkyboxAttribPosition);
+
+    // Verify that the attribute location was set correctly
+    if (gSkyboxAttribPosition != 0) {
+        fprintf(stderr, "Warning: Skybox attribute 'aPosition' was not bound to location 0\n");
+    }
+
+    printf("Skybox shader initialization complete\n");
 }
 
 void cleanupShader() {
