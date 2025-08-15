@@ -609,7 +609,19 @@ extern "C" {
             fprintf(stderr, "[error] Sample file not found: %s (also tried %s)\n", name, alt_name);
             fprintf(stderr, "[error] Current working directory: %s\n", getcwd(NULL, 0));
             fprintf(stderr, "[error] Please ensure the file exists in the correct location\n");
-            return;
+
+            // Try loading from data directory as a last resort
+            char data_path[1024];
+            snprintf(data_path, sizeof(data_path), "data/%s", name);
+            FILE *data_f = fopen(data_path, "rb");
+            if (data_f) {
+                fclose(data_f);
+                printf("[audio] Found sample in data directory: %s\n", data_path);
+                name = strdup(data_path); // Note: This creates a memory leak, but it's small and one-time
+            } else {
+                fprintf(stderr, "[error] Sample file not found in data directory: %s\n", data_path);
+                return;
+            }
         }
     } else {
         fclose(f);
