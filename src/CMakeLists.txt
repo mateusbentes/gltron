@@ -99,6 +99,22 @@ else()
     message(STATUS "⚠ Scripting libraries not available - building without scripting support")
 endif()
 
+# If XMP is enabled
+if(ENABLE_XMP)
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(LIBXMP REQUIRED libxmp)
+
+    if (LIBXMP_FOUND)
+        message(STATUS "✓ Found libxmp: ${LIBXMP_LIBRARIES}")
+        include_directories(${LIBXMP_INCLUDE_DIRS})
+        link_directories(${LIBXMP_LIBRARY_DIRS})
+        target_link_libraries(gltron PRIVATE ${LIBXMP_LIBRARIES})
+    else()
+        message(WARNING "✗ libxmp not found - IT music support disabled")
+        set(ENABLE_XMP OFF)
+    endif()
+endif()
+
 # Platform-specific linking
 if(BUILD_ANDROID)
     target_compile_definitions(gltron PRIVATE SDL_MAIN_HANDLED GLTRON_BUILD_ANDROID=1)
