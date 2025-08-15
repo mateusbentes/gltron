@@ -551,7 +551,7 @@ void initAudio(void) {
         fprintf(stderr, "[audio] Music is enabled, trying to play\n");
         
         // Play music
-        char *music_path = getPossiblePath(PATH_MUSIC, "default_song.mp3");
+        char *music_path = getPossiblePath(PATH_MUSIC, "song_revenge_of_cats.it");
         if (music_path && nebu_FS_Test(music_path)) {
             fprintf(stderr, "[audio] Loading and playing music from: %s\n", music_path);
             Audio_LoadMusic(music_path);
