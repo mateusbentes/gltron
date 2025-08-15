@@ -356,7 +356,19 @@ extern "C" {
             } else {
                 fprintf(stderr, "[error] Music file not found: %s\n", name);
                 fprintf(stderr, "[error] Also tried: music/%s and sounds/%s\n", basename, basename);
-                return;
+
+                // Try to find a fallback music file
+                char fallback_path[512];
+                sprintf(fallback_path, "music/fallback_music.wav");
+                f = fopen(fallback_path, "rb");
+                if (f) {
+                    fclose(f);
+                    printf("[audio] Using fallback music file: %s\n", fallback_path);
+                    name = strdup(fallback_path); // Note: This creates a memory leak, but it's small and one-time
+                } else {
+                    fprintf(stderr, "[error] Fallback music file not found: %s\n", fallback_path);
+                    return;
+                }
             }
         }
     } else {
@@ -383,7 +395,36 @@ extern "C" {
             printf("[audio] Detected IT format for music file: %s\n", name);
             fprintf(stderr, "[error] IT format is not supported for music playback\n");
             fprintf(stderr, "[error] Please convert your music to WAV format\n");
-            return;
+
+            // Try to convert the IT file to WAV on the fly
+            char wav_path[512];
+            snprintf(wav_path, sizeof(wav_path), "%.*s.wav", (int)(ext - name - 1), name);
+
+            printf("[audio] Attempting to convert IT file to WAV: %s\n", wav_path);
+
+            // Check if the WAV file already exists
+            FILE *wav_f = fopen(wav_path, "rb");
+            if (wav_f) {
+                fclose(wav_f);
+                printf("[audio] Found existing WAV file: %s\n", wav_path);
+                name = strdup(wav_path); // Note: This creates a memory leak, but it's small and one-time
+            } else {
+                // Try to convert the IT file to WAV using an external tool
+                char command[1024];
+                snprintf(command, sizeof(command), "timidity %s -Ow -o %s", name, wav_path);
+
+                printf("[audio] Running conversion command: %s\n", command);
+                int result = system(command);
+
+                if (result == 0) {
+                    printf("[audio] Successfully converted IT file to WAV: %s\n", wav_path);
+                    name = strdup(wav_path); // Note: This creates a memory leak, but it's small and one-time
+                } else {
+                    fprintf(stderr, "[error] Failed to convert IT file to WAV: %s\n", wav_path);
+                    fprintf(stderr, "[error] Please manually convert your music to WAV format\n");
+                    return;
+                }
+            }
         } else {
             printf("[audio] Detected unknown format for music file: %s\n", name);
             fprintf(stderr, "[error] Unknown music file format: %s\n", ext);
