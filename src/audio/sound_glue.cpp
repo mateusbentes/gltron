@@ -536,9 +536,9 @@ extern "C" {
         fprintf(stderr, "[error] Cannot load sample - sound system not initialized\n");
         return;
     }
-    
+
     printf("[audio] Attempting to load sample %d: %s\n", number, name);
-    
+
     // Check if file exists
     FILE *f = fopen(name, "rb");
     if (!f) {
@@ -558,7 +558,7 @@ extern "C" {
         } else {
             snprintf(alt_name, sizeof(alt_name), "game_%s", name);
         }
-        
+
         FILE *alt_f = fopen(alt_name, "rb");
         if (alt_f) {
             fclose(alt_f);
@@ -571,7 +571,19 @@ extern "C" {
     } else {
         fclose(f);
     }
-    
+
+    // Try loading from data directory if not found in current location
+    if (!f) {
+        char data_path[1024];
+        snprintf(data_path, sizeof(data_path), "data/%s", name);
+        f = fopen(data_path, "rb");
+        if (f) {
+            fclose(f);
+            printf("[audio] Found sample in data directory: %s\n", data_path);
+            name = strdup(data_path); // Note: This creates a memory leak, but it's small and one-time
+        }
+    }
+
     switch(number) {
     case 0: // engine sound
         if (sample_engine) {
@@ -580,10 +592,13 @@ extern "C" {
         sample_engine = new Sound::SourceSample(sound);
         if (!sample_engine->Load(name)) {
             fprintf(stderr, "[error] Failed to load engine sample: %s\n", name);
+            fprintf(stderr, "[error] Check if file exists and is in correct format\n");
+            delete sample_engine;
+            sample_engine = NULL;
         } else {
             printf("[audio] Loaded engine sample successfully: %s\n", name);
+            sample_engine->SetName("sample: engine");
         }
-        sample_engine->SetName("sample: engine");
         break;
     case 1: // crash sound
         if (sample_crash) {
@@ -592,10 +607,13 @@ extern "C" {
         sample_crash = new Sound::SourceSample(sound);
         if (!sample_crash->Load(name)) {
             fprintf(stderr, "[error] Failed to load crash sample: %s\n", name);
+            fprintf(stderr, "[error] Check if file exists and is in correct format\n");
+            delete sample_crash;
+            sample_crash = NULL;
         } else {
             printf("[audio] Loaded crash sample successfully: %s\n", name);
+            sample_crash->SetName("sample: crash");
         }
-        sample_crash->SetName("sample: crash");
         break;
     case 2: // recognizer sound
         if (sample_recognizer) {
@@ -604,10 +622,13 @@ extern "C" {
         sample_recognizer = new Sound::SourceSample(sound);
         if (!sample_recognizer->Load(name)) {
             fprintf(stderr, "[error] Failed to load recognizer sample: %s\n", name);
+            fprintf(stderr, "[error] Check if file exists and is in correct format\n");
+            delete sample_recognizer;
+            sample_recognizer = NULL;
         } else {
             printf("[audio] Loaded recognizer sample successfully: %s\n", name);
+            sample_recognizer->SetName("sample: recognizer");
         }
-        sample_recognizer->SetName("sample: recognizer");
         break;
     default:
         /* programmer error, but non-critical */

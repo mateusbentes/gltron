@@ -117,37 +117,25 @@ void Sound_playSample(int sampleId, float volume) {
 void Sound_loadFX(void) {
   int i;
   char *path;
-  char sound_path[512];
 
   for(i = 0; i < NUM_GAME_FX; i++) {
-    // Try to load from sounds/ directory first
-    sprintf(sound_path, "sounds/%s", game_fx_names[i]);
-    path = getPossiblePath(PATH_DATA, sound_path);
+    // Try to load from data directory directly
+    path = getPossiblePath(PATH_DATA, game_fx_names[i]);
 
     if(path && nebu_FS_Test(path)) {
       printf("[audio] Loading sound from: %s\n", path);
       game_fx[i] = Mix_LoadWAV(path);
       if (game_fx[i] == NULL) {
         printf("[audio] Error loading sound %s: %s\n", path, Mix_GetError());
+        printf("[audio] File exists but failed to load. Check file format.\n");
       }
       free(path);
     } else {
       if(path) free(path);
-      // Fallback to data directory
-      path = getPossiblePath(PATH_DATA, game_fx_names[i]);
-      if(path && nebu_FS_Test(path)) {
-        printf("[audio] Loading sound from: %s\n", path);
-        game_fx[i] = Mix_LoadWAV(path);
-        if (game_fx[i] == NULL) {
-          printf("[audio] Error loading sound %s: %s\n", path, Mix_GetError());
-        }
-        free(path);
-      } else {
-        if(path) free(path);
-        fprintf(stderr, "[error] can't load sound fx file %s\n", game_fx_names[i]);
-        // Don't exit, just continue without this sound
-        printf("[audio] Continuing without sound file: %s\n", game_fx_names[i]);
-      }
+      fprintf(stderr, "[error] can't load sound fx file %s\n", game_fx_names[i]);
+      fprintf(stderr, "[error] Check if file exists in: %s\n", getDirectory(PATH_DATA));
+      // Don't exit, just continue without this sound
+      printf("[audio] Continuing without sound file: %s\n", game_fx_names[i]);
     }
   }
 }
@@ -274,7 +262,7 @@ void Sound_setMusicVolume(float volume) {
 
 // Function to set sound effects volume
 void Sound_setFxVolume(float volume) {
-  printf("[audio] Setting sound effects volume to %f\n", volume);
+  printf("[audio] Setting FX volume to %f\n", volume);
 
   // Clamp volume between 0 and 1
   if(volume > 1) volume = 1;
@@ -285,9 +273,14 @@ void Sound_setFxVolume(float volume) {
   if (sdlVolume < 0) sdlVolume = 0;
   if (sdlVolume > 128) sdlVolume = 128;
 
-  // Set volume for all channels
-  Mix_Volume(-1, sdlVolume);
-  printf("[audio] Sound effects volume set to %d\n", sdlVolume);
+  // Check if samples are loaded before setting volume
+  for (int i = 0; i < NUM_GAME_FX; i++) {
+    if (game_fx[i] != NULL) {
+      Mix_VolumeChunk(game_fx[i], sdlVolume);
+    }
+  }
+
+  printf("[audio] FX volume set to %d\n", sdlVolume);
 }
 
 // Function to initialize music tracks
@@ -339,7 +332,7 @@ void Sound_setup(void) {
   // Load sound effects
   Sound_loadFX();
 
-  // Set sound effects volume
+  // Set sound effects volume only after sounds are loaded
   Sound_setFxVolume(getSettingf("fxVolume"));
 
   // Load and play the current track
