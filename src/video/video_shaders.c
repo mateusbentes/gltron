@@ -69,25 +69,32 @@ static GLuint createProgram(const char *vsrc, const char *fsrc) {
 }
 
 void initBasicShader(void) {
-    // Vertex shader with proper vec4 output
+    // Vertex shader with version directive for OpenGL ES 2.0
     const char *vsrc =
-        "#version 100\n"
+        "#ifdef GL_ES\n"
+        "precision highp float;\n"
+        "#endif\n"
         "uniform mat4 uMVP;\n"
         "attribute vec4 aPosition;\n"
         "void main() {\n"
         "    gl_Position = uMVP * aPosition;\n"
         "}\n";
 
-    // Fragment shader with proper vec4 output
+    // Fragment shader with version directive for OpenGL ES 2.0
     const char *fsrc =
-        "#version 100\n"
+        "#ifdef GL_ES\n"
         "precision mediump float;\n"
+        "#endif\n"
         "void main() {\n"
+        "#ifdef GL_ES\n"
         "    gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);\n"
+        "#else\n"
+        "    gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);\n"
+        "#endif\n"
         "}\n";
 
     // Create the shader program
-    gShaderProgram = createProgram(vsrc, fsrc);
+    gShaderProgram = createShaderProgram(vsrc, fsrc);
     if (!gShaderProgram) {
         fprintf(stderr, "Failed to create shader program\n");
         return;

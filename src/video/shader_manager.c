@@ -79,8 +79,10 @@ GLuint createShaderProgram(const char *vsrc, const char *fsrc) {
     glAttachShader(program, vs);
     glAttachShader(program, fs);
 
-    // Bind attribute locations before linking
+    // For OpenGL ES 2.0, we need to bind attribute locations before linking
+    #ifdef __ANDROID__
     glBindAttribLocation(program, 0, "aPosition");
+    #endif
 
     // Link the program
     glLinkProgram(program);
@@ -154,9 +156,11 @@ void initBasicShader() {
 }
 
 void initSkyboxShaders() {
-    // Vertex shader for skybox
+    // Vertex shader for skybox with version directive
     const char *vsrc =
-        "#version 100\n"  // OpenGL ES 2.0
+        "#ifdef GL_ES\n"
+        "precision highp float;\n"
+        "#endif\n"
         "uniform mat4 uMVP;\n"
         "attribute vec3 aPosition;\n"
         "varying vec3 vTexCoord;\n"
@@ -165,14 +169,19 @@ void initSkyboxShaders() {
         "    gl_Position = uMVP * vec4(aPosition, 1.0);\n"
         "}\n";
 
-    // Fragment shader for skybox
+    // Fragment shader for skybox with version directive
     const char *fsrc =
-        "#version 100\n"  // OpenGL ES 2.0
+        "#ifdef GL_ES\n"
         "precision mediump float;\n"
+        "#endif\n"
         "uniform samplerCube uSkybox;\n"
         "varying vec3 vTexCoord;\n"
         "void main() {\n"
+        "#ifdef GL_ES\n"
         "    gl_FragColor = textureCube(uSkybox, vTexCoord);\n"
+        "#else\n"
+        "    gl_FragColor = textureCube(uSkybox, vTexCoord);\n"
+        "#endif\n"
         "}\n";
 
     // Create the shader program

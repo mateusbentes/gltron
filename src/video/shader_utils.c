@@ -1,6 +1,7 @@
 #include "video/shader_utils.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 GLuint gShaderProgram = 0;
 GLint gUniformMVP = -1;
@@ -8,23 +9,37 @@ GLint gAttribPosition = -1;
 
 GLuint compileShader(GLenum type, const char *src) {
     GLuint shader = glCreateShader(type);
-    if (!shader) {
-        fprintf(stderr, "Failed to create shader object\n");
-        return 0;
-    }
+    const char *versionedSrc = NULL;  // Declare versionedSrc variable
 
-    glShaderSource(shader, 1, &src, NULL);
+    // For OpenGL ES 2.0, we need to handle the version directive differently
+    #ifdef __ANDROID__
+    // On Android, we use the version directive as-is
+    versionedSrc = src;
+    #else
+    // For desktop OpenGL, we need to remove the version directive
+    // Find the first newline after the version directive
+    const char *newline = strstr(src, "\n");
+    if (newline) {
+        versionedSrc = newline + 1;
+    } else {
+        versionedSrc = src;
+    }
+    #endif
+
+    glShaderSource(shader, 1, &versionedSrc, NULL);
     glCompileShader(shader);
 
     GLint success;
     glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
     if (!success) {
-        char log[256];
+        char log[1024];
         glGetShaderInfoLog(shader, sizeof(log), NULL, log);
-        fprintf(stderr, "Shader compile error: %s\n", log);
+        fprintf(stderr, "Shader compile error:\n%s\n", log);
+        fprintf(stderr, "Shader source that failed:\n%s\n", versionedSrc);
         glDeleteShader(shader);
         return 0;
     }
+
     return shader;
 }
 

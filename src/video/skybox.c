@@ -134,11 +134,15 @@ void initModernSkybox(ModernSkybox *skybox) {
     skybox->uTexture = glGetUniformLocation(skybox->shaderProg, "uTexture");
 
     // Create VAO/VBO/EBO
+    #ifdef __ANDROID__
+    // For OpenGL ES 2.0, we need to use VAOs
     glGenVertexArrays(1, &skybox->vao);
+    glBindVertexArray(skybox->vao);
+    #endif
+
     glGenBuffers(1, &skybox->vbo);
     glGenBuffers(1, &skybox->ebo);
 
-    glBindVertexArray(skybox->vao);
     glBindBuffer(GL_ARRAY_BUFFER, skybox->vbo);
     glBufferData(GL_ARRAY_BUFFER, sizeof(skyboxVertices), skyboxVertices, GL_STATIC_DRAW);
 
@@ -151,7 +155,9 @@ void initModernSkybox(ModernSkybox *skybox) {
     glEnableVertexAttribArray(skybox->aTexCoord);
     glVertexAttribPointer(skybox->aTexCoord, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (void*)(3 * sizeof(GLfloat)));
 
+    #ifdef __ANDROID__
     glBindVertexArray(0);
+    #endif
 }
 
 // --- Load skybox textures using TextureInfo ---
