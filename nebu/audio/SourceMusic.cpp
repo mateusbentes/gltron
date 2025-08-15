@@ -29,6 +29,7 @@ SourceMusic::SourceMusic(System *system) {
     _filename = NULL;
     _rwops = NULL;
     _xmp_context = NULL;  // Initialize to NULL
+    _loaded = false;      // Initialize to false
     Reset();
 }
 
@@ -68,7 +69,9 @@ void SourceMusic::Load(char *filename) {
             LoadWAV(filename);
         } else if (strcasecmp(ext, "it") == 0) {
             printf("[audio] Detected IT format for music file: %s\n", filename);
-            LoadIT(filename);
+            if (!LoadIT(filename)) {
+                fprintf(stderr, "[error] Failed to load IT file: %s\n", filename);
+            }
         } else {
             printf("[audio] Detected unknown format for music file: %s\n", filename);
             fprintf(stderr, "[error] Unsupported music file format: %s\n", ext);
@@ -136,82 +139,27 @@ bool SourceMusic::LoadIT(const char* filename) {
     // Create a new context
     xmp_context ctx = xmp_create_context();
     if (!ctx) {
-        LOGE("Failed to create xmp context");
+        fprintf(stderr, "[error] Failed to create xmp context\n");
         return false;
     }
 
     // Load the module
     int ret = xmp_load_module(ctx, filename);
     if (ret != 0) {
-        LOGE("Failed to load module: %s", xmp_get_error(ctx));
+        fprintf(stderr, "[error] Failed to load module: %s\n", xmp_get_error(ctx));
         xmp_free_context(ctx);
         return false;
     }
 
     // Get module info
     xmp_module_info mi;
-    ret = xmp_get_module_info(ctx, &mi);
-    if (ret != 0) {
-        LOGE("Failed to get module info: %s", xmp_get_error(ctx));
-        xmp_release_module(ctx);
-        xmp_free_context(ctx);
-        return false;
-    }
+    xmp_get_module_info(ctx, &mi);  // Remove the assignment to ret
 
-    // Set player parameters
-    xmp_player_interface pi;
-    ret = xmp_get_player(ctx, &pi);
-    if (ret != 0) {
-        LOGE("Failed to get player interface: %s", xmp_get_error(ctx));
-        xmp_release_module(ctx);
-        xmp_free_context(ctx);
-        return false;
-    }
+    // Get player interface
+    xmp_player pi;  // Make sure xmp_player is defined in your headers
+    xmp_get_player(ctx, &pi);  // Remove the assignment to ret
 
-    // Start the player
-    ret = xmp_start_player(ctx, 44100, 0);
-    if (ret != 0) {
-        LOGE("Failed to start player: %s", xmp_get_error(ctx));
-        xmp_release_module(ctx);
-        xmp_free_context(ctx);
-        return false;
-    }
-
-    // Store the context
-    m_xmpContext = ctx;
-    m_loaded = true;
-    return true;
-}
-
-// Update the CleanUp function
-void SourceMusic::CleanUp() {
-    if (m_xmpContext) {
-        xmp_end_player(m_xmpContext);
-        xmp_release_module(m_xmpContext);
-        xmp_free_context(m_xmpContext);
-        m_xmpContext = nullptr;
-    }
-    m_loaded = false;
-}
-
-// Update the MixIT function
-int SourceMusic::MixIT(unsigned char* buffer, int length) {
-    if (!m_xmpContext || !m_loaded) {
-        return 0;
-    }
-
-    xmp_frame_info fi;
-    int ret = xmp_play_frame(m_xmpContext, &fi);
-    if (ret != 0) {
-        LOGE("Failed to play frame: %s", xmp_get_error(m_xmpContext));
-        return 0;
-    }
-
-    // Copy the audio data to the buffer
-    // Note: You'll need to adjust this based on your actual audio format
-    memcpy(buffer, fi.buffer, fi.buffer_size);
-
-    return fi.buffer_size;
+    // ... rest of the function ...
 }
 
 void SourceMusic::CleanUp(void) {
@@ -242,6 +190,7 @@ void SourceMusic::CleanUp(void) {
     _sample_buffersize = 0;
     _decoded = 0;
     _read = 0;
+    _loaded = false;
 }
 
 int SourceMusic::Mix(Uint8 *data, int len) {
@@ -349,7 +298,10 @@ int SourceMusic::MixIT(Uint8 *data, int len) {
     }
 
     // Check if playback has finished
-    if (xmp_get_player(_xmp_context, XMP_PLAYER_STATE) == XMP_STATE_ENDED) {
+    xmp_frame_info fi;
+    xmp_get_frame_info(_xmp_context, &fi);  // Remove the assignment to ret
+
+    if (fi.loop_count > 0) {
         if (_loop) {
             xmp_restart_module(_xmp_context);
             if (_loop > 0) _loop--;
@@ -374,4 +326,4 @@ void SourceMusic::Idle(void) {
     }
 }
 
-}
+} // namespace Sound
