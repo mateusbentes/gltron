@@ -490,7 +490,7 @@ void initAudio(void) {
     fprintf(stderr, "[audio] Scripting is disabled, loading audio manually\n");
 
     // Load crash sound
-    char *crash_sound = getPossiblePath(PATH_DATA, "sounds/game_crash.wav");
+    char *crash_sound = getPossiblePath(PATH_DATA, "game_crash.wav");
     if (crash_sound && nebu_FS_Test(crash_sound)) {
         fprintf(stderr, "[audio] Loading crash sound from: %s\n", crash_sound);
         Audio_LoadSample(crash_sound, 1);
@@ -501,7 +501,7 @@ void initAudio(void) {
         audio_available = 0;
     }
     
-    char *engine_sound = getPossiblePath(PATH_DATA, "sounds/game_engine.wav");
+    char *engine_sound = getPossiblePath(PATH_DATA, "game_engine.wav");
     if (engine_sound && nebu_FS_Test(engine_sound)) {
         fprintf(stderr, "[audio] Loading engine sound from: %s\n", engine_sound);
         Audio_LoadSample(engine_sound, 0);
@@ -512,7 +512,7 @@ void initAudio(void) {
         audio_available = 0;
     }
     
-    char *recognizer_sound = getPossiblePath(PATH_DATA, "sounds/game_win.wav");
+    char *recognizer_sound = getPossiblePath(PATH_DATA, "game_win.wav");
     if (recognizer_sound && nebu_FS_Test(recognizer_sound)) {
         fprintf(stderr, "[audio] Loading recognizer sound from: %s\n", recognizer_sound);
         Audio_LoadSample(recognizer_sound, 2);
