@@ -35,6 +35,7 @@
 
 // --- Shader sources for modern rendering ---
 static const char *levelVertexShaderSrc =
+    "#version 100\n"
     "attribute vec3 aPosition;\n"
     "attribute vec3 aNormal;\n"
     "attribute vec2 aTexCoord;\n"
@@ -46,14 +47,16 @@ static const char *levelVertexShaderSrc =
     "}\n";
 
 static const char *levelFragmentShaderSrc =
+    "#version 100\n"
     "precision mediump float;\n"
     "varying vec2 vTexCoord;\n"
     "uniform sampler2D uTexture;\n"
     "uniform float uUseTexture;\n"
     "void main() {\n"
     "  vec4 color = vec4(0.7, 0.7, 0.7, 1.0);\n"
-    "  if (uUseTexture > 0.5)\n"
+    "  if (uUseTexture > 0.5) {\n"
     "    color *= texture2D(uTexture, vTexCoord);\n"
+    "  }\n"
     "  gl_FragColor = color;\n"
     "}\n";
 

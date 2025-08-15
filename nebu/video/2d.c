@@ -20,6 +20,7 @@ typedef struct {
 
 // --- Shader Sources ---
 static const char *vertexShaderSrc =
+    "#version 100\n"
     "attribute vec2 aPosition;\n"
     "attribute vec2 aTexCoord;\n"
     "varying vec2 vTexCoord;\n"
@@ -30,6 +31,7 @@ static const char *vertexShaderSrc =
     "}\n";
 
 static const char *fragmentShaderSrc =
+    "#version 100\n"
     "precision mediump float;\n"
     "varying vec2 vTexCoord;\n"
     "uniform sampler2D uTexture;\n"
