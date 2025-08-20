@@ -4,6 +4,7 @@
 
 #include "sgi_texture.h"
 #include "gltron.h"
+#include "gui_mouse.h"
 
 sgi_texture *tex;
 
@@ -135,6 +136,8 @@ void idleGui() {
     bgs.posy = 1.5 * (float)rand() / (float)RAND_MAX - 1;
   }
 
+  applyDisplaySettingsDeferred();
+  forceViewportResetIfNeededForGui();
   glutPostRedisplay();
 }
 
@@ -142,6 +145,8 @@ void keyboardGui(unsigned char key, int x, int y) {
   int i;
   switch(key) {
   case 27:
+    /* ESC Back: apply any pending display changes */
+    requestDisplayApply();
     if(pCurrent->parent == NULL)
       restoreCallbacks();
     else

@@ -496,6 +496,14 @@ void drawPause(gDisplay *display) {
   glColor3f(1.0, (sin(d) + 1) / 2, (sin(d) + 1) / 2);
   drawText(display->vp_w / 6, 20, 
 	   display->vp_w / (6.0 / 4.0 * strlen(message)), message);
+
+  /* Show hint for touch/mouse */
+  if (game->settings->input_mode != 0) {
+    const char* hint = "Tap to resume";
+    glColor3f(1.0, 1.0, 1.0);
+    drawText(display->vp_w / 6, 20 + display->vp_h / 12,
+             display->vp_w / (8.0 * strlen(hint)), (char*)hint);
+  }
 }
 
 

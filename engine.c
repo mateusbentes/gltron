@@ -288,6 +288,10 @@ void idleGame( void ) {
   int i, j;
   int loop; 
 
+  /* Apply any pending display changes right away in game loop */
+  applyDisplaySettingsDeferred();
+  /* If a change was just applied, force the viewport reset for game */
+  forceViewportResetIfNeededForGame();
 
 #ifdef SOUND
   soundIdle();

@@ -122,6 +122,14 @@ typedef struct callbacks {
   void (*initGL)(void);
 } callbacks;
 
+/* mouse handlers per mode */
+extern void mouseGui(int button, int state, int x, int y);
+extern void motionGui(int x, int y);
+extern void mouseGame(int button, int state, int x, int y);
+extern void motionGame(int x, int y);
+extern void mousePause(int button, int state, int x, int y);
+extern void motionPause(int x, int y);
+
 typedef struct line {
   float sx, sy, ex, ey;
 } line;
@@ -227,6 +235,12 @@ typedef struct Settings {
   int height;
 
   int sound_driver;
+
+  /* new: input method: 0=Keyboard,1=Mouse,2=Touch */
+  int input_mode;
+
+  /* fullscreen toggle */
+  int fullscreen;
 
 } Settings;
 
@@ -395,6 +409,15 @@ extern void chooseCallback(char*);
 extern void restoreCallbacks();
 extern void switchCallbacks(callbacks*);
 extern void updateCallbacks();
+
+/* display apply helper */
+extern void applyDisplaySettingsDeferred();
+extern void requestDisplayApply();
+extern void forceViewportResetIfNeededForGui();
+extern void forceViewportResetIfNeededForGame();
+
+/* reshape handler */
+extern void onReshape(int w, int h);
 
 /* probably common graphics stuff -> graphics.c */
 

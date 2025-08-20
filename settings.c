@@ -68,6 +68,14 @@ void initSettingData(char *filename) {
   si[23].value = &(game->settings->turn_cycle);
   si[24].value = &(game->settings->mouse_warp);
   si[25].value = &(game->settings->sound_driver);
+  /* input_mode appended at the end of ints */
+  if (si_count > 26) {
+    si[26].value = &(game->settings->input_mode);
+  }
+  /* fullscreen appended after input_mode */
+  if (si_count > 27) {
+    si[27].value = &(game->settings->fullscreen);
+  }
 
   sf[0].value = &(game->settings->speed);
 }
@@ -116,6 +124,12 @@ void initMainGameSettings(char *filename) {
   game->settings->show_ai_status = 1;
   game->settings->camType = 0;
   game->settings->mouse_warp = 0;
+  game->settings->input_mode = 1; /* default to Mouse for menu usability */
+#ifdef ANDROID
+  game->settings->fullscreen = 1;
+#else
+  game->settings->fullscreen = 0;
+#endif
 
   game->settings->display_type = 0;
   game->settings->playSound = 1;

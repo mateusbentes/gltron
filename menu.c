@@ -38,27 +38,54 @@ void menuAction(Menu *activated) {
     switch(activated->szName[1]) { /* second char */
     case 'q': saveSettings(); exit(0); break;
     case 'r': 
+      /* Ensure any pending display changes are applied before starting */
+      requestDisplayApply();
       initData();
       switchCallbacks(&pauseCallbacks);
+      /* Apply immediately to avoid wrong size at game start */
+      applyDisplaySettingsDeferred();
       break;
     case 'v':
       sscanf(activated->szName, "%cv%dx%d ", &c, &x, &y);
       game->settings->width = x;
       game->settings->height = y;
 
-      initGameScreen();
-      shutdownDisplay(game->screen);
-      setupDisplay(game->screen);
+      /* ensure our window is current before manipulating it */
+      if (game && game->screen && game->screen->win_id > 0) {
+        glutSetWindow(game->screen->win_id);
+      }
 
+      /* defer resolution apply to idle to avoid GLUT window state issues */
       updateCallbacks();
       changeDisplay();
+
+      /* persist new resolution immediately */
+      saveSettings();
+      requestDisplayApply();
+      printf("Resolution set to %dx%d (apply deferred) and saved.\n", game->settings->width, game->settings->height);
       break;
     case 't':
       piValue = getVi(activated->szName + 4);
       if(piValue != 0) {
-	*piValue = (*piValue - 1) * (-1);
-	initMenuCaption(activated);
-	changeAction(activated->szName + 4);
+        const char* name = activated->szName + 4;
+        if (strstr(name, "input_mode") == name) {
+          const char* label = "Keyboard";
+          if (*piValue == 1) label = "Mouse";
+          else if (*piValue == 2) label = "Touch";
+          sprintf(activated->display.szCaption, activated->szCapFormat, label);
+        } else if (strstr(name, "fullscreen") == name) {
+          /* Purely toggle + request deferred apply. No direct GLUT calls here */
+          int cur = *piValue;
+          int next = cur ? 0 : 1;
+          *piValue = next;
+          game->settings->fullscreen = next;
+          sprintf(activated->display.szCaption, activated->szCapFormat, next ? "on" : "off");
+          saveSettings();
+          requestDisplayApply();
+          printf("Fullscreen toggled to %s (apply deferred).\n", next ? "on" : "off");
+        } else {
+          sprintf(activated->display.szCaption, activated->szCapFormat, *piValue ? "on" : "off");
+        }
       }
       break;
     case 'p':
@@ -71,34 +98,45 @@ void menuAction(Menu *activated) {
   }
 }
 
-void initMenuCaption(Menu *m) {
+void initMenuCaption(Menu *activated) {
   int *piValue;
 
   /* TODO support all kinds of types */
-  switch(m->szName[0]) {
+  switch(activated->szName[0]) {
   case 's':
-    switch(m->szName[1]) {
-    case 't': case 'T':
-      switch(m->szName[2]) {
-      case 'i':
-	/* printf("dealing with %s\n", m->szName); */
-	piValue = getVi(m->szName + 4);
-	if(piValue != 0) {
-	  if(*piValue == 0) sprintf(m->display.szCaption,
-				    m->szCapFormat, "off");
-	  else sprintf(m->display.szCaption, m->szCapFormat, "on");
-	  /* printf("changed caption to %s\n", m->display.szCaption); */
-	} /* else printf("can't find value for %s\n", m->szName + 4); */
-	break;
+    switch(activated->szName[1]) {
+    case 't':
+      piValue = getVi(activated->szName + 4);
+      if(piValue != 0) {
+        const char* name = activated->szName + 4;
+        if (strstr(name, "input_mode") == name) {
+          const char* label = "Keyboard";
+          if (*piValue == 1) label = "Mouse";
+          else if (*piValue == 2) label = "Touch";
+          sprintf(activated->display.szCaption, activated->szCapFormat, label);
+        } else if (strstr(name, "fullscreen") == name) {
+          /* Purely toggle + request deferred apply. No direct GLUT calls here */
+          int cur = *piValue;
+          int next = cur ? 0 : 1;
+          *piValue = next;
+          game->settings->fullscreen = next;
+          sprintf(activated->display.szCaption, activated->szCapFormat, next ? "on" : "off");
+          saveSettings();
+          requestDisplayApply();
+          printf("Fullscreen toggled to %s (apply deferred).\n", next ? "on" : "off");
+        } else {
+          sprintf(activated->display.szCaption, activated->szCapFormat, *piValue ? "on" : "off");
+        }
       }
+      break;
     }
     break;
-    /* c entries change the callback */
 
   default:
-    sprintf(m->display.szCaption, "%s", m->szCapFormat);
+    sprintf(activated->display.szCaption, "%s", activated->szCapFormat);
   }
 }
+
 
 void getNextLine(char *buf, int bufsize, FILE* f) {
   fgets(buf, bufsize, f);
@@ -259,6 +297,15 @@ void drawMenu(gDisplay *d) {
     drawText(x, y, size,
 	     ((Menu*)*(pCurrent->pEntries + i))->display.szCaption);
     y -= lineheight;
+  }
+
+  /* draw Back button in bottom-right */
+  {
+    const char* back = "Back";
+    int bx = d->vp_w - (int)(size * 4);
+    int by = (int)(size * 1.2f);
+    glColor4fv(pCurrent->display.fgColor);
+    drawText(bx, by, size, (char*)back);
   }
 }
 

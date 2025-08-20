@@ -1,5 +1,43 @@
 #include "gltron.h"
 
+static int p_is_down = 0;
+static int p_down_x = 0, p_down_y = 0;
+static long p_down_t = 0;
+
+static int p_is_tap(int up_x, int up_y, long up_t) {
+  int vw = game->screen->vp_w;
+  float max_move = vw * 0.02f; /* 2% of width */
+  long dt_ms = up_t - p_down_t;
+  int mdx = abs(up_x - p_down_x);
+  int mdy = abs(up_y - p_down_y);
+  return (mdx <= max_move && mdy <= max_move && dt_ms <= 300);
+}
+
+void motionPause(int x, int y) {
+  (void)x; (void)y;
+}
+
+void mousePause(int button, int state, int x, int y) {
+  if (game->settings->input_mode == 0) return; /* keyboard only */
+  if (button == GLUT_LEFT_BUTTON) {
+    if (state == GLUT_DOWN) {
+      p_is_down = 1;
+      p_down_x = x; p_down_y = y; p_down_t = getElapsedTime();
+    } else if (state == GLUT_UP) {
+      if (p_is_down) {
+        long up_t = getElapsedTime();
+        if (p_is_tap(x, y, up_t)) {
+          if(game->pauseflag & PAUSE_GAME_FINISHED)
+            initData();
+          lasttime = getElapsedTime();
+          switchCallbacks(&gameCallbacks);
+        }
+      }
+      p_is_down = 0;
+    }
+  }
+}
+
 /* very brief - just the pause mode */
 
 void idlePause() {

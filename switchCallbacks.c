@@ -1,4 +1,5 @@
 #include "gltron.h"
+#include <string.h>
 
 callbacks *last_callback = 0;
 callbacks *current_callback = 0;
@@ -11,7 +12,22 @@ void switchCallbacks(callbacks *new) {
   glutDisplayFunc(new->display);
   glutKeyboardFunc(new->keyboard);
   glutSpecialFunc(new->special);
-
+  /* register mouse handlers depending on mode */
+  /* always register reshape */
+  glutReshapeFunc(onReshape);
+  if (new == &guiCallbacks) {
+    glutMouseFunc(mouseGui);
+    glutMotionFunc(motionGui);
+    glutPassiveMotionFunc(motionGui);
+  } else if (new == &gameCallbacks) {
+    glutMouseFunc(mouseGame);
+    glutMotionFunc(motionGame);
+    glutPassiveMotionFunc(motionGame);
+  } else if (new == &pauseCallbacks) {
+    glutMouseFunc(mousePause);
+    glutMotionFunc(motionPause);
+    glutPassiveMotionFunc(motionPause);
+  }
   lasttime = getElapsedTime();
 
  /* printf("callbacks registred\n"); */
@@ -26,6 +42,19 @@ void updateCallbacks() {
   glutDisplayFunc(current_callback->display);
   glutKeyboardFunc(current_callback->keyboard);
   glutSpecialFunc(current_callback->special);
+  if (current_callback == &guiCallbacks) {
+    glutMouseFunc(mouseGui);
+    glutMotionFunc(motionGui);
+    glutPassiveMotionFunc(motionGui);
+  } else if (current_callback == &gameCallbacks) {
+    glutMouseFunc(mouseGame);
+    glutMotionFunc(motionGame);
+    glutPassiveMotionFunc(motionGame);
+  } else if (current_callback == &pauseCallbacks) {
+    glutMouseFunc(mousePause);
+    glutMotionFunc(motionPause);
+    glutPassiveMotionFunc(motionPause);
+  }
   (current_callback->initGL)();
 }
 
@@ -40,6 +69,19 @@ void restoreCallbacks() {
   glutDisplayFunc(current_callback->display);
   glutKeyboardFunc(current_callback->keyboard);
   glutSpecialFunc(current_callback->special);
+  if (current_callback == &guiCallbacks) {
+    glutMouseFunc(mouseGui);
+    glutMotionFunc(motionGui);
+    glutPassiveMotionFunc(motionGui);
+  } else if (current_callback == &gameCallbacks) {
+    glutMouseFunc(mouseGame);
+    glutMotionFunc(motionGame);
+    glutPassiveMotionFunc(motionGame);
+  } else if (current_callback == &pauseCallbacks) {
+    glutMouseFunc(mousePause);
+    glutMotionFunc(motionPause);
+    glutPassiveMotionFunc(motionPause);
+  }
   
   lasttime = getElapsedTime();
 

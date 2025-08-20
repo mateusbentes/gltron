@@ -148,11 +148,113 @@ void shutdownDisplay(gDisplay *d) {
   printf("window destroyed\n");
 }
 
+static int g_pending_display_apply = 0;
+static int g_just_applied_display_change = 0;
+
+void requestDisplayApply() {
+  g_pending_display_apply = 1;
+}
+
+void forceViewportResetIfNeededForGui() {
+  if (!g_just_applied_display_change) return;
+  int w = glutGet(GLUT_WINDOW_WIDTH);
+  int h = glutGet(GLUT_WINDOW_HEIGHT);
+  if (w > 0 && h > 0) {
+    glViewport(0, 0, w, h);
+    guiProjection(w, h);
+    printf("GUI viewport/projection reset to %dx%d after display change.\n", w, h);
+  }
+  g_just_applied_display_change = 0;
+}
+
+void forceViewportResetIfNeededForGame() {
+  if (!g_just_applied_display_change) return;
+  int w = glutGet(GLUT_WINDOW_WIDTH);
+  int h = glutGet(GLUT_WINDOW_HEIGHT);
+  if (w > 0 && h > 0) {
+    glViewport(0, 0, w, h);
+    initGameScreen();
+    changeDisplay();
+    printf("Game viewport reset to %dx%d after display change.\n", w, h);
+  }
+  g_just_applied_display_change = 0;
+}
+
+void applyDisplaySettingsDeferred() {
+  if (!g_pending_display_apply) return;
+  g_pending_display_apply = 0;
+
+  if (!game || !game->settings) return;
+  /* Ensure we have a window; if not, create one */
+  if (!game->screen) {
+    game->screen = (gDisplay*) malloc(sizeof(gDisplay));
+  }
+  if (game->screen->win_id <= 0) {
+    setupDisplay(game->screen);
+  } else {
+    /* Make current */
+    glutSetWindow(game->screen->win_id);
+  }
+
+  /* Apply windowed/fullscreen and resolution safely */
+  if (game->settings->fullscreen) {
+    /* Ensure we are current and then enter fullscreen */
+    if (glutGetWindow() <= 0) {
+      setupDisplay(game->screen);
+      glutSetWindow(game->screen->win_id);
+    }
+    glutFullScreen();
+    /* Query actual window size and update settings */
+    int w = glutGet(GLUT_WINDOW_WIDTH);
+    int h = glutGet(GLUT_WINDOW_HEIGHT);
+    if (w > 0 && h > 0) {
+      game->settings->width = w;
+      game->settings->height = h;
+    }
+    /* Ensure screen matches settings */
+    if (game->screen) {
+      game->screen->w = game->settings->width;
+      game->screen->h = game->settings->height;
+    }
+    /* Reinitialize screen and viewports after entering fullscreen with updated size */
+    initGameScreen();
+    changeDisplay();
+    updateCallbacks();
+    printf("Applied fullscreen via deferred apply. Window size: %dx%d.\n", w, h);
+    /* Persist new size for next start */
+    saveSettings();
+  } else {
+    /* Windowed: rebuild to requested resolution */
+    printf("Applying windowed mode %dx%d via deferred apply.\n", game->settings->width, game->settings->height);
+    shutdownDisplay(game->screen);
+    setupDisplay(game->screen);
+    initGameScreen();
+    changeDisplay();
+    updateCallbacks();
+  }
+  /* Mark to force viewport/projection reset on next frame */
+  g_just_applied_display_change = 1;
+}
+
+void onReshape(int w, int h) {
+  if (!game || !game->settings || !game->screen) return;
+  game->settings->width = w;
+  game->settings->height = h;
+  game->screen->w = w;
+  game->screen->h = h;
+  initGameScreen();
+  changeDisplay();
+  /* If we are in GUI, also reset GUI projection */
+  glViewport(0, 0, w, h);
+  printf("onReshape applied: %dx%d.\n", w, h);
+}
+
 void setupDisplay(gDisplay *d) {
   printf("trying to create window\n");
   d->win_id = initWindow();
   printf("window created\n");
   /* printf("win_id is %d\n", d->win_id); */
+
   printf("loading fonts...\n");
   initFonts();
   printf("loading textures...\n");

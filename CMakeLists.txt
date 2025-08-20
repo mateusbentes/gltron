@@ -24,11 +24,13 @@ if(USE_SOUND)
     find_package(MikMod REQUIRED)
 endif()
 
-# Set source files
+# Set source files (C)
 set(SOURCES
     sgi_texture.c
     switchCallbacks.c
     gui.c
+    gui_mouse.c
+    game_mouse.c
     pause.c
     computer.c
     engine.c
@@ -47,6 +49,9 @@ set(SOURCES
     mtllib.c
     geom.c
 )
+
+# Ensure C sources are compiled as C (not C++)
+set_source_files_properties(${SOURCES} PROPERTIES LANGUAGE C)
 
 if(USE_SOUND)
     list(APPEND SOURCES sound.c)

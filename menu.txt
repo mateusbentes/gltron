@@ -96,7 +96,7 @@ xsub
 Video
 
 # Options Submenu (4 entries)
-6
+7
 xsub
 Display Options
 
@@ -118,15 +118,22 @@ Show Lightcycles   - %s
 0
 sti_show_crash_texture
 Show crash texture - %s
+0
+sti_fullscreen
+Fullscreen         - %s
 
 # Misc Options Sub Menu
-1
+2
 xsub
 Misc Options
 
 0
 sti_mouse_warp
 Capture mouse  - %s
+
+0
+sti_input_mode
+Input Method - %s
 
 # Status information sub menu
 2

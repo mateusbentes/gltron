@@ -1,7 +1,7 @@
 2
 f1
 speed
-i26
+i28
 show_help
 show_fps
 show_wall
@@ -28,3 +28,5 @@ show_crash_texture
 turn_cycle
 mouse_warp
 sound_driver
+input_mode
+fullscreen
