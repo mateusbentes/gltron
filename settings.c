@@ -193,6 +193,13 @@ void initMainGameSettings(char *filename) {
   }
   free(fname);
   fclose(f);
+#ifdef ANDROID
+  // Always enforce fullscreen on Android
+  game->settings->fullscreen = 1; // Ignore persisted width/height; let fullscreen apply/reshape set real size
+  game->settings->width = 0;
+  game->settings->height = 0;
+#endif
+
 }
 
 void saveSettings() {
@@ -222,4 +229,11 @@ void saveSettings() {
   printf("written settings to %s\n", fname);
   free(fname);
   fclose(f);
+#ifdef ANDROID
+  // Always enforce fullscreen on Android
+  game->settings->fullscreen = 1; // Ignore persisted width/height; let fullscreen apply/reshape set real size
+  game->settings->width = 0;
+  game->settings->height = 0;
+#endif
+
 }
