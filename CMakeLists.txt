@@ -13,6 +13,11 @@ set(OpenGL_GL_PREFERENCE "LEGACY")
 # Enable sound by default
 option(USE_SOUND "Enable sound support" ON)
 
+# Add SOUND macro definition if USE_SOUND is enabled
+if(USE_SOUND)
+    add_definitions(-DSOUND)
+endif()
+
 # Find required packages
 find_package(OpenGL REQUIRED)
 if(NOT ANDROID)
