@@ -4,11 +4,11 @@
 */
 
 #include "gltron.h"
-
-/* todo: define the globals where I need them */
-/* declare them only in gltron.h */
-
 #include "globals.h"
+#include "model.h"
+#include "fonttex.h"
+#include "menu.h"
+#include "sgi_texture.h"
 
 int getElapsedTime(void) {
 #ifdef WIN32

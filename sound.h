@@ -21,4 +21,5 @@ int playSound(void);
 int stopSound(void);
 int loadSoundEffect(char *name, MODULE** sound_effect);
 int playSoundEffect(MODULE* sound_effect);
+
 #endif

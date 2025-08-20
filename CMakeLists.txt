@@ -130,6 +130,7 @@ set(SOURCES
     modelgraphics.c
     mtllib.c
     geom.c
+    globals.c
 )
 
 # Ensure C sources are compiled as C (not C++)
