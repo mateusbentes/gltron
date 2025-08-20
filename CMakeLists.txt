@@ -15,7 +15,9 @@ option(USE_SOUND "Enable sound support" ON)
 
 # Find required packages
 find_package(OpenGL REQUIRED)
-find_package(GLUT REQUIRED)
+if(NOT ANDROID)
+    find_package(GLUT REQUIRED)
+endif()
 
 if(USE_SOUND)
     # Ensure CMake can find the local FindMikMod.cmake module
@@ -64,12 +66,28 @@ add_executable(gltron ${SOURCES})
 target_include_directories(gltron PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 # Link libraries
-target_link_libraries(gltron PRIVATE
-    OpenGL::GL
-    GLUT::GLUT
-    OpenGL::GLU
-    m
-)
+if(ANDROID)
+    # Android-specific libraries
+    find_library(LOG_LIBRARY log)
+    find_library(ANDROID_LIBRARY android)
+    find_library(EGL_LIBRARY EGL)
+    find_library(GLESv2_LIBRARY GLESv2)
+    target_link_libraries(gltron PRIVATE
+        ${LOG_LIBRARY}
+        ${ANDROID_LIBRARY}
+        ${EGL_LIBRARY}
+        ${GLESv2_LIBRARY}
+        OpenGL::GL
+    )
+else()
+    # Non-Android libraries
+    target_link_libraries(gltron PRIVATE
+        OpenGL::GL
+        GLUT::GLUT
+        OpenGL::GLU
+        m
+    )
+endif()
 
 if(USE_SOUND)
     target_link_libraries(gltron PRIVATE ${MikMod_LIBRARIES})
