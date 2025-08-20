@@ -109,6 +109,7 @@ set(GLTRON_HOME "/usr/share/games/gltron" CACHE PATH "Installation directory for
 
 # List of files to copy
 set(FILES_TO_COPY
+    gltron.it
     settings.txt
     menu.txt
     tron.mtl
