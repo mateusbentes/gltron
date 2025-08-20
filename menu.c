@@ -6,11 +6,25 @@
 Menu *pCurrent;
 
 void changeAction(char *name) {
+  printf("changeAction called with: %s\n", name);  // Debug output
+
 #ifdef SOUND
   if(strstr(name, "playSound") == name) {
-    if(game->settings->playSound == 0)
-      stopSound();
-    else playSound();
+    printf("Toggling music\n");  // Debug output
+    game->settings->playMusic = !game->settings->playMusic;
+    if(game->settings->playMusic == 0) {
+      printf("Stopping music\n");  // Debug output
+      stopSound();  // Stop music if disabled
+    } else {
+      printf("Starting music\n");  // Debug output
+      playSound();  // Start music if enabled
+    }
+  }
+  if(strstr(name, "menu_highlight") == name) {
+    playSoundEffect(highlight_sound);  // Play highlight sound effect
+  }
+  if(strstr(name, "menu_action") == name) {
+    playSoundEffect(action_sound);  // Play action sound effect
   }
 #endif
   if(strstr(name, "resetScores") == name)
@@ -83,6 +97,8 @@ void menuAction(Menu *activated) {
           saveSettings();
           requestDisplayApply();
           printf("Fullscreen toggled to %s (apply deferred).\n", next ? "on" : "off");
+        } else if (strstr(name, "playSound") == name) {
+          sprintf(activated->display.szCaption, activated->szCapFormat, *piValue ? "on" : "off");
         } else {
           sprintf(activated->display.szCaption, activated->szCapFormat, *piValue ? "on" : "off");
         }
@@ -115,15 +131,20 @@ void initMenuCaption(Menu *activated) {
           else if (*piValue == 2) label = "Touch";
           sprintf(activated->display.szCaption, activated->szCapFormat, label);
         } else if (strstr(name, "fullscreen") == name) {
-          /* Purely toggle + request deferred apply. No direct GLUT calls here */
+          /* Toggle fullscreen mode setting */
           int cur = *piValue;
           int next = cur ? 0 : 1;
           *piValue = next;
           game->settings->fullscreen = next;
+
+          // Request display apply instead of immediate change
+          requestDisplayApply();
+
           sprintf(activated->display.szCaption, activated->szCapFormat, next ? "on" : "off");
           saveSettings();
-          requestDisplayApply();
-          printf("Fullscreen toggled to %s (apply deferred).\n", next ? "on" : "off");
+          printf("Fullscreen setting toggled to %s (apply deferred).\n", next ? "on" : "off");
+        } else if (strstr(name, "playSound") == name) {
+          sprintf(activated->display.szCaption, activated->szCapFormat,*piValue ? "on" : "off");
         } else {
           sprintf(activated->display.szCaption, activated->szCapFormat, *piValue ? "on" : "off");
         }
@@ -136,7 +157,6 @@ void initMenuCaption(Menu *activated) {
     sprintf(activated->display.szCaption, "%s", activated->szCapFormat);
   }
 }
-
 
 void getNextLine(char *buf, int bufsize, FILE* f) {
   fgets(buf, bufsize, f);

@@ -225,6 +225,8 @@ typedef struct Settings {
   int mouse_warp;
   float speed;
 
+  int playMusic;
+
   int ai_player1;
   int ai_player2;
   int ai_player3;

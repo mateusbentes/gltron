@@ -20,13 +20,36 @@ endif()
 
 # Find required packages
 find_package(OpenGL REQUIRED)
+
+# Try to find GLUT with multiple package names
 if(NOT ANDROID)
-    find_package(GLUT REQUIRED)
+    # Try common package names for GLUT
+    find_package(GLUT QUIET)
+    if(NOT GLUT_FOUND)
+        find_package(glut QUIET)
+        if(NOT glut_FOUND)
+            find_package(freeglut QUIET)
+            if(NOT freeglut_FOUND)
+                message(WARNING "Could not find GLUT or freeglut. Game will run without GUI.")
+                set(USE_GUI OFF)
+            else()
+                set(USE_GUI ON)
+            endif()
+        else()
+            set(USE_GUI ON)
+        endif()
+    else()
+        set(USE_GUI ON)
+    endif()
+else()
+    set(USE_GUI ON)
 endif()
 
+# Find MikMod and related packages for sound support
 if(USE_SOUND)
     # Ensure CMake can find the local FindMikMod.cmake module
     list(PREPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
+
     # Use find_package which will now consult the local module
     if(ANDROID)
         # For Android, use the Android-specific MikMod library
@@ -34,6 +57,52 @@ if(USE_SOUND)
     else()
         # For non-Android platforms, use the standard MikMod library
         find_package(MikMod REQUIRED)
+
+        # Add support for WAV files by linking with additional libraries
+        # Try multiple package names for Vorbis
+        if(USE_WAV_SUPPORT)
+            find_package(Vorbis QUIET)
+            if(NOT Vorbis_FOUND)
+                find_package(vorbis QUIET)
+                if(NOT vorbis_FOUND)
+                    find_package(libvorbis QUIET)
+                    if(NOT libvorbis_FOUND)
+                        message(WARNING "Could not find Vorbis. WAV file support will be limited.")
+                        set(USE_WAV_SUPPORT OFF)
+                    endif()
+                endif()
+            endif()
+        endif()
+
+        # Try multiple package names for FLAC
+        if(USE_WAV_SUPPORT)
+            find_package(FLAC QUIET)
+            if(NOT FLAC_FOUND)
+                find_package(flac QUIET)
+                if(NOT flac_FOUND)
+                    find_package(libflac QUIET)
+                    if(NOT libflac_FOUND)
+                        message(WARNING "Could not find FLAC. WAV file support will be limited.")
+                        set(USE_WAV_SUPPORT OFF)
+                    endif()
+                endif()
+            endif()
+        endif()
+
+        # Try multiple package names for Vorbis
+        if(USE_WAV_SUPPORT)
+            find_package(Vorbis QUIET)
+            if(NOT Vorbis_FOUND)
+                find_package(vorbis QUIET)
+                if(NOT vorbis_FOUND)
+                    find_package(libvorbis QUIET)
+                    if(NOT libvorbis_FOUND)
+                        message(WARNING "Could not find Vorbis. WAV file support will be limited.")
+                        set(USE_WAV_SUPPORT OFF)
+                    endif()
+                endif()
+            endif()
+        endif()
     endif()
 endif()
 
@@ -65,7 +134,6 @@ set(SOURCES
 
 # Ensure C sources are compiled as C (not C++)
 set_source_files_properties(${SOURCES} PROPERTIES LANGUAGE C)
-
 if(USE_SOUND)
     list(APPEND SOURCES sound.c)
 endif()
@@ -92,21 +160,34 @@ if(ANDROID)
     )
 else()
     # Non-Android libraries
-    target_link_libraries(gltron PRIVATE
-        OpenGL::GL
-        GLUT::GLUT
-        OpenGL::GLU
-        m
-    )
+    if(USE_GUI)
+        target_link_libraries(gltron PRIVATE
+            OpenGL::GL
+            GLUT::GLUT
+            OpenGL::GLU
+        )
+    else()
+        target_link_libraries(gltron PRIVATE
+            OpenGL::GL
+            OpenGL::GLU
+        )
+    endif()
+    target_link_libraries(gltron PRIVATE m)
 endif()
 
 if(USE_SOUND)
     target_link_libraries(gltron PRIVATE ${MikMod_LIBRARIES})
     target_include_directories(gltron PRIVATE ${MikMod_INCLUDE_DIRS})
-endif()
 
-# Include directories
-target_include_directories(gltron PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    # Link additional libraries for WAV support
+    if(NOT ANDROID AND USE_WAV_SUPPORT)
+        target_link_libraries(gltron PRIVATE
+            ${Vorbis_LIBRARIES}
+            ${FLAC_LIBRARIES}
+            ${Ogg_LIBRARIES}
+        )
+    endif()
+endif()
 
 # Set default install directories before install() commands
 set(GLTRON_INSTALLDIR "/usr/bin" CACHE PATH "Installation directory for gltron executable")
@@ -128,6 +209,19 @@ set(FILES_TO_COPY
     gltron_crash.sgi
 )
 
+# Add sound files only if sound is enabled
+if(USE_SOUND)
+    list(APPEND FILES_TO_COPY
+        game_crash.wav
+        game_lose.wav
+        game_win.wav
+        menu_highlight.wav
+        game_engine.wav
+        game_start.wav
+        menu_action.wav
+    )
+endif()
+
 # Copy files to the current directory
 foreach(FILE ${FILES_TO_COPY})
     configure_file(
@@ -139,6 +233,8 @@ endforeach()
 
 # Install targets
 install(TARGETS gltron RUNTIME DESTINATION ${GLTRON_INSTALLDIR})
+
+# Install files
 install(FILES
     gltron.it
     settings.txt
@@ -154,6 +250,20 @@ install(FILES
     gltron_crash.sgi
     DESTINATION ${GLTRON_HOME}
 )
+
+# Install sound files only if sound is enabled
+if(USE_SOUND)
+    install(FILES
+        game_crash.wav
+        game_lose.wav
+        game_win.wav
+        menu_highlight.wav
+        game_engine.wav
+        game_start.wav
+        menu_action.wav
+        DESTINATION ${GLTRON_HOME}
+    )
+endif()
 
 # Platform-specific settings
 if(WIN32)
@@ -183,3 +293,4 @@ elseif(ANDROID)
         OpenGL::GL
     )
 endif()
+

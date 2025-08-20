@@ -6,6 +6,70 @@ http://www.ards.net/Andreas/gltron.html#links
 Get a working OpenGL / Mesa
 Get Glut (glut is in the MesaDemos package)
 
+Sound File Formats:
+The game supports the following sound file formats:
+- MOD (ProTracker)
+- XM (FastTracker 2)
+- S3M (ScreamTracker 3)
+- IT (Impulse Tracker)
+- WAV (requires additional libraries: libvorbis, libflac)
+
+Additional Required Libraries:
+
+For full functionality, you may need to install the following additional libraries:
+
+1. For sound support (if using MikMod):
+   - libmikmod-dev (or equivalent for your distribution)
+   - libvorbis-dev (for WAV file support)
+   - libflac-dev (for WAV file support)
+   - libogg-dev (dependency for libvorbis)
+
+2. For OpenGL support:
+   - mesa-common-dev (or equivalent for your distribution)
+   - libglu1-mesa-dev (or equivalent)
+
+3. For GUI support:
+   - libx11-dev
+   - libxext-dev
+   - libxi-dev
+   - libxmu-dev
+   - libxt-dev
+
+4. For development tools:
+   - cmake (version 3.10 or higher)
+   - make
+   - gcc or clang
+
+5. For Android development (if building for Android):
+   - Android NDK
+   - Android SDK
+   - OpenGL ES libraries
+   - EGL libraries
+   - GLESv2 libraries
+   - Android log library
+
+Installation Commands for Common Linux Distributions:
+
+Debian/Ubuntu:
+% sudo apt-get install libmikmod-dev libvorbis-dev libflac-dev libogg-dev \
+  mesa-common-dev libglu1-mesa-dev libx11-dev libxext-dev libxi-dev \
+  libxmu-dev libxt-dev cmake make gcc
+
+Fedora/RHEL/CentOS:
+% sudo dnf install mikmod-devel libvorbis-devel flac-devel libogg-devel \
+  mesa-libGL-devel mesa-libGLU-devel libX11-devel libXext-devel \
+  libXi-devel libXmu-devel libXt-devel cmake make gcc
+
+Arch Linux:
+% sudo pacman -S mikmod vorbis flac ogg mesa glu libx11 libxext libxi \
+  libxmu libxt cmake make gcc
+
+MacOS (using Homebrew):
+% brew install mikmod vorbis flac ogg mesa glu cmake
+
+Windows (using vcpkg):
+% vcpkg install mikmod vorbis flac ogg mesa glu
+
 Installation (without sound)
 
 % mkdir build-pc
