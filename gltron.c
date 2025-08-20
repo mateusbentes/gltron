@@ -59,6 +59,8 @@ void drawGame() {
   /* printf("%d polys\n", polycount); */
 }
 void displayGame() {
+  /* Ensure viewports match window size at draw time after any display change */
+  forceViewportResetIfNeededForGame();
   drawGame();
   if(game->settings->mouse_warp)
     mouseWarp();
@@ -150,6 +152,7 @@ void shutdownDisplay(gDisplay *d) {
 
 static int g_pending_display_apply = 0;
 static int g_just_applied_display_change = 0;
+static int g_apply_cooldown_frames = 0;
 
 void requestDisplayApply() {
   g_pending_display_apply = 1;
@@ -232,19 +235,20 @@ void applyDisplaySettingsDeferred() {
     changeDisplay();
     updateCallbacks();
   }
-  /* Mark to force viewport/projection reset on next frame */
+  /* Mark to force viewport/projection reset on next frame and skip one draw */
   g_just_applied_display_change = 1;
+  g_apply_cooldown_frames = 1;
 }
 
 void onReshape(int w, int h) {
   if (!game || !game->settings || !game->screen) return;
+  if (game->screen->win_id > 0) glutSetWindow(game->screen->win_id);
   game->settings->width = w;
   game->settings->height = h;
   game->screen->w = w;
   game->screen->h = h;
   initGameScreen();
   changeDisplay();
-  /* If we are in GUI, also reset GUI projection */
   glViewport(0, 0, w, h);
   printf("onReshape applied: %dx%d.\n", w, h);
 }
