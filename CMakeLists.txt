@@ -140,4 +140,16 @@ elseif(ANDROID)
     # Android-specific settings
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99")
+    # Link Android libraries
+    find_library(LOG_LIBRARY log)
+    find_library(ANDROID_LIBRARY android)
+    find_library(EGL_LIBRARY EGL)
+    find_library(GLESv2_LIBRARY GLESv2)
+    target_link_libraries(gltron PRIVATE
+        ${LOG_LIBRARY}
+        ${ANDROID_LIBRARY}
+        ${EGL_LIBRARY}
+        ${GLESv2_LIBRARY}
+        OpenGL::GL
+    )
 endif()
