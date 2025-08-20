@@ -8,24 +8,25 @@ Get Glut (glut is in the MesaDemos package)
 
 Installation (without sound)
 
-% make
-% ./gltron
+% cmake -B build-pc
+% cmake --build build-pc
+% ./build-pc/gltron
 
 Installation (with sound)
 
 Get libmikmod and install it
 
-% make sound
-% ./gltron
+% cmake -B build-pc -DUSE_SOUND=ON
+% cmake --build build-pc
+% ./build-pc/gltron
 
 Optionally:
 
-% su
-# make install
+% sudo cmake --build build-pc --target install
 
 will install gltron in GLTRON_INSTALLDIR and gltron.it (if present),
 settings.txt, menu.txt, helvetica.txf in GLTRON_HOME as defined in the
-Makefile.  By default, GLTRON_INSTALLDIR is /usr/bin and
+CMakeLists.txt.  By default, GLTRON_INSTALLDIR is /usr/bin and
 GLTRON_HOME is /usr/share/games/gltron.
 
 gltron will look for the following files:
@@ -36,7 +37,7 @@ xenotron.ftx xenotron.0.sgi xenotron.1.sgi t-u-low.obj tron.mtl
 
 If the environment variable GLTRON_HOME is defined, it will look
 there first, ./ second, /usr/share/games/gltron third and at last in
-/usr/local/share/games/gltron. If you do a make install and have changed
+/usr/local/share/games/gltron. If you do a cmake --build build-pc --target install and have changed
 GLTRON_HOME, you _must_ set the GLTRON_HOME environment variable.
 
 You might also want to put the GLTRON_HOME environment variable into
@@ -46,3 +47,28 @@ Start gltron with the -s option if you don't want the sound playing.
 
 These instructions are very brief. I'd be glad if someone could write
 them better.
+
+Android Requirements:
+
+For Android, you need to have the Android NDK and Android SDK installed.
+You also need to have the following libraries installed:
+
+- OpenGL ES
+- EGL
+- GLESv2
+- log
+- android
+
+You can install these libraries using the Android SDK Manager.
+
+Android Installation:
+
+% cmake -B build-android -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-21
+% cmake --build build-android
+% ./build-android/gltron
+
+Optionally:
+
+% cmake --build build-android --target install
+
+will install gltron in the specified Android directory.
