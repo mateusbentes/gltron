@@ -23,7 +23,13 @@ if(USE_SOUND)
     # Ensure CMake can find the local FindMikMod.cmake module
     list(PREPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
     # Use find_package which will now consult the local module
-    find_package(MikMod REQUIRED)
+    if(ANDROID)
+        # For Android, use the Android-specific MikMod library
+        find_package(MikMod REQUIRED)
+    else()
+        # For non-Android platforms, use the standard MikMod library
+        find_package(MikMod REQUIRED)
+    endif()
 endif()
 
 # Set source files (C)
