@@ -1,7 +1,6 @@
 move sound updates to display callback
 write s3m/it player and move to plib for low latency
 add sound effects
-add mouse support
 configurable bots (difficulty settings)
 win32: use gameglut
 show key settings somewhere
