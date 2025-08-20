@@ -40,9 +40,76 @@ void gltron_resize(int width, int height) {
     game->screen->vp_w = width;
     game->screen->vp_h = height;
   }
+  scr_w = width;
+  scr_h = height;
+  update_buttons_layout();
   // Let the game react to display changes
   requestDisplayApply();
   applyDisplaySettingsDeferred();
+}
+
+// Simple Android on-screen controls
+static int scr_w = 0, scr_h = 0;
+static int btn_left[4];   // x, y, w, h
+static int btn_right[4];  // x, y, w, h
+static int btn_pause[4];  // x, y, w, h
+
+static void update_buttons_layout() {
+  if (!scr_w || !scr_h) return;
+  int bw = scr_w * 0.2f;
+  int bh = scr_h * 0.18f;
+  // Left: bottom-left
+  btn_left[0] = (int)(scr_w * 0.05f);
+  btn_left[1] = (int)(scr_h * 0.05f);
+  btn_left[2] = bw;
+  btn_left[3] = bh;
+  // Right: bottom-right
+  btn_right[2] = bw;
+  btn_right[3] = bh;
+  btn_right[0] = scr_w - btn_right[2] - (int)(scr_w * 0.05f);
+  btn_right[1] = (int)(scr_h * 0.05f);
+  // Pause: top-right small square
+  int pw = scr_w * 0.10f;
+  int ph = pw;
+  btn_pause[2] = pw;
+  btn_pause[3] = ph;
+  btn_pause[0] = scr_w - pw - (int)(scr_w * 0.03f);
+  btn_pause[1] = scr_h - ph - (int)(scr_h * 0.03f);
+}
+
+static int hit_btn(int x, int y, int* btn) {
+  return (x >= btn[0] && x <= btn[0]+btn[2] && y >= btn[1] && y <= btn[1]+btn[3]);
+}
+
+static void draw_rect(int x, int y, int w, int h, float r, float g, float b, float a) {
+  glEnable(GL_BLEND);
+  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  glDisable(GL_TEXTURE_2D);
+  glMatrixMode(GL_PROJECTION);
+  glPushMatrix();
+  glLoadIdentity();
+  glOrthof(0, scr_w, 0, scr_h, -1, 1);
+  glMatrixMode(GL_MODELVIEW);
+  glPushMatrix();
+  glLoadIdentity();
+  glColor4f(r,g,b,a);
+  glBegin(GL_QUADS);
+    glVertex2f(x, y);
+    glVertex2f(x+w, y);
+    glVertex2f(x+w, y+h);
+    glVertex2f(x, y+h);
+  glEnd();
+  glMatrixMode(GL_MODELVIEW);
+  glPopMatrix();
+  glMatrixMode(GL_PROJECTION);
+  glPopMatrix();
+}
+
+static void draw_android_overlay() {
+  if (!scr_w || !scr_h) return;
+  draw_rect(btn_left[0], btn_left[1], btn_left[2], btn_left[3], 1,1,1,0.35f);
+  draw_rect(btn_right[0], btn_right[1], btn_right[2], btn_right[3], 1,1,1,0.35f);
+  draw_rect(btn_pause[0], btn_pause[1], btn_pause[2], btn_pause[3], 1,1,1,0.30f);
 }
 
 void gltron_frame(void) {
@@ -52,6 +119,8 @@ void gltron_frame(void) {
   idleGame();
   // Render
   displayGame();
+  // Overlay controls
+  draw_android_overlay();
 }
 
 void gltron_on_key(int key, int action) {
@@ -78,11 +147,33 @@ void gltron_on_key(int key, int action) {
 }
 
 void gltron_on_touch(float x, float y, int action) {
-  (void)action;
-  // Map touch to GUI interactions if GUI is active
-  // Basic example: update highlight and trigger action on tap
+  // If paused and not game finished, unpause on touch-up
+  if (game && (game->pauseflag != 0)) {
+    // AMOTION_EVENT_ACTION_UP == 1 (mask already applied by caller)
+    if ((action & 0xFF) == 1 /* ACTION_UP */ && !(game->pauseflag & PAUSE_GAME_FINISHED)) {
+      switchCallbacks(&gameCallbacks);
+      game->pauseflag = 0;
+      return;
+    }
+  }
+  // Otherwise, route to GUI or handle virtual buttons
   int ix = (int)x;
   int iy = (int)y;
+  // Check virtual buttons first
+  if (hit_btn(ix, iy, btn_left)) {
+    // Turn left (player 1)
+    keyGame('a', 0, 0);
+    return;
+  }
+  if (hit_btn(ix, iy, btn_right)) {
+    keyGame('s', 0, 0);
+    return;
+  }
+  if (hit_btn(ix, iy, btn_pause)) {
+    keyGame(' ', 0, 0);
+    return;
+  }
+  // Fallback to GUI handling
   motionGui(ix, iy);
   mouseGui(0, 0, ix, iy);
 }
