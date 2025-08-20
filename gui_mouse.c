@@ -77,7 +77,9 @@ void mouseGui(int button, int state, int x, int y) {
       } else {
         pCurrent = pCurrent->parent;
       }
+#ifndef ANDROID
       glutPostRedisplay();
+#endif
     } else if (idx >= 0) {
       pCurrent->iHighlight = idx;
       menuAction(*(pCurrent->pEntries + pCurrent->iHighlight));

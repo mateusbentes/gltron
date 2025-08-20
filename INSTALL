@@ -129,16 +129,20 @@ You also need to have the following libraries installed:
 
 You can install these libraries using the Android SDK Manager.
 
-Android Installation:
+Android Installation (NDK cross-compile notes):
 
 % mkdir build-android
 % cd build-android
 % cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-21 ..
-% make
-% ./gltron
+% cmake --build . --config Release
+
+Notes:
+- The Android build produces native libraries/binaries for integration into an Android app. You do not run ./gltron directly on device.
+- The project currently does not include an Android activity or packaging. You can link the produced library/binary into your own Android app project that sets up EGL/GLES context and input.
+- The CMake build defines ANDROID and links against log, android, EGL, and GLESv2.
 
 Optionally:
 
 % cmake --build build-android --target install
 
-will install gltron in the specified Android directory.
+will install gltron artifacts to the specified Android staging directory.

@@ -7,6 +7,10 @@
 #include "menu.h"
 #include "sgi_texture.h"
 #include "gltron.h"
+#ifdef ANDROID
+#include <android/asset_manager.h>
+extern AAssetManager* g_android_asset_mgr;
+#endif
 
 #define CAM_FOLLOW_HEIGHT 6.0f 
 

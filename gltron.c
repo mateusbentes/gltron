@@ -414,7 +414,11 @@ int main( int argc, char *argv[] ) {
   switchCallbacks(&guiCallbacks);
   switchCallbacks(&guiCallbacks);
 
-  glutMainLoop();
+  #ifndef ANDROID
+glutMainLoop();
+#else
+/* Android: the app's activity should drive the main loop */
+#endif
 
   return 0;
 }

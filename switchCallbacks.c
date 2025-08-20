@@ -8,6 +8,7 @@ void switchCallbacks(callbacks *new) {
   last_callback = current_callback;
   current_callback = new;
 
+#ifndef ANDROID
   glutIdleFunc(new->idle);
   glutDisplayFunc(new->display);
   glutKeyboardFunc(new->keyboard);
@@ -28,9 +29,10 @@ void switchCallbacks(callbacks *new) {
     glutMotionFunc(motionPause);
     glutPassiveMotionFunc(motionPause);
   }
+#endif
   lasttime = getElapsedTime();
 
- /* printf("callbacks registred\n"); */
+  /* printf("callbacks registred\n"); */
   (new->init)();
   (new->initGL)();
   /* printf("callback init's completed\n"); */
@@ -38,6 +40,7 @@ void switchCallbacks(callbacks *new) {
   
 void updateCallbacks() {
   /* called when the window is recreated */
+#ifndef ANDROID
   glutIdleFunc(current_callback->idle);
   glutDisplayFunc(current_callback->display);
   glutKeyboardFunc(current_callback->keyboard);
@@ -55,7 +58,10 @@ void updateCallbacks() {
     glutMotionFunc(motionPause);
     glutPassiveMotionFunc(motionPause);
   }
-  (current_callback->initGL)();
+#endif
+  lasttime = getElapsedTime();
+
+  fprintf(stderr, "restoring callbacks\n");
 }
 
 void restoreCallbacks() {
@@ -63,29 +69,7 @@ void restoreCallbacks() {
     fprintf(stderr, "no last callback present, exiting\n");
     exit(1);
   }
-  current_callback = last_callback;
-
-  glutIdleFunc(current_callback->idle);
-  glutDisplayFunc(current_callback->display);
-  glutKeyboardFunc(current_callback->keyboard);
-  glutSpecialFunc(current_callback->special);
-  if (current_callback == &guiCallbacks) {
-    glutMouseFunc(mouseGui);
-    glutMotionFunc(motionGui);
-    glutPassiveMotionFunc(motionGui);
-  } else if (current_callback == &gameCallbacks) {
-    glutMouseFunc(mouseGame);
-    glutMotionFunc(motionGame);
-    glutPassiveMotionFunc(motionGame);
-  } else if (current_callback == &pauseCallbacks) {
-    glutMouseFunc(mousePause);
-    glutMotionFunc(motionPause);
-    glutPassiveMotionFunc(motionPause);
-  }
-  
-  lasttime = getElapsedTime();
-
-  fprintf(stderr, "restoring callbacks\n");
+  switchCallbacks(last_callback);
 }
 
 void chooseCallback(char *name) {

@@ -7,6 +7,14 @@ set(CMAKE_CXX_STANDARD 11)
 # Suppress OpenGL preference warning
 cmake_policy(SET CMP0072 NEW)
 
+# Informative output about platform selection
+message(STATUS "Configuring gltron for platform: ${CMAKE_SYSTEM_NAME}")
+if(ANDROID)
+    message(STATUS "Android build detected: ANDROID macro will be defined; linking to log/android/EGL/GLESv2")
+else()
+    message(STATUS "Non-Android build: using desktop OpenGL and GLUT/GLU if available")
+endif()
+
 # Set OpenGL preference to legacy
 set(OpenGL_GL_PREFERENCE "LEGACY")
 
@@ -133,6 +141,11 @@ set(SOURCES
     globals.c
 )
 
+# Add Android-only sources
+if(ANDROID)
+    list(APPEND SOURCES android_glue.c android_main.c)
+endif()
+
 # Ensure C sources are compiled as C (not C++)
 set_source_files_properties(${SOURCES} PROPERTIES LANGUAGE C)
 if(USE_SOUND)
@@ -147,7 +160,10 @@ target_include_directories(gltron PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 # Link libraries
 if(ANDROID)
-    # Android-specific libraries
+    # Ensure ANDROID macro is defined for sources
+    target_compile_definitions(gltron PRIVATE ANDROID)
+
+    # Android-specific libraries (no desktop OpenGL)
     find_library(LOG_LIBRARY log)
     find_library(ANDROID_LIBRARY android)
     find_library(EGL_LIBRARY EGL)
@@ -157,7 +173,6 @@ if(ANDROID)
         ${ANDROID_LIBRARY}
         ${EGL_LIBRARY}
         ${GLESv2_LIBRARY}
-        OpenGL::GL
     )
 else()
     # Non-Android libraries
@@ -281,7 +296,9 @@ elseif(ANDROID)
     # Android-specific settings
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99")
-    # Link Android libraries
+    # Define ANDROID for C sources
+    target_compile_definitions(gltron PRIVATE ANDROID)
+    # Link Android libraries (no desktop OpenGL)
     find_library(LOG_LIBRARY log)
     find_library(ANDROID_LIBRARY android)
     find_library(EGL_LIBRARY EGL)
@@ -291,6 +308,5 @@ elseif(ANDROID)
         ${ANDROID_LIBRARY}
         ${EGL_LIBRARY}
         ${GLESv2_LIBRARY}
-        OpenGL::GL
     )
 endif()

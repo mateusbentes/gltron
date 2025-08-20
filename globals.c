@@ -1,4 +1,8 @@
 #include "globals.h"
+#ifdef ANDROID
+#include <android/asset_manager.h>
+AAssetManager* g_android_asset_mgr = 0;
+#endif
 
 // Define global variables
 Game main_game;

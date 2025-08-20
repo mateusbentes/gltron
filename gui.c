@@ -138,7 +138,13 @@ void idleGui() {
 
   applyDisplaySettingsDeferred();
   forceViewportResetIfNeededForGui();
+#ifndef ANDROID
+  #ifndef ANDROID
   glutPostRedisplay();
+#endif
+#else
+  /* On Android, redisplay should be driven by the app render loop */
+#endif
 }
 
 void keyboardGui(unsigned char key, int x, int y) {

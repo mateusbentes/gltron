@@ -395,8 +395,11 @@ void idleGame( void ) {
   /* chase-cam movement here */
   camMove();
   chaseCamMove();
-
+#ifndef ANDROID
   glutPostRedisplay();
+#else
+  /* Android: frame rendering should be requested by the app's loop */
+#endif
 }
 
 void defaultDisplay(int n) {

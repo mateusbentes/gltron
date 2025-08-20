@@ -42,16 +42,39 @@
 #define RC_NAME "gltron.ini"
 #endif
 
+/* Logging helpers */
+#ifdef ANDROID
+  #include <android/log.h>
+  #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, "gltron", __VA_ARGS__)
+  #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, "gltron", __VA_ARGS__)
+#else
+  #define LOGI(...) fprintf(stdout, __VA_ARGS__)
+  #define LOGE(...) fprintf(stderr, __VA_ARGS__)
+#endif
+
 #define COS(X)	cos( (X) * M_PI/180.0 )
 #define SIN(X)	sin( (X) * M_PI/180.0 )
 
-/* glut includes all necessary GL - Headers */
-
-#ifdef FREEGLUT
-#include <GL/freeglut.h>
+/* Platform-specific GL headers */
+#ifdef ANDROID
+  #include <GLES2/gl2.h>
+  #include <GLES2/gl2ext.h>
+  #include <EGL/egl.h>
+  /* Provide minimal GLUT key codes compatibility for shared code */
+  #ifndef GLUT_KEY_LEFT
+    #define GLUT_KEY_LEFT   100
+    #define GLUT_KEY_UP     101
+    #define GLUT_KEY_RIGHT  102
+    #define GLUT_KEY_DOWN   103
+  #endif
 #else
-#include <GL/glut.h>
-/* #include <freeglut.h> */
+  /* glut includes all necessary GL - Headers */
+  #ifdef FREEGLUT
+    #include <GL/freeglut.h>
+  #else
+    #include <GL/glut.h>
+    /* #include <freeglut.h> */
+  #endif
 #endif
 
 /* use texfont for rendering fonts as textured quads */

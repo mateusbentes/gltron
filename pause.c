@@ -46,8 +46,9 @@ void idlePause() {
 #endif
   if(getElapsedTime() - lasttime < 10) return;
   timediff();
-
+#ifndef ANDROID
   glutPostRedisplay();
+#endif
 }
 
 void displayPause() {
@@ -56,7 +57,9 @@ void displayPause() {
 
   if(game->settings->mouse_warp)
     mouseWarp();
+#ifndef ANDROID
   glutSwapBuffers();
+#endif
 }
 
 void keyboardPause(unsigned char key, int x, int y) {
