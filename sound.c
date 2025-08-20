@@ -5,13 +5,37 @@
 
 // Global sound module and sound effect variables
 MODULE* sound_module = NULL;
-MODULE* crash_sound = NULL;
-MODULE* lose_sound = NULL;
-MODULE* win_sound = NULL;
-MODULE* highlight_sound = NULL;
-MODULE* engine_sound = NULL;
-MODULE* start_sound = NULL;
-MODULE* action_sound = NULL;
+SAMPLE* crash_sfx = NULL;
+SAMPLE* lose_sfx = NULL;
+SAMPLE* win_sfx = NULL;
+SAMPLE* highlight_sfx = NULL;
+SAMPLE* engine_sfx = NULL;
+SAMPLE* start_sfx = NULL;
+SAMPLE* action_sfx = NULL;
+
+// helper to load music module by common names/paths
+static int loadMusicModule(void) {
+    if (sound_module) return 0; // already loaded
+    const char* paths[] = {"./", "/usr/share/games/gltron/", "/usr/local/share/games/gltron/", NULL};
+    const char* names[] = {"gltron", "music", NULL};
+    const char* exts[] = {".it", ".xm", ".s3m", ".mod", NULL};
+    char full[512];
+    for (int i=0; paths[i]; ++i) {
+        for (int n=0; names[n]; ++n) {
+            for (int e=0; exts[e]; ++e) {
+                snprintf(full, sizeof(full), "%s%s%s", paths[i], names[n], exts[e]);
+                printf("Attempting to load music from: %s\n", full);
+                sound_module = Player_Load(full, 64, 0);
+                if (sound_module) {
+                    printf("Successfully loaded music: %s\n", full);
+                    return 0;
+                }
+            }
+        }
+    }
+    printf("Could not load music module: %s\n", MikMod_strerror(MikMod_errno));
+    return 1;
+}
 
 // Initialize sound system
 int initSound(void) {
@@ -29,7 +53,7 @@ int initSound(void) {
     printf("%s\n", MikMod_InfoDriver());
 
     // Set sound device from game settings
-    md_device = game->settings->sound_driver;  // Correct pointer dereferencing
+    md_device = game->settings->sound_driver;
 
     // Register all sound file loaders
     MikMod_RegisterAllLoaders();
@@ -40,91 +64,79 @@ int initSound(void) {
         return 1;
     }
 
-    // Initialize music setting
-    game->settings->playMusic = 1;  // Correct pointer dereferencing
-
     // Load sound effects if sound is enabled
     if (game->settings->playSound) {
-        if (loadSoundEffect("game_crash", &crash_sound)) {
-            printf("Warning: Could not load crash sound effect\n");
+        if (loadSampleEffect("game_crash", &crash_sfx)) {
+            printf("Warning: Could not load crash sample\n");
         }
-        if (loadSoundEffect("game_lose", &lose_sound)) {
-            printf("Warning: Could not load lose sound effect\n");
+        if (loadSampleEffect("game_lose", &lose_sfx)) {
+            printf("Warning: Could not load lose sample\n");
         }
-        if (loadSoundEffect("game_win", &win_sound)) {
-            printf("Warning: Could not load win sound effect\n");
+        if (loadSampleEffect("game_win", &win_sfx)) {
+            printf("Warning: Could not load win sample\n");
         }
-        if (loadSoundEffect("menu_highlight", &highlight_sound)) {
-            printf("Warning: Could not load highlight sound effect\n");
+        if (loadSampleEffect("menu_highlight", &highlight_sfx)) {
+            printf("Warning: Could not load highlight sample\n");
         }
-        if (loadSoundEffect("game_engine", &engine_sound)) {
-            printf("Warning: Could not load engine sound effect\n");
+        if (loadSampleEffect("game_engine", &engine_sfx)) {
+            printf("Warning: Could not load engine sample\n");
         }
-        if (loadSoundEffect("game_start", &start_sound)) {
-            printf("Warning: Could not load start sound effect\n");
+        if (loadSampleEffect("game_start", &start_sfx)) {
+            printf("Warning: Could not load start sample\n");
         }
-        if (loadSoundEffect("menu_action", &action_sound)) {
-            printf("Warning: Could not load action sound effect\n");
+        if (loadSampleEffect("menu_action", &action_sfx)) {
+            printf("Warning: Could not load action sample\n");
         }
+    }
+
+    // Try to load music and auto-play if enabled
+    loadMusicModule();
+    if (game->settings->playSound && game->settings->playMusic && sound_module) {
+        Player_Start(sound_module);
+        printf("music started\n");
     }
 
     return 0;
 }
 
-// Load a sound effect from file
-int loadSoundEffect(char* name, MODULE** sound_effect) {
-    // Try loading from different locations
+// Load a sample (SFX) from file
+int loadSampleEffect(char* name, SAMPLE** sfx_out) {
     const char* paths[] = {
-        "./",  // Current directory
-        "/usr/share/games/gltron/",  // Default system location
-        "/usr/local/share/games/gltron/",  // Alternative system location
+        "./",
+        "/usr/share/games/gltron/",
+        "/usr/local/share/games/gltron/",
         NULL
     };
-
-    // Try different file extensions
-    const char* extensions[] = {".mod", ".xm", ".s3m", ".it", ".wav", NULL};
-
-    char full_path[256];
-    int i = 0;
-
-    // Clear the sound effect pointer
-    *sound_effect = NULL;
-
-    while (paths[i] != NULL) {
-        int j = 0;
-        while (extensions[j] != NULL) {
-            sprintf(full_path, "%s%s%s", paths[i], name, extensions[j]);
-            printf("Attempting to load sound effect from: %s\n", full_path);
-
-            // Try to load the file
-            *sound_effect = Player_Load(full_path, 64, 0);
-
-            if (*sound_effect) {
-                printf("Successfully loaded sound effect from: %s\n", full_path);
+    // Prefer wav for SFX; allow a few other common sample formats
+    const char* exts[] = {".wav", ".aiff", ".aif", ".au", NULL};
+    char full[512];
+    *sfx_out = NULL;
+    for (int i=0; paths[i]; ++i) {
+        for (int e=0; exts[e]; ++e) {
+            snprintf(full, sizeof(full), "%s%s%s", paths[i], name, exts[e]);
+            printf("Attempting to load sample from: %s\n", full);
+            SAMPLE* s = Sample_Load(full);
+            if (s) {
+                *sfx_out = s;
+                printf("Successfully loaded sample: %s\n", full);
                 return 0;
             }
-            j++;
         }
-        i++;
     }
-
-    printf("Could not load sound effect %s: %s\n",
-           name, MikMod_strerror(MikMod_errno));
-
-    // If we get here, all attempts failed
-    if (MikMod_errno == MMERR_NOT_A_MODULE) {
-        printf("The file is not in a recognized sound format.\n");
-        printf("Please convert to MOD, XM, S3M, or IT format.\n");
-    }
-
+    printf("Could not load sample %s: %s\n", name, MikMod_strerror(MikMod_errno));
     return 1;
 }
 
-// Play a sound effect
-int playSoundEffect(MODULE* sound_effect) {
-    if (sound_effect && game->settings->playSound) {
-        Player_Start(sound_effect);
-        return 0;
+// Play a sample (SFX)
+int playSampleEffect(SAMPLE* sfx) {
+    if (!sfx) {
+        if (game->settings->playSound)
+            printf("Warning: SFX not loaded for this event (NULL sample)\n");
+        return 1;
+    }
+    if (game->settings->playSound) {
+        int voice = Sample_Play(sfx, 0, 0);
+        if (voice >= 0) return 0;
     }
     return 1;
 }
@@ -141,6 +153,9 @@ int loadSound(char* name) {
 
 // Play the current sound module
 int playSound(void) {
+    if (!sound_module) {
+        loadMusicModule();
+    }
     if (sound_module && game->settings->playSound && game->settings->playMusic) {
         Player_Start(sound_module);
         printf("sound started\n");
@@ -151,7 +166,7 @@ int playSound(void) {
 
 // Stop the current sound module
 int stopSound(void) {
-    if (game->settings->playMusic) {
+    if (Player_Active()) {
         Player_Stop();
         printf("sound stopped\n");
         return 0;
@@ -170,13 +185,13 @@ void deleteSound(void) {
         Player_Free(sound_module);
 
     // Free sound effects
-    if (crash_sound) Player_Free(crash_sound);
-    if (lose_sound) Player_Free(lose_sound);
-    if (win_sound) Player_Free(win_sound);
-    if (highlight_sound) Player_Free(highlight_sound);
-    if (engine_sound) Player_Free(engine_sound);
-    if (start_sound) Player_Free(start_sound);
-    if (action_sound) Player_Free(action_sound);
+    if (crash_sfx) Sample_Free(crash_sfx);
+    if (lose_sfx) Sample_Free(lose_sfx);
+    if (win_sfx) Sample_Free(win_sfx);
+    if (highlight_sfx) Sample_Free(highlight_sfx);
+    if (engine_sfx) Sample_Free(engine_sfx);
+    if (start_sfx) Sample_Free(start_sfx);
+    if (action_sfx) Sample_Free(action_sfx);
 
     // Exit MikMod
     MikMod_Exit();

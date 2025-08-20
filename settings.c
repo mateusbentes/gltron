@@ -133,6 +133,7 @@ void initMainGameSettings(char *filename) {
 
   game->settings->display_type = 0;
   game->settings->playSound = 1;
+  game->settings->playMusic = 1;
 
   game->settings->ai_player1 = 0;
   game->settings->ai_player2 = 1;

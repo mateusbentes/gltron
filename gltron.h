@@ -72,6 +72,9 @@
 
 /* do Sound */
 
+#ifndef SOUND
+#define SOUND
+#endif
 #ifdef SOUND
 #include "sound.h"
 #endif
