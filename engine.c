@@ -1,5 +1,6 @@
 #include <math.h>
 #include "gltron.h"
+#include "globals.h"
 
 void setCol(int x, int y) {
   int offset, mask;
@@ -307,31 +308,40 @@ void chaseCamMove() {
       cam->target[1] = data->posy;
       cam->target[2] = B_HEIGHT;
       break;
-    case 1: // Mike-cam
-      cam->target[0] = data->posx;
-      cam->target[1] = data->posy;
+    
+    case 1: // Mike-cam (classic GLTron chase camera)
+      // Look at the player's position
+      cam->target[0] = data->posx + dirsX[data->dir] * 5.0f; // look ahead in the driving direction
+      cam->target[1] = data->posy + dirsY[data->dir] * 5.0f;
       cam->target[2] = B_HEIGHT;
 
-      dest[0] = cam->target[0] - CAM_FOLLOW_DIST * dirsX[ data->dir];
-      dest[1] = cam->target[1] - CAM_FOLLOW_DIST * dirsY[ data->dir];
+      // Desired camera position behind the player
+      dest[0] = data->posx - CAM_FOLLOW_DIST * dirsX[data->dir];
+      dest[1] = data->posy - CAM_FOLLOW_DIST * dirsY[data->dir];
+      dest[2] = CAM_CIRCLE_Z;
 
-      d = sqrt((dest[0] - cam->cam[0]) * (dest[0] - cam->cam[0]) +
-	       (dest[1] - cam->cam[1]) * (dest[1] - cam->cam[1]));
-      if(d != 0) {
-	dcamx = (float)dt * CAM_FOLLOW_SPEED * (dest[0] - cam->cam[0]) / d;
-	dcamy = (float)dt * CAM_FOLLOW_SPEED * (dest[1] - cam->cam[1]) / d;
+      // Smooth interpolation toward desired position
+      d = sqrtf((dest[0] - cam->cam[0]) * (dest[0] - cam->cam[0]) +
+              (dest[1] - cam->cam[1]) * (dest[1] - cam->cam[1]));
+      if (d != 0) {
+        dcamx = (float)dt * CAM_FOLLOW_SPEED * (dest[0] - cam->cam[0]) / d;
+        dcamy = (float)dt * CAM_FOLLOW_SPEED * (dest[1] - cam->cam[1]) / d;
 
-	if((dest[0] - cam->cam[0] > 0 && dest[0] - cam->cam[0] < dcamx) ||
-	   (dest[0] - cam->cam[0] < 0 && dest[0] - cam->cam[0] > dcamx)) {
-	  cam->cam[0] = dest[0];
-	} else cam->cam[0] += dcamx;
+        if ((dest[0] - cam->cam[0] > 0 && dest[0] - cam->cam[0] < dcamx) ||
+            (dest[0] - cam->cam[0] < 0 && dest[0] - cam->cam[0] > dcamx)) {
+            cam->cam[0] = dest[0];
+        } else cam->cam[0] += dcamx;
 
-	if((dest[1] - cam->cam[1] > 0 && dest[1] - cam->cam[1] < dcamy) ||
-	   (dest[1] - cam->cam[1] < 0 && dest[1] - cam->cam[1] > dcamy)) {
-	  cam->cam[1] = dest[1];
-	} else cam->cam[1] += dcamy;
+        if ((dest[1] - cam->cam[1] > 0 && dest[1] - cam->cam[1] < dcamy) ||
+            (dest[1] - cam->cam[1] < 0 && dest[1] - cam->cam[1] > dcamy)) {
+            cam->cam[1] = dest[1];
+        } else cam->cam[1] += dcamy;
       }
+
+      // Always keep the camera at fixed height
+      cam->cam[2] = CAM_CIRCLE_Z;
       break;
+
     case 2: /* 1st person */
 #define H 3
       cam->target[0] = data->posx + dirsX[data->dir];
@@ -506,61 +516,39 @@ void timediff() {
 }
 
 void camMove() {
-  // Base camera speed
-  float baseSpeed = CAM_SPEED * dt / 100;
-
-  // Adjust camera speed based on game state
-  if (game->settings->fast_finish) {
-    // Increase camera speed during fast finish mode (but not too much)
-    baseSpeed *= 1.2;  // Reduced from 1.5 to prevent excessive movement
-  }
-
   // Get the active player (assuming player 0 is the main player)
   Data *activePlayer = game->player[0].data;
 
-  // Calculate target angle based on player direction
-  float targetAngle = camAngle;
+  // Camera parameters
+  float camHeight = 5.0f;   // Vertical distance from the player
+  float camDist   = 10.0f;  // Distance behind the player
 
-  // Adjust camera angle based on player direction
-  if (activePlayer->speed > 0) {
-    // Player is moving forward - camera follows player direction
-    targetAngle += baseSpeed * activePlayer->speed / 10;
-  } else if (activePlayer->speed < 0) {
-    // Player is moving backward - camera moves opposite direction
-    targetAngle -= baseSpeed * abs(activePlayer->speed) / 10;
-  } else {
-    // Player is stationary - slow camera rotation
-    targetAngle += baseSpeed * 0.3;  // Reduced from 0.5 to prevent excessive movement
-  }
+  // Player position
+  float playerX = activePlayer->posx;
+  float playerY = activePlayer->posy;
 
-  // Additional intelligence: adjust camera based on player's visibility
-  for (int i = 1; i < game->players; i++) {
-    if (playerVisible(&game->player[0], &game->player[i])) {
-      // If another player is visible, adjust camera to track them
-      float visiblePlayerAngle = atan2(game->player[i].data->posy - activePlayer->posy,
-                                      game->player[i].data->posx - activePlayer->posx);
-      visiblePlayerAngle = visiblePlayerAngle * 180 / M_PI; // Convert to degrees
+  // Get player direction unit vector from dirsX/Y
+  float dirX = dirsX[activePlayer->dir];
+  float dirY = dirsY[activePlayer->dir];
 
-      // Calculate angle difference
-      float angleDiff = visiblePlayerAngle - targetAngle;
-      while (angleDiff > 180) angleDiff -= 360;
-      while (angleDiff < -180) angleDiff += 360;
+  // Place camera BEHIND the player
+  float camX = playerX - camDist * dirX;
+  float camY = playerY - camDist * dirY;
+  float camZ = camHeight;
 
-      // Apply a smaller adjustment when tracking visible players
-      targetAngle += angleDiff * 0.05;  // Reduced from 0.1 to prevent excessive movement
-      break; // Only track the first visible player
-    }
-  }
+  // Look-at target = player position (centered at ground height)
+  float lookX = playerX;
+  float lookY = playerY;
+  float lookZ = 0.0f;
 
-  // Smoothly interpolate between current angle and target angle
-  float angleDiff = targetAngle - camAngle;
-  while (angleDiff > 180) angleDiff -= 360;
-  while (angleDiff < -180) angleDiff += 360;
+  // Up vector
+  float upX = 0.0f;
+  float upY = 0.0f;
+  float upZ = 1.0f;   // In GLTron, Z is up, not Y
 
-  // Apply a smaller adjustment for smoother camera movement
-  camAngle += angleDiff * 0.2;  // Reduced from 0.3 to prevent excessive movement
-
-  // Normalize the angle to keep it within 0-360 degrees
-  while (camAngle > 360) camAngle -= 360;
-  while (camAngle < 0) camAngle += 360;
+  // Apply OpenGL camera transform
+  glLoadIdentity();
+  gluLookAt(camX, camY, camZ,
+              lookX, lookY, lookZ,
+              upX, upY, upZ);
 }

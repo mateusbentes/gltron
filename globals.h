@@ -8,6 +8,8 @@
 #include "sgi_texture.h"
 #include "gltron.h"
 
+#define CAM_FOLLOW_HEIGHT 6.0f 
+
 // Forward declarations for types used in globals
 typedef struct Game Game;
 typedef struct gDisplay gDisplay;

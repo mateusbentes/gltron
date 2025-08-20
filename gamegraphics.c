@@ -410,46 +410,55 @@ void drawCam(Player *p, gDisplay *d) {
   glColor3f(0.0, 1.0, 0.0);
   glMatrixMode(GL_PROJECTION);
   glLoadIdentity();
-  gluPerspective(game->settings->fov, d->vp_w / d->vp_h, 3.0, GSIZE);
+  gluPerspective(game->settings->fov, (float)d->vp_w / (float)d->vp_h, 3.0, GSIZE);
 
   glMatrixMode(GL_MODELVIEW);
   glLoadIdentity();
+
+  // Camera parameters
+  float camDist   = 12.0f; // distance behind the player
+  float camHeight = 6.0f;  // height above the ground
+
+  // Player position
+  float playerX = p->data->posx;
+  float playerY = p->data->posy;
+
+  // Player facing direction vector (unit vector from dirsX/dirsY)
+  float dirX = dirsX[p->data->dir];
+  float dirY = dirsY[p->data->dir];
+
+  // Camera position = player position - direction * distance + height in Z
+  float camX = playerX - dirX * camDist;
+  float camY = playerY - dirY * camDist;
+  float camZ = camHeight;
+
+  // Look-at target = in front of the player
+  float lookX = playerX + dirX * 5.0f; // 5 units ahead
+  float lookY = playerY + dirY * 5.0f;
+  float lookZ = 0.5f; // just above ground
+
+  // Up vector (Z-up in GLTron)
+  float upX = 0.0f, upY = 0.0f, upZ = 1.0f;
+
+  gluLookAt(camX, camY, camZ, lookX, lookY, lookZ, upX, upY, upZ);
+
+  // Light moves with camera
   glLightfv(GL_LIGHT0, GL_POSITION, p->camera->cam);
 
-  gluLookAt(p->camera->cam[0], p->camera->cam[1], p->camera->cam[2],
-	    p->camera->target[0], p->camera->target[1], p->camera->target[2],
-	    0, 0, 1);
-
+  // Draw scene
   drawFloor(d);
-  if(game->settings->show_wall == 1)
+  if (game->settings->show_wall == 1)
     drawWalls(d);
 
-  for(i = 0; i < game->players; i++)
+  for (i = 0; i < game->players; i++)
     drawTraces(&(game->player[i]), d, i);
 
   drawPlayers(p);
 
-  /* draw the glow around the other players: */
-  if(game->settings->show_glow == 1)
-    for(i = 0; i < game->players; i++)
+  if (game->settings->show_glow == 1)
+    for (i = 0; i < game->players; i++)
       if ((p != &(game->player[i])) && (game->player[i].data->speed > 0))
-	drawGlow(&(game->player[i]), d, TRAIL_HEIGHT * 4);
-
-
-  /* highLight crashed player */
-
-  /*
-  if(p->data->speed < 0 && game->settings->erase_crashed == 0) {
-    glPushMatrix();
-    glColor4f(1.0, 1.0, 0.1, 0.1);
-    glTranslatef(p->data->posx, p->data->posy, TRAIL_HEIGHT / 2);
-    if(game->settings->show_alpha == 1) 
-      glutSolidSphere(8.0, 10, 10);
-    glColor4f(1.0, 1.0, 0.3, 1.0);
-    glutWireSphere(8.0, 10, 10);
-    glPopMatrix();
-  }
-  */
+        drawGlow(&(game->player[i]), d, TRAIL_HEIGHT * 4);
 
   glDisable(GL_FOG);
 }
