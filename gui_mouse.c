@@ -1,5 +1,11 @@
 #include "gltron.h"
 #include "gui_mouse.h"
+#include <string.h>
+#ifdef ANDROID
+// On Android we don't have GLUT; guard calls and constants
+#define GLUT_LEFT_BUTTON 0
+#define GLUT_UP 1
+#endif
 
 /* Helper to map window coords to menu item index */
 static int gui_hit_test(int x_win, int y_win) {
@@ -60,7 +66,9 @@ void motionGui(int x, int y) {
   int idx = gui_hit_test(x, y);
   if (idx >= 0) {
     pCurrent->iHighlight = idx;
+#ifndef ANDROID
     glutPostRedisplay();
+#endif
   }
 }
 

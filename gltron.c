@@ -10,7 +10,21 @@
 #include "menu.h"
 #include "sgi_texture.h"
 
+#ifdef ANDROID
+#include <GLES2/gl2.h>
+#include <EGL/egl.h>
+#else
+#include <GL/glut.h>
+#include <GL/gl.h>
+#include <GL/glu.h>
+#endif
+
 int getElapsedTime(void) {
+#ifdef ANDROID
+  struct timespec now;
+  clock_gettime(CLOCK_MONOTONIC, &now);
+  return (now.tv_sec * 1000) + (now.tv_nsec / 1000000);
+#endif
 #ifdef WIN32
 	return timeGetTime();
 #else
@@ -19,7 +33,9 @@ int getElapsedTime(void) {
 }
 
 void mouseWarp() {
-  glutWarpPointer(game->screen->w / 2, game->screen->h / 2);
+#ifndef ANDROID
+    glutWarpPointer(game->screen->w / 2, game->screen->h / 2);
+#endif
 }
 
 void drawGame() {
@@ -59,95 +75,87 @@ void drawGame() {
   /* printf("%d polys\n", polycount); */
 }
 void displayGame() {
-  /* Ensure viewports match window size at draw time after any display change */
-  forceViewportResetIfNeededForGame();
-  drawGame();
-  if(game->settings->mouse_warp)
-    mouseWarp();
-  glutSwapBuffers();
+    /* Ensure viewports match window size at draw time after any display change */
+    forceViewportResetIfNeededForGame();
+    drawGame();
+    if(game->settings->mouse_warp)
+        mouseWarp();
+#ifndef ANDROID
+    glutSwapBuffers();
+#endif
 }
 
 void initCustomLights() {
-  float col[] = { .77, .77, .77, 1.0 };
-  float dif[] =  { 0.4, 0.4, 0.4, 1};
-  float amb[] = { 0.25, 0.25, 0.25, 1};
+#ifndef ANDROID
+    float col[] = { .77, .77, .77, 1.0 };
+    float dif[] =  { 0.4, 0.4, 0.4, 1};
+    float amb[] = { 0.25, 0.25, 0.25, 1};
 
-  glEnable(GL_LIGHT0);
-  glLightfv(GL_LIGHT0, GL_AMBIENT, amb);
-  glLightfv(GL_LIGHT0, GL_SPECULAR, col);
-  glLightfv(GL_LIGHT0, GL_DIFFUSE, dif);
+    glEnable(GL_LIGHT0);
+    glLightfv(GL_LIGHT0, GL_AMBIENT, amb);
+    glLightfv(GL_LIGHT0, GL_SPECULAR, col);
+    glLightfv(GL_LIGHT0, GL_DIFFUSE, dif);
+#endif
 }
 
 void initGLGame() {
-  // First create the window if it doesn't exist
-  if (glutGetWindow() == 0) {
-    glutInitWindowSize(game->settings->width, game->settings->height);
-    glutCreateWindow("GLtron");
-  }
-
-  printf("OpenGL Info: '%s'\n%s - %s\n", glGetString(GL_VENDOR),
-         glGetString(GL_RENDERER), glGetString(GL_VERSION));
-
-  glShadeModel(GL_FLAT);
-
-  if(game->settings->show_alpha)
+#ifdef ANDROID
+    // Android-specific OpenGL initialization
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LEQUAL);
     glEnable(GL_BLEND);
-  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+#else
+    // First create the window if it doesn't exist
+    if (glutGetWindow() == 0) {
+        glutInitWindowSize(game->settings->width, game->settings->height);
+        glutCreateWindow("GLtron");
+    }
 
-  glFogf(GL_FOG_START, 50.0);
-  glFogf(GL_FOG_END, 100.0);
-  glFogf(GL_FOG_MODE, GL_LINEAR);
-  glFogf(GL_FOG_DENSITY, 0.1);
-  glDisable(GL_FOG);
+    printf("OpenGL Info: '%s'\n%s - %s\n", glGetString(GL_VENDOR),
+            glGetString(GL_RENDERER), glGetString(GL_VERSION));
 
-  // Apply fullscreen mode if needed
-  if (game->settings->fullscreen) {
-    glutFullScreen();
-  }
+    glShadeModel(GL_FLAT);
 
-  initCustomLights();
+    if(game->settings->show_alpha)
+        glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-  glDepthMask(GL_FALSE);
-  glDisable(GL_DEPTH_TEST);
+    glFogf(GL_FOG_START, 50.0);
+    glFogf(GL_FOG_END, 100.0);
+    glFogf(GL_FOG_MODE, GL_LINEAR);
+    glFogf(GL_FOG_DENSITY, 0.1);
+    glDisable(GL_FOG);
+
+    // Apply fullscreen mode if needed
+    if (game->settings->fullscreen) {
+        glutFullScreen();
+    }
+
+    initCustomLights();
+
+    glDepthMask(GL_FALSE);
+    glDisable(GL_DEPTH_TEST);
+#endif
 }
 
 int initWindow() {
-  int win_id;
-  /* char buf[20]; */
-
-  glutInitWindowSize(game->settings->width, game->settings->height);
-  glutInitWindowPosition(0, 0);
-
-  glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH);
-
-  /*
-  sprintf(buf, "%dx%d:16", game->settings->width, game->settings->height);
-  glutGameModeString(buf);
-
-  if(glutGameModeGet(GLUT_GAME_MODE_POSSIBLE) &&
-     !game->settings->windowMode) {
-     win_id = glutEnterGameMode();
-  */
-    /* check glutGameMode results */
-  /*
-    printf("Glut game mode status\n");
-    printf("  active: %d\n", glutGameModeGet( GLUT_GAME_MODE_ACTIVE));
-    printf("  possible: %d\n", glutGameModeGet( GLUT_GAME_MODE_POSSIBLE));
-    printf("  width: %d\n", glutGameModeGet( GLUT_GAME_MODE_WIDTH));
-    printf("  height: %d\n", glutGameModeGet( GLUT_GAME_MODE_HEIGHT));
-    printf("  depth: %d\n", glutGameModeGet( GLUT_GAME_MODE_PIXEL_DEPTH));
-    printf("  refresh: %d\n", glutGameModeGet( GLUT_GAME_MODE_REFRESH_RATE));
-    printf("  changed display: %d\n",
-	   glutGameModeGet( GLUT_GAME_MODE_DISPLAY_CHANGED));
-
-  } else
-  */
+#ifdef ANDROID
+    // Android-specific window initialization
+    return 1;
+#else
+    int win_id;
+    glutInitWindowSize(game->settings->width, game->settings->height);
+    glutInitWindowPosition(0, 0);
+    glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH);
     win_id = glutCreateWindow("gltron");
-  if (win_id < 0) {
-    printf("could not create window...exiting\n");
-    exit(1);
-  }
-  return win_id;
+    if (win_id < 0) {
+        printf("could not create window...exiting\n");
+        exit(1);
+    }
+    return win_id;
+#endif
 }
 
 void shutdownDisplay(gDisplay *d) {
@@ -297,130 +305,143 @@ void onReshape(int w, int h) {
 }
 
 void setupDisplay(gDisplay *d) {
-  printf("trying to create window\n");
+#ifdef ANDROID
+    // Android-specific display initialization
+    printf("Android display setup\n");
+    d->win_id = 1; // Dummy window ID for Android
+    printf("loading fonts...\n");
+    initFonts();
+    printf("loading textures...\n");
+    initTexture(d);
+    printf("window created with ID: %d\n", d->win_id);
+#else
+    printf("trying to create window\n");
 
-  // Initialize GLUT window properties
-  glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH);
+    // Initialize GLUT window properties
+    glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH);
 
-  // Set initial window size from settings
-  glutInitWindowSize(game->settings->width, game->settings->height);
+    // Set initial window size from settings
+    glutInitWindowSize(game->settings->width, game->settings->height);
 
-  // Set window position for windowed mode
-  glutInitWindowPosition(0, 0);
+    // Set window position for windowed mode
+    glutInitWindowPosition(0, 0);
 
-  // Create the window
-  d->win_id = glutCreateWindow("GLtron");
+    // Create the window
+    d->win_id = glutCreateWindow("GLtron");
 
-  // Set fullscreen mode if needed
-  if (game->settings->fullscreen) {
-    glutFullScreen();
-    // Query actual window size and update settings
-    int w = glutGet(GLUT_WINDOW_WIDTH);
-    int h = glutGet(GLUT_WINDOW_HEIGHT);
-    if (w > 0 && h > 0) {
-      game->settings->width = w;
-      game->settings->height = h;
-      d->w = w;
-      d->h = h;
+    // Set fullscreen mode if needed
+    if (game->settings->fullscreen) {
+        glutFullScreen();
+        // Query actual window size and update settings
+        int w = glutGet(GLUT_WINDOW_WIDTH);
+        int h = glutGet(GLUT_WINDOW_HEIGHT);
+        if (w > 0 && h > 0) {
+            game->settings->width = w;
+            game->settings->height = h;
+            d->w = w;
+            d->h = h;
+        }
+    } else {
+        // Ensure window is in windowed mode
+        glutReshapeWindow(game->settings->width, game->settings->height);
     }
-  } else {
-    // Ensure window is in windowed mode
-    glutReshapeWindow(game->settings->width, game->settings->height);
-  }
 
-  printf("window created with ID: %d\n", d->win_id);
+    printf("window created with ID: %d\n", d->win_id);
 
-  printf("loading fonts...\n");
-  initFonts();
-  printf("loading textures...\n");
-  initTexture(game->screen);
+    printf("loading fonts...\n");
+    initFonts();
+    printf("loading textures...\n");
+    initTexture(d);
 
-  // Initialize OpenGL settings
-  initGLGame();
+    // Initialize OpenGL settings
+    initGLGame();
 
-  // Set up callbacks
-  glutDisplayFunc(displayGame);
-  glutReshapeFunc(onReshape);
-  glutKeyboardFunc(keyGame);
-  glutSpecialFunc(specialGame);
-  glutIdleFunc(idleGame);
+    // Set up callbacks
+    glutDisplayFunc(displayGame);
+    glutReshapeFunc(onReshape);
+    glutKeyboardFunc(keyGame);
+    glutSpecialFunc(specialGame);
+    glutIdleFunc(idleGame);
+#endif
 }
 
 int main( int argc, char *argv[] ) {
-  char *path;
+    char *path;
 
 #ifdef __FreeBSD__
-  fpsetmask(0);
+    fpsetmask(0);
 #endif
 
-  glutInit(&argc, argv);
+#ifndef ANDROID
+    glutInit(&argc, argv);
+#endif
 
-  // Print current working directory
-  char cwd[1024];
-  if (getcwd(cwd, sizeof(cwd)) != NULL) {
-    printf("Current working directory: %s\n", cwd);
-  }
+    // Print current working directory
+    char cwd[1024];
+    if (getcwd(cwd, sizeof(cwd)) != NULL) {
+        printf("Current working directory: %s\n", cwd);
+    }
 
-  path = getFullPath("settings.txt");
-  if(path != 0)
-    initMainGameSettings(path); /* reads defaults from ~/.gltronrc */
-  else {
-    printf("fatal: could not settings.txt, exiting...\n");
-    exit(1);
-  }
+    path = getFullPath("settings.txt");
+    if(path != 0)
+        initMainGameSettings(path); /* reads defaults from ~/.gltronrc */
+    else {
+        printf("fatal: could not settings.txt, exiting...\n");
+        exit(1);
+    }
 
-  parse_args(argc, argv);
+    parse_args(argc, argv);
 
-  /* sound */
+    /* sound */
 
 #ifdef SOUND
-  printf("initializing sound\n");
-  initSound();
+    printf("initializing sound\n");
+    initSound();
 
-  // Print sound file search paths
-  printf("Sound file search paths:\n");
-  printf("1. Current directory: %s\n", cwd);
-  printf("2. /usr/share/games/gltron/\n");
-  printf("3. /usr/local/share/games/gltron/\n");
+    // Print sound file search paths
+    printf("Sound file search paths:\n");
+    printf("1. Current directory: %s\n", cwd);
+    printf("2. /usr/share/games/gltron/\n");
+    printf("3. /usr/local/share/games/gltron/\n");
 
-  path = getFullPath("gltron.it");
-  if(path == 0 || loadSound(path))
-    printf("error trying to load sound\n");
-  else {
-    if(game->settings->playSound) {
-      playSound();
-      free(path);
+    path = getFullPath("gltron.it");
+    if(path == 0 || loadSound(path))
+        printf("error trying to load sound\n");
+    else {
+        if(game->settings->playSound) {
+            playSound();
+            free(path);
+        }
     }
-  }
 #endif
 
-  printf("loading menu\n");
-  path = getFullPath("menu.txt");
-  if(path != 0)
-    pMenuList = loadMenuFile(path);
-  else {
-    printf("fatal: could not load menu.txt, exiting...\n");
-    exit(1);
-  }
-  printf("menu loaded\n");
-  free(path);
+    printf("loading menu\n");
+    path = getFullPath("menu.txt");
+    if(path != 0)
+        pMenuList = loadMenuFile(path);
+    else {
+        printf("fatal: could not load menu.txt, exiting...\n");
+        exit(1);
+    }
+    printf("menu loaded\n");
+    free(path);
 
-  initGameStructures();
-  resetScores();
+    initGameStructures();
+    resetScores();
 
-  initData();
+    initData();
 
-  setupDisplay(game->screen);
-  switchCallbacks(&guiCallbacks);
-  switchCallbacks(&guiCallbacks);
+    setupDisplay(game->screen);
+    switchCallbacks(&guiCallbacks);
+    switchCallbacks(&guiCallbacks);
 
-  #ifndef ANDROID
-glutMainLoop();
+#ifndef ANDROID
+    glutMainLoop();
 #else
-/* Android: the app's activity should drive the main loop */
+    /* Android: the app's activity should drive the main loop */
 #endif
 
-  return 0;
+    return 0;
 }
 
 callbacks gameCallbacks = { 

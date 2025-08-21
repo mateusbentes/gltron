@@ -9,7 +9,12 @@
 #include <windows.h>
 #endif
 
-#include <GL/gl.h>
+#ifdef ANDROID
+  #include <GLES2/gl2.h>
+  #include <GLES2/gl2ext.h>
+#else
+  #include <GL/gl.h>
+#endif
 
 typedef struct fonttex {
   sgi_texture **textures;

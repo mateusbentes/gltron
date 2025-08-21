@@ -1,5 +1,11 @@
 #include "gltron.h"
 #include <math.h>
+#ifdef ANDROID
+// Define GLUT mouse constants for Android path
+#define GLUT_LEFT_BUTTON 0
+#define GLUT_DOWN 0
+#define GLUT_UP 1
+#endif
 
 static int down_x = -1, down_y = -1;
 static int last_x = -1, last_y = -1;
@@ -10,8 +16,8 @@ static void handle_swipe(int dx, int dy) {
   /* Only horizontal swipes control steering */
   int vw = game->screen->vp_w;
   float min_dist = vw * 0.05f; /* 5% of width */
-  if (fabsf(dx) < min_dist) return;
-  if (fabsf(dx) < fabsf(dy)) return; /* require mostly horizontal */
+  if (abs(dx) < min_dist) return;
+  if (abs(dx) < abs(dy)) return; /* require mostly horizontal */
 
   if (dx > 0) {
     /* right */

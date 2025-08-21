@@ -6,6 +6,15 @@
 #include "gltron.h"
 #include "gui_mouse.h"
 
+#ifdef ANDROID
+#include <GLES/gl.h>
+#include <GLES/glext.h>
+#define USE_ES1 1
+#else
+#include <GL/gl.h>
+#include <GL/glu.h>
+#endif
+
 sgi_texture *tex;
 
 typedef struct {
@@ -43,16 +52,38 @@ void displayGui() {
 
   guiProjection(game->screen->vp_w, game->screen->vp_h);
 
-  glBegin(GL_QUADS);
-  c1 = 0.25; c2 = 0.75;
-  glColor3f(c1, c1, GUI_BLUE * c1);
-  glVertex2f(-1, -1);
-  glColor3f(c2, c2, GUI_BLUE * c2);
-  glVertex2f(1, -1);
-  glVertex2f(1, 1);
-  glColor3f(c1, c1, GUI_BLUE * c1);
-  glVertex2f(-1, 1);
-  glEnd();
+  // Set texture parameters
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+  // Bind texture once before the loop
+  glEnable(GL_TEXTURE_2D);
+  glBindTexture(GL_TEXTURE_2D, game->screen->texGui);
+  glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+
+  // Use vertex arrays instead of immediate mode
+  GLfloat vertices[8];
+  GLfloat colors[12];
+
+  // Background quad
+  vertices[0] = -1.0f; vertices[1] = -1.0f;
+  vertices[2] = 1.0f; vertices[3] = -1.0f;
+  vertices[4] = 1.0f; vertices[5] = 1.0f;
+  vertices[6] = -1.0f; vertices[7] = 1.0f;
+
+  c1 = 0.25f; c2 = 0.75f;
+  colors[0] = c1; colors[1] = c1; colors[2] = GUI_BLUE * c1;
+  colors[3] = c2; colors[4] = c2; colors[5] = GUI_BLUE * c2;
+  colors[6] = c2; colors[7] = c2; colors[8] = GUI_BLUE * c2;
+  colors[9] = c1; colors[10] = c1; colors[11] = GUI_BLUE * c1;
+
+  glEnableClientState(GL_VERTEX_ARRAY);
+  glEnableClientState(GL_COLOR_ARRAY);
+  glVertexPointer(2, GL_FLOAT, 0, vertices);
+  glColorPointer(3, GL_FLOAT, 0, colors);
+  glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+  glDisableClientState(GL_COLOR_ARRAY);
+  glDisableClientState(GL_VERTEX_ARRAY);
 
   for(y1 = -1; y1 < 1; y1 += 2 / N) {
     y2 = y1 + 2 / N;
@@ -62,23 +93,29 @@ void displayGui() {
 
       c1 = c1 / 2 + 0.25;
       c2 = c2 / 2 + 0.25;
-      /* printf("using color %.2f\n", c); */
-      
-      glBegin(GL_QUADS);
+
+      // Use vertex arrays instead of immediate mode
       a = x + sin(bgs.d) / 10;
-      /* b = x + cos(d) / 10 + 2 / N; */
       b1 = x + 2 / N;
       b2 = b1 + cos(bgs.d) / 10;
-      /* printf("corners: (%.2f %.2f) (%.2f %.2f)\n", a, 0.0, b,
-	 (float)yres[current]); */
-      glColor3f(c1, c1, GUI_BLUE * c1);
-      glVertex2f(a, y1);
-      glColor3f(c2, c2, GUI_BLUE * c2);
-      glVertex2f(b1, y1);
-      glVertex2f(b2, y2);
-      glColor3f(c1, c1, GUI_BLUE * c1);
-      glVertex2f(a, y2);
-      glEnd();
+
+      vertices[0] = a; vertices[1] = y1;
+      vertices[2] = b1; vertices[3] = y1;
+      vertices[4] = b2; vertices[5] = y2;
+      vertices[6] = a; vertices[7] = y2;
+
+      colors[0] = c1; colors[1] = c1; colors[2] = GUI_BLUE * c1;
+      colors[3] = c2; colors[4] = c2; colors[5] = GUI_BLUE * c2;
+      colors[6] = c2; colors[7] = c2; colors[8] = GUI_BLUE * c2;
+      colors[9] = c1; colors[10] = c1; colors[11] = GUI_BLUE * c1;
+
+      glEnableClientState(GL_VERTEX_ARRAY);
+      glEnableClientState(GL_COLOR_ARRAY);
+      glVertexPointer(2, GL_FLOAT, 0, vertices);
+      glColorPointer(3, GL_FLOAT, 0, colors);
+      glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+      glDisableClientState(GL_COLOR_ARRAY);
+      glDisableClientState(GL_VERTEX_ARRAY);
     }
   }
 
@@ -87,32 +124,44 @@ void displayGui() {
   w = 1;
   h = w/4;
 
-  glEnable(GL_TEXTURE_2D);
-  glBindTexture(GL_TEXTURE_2D, game->screen->texGui);
-  glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-
-  checkGLError("gui.c - displayGui");
-
   alpha = (sin(bgs.d - M_PI / 2) + 1) / 2;
-  glColor4f(1.0, 1.0, 0.0, alpha);
-  glBegin(GL_QUADS);
-  glTexCoord2f(0.0, 0.0);
-  glVertex2f(x, y);
-  glTexCoord2f(1.0, 0.0);
-  glVertex2f(x + w, y);
-  glTexCoord2f(1.0, 1.0);
-  glVertex2f(x + w, y + h);
-  glTexCoord2f(0.0, 1.0);
-  glVertex2f(x, y + h);
-  glEnd();
+
+  // Use vertex arrays instead of immediate mode
+  vertices[0] = x - w / 2; vertices[1] = y - h / 2;
+  vertices[2] = x + w / 2; vertices[3] = y - h / 2;
+  vertices[4] = x + w / 2; vertices[5] = y + h / 2;
+  vertices[6] = x - w / 2; vertices[7] = y + h / 2;
+
+  GLfloat texCoords[8] = {
+    0.0f, 0.0f,
+    1.0f, 0.0f,
+    1.0f, 1.0f,
+    0.0f, 1.0f
+  };
+
+  glEnableClientState(GL_VERTEX_ARRAY);
+  glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+  glVertexPointer(2, GL_FLOAT, 0, vertices);
+  glTexCoordPointer(2, GL_FLOAT, 0, texCoords);
+  glColor4f(1.0f, 1.0f, 0.0f, alpha);
+  glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+  glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+  glDisableClientState(GL_VERTEX_ARRAY);
+
   glDisable(GL_TEXTURE_2D);
 
+  #ifdef ANDROID
+  glColor4f(1.0f, 0.0f, 1.0f, 1.0f);
+#else
   glColor3f(1.0, 0.0, 1.0);
+#endif
   drawMenu(game->screen);
 
   if(game->settings->mouse_warp)
     mouseWarp();
+#ifndef ANDROID
   glutSwapBuffers();
+#endif
 }
 
 void idleGui() {

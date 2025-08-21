@@ -2,6 +2,14 @@
 #include "gltron.h"
 #include "globals.h"
 
+#ifdef ANDROID
+#include <GLES/gl.h>
+#include <GLES/glext.h>
+#else
+#include <GL/gl.h>
+#include <GL/glu.h>
+#endif
+
 void setCol(int x, int y) {
   int offset, mask;
   if(x < 0 || x > GSIZE - 1 || y < 0 || y > GSIZE - 1) {
@@ -549,9 +557,71 @@ void camMove() {
   float upY = 0.0f;
   float upZ = 1.0f;   // In GLTron, Z is up, not Y
 
-  // Apply OpenGL camera transform
+#ifdef ANDROID
+  // OpenGL ES 1.0 implementation
+  GLfloat modelViewMatrix[16];
+
+  // Initialize the model-view matrix
+  for (int i = 0; i < 16; i++) {
+    modelViewMatrix[i] = 0.0f;
+  }
+  modelViewMatrix[0] = 1.0f; // Scale X
+  modelViewMatrix[5] = 1.0f; // Scale Y
+  modelViewMatrix[10] = 1.0f; // Scale Z
+  modelViewMatrix[15] = 1.0f; // Translation W
+
+  // Calculate the view matrix
+  float forward[3] = {lookX - camX, lookY - camY, lookZ - camZ};
+  float right[3];
+  float up[3] = {upX, upY, upZ};
+
+  // Normalize the forward vector
+  float length = sqrtf(forward[0] * forward[0] + forward[1] * forward[1] + forward[2] * forward[2]);
+  forward[0] /= length;
+  forward[1] /= length;
+  forward[2] /= length;
+
+  // Calculate the right vector
+  right[0] = forward[1] * up[2] - forward[2] * up[1];
+  right[1] = forward[2] * up[0] - forward[0] * up[2];
+  right[2] = forward[0] * up[1] - forward[1] * up[0];
+
+  // Normalize the right vector
+  length = sqrtf(right[0] * right[0] + right[1] * right[1] + right[2] * right[2]);
+  right[0] /= length;
+  right[1] /= length;
+  right[2] /= length;
+
+  // Calculate the up vector
+  up[0] = right[1] * forward[2] - right[2] * forward[1];
+  up[1] = right[2] * forward[0] - right[0] * forward[2];
+  up[2] = right[0] * forward[1] - right[1] * forward[0];
+
+  // Set the view matrix
+  modelViewMatrix[0] = right[0];
+  modelViewMatrix[1] = up[0];
+  modelViewMatrix[2] = -forward[0];
+  modelViewMatrix[4] = right[1];
+  modelViewMatrix[5] = up[1];
+  modelViewMatrix[6] = -forward[1];
+  modelViewMatrix[8] = right[2];
+  modelViewMatrix[9] = up[2];
+  modelViewMatrix[10] = -forward[2];
+  modelViewMatrix[12] = -(right[0] * camX + right[1] * camY + right[2] * camZ);
+  modelViewMatrix[13] = -(up[0] * camX + up[1] * camY + up[2] * camZ);
+  modelViewMatrix[14] = forward[0] * camX + forward[1] * camY + forward[2] * camZ;
+
+  // Apply the model-view matrix
+  glMatrixMode(GL_MODELVIEW);
+  glLoadMatrixf(modelViewMatrix);
+#else
+  // Standard OpenGL implementation
+  glMatrixMode(GL_MODELVIEW);
   glLoadIdentity();
-  gluLookAt(camX, camY, camZ,
-              lookX, lookY, lookZ,
-              upX, upY, upZ);
+
+  // Set up the camera position and orientation
+  gluLookAt(camX, camY, camZ,  // Camera position
+            lookX, lookY, lookZ,  // Look at point
+            upX, upY, upZ);  // Up vector
+#endif
 }

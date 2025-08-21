@@ -47,3 +47,11 @@ Notes
 Extending
 - You can provide your own Java/Kotlin UI and call the C hooks via JNI instead of using NativeActivity.
 - For advanced asset handling, consider memory-based loading instead of extraction.
+
+Sound on Android (libopenmpt + OpenSL ES)
+- This project uses libopenmpt to decode tracker music (.it/.xm/.s3m/.mod) and OpenSL ES for audio output on Android.
+- You must provide libopenmpt include and library paths when configuring CMake:
+  - -DOpenMPT_INCLUDE_DIRS=/absolute/path/to/openmpt/include
+  - -DOpenMPT_LIBRARIES=/absolute/path/to/openmpt/lib/arm64-v8a/libopenmpt.a
+- SFX are loaded from .wav files and mixed into the output. Ensure your assets include the .wav files.
+- Desktop builds continue to use MikMod as before.

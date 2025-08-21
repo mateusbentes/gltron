@@ -26,9 +26,6 @@ if(USE_SOUND)
     add_definitions(-DSOUND)
 endif()
 
-# Find required packages
-find_package(OpenGL REQUIRED)
-
 # Try to find GLUT with multiple package names
 if(NOT ANDROID)
     # Try common package names for GLUT
@@ -175,6 +172,7 @@ if(ANDROID)
         ${GLESv2_LIBRARY}
     )
 else()
+    find_package(OpenGL REQUIRED)
     # Non-Android libraries
     if(USE_GUI)
         target_link_libraries(gltron PRIVATE
@@ -192,16 +190,40 @@ else()
 endif()
 
 if(USE_SOUND)
-    target_link_libraries(gltron PRIVATE ${MikMod_LIBRARIES})
-    target_include_directories(gltron PRIVATE ${MikMod_INCLUDE_DIRS})
+    if(ANDROID)
+        # Android: use libopenmpt + OpenSL ES backend
+        target_compile_definitions(gltron PRIVATE SOUND_BACKEND_OPENMPT)
+        # Expect user to pass OpenMPT include/lib paths
+        if(DEFINED OpenMPT_INCLUDE_DIRS)
+            target_include_directories(gltron PRIVATE ${OpenMPT_INCLUDE_DIRS})
+        endif()
+        if(DEFINED OpenMPT_LIBRARIES)
+            target_link_libraries(gltron PRIVATE ${OpenMPT_LIBRARIES})
+        else()
+            message(WARNING "OpenMPT_LIBRARIES not set. Please provide -DOpenMPT_LIBRARIES=/path/to/libopenmpt.a")
+        endif()
+        find_library(OPENSLES_LIB OpenSLES)
+        if(OPENSLES_LIB)
+            target_link_libraries(gltron PRIVATE ${OPENSLES_LIB})
+        else()
+            message(FATAL_ERROR "OpenSLES library not found")
+        endif()
+        # Add backend source
+        target_sources(gltron PRIVATE backend_openmpt_android.c)
+    else()
+        # Desktop: use MikMod as before
+        target_link_libraries(gltron PRIVATE ${MikMod_LIBRARIES})
+        target_include_directories(gltron PRIVATE ${MikMod_INCLUDE_DIRS})
+        target_sources(gltron PRIVATE backend_mikmod.c)
 
-    # Link additional libraries for WAV support
-    if(NOT ANDROID AND USE_WAV_SUPPORT)
-        target_link_libraries(gltron PRIVATE
-            ${Vorbis_LIBRARIES}
-            ${FLAC_LIBRARIES}
-            ${Ogg_LIBRARIES}
-        )
+        # Link additional libraries for WAV support
+        if(USE_WAV_SUPPORT)
+            target_link_libraries(gltron PRIVATE
+                ${Vorbis_LIBRARIES}
+                ${FLAC_LIBRARIES}
+                ${Ogg_LIBRARIES}
+            )
+        endif()
     endif()
 endif()
 

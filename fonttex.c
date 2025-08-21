@@ -132,6 +132,20 @@ w);
     /* fprintf(stderr, FTX_ERR "coords: tex %d (%.2f, %.2f), %.2f\n", */
     /*     bound, cx, cy, cw); */
 
+    #ifdef ANDROID
+    {
+      GLfloat verts[8] = { i,0, i+1,0, i+1,1, i,1 };
+      GLfloat uvs[8] = { cx,1-cy-cw, cx+cw,1-cy-cw, cx+cw,1-cy, cx,1-cy };
+      GLubyte idx[6] = {0,1,2, 0,2,3};
+      glEnableClientState(GL_VERTEX_ARRAY);
+      glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+      glVertexPointer(2, GL_FLOAT, 0, verts);
+      glTexCoordPointer(2, GL_FLOAT, 0, uvs);
+      glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, idx);
+      glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+      glDisableClientState(GL_VERTEX_ARRAY);
+    }
+#else
     glBegin(GL_QUADS);
     glTexCoord2f(cx, 1 - cy - cw);
     glVertex2f(i, 0);
@@ -142,6 +156,7 @@ w);
     glTexCoord2f(cx, 1 - cy);
     glVertex2f(i, 1);
     glEnd();
+#endif
   }
   /* checkGLError("fonttex.c ftxRenderString\n"); */
 }

@@ -3,6 +3,64 @@
 #include <stdio.h>
 #include <string.h>
 
+#ifdef SOUND_BACKEND_OPENMPT
+#include "sound_backend.h"
+
+// Map SFX to IDs
+enum { SFX_CRASH=0, SFX_LOSE, SFX_WIN, SFX_HIGHLIGHT, SFX_ENGINE, SFX_START, SFX_ACTION };
+
+// Stubs to keep existing references; not used by backend directly
+MODULE* sound_module = NULL;
+SAMPLE* crash_sfx = (SAMPLE*)(long)SFX_CRASH;
+SAMPLE* lose_sfx = (SAMPLE*)(long)SFX_LOSE;
+SAMPLE* win_sfx = (SAMPLE*)(long)SFX_WIN;
+SAMPLE* highlight_sfx = (SAMPLE*)(long)SFX_HIGHLIGHT;
+SAMPLE* engine_sfx = (SAMPLE*)(long)SFX_ENGINE;
+SAMPLE* start_sfx = (SAMPLE*)(long)SFX_START;
+SAMPLE* action_sfx = (SAMPLE*)(long)SFX_ACTION;
+
+static int loadMusicModule(void) {
+  // Use standard name gltron.it via getFullPath in backend
+  return sb_load_music("gltron.it") ? 0 : 1;
+}
+
+int initSound(void) {
+  if (!sb_init()) return 1;
+  // load sfx
+  if (game->settings->playSound) {
+    sb_load_sfx(SFX_CRASH, "game_crash.wav");
+    sb_load_sfx(SFX_LOSE, "game_lose.wav");
+    sb_load_sfx(SFX_WIN, "game_win.wav");
+    sb_load_sfx(SFX_HIGHLIGHT, "menu_highlight.wav");
+    sb_load_sfx(SFX_ENGINE, "game_engine.wav");
+    sb_load_sfx(SFX_START, "game_start.wav");
+    sb_load_sfx(SFX_ACTION, "menu_action.wav");
+  }
+  // load music
+  loadMusicModule();
+  sb_set_enabled(game->settings->playSound, game->settings->playMusic);
+  if (game->settings->playSound && game->settings->playMusic) sb_play_music();
+  return 0;
+}
+
+int loadSampleEffect(char* name, SAMPLE** sfx_out) { (void)name; (void)sfx_out; return 0; }
+int playSampleEffect(SAMPLE* sfx) {
+  if (!game->settings->playSound) return 1;
+  int id = (int)(long)sfx;
+  sb_play_sfx(id);
+  return 0;
+}
+int loadSound(char* name) { (void)name; return 0; }
+int playSound(void) { if (game->settings->playMusic) { sb_play_music(); return 0; } return 1; }
+int stopSound(void) { sb_stop_music(); return 0; }
+void deleteSound(void) { sb_shutdown(); }
+void soundIdle(void) { sb_update(); }
+
+#else
+
+// Original MikMod implementation (desktop)
+#include <mikmod.h>
+
 // Global sound module and sound effect variables
 MODULE* sound_module = NULL;
 SAMPLE* crash_sfx = NULL;
@@ -202,3 +260,5 @@ void soundIdle(void) {
     if (Player_Active())
         MikMod_Update();
 }
+
+#endif
