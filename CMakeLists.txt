@@ -1,5 +1,35 @@
 cmake_minimum_required(VERSION 3.10)
 
+# Platform-specific settings - must be before project() if Android
+if(ANDROID)
+    # Set Android NDK path and include the Android toolchain
+    set(ANDROID_NDK $ENV{ANDROID_NDK})
+    if(NOT EXISTS "${ANDROID_NDK}/build/cmake/android.toolchain.cmake")
+        message(FATAL_ERROR "Android NDK not found at ${ANDROID_NDK}. Please set ANDROID_NDK to your NDK path.")
+    endif()
+
+    include(${ANDROID_NDK}/build/cmake/android.toolchain.cmake)
+
+    # Set up Android platform and ABI
+    set(ANDROID_ABI arm64-v8a)  # or armeabi-v7a
+    set(ANDROID_PLATFORM android-29)  # Set to minimum supported version
+
+    # Set appropriate compiler flags for Android
+    if(ANDROID_ABI STREQUAL "arm64-v8a")
+        # Use appropriate architecture flags for ARM64
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=armv8-a")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=armv8-a")
+    elseif(ANDROID_ABI STREQUAL "armeabi-v7a")
+        # Use appropriate architecture flags for ARMv7
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=armv7-a -mfpu=vfpv3-d16 -mfloat-abi=softfp")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=armv7-a -mfpu=vfpv3-d16 -mfloat-abi=softfp")
+    endif()
+
+    # Additional Android-specific compiler flags
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99")
+endif()
+
 project(gltron)
 
 # Set C++ standard
@@ -25,43 +55,6 @@ option(USE_SOUND "Enable sound support" ON)
 # Add SOUND macro definition if USE_SOUND is enabled
 if(USE_SOUND)
     add_definitions(-DSOUND)
-endif()
-
-# Platform-specific settings
-if(ANDROID)
-    # Set Android NDK path and include the Android toolchain
-    set(ANDROID_NDK $ENV{ANDROID_NDK})
-    if(NOT EXISTS "${ANDROID_NDK}/build/cmake/android.toolchain.cmake")
-        message(FATAL_ERROR "Android NDK not found at ${ANDROID_NDK}. Please set ANDROID_NDK to your NDK path.")
-    endif()
-
-    include(${ANDROID_NDK}/build/cmake/android.toolchain.cmake)
-
-    # Set up Android platform and ABI
-    set(ANDROID_ABI arm64-v8a)  # or armeabi-v7a
-    set(ANDROID_PLATFORM android-29)  # Set to minimum supported version
-
-    # Set appropriate compiler flags for Android
-    if(ANDROID_ABI STREQUAL "arm64-v8a")
-        # Use appropriate architecture flags for ARM64
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=armv8-a")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=armv8-a")
-    elseif(ANDROID_ABI STREQUAL "armeabi-v7a")
-        # Use appropriate architecture flags for ARMv7
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=armv7-a -mfpu=vfpv3-d16 -mfloat-abi=softfp")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=armv7-a -mfpu=vfpv3-d16 -mfloat-abi=softfp")
-    endif()
-
-    # Add NDK include paths
-    include_directories(
-        ${ANDROID_NDK}/sysroot/usr/include
-        ${ANDROID_NDK}/sysroot/usr/include/${ANDROID_PLATFORM}
-        ${ANDROID_NDK}/sources/android/native_app_glue
-    )
-
-    # Additional Android-specific compiler flags
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99")
 endif()
 
 # Set source files (C)
@@ -135,6 +128,13 @@ if(ANDROID)
         ${EGL_LIBRARY}
         ${GLESv2_LIBRARY}
         ${ANDROID_NDK}/sources/android/native_app_glue/android_native_app_glue.c
+    )
+
+    # Add NDK include paths
+    target_include_directories(gltron PRIVATE
+        ${ANDROID_NDK}/sysroot/usr/include
+        ${ANDROID_NDK}/sysroot/usr/include/${ANDROID_PLATFORM}
+        ${ANDROID_NDK}/sources/android/native_app_glue
     )
 
     # Sound backend for Android
