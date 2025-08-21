@@ -1,7 +1,16 @@
 #include "android_glue.h"
 #include "globals.h"
+#include "gltron.h"
+#include <string.h>
+
+extern int scr_w, scr_h;
+extern void update_buttons_layout();
+extern callbacks current_callback;
 
 #ifdef ANDROID
+
+#include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
 
 static int initialized = 0;
 static char s_base_path[256] = "/data/data/gltron/files"; // default fallback
@@ -49,7 +58,6 @@ void gltron_resize(int width, int height) {
 }
 
 // Simple Android on-screen controls
-static int scr_w = 0, scr_h = 0;
 static int btn_left[4];   // x, y, w, h
 static int btn_right[4];  // x, y, w, h
 static int btn_pause[4];  // x, y, w, h
@@ -57,60 +65,63 @@ static int active_left = 0;
 static int active_right = 0;
 static int active_pause = 0;
 
-static void update_buttons_layout() {
-  if (!scr_w || !scr_h) return;
-  int bw = scr_w * 0.2f;
-  int bh = scr_h * 0.18f;
-  // Left: bottom-left
-  btn_left[0] = (int)(scr_w * 0.05f);
-  btn_left[1] = (int)(scr_h * 0.05f);
-  btn_left[2] = bw;
-  btn_left[3] = bh;
-  // Right: bottom-right
-  btn_right[2] = bw;
-  btn_right[3] = bh;
-  btn_right[0] = scr_w - btn_right[2] - (int)(scr_w * 0.05f);
-  btn_right[1] = (int)(scr_h * 0.05f);
-  // Pause: top-right small square
-  int pw = scr_w * 0.10f;
-  int ph = pw;
-  btn_pause[2] = pw;
-  btn_pause[3] = ph;
-  btn_pause[0] = scr_w - pw - (int)(scr_w * 0.03f);
-  btn_pause[1] = scr_h - ph - (int)(scr_h * 0.03f);
-}
-
 static int hit_btn(int x, int y, int* btn) {
   return (x >= btn[0] && x <= btn[0]+btn[2] && y >= btn[1] && y <= btn[1]+btn[3]);
 }
 
 static void draw_rect(int x, int y, int w, int h, float r, float g, float b, float a) {
-  glEnable(GL_BLEND);
-  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-  glDisable(GL_TEXTURE_2D);
-  glMatrixMode(GL_PROJECTION);
-  glPushMatrix();
-  glLoadIdentity();
-  glOrthof(0, scr_w, 0, scr_h, -1, 1);
-  glMatrixMode(GL_MODELVIEW);
-  glPushMatrix();
-  glLoadIdentity();
-  glColor4f(r,g,b,a);
-  glBegin(GL_QUADS);
-    glVertex2f(x, y);
-    glVertex2f(x+w, y);
-    glVertex2f(x+w, y+h);
-    glVertex2f(x, y+h);
-  glEnd();
-  glMatrixMode(GL_MODELVIEW);
-  glPopMatrix();
-  glMatrixMode(GL_PROJECTION);
-  glPopMatrix();
+  // Set up orthographic projection
+  GLfloat projection[16] = {
+    2.0f/scr_w, 0, 0, 0,
+    0, -2.0f/scr_h, 0, 0,
+    0, 0, -1, 0,
+    -1, 1, 0, 1
+  };
+
+  // Set up model-view matrix (identity)
+  GLfloat modelView[16] = {
+    1, 0, 0, 0,
+    0, 1, 0, 0,
+    0, 0, 1, 0,
+    0, 0, 0, 1
+  };
+
+  // Set up vertex data
+  GLfloat vertices[8] = {
+    x, y,
+    x+w, y,
+    x+w, y+h,
+    x, y+h
+  };
+
+  // Use shader program
+  extern GLuint shaderProgram; // Assuming this is defined elsewhere
+  glUseProgram(shaderProgram);
+
+  // Set up matrices
+  GLint projectionLoc = glGetUniformLocation(shaderProgram, "projectionMatrix");
+  GLint modelViewLoc = glGetUniformLocation(shaderProgram, "modelViewMatrix");
+  GLint colorLoc = glGetUniformLocation(shaderProgram, "color");
+
+  glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, projection);
+  glUniformMatrix4fv(modelViewLoc, 1, GL_FALSE, modelView);
+  glUniform4f(colorLoc, r, g, b, a);
+
+  // Set up vertex attribute
+  GLint positionLoc = glGetAttribLocation(shaderProgram, "position");
+  glEnableVertexAttribArray(positionLoc);
+  glVertexAttribPointer(positionLoc, 2, GL_FLOAT, GL_FALSE, 0, vertices);
+
+  // Draw the rectangle
+  glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+
+  // Disable vertex attribute
+  glDisableVertexAttribArray(positionLoc);
 }
 
 static int is_gui_active() {
   extern callbacks guiCallbacks; // declared in other compilation units
-  return current_callback == &guiCallbacks;
+  return &current_callback == &guiCallbacks;
 }
 
 static void draw_android_overlay() {
@@ -137,7 +148,7 @@ void gltron_frame(void) {
   draw_android_overlay();
 }
 
-void gltron_on_key(int key, int action) {
+/*void gltron_on_key(int key, int action) {
   (void)action; // not used currently
   // Forward to existing keyboard/special handlers
   // For simplicity route arrows as special keys, others as ASCII
@@ -149,16 +160,22 @@ void gltron_on_key(int key, int action) {
       keyGame((unsigned char)key, 0, 0);
       break;
     case GLUT_KEY_LEFT:
+      keyGame('a', 0, 0);  // Changed from specialGame to keyGame
+      break;
     case GLUT_KEY_RIGHT:
+      keyGame('s', 0, 0);  // Changed from specialGame to keyGame
+      break;
     case GLUT_KEY_UP:
+      keyGame('k', 0, 0);  // Changed from specialGame to keyGame
+      break;
     case GLUT_KEY_DOWN:
-      specialGame(key, 0, 0);
+      keyGame('l', 0, 0);  // Changed from specialGame to keyGame
       break;
     default:
       keyGame((unsigned char)key, 0, 0);
       break;
   }
-}
+}*/
 
 void gltron_on_touch(float x, float y, int action) {
   // If paused and not game finished, unpause on touch-up

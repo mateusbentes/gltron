@@ -13,18 +13,13 @@
 extern AAssetManager* g_android_asset_mgr;
 #endif
 
-#ifdef ANDROID
-#include <android/asset_manager.h>
-extern AAssetManager* g_android_asset_mgr;
-#endif
-
 // Add these global variables
 extern GLuint shaderProgram;
 extern float projectionMatrix[16];
 
 void initTexture(gDisplay *d);
 
-#define CAM_FOLLOW_HEIGHT 6.0f 
+#define CAM_FOLLOW_HEIGHT 6.0f
 
 // Forward declarations for types used in globals
 typedef struct Game Game;

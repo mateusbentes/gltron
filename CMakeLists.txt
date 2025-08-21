@@ -170,34 +170,71 @@ target_include_directories(gltron PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 # Link libraries
 if(ANDROID)
-    # Ensure ANDROID macro is defined for sources
-    target_compile_definitions(gltron PRIVATE ANDROID)
+    # Set Android NDK path and include the Android toolchain
+    set(ANDROID_NDK $ENV{ANDROID_NDK})
+    if(NOT EXISTS "${ANDROID_NDK}/build/cmake/android.toolchain.cmake")
+        message(FATAL_ERROR "Android NDK not found at ${ANDROID_NDK}. Please set ANDROID_NDK to your NDK path.")
+    endif()
 
-    # Android-specific libraries (no desktop OpenGL)
+    include(${ANDROID_NDK}/build/cmake/android.toolchain.cmake)
+
+    # Set up Android platform and ABI
+    set(ANDROID_ABI arm64-v8a)  # or x86, etc.
+    set(ANDROID_PLATFORM android-29)  # or your target API level
+
+    # Add NDK include paths
+    include_directories(
+        ${ANDROID_NDK}/sysroot/usr/include
+        ${ANDROID_NDK}/sysroot/usr/include/${ANDROID_PLATFORM}
+    )
+
+    # Additional Android-specific compiler flags
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99")
+
+    # Define ANDROID macro for C sources
+    add_definitions(-DANDROID)
+
+    # Link Android libraries
     find_library(LOG_LIBRARY log)
     find_library(ANDROID_LIBRARY android)
     find_library(EGL_LIBRARY EGL)
     find_library(GLESv2_LIBRARY GLESv2)
+
+    # Add Android-specific sources
+    list(APPEND SOURCES android_glue.c android_main.c)
+
+    # Add shader sources for Android
+    set(SHADER_SOURCES shaders.c)
+    list(APPEND SOURCES ${SHADER_SOURCES})
+    set_source_files_properties(${SHADER_SOURCES} PROPERTIES LANGUAGE C)
+
+    # Link Android libraries to the target
     target_link_libraries(gltron PRIVATE
         ${LOG_LIBRARY}
         ${ANDROID_LIBRARY}
         ${EGL_LIBRARY}
         ${GLESv2_LIBRARY}
     )
-else()
-    find_package(OpenGL REQUIRED)
-    # Non-Android libraries
-    if(USE_GUI)
-        target_link_libraries(gltron PRIVATE
-            OpenGL::GL
-            GLUT::GLUT
-            OpenGL::GLU
-        )
-    else()
-        target_link_libraries(gltron PRIVATE
-            OpenGL::GL
-            OpenGL::GLU
-        )
+
+    # Sound backend for Android
+    if(USE_SOUND)
+        target_compile_definitions(gltron PRIVATE SOUND_BACKEND_OPENMPT)
+        if(DEFINED OpenMPT_INCLUDE_DIRS)
+            target_include_directories(gltron PRIVATE ${OpenMPT_INCLUDE_DIRS})
+        endif()
+        if(DEFINED OpenMPT_LIBRARIES)
+            target_link_libraries(gltron PRIVATE ${OpenMPT_LIBRARIES})
+        else()
+            message(WARNING "OpenMPT_LIBRARIES not set. Please provide -DOpenMPT_LIBRARIES=/path/to/libopenmpt.a")
+        endif()
+        find_library(OPENSLES_LIB OpenSLES)
+        if(OPENSLES_LIB)
+            target_link_libraries(gltron PRIVATE ${OPENSLES_LIB})
+        else()
+            message(FATAL_ERROR "OpenSLES library not found")
+        endif()
+        target_sources(gltron PRIVATE backend_openmpt_android.c)
     endif()
     target_link_libraries(gltron PRIVATE m)
 endif()

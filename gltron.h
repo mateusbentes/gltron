@@ -172,7 +172,7 @@ typedef struct Data {
 
   int dir; int last_dir;
   int turn_time;
-  
+
   int score;
   float speed; /* set to -1 when dead */
   float trail_height; /* countdown to zero when dead */
@@ -207,7 +207,7 @@ typedef struct gDisplay {
 
   GLuint texFont;
 
-  unsigned int texFloor; 
+  unsigned int texFloor;
   unsigned int texWall;
   unsigned int texGui;
   unsigned int texCrash;
@@ -322,7 +322,7 @@ extern int colwidth;
 extern int dirsX[];
 extern int dirsY[];
 
-extern int lasttime; 
+extern int lasttime;
 extern double dt; /* milliseconds since last frame */
 
 extern int polycount;
@@ -476,9 +476,7 @@ extern void deleteFonts();
 
 extern void resetScores();
 
-
 extern void draw( void );
-
 
 extern void chaseCamMove();
 extern void timediff();
@@ -492,9 +490,3 @@ extern callbacks guiCallbacks;
 extern callbacks pauseCallbacks;
 
 #endif
-
-
-
-
-
-
