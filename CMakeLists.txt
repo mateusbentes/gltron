@@ -145,11 +145,7 @@ endif()
 
 # Add shader source files only for Android
 if(ANDROID)
-    set(SHADER_SOURCES
-        shaders.c
-    )
-
-    # Add shader sources to the main sources list
+    set(SHADER_SOURCES shaders.c)
     list(APPEND SOURCES ${SHADER_SOURCES})
 
     # Ensure shader sources are compiled as C (not C++)
@@ -168,7 +164,46 @@ add_executable(gltron ${SOURCES})
 # Include directories
 target_include_directories(gltron PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
-# Link libraries
+# Find MikMod and related packages for sound support
+if(USE_SOUND)
+    list(PREPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
+
+    if(ANDROID)
+        find_package(MikMod REQUIRED)
+    else()
+        find_package(MikMod REQUIRED)
+
+        if(USE_WAV_SUPPORT)
+            # Try multiple package names for Vorbis
+            find_package(Vorbis QUIET)
+            if(NOT Vorbis_FOUND)
+                find_package(vorbis QUIET)
+                if(NOT vorbis_FOUND)
+                    find_package(libvorbis QUIET)
+                    if(NOT libvorbis_FOUND)
+                        message(WARNING "Could not find Vorbis. WAV file support will be limited.")
+                        set(USE_WAV_SUPPORT OFF)
+                    endif()
+                endif()
+            endif()
+
+            # Try multiple package names for FLAC
+            find_package(FLAC QUIET)
+            if(NOT FLAC_FOUND)
+                find_package(flac QUIET)
+                if(NOT flac_FOUND)
+                    find_package(libflac QUIET)
+                    if(NOT libflac_FOUND)
+                        message(WARNING "Could not find FLAC. WAV file support will be limited.")
+                        set(USE_WAV_SUPPORT OFF)
+                    endif()
+                endif()
+            endif()
+        endif()
+    endif()
+endif()
+
+# Platform-specific settings
 if(ANDROID)
     # Set Android NDK path and include the Android toolchain
     set(ANDROID_NDK $ENV{ANDROID_NDK})
@@ -179,8 +214,8 @@ if(ANDROID)
     include(${ANDROID_NDK}/build/cmake/android.toolchain.cmake)
 
     # Set up Android platform and ABI
-    set(ANDROID_ABI arm64-v8a)  # or x86, etc.
-    set(ANDROID_PLATFORM android-29)  # or your target API level
+    set(ANDROID_ABI arm64-v8a)
+    set(ANDROID_PLATFORM android-29)
 
     # Add NDK include paths
     include_directories(
@@ -193,7 +228,7 @@ if(ANDROID)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99")
 
     # Define ANDROID macro for C sources
-    add_definitions(-DANDROID)
+    target_compile_definitions(gltron PRIVATE ANDROID)
 
     # Link Android libraries
     find_library(LOG_LIBRARY log)
@@ -236,32 +271,43 @@ if(ANDROID)
         endif()
         target_sources(gltron PRIVATE backend_openmpt_android.c)
     endif()
-    target_link_libraries(gltron PRIVATE m)
-endif()
+else()
+    # Non-Android settings
+    set(USE_GUI ON)
 
-if(USE_SOUND)
-    if(ANDROID)
-        # Android: use libopenmpt + OpenSL ES backend
-        target_compile_definitions(gltron PRIVATE SOUND_BACKEND_OPENMPT)
-        # Expect user to pass OpenMPT include/lib paths
-        if(DEFINED OpenMPT_INCLUDE_DIRS)
-            target_include_directories(gltron PRIVATE ${OpenMPT_INCLUDE_DIRS})
+    # Try to find GLUT with multiple package names
+    find_package(GLUT QUIET)
+    if(NOT GLUT_FOUND)
+        find_package(glut QUIET)
+        if(NOT glut_FOUND)
+            find_package(freeglut QUIET)
+            if(NOT freeglut_FOUND)
+                message(WARNING "Could not find GLUT or freeglut. Game will run without GUI.")
+                set(USE_GUI OFF)
+            endif()
         endif()
-        if(DEFINED OpenMPT_LIBRARIES)
-            target_link_libraries(gltron PRIVATE ${OpenMPT_LIBRARIES})
-        else()
-            message(WARNING "OpenMPT_LIBRARIES not set. Please provide -DOpenMPT_LIBRARIES=/path/to/libopenmpt.a")
-        endif()
-        find_library(OPENSLES_LIB OpenSLES)
-        if(OPENSLES_LIB)
-            target_link_libraries(gltron PRIVATE ${OPENSLES_LIB})
-        else()
-            message(FATAL_ERROR "OpenSLES library not found")
-        endif()
-        # Add backend source
-        target_sources(gltron PRIVATE backend_openmpt_android.c)
+    endif()
+
+    # Link libraries
+    find_package(OpenGL REQUIRED)
+    if(USE_GUI)
+        target_link_libraries(gltron PRIVATE
+            OpenGL::GL
+            GLUT::GLUT
+            OpenGL::GLU
+        )
     else()
-        # Desktop: use MikMod as before
+        target_link_libraries(gltron PRIVATE
+            OpenGL::GL
+            OpenGL::GLU
+        )
+    endif()
+
+    # Link math library
+    target_link_libraries(gltron PRIVATE m)
+
+    # Sound backend for desktop
+    if(USE_SOUND)
         target_link_libraries(gltron PRIVATE ${MikMod_LIBRARIES})
         target_include_directories(gltron PRIVATE ${MikMod_INCLUDE_DIRS})
         target_sources(gltron PRIVATE backend_mikmod.c)
@@ -275,6 +321,17 @@ if(USE_SOUND)
             )
         endif()
     endif()
+endif()
+
+# Platform-specific settings
+if(WIN32)
+    target_link_libraries(gltron PRIVATE opengl32 glu32)
+    if(USE_SOUND)
+        target_link_libraries(gltron PRIVATE winmm)
+    endif()
+elseif(APPLE)
+    find_library(COCOA_LIBRARY Cocoa)
+    target_link_libraries(gltron PRIVATE ${COCOA_LIBRARY})
 endif()
 
 # Set default install directories before install() commands
