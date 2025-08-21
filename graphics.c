@@ -1,4 +1,18 @@
 #include "gltron.h"
+#include <string.h>
+
+#ifdef ANDROID
+#include <GLES2/gl2.h>
+#include "shaders.h"
+#else
+#include <GL/gl.h>
+#include <GL/glu.h>
+#endif
+
+// Global shader program for Android
+#ifdef ANDROID
+GLuint shaderProgram;
+#endif
 
 void checkGLError(char *where) {
   int error;
@@ -9,6 +23,31 @@ void checkGLError(char *where) {
 
 void rasonly(gDisplay *d) {
   /* do rasterising only (in local display d) */
+#ifdef ANDROID
+  // For Android, use orthographic projection with GLES
+  glViewport(d->vp_x, d->vp_y, d->vp_w, d->vp_h);
+
+  // Set up orthographic projection matrix
+  float left = 0.0f;
+  float right = (GLfloat) d->vp_w;
+  float bottom = 0.0f;
+  float top = (GLfloat) d->vp_h;
+  float near = 0.0f;
+  float far = 1.0f;
+
+  // Create orthographic projection matrix
+  float projectionMatrix[16] = {
+    2.0f / (right - left), 0.0f, 0.0f, 0.0f,
+    0.0f, 2.0f / (top - bottom), 0.0f, 0.0f,
+    0.0f, 0.0f, -2.0f / (far - near), 0.0f,
+    -(right + left) / (right - left), -(top + bottom) / (top - bottom), -(far + near) / (far - near), 1.0f
+  };
+
+  // Use shader program and set projection matrix
+  useShaderProgram(shaderProgram);
+  setProjectionMatrix(shaderProgram, projectionMatrix);
+#else
+  // For desktop OpenGL
   glMatrixMode(GL_PROJECTION);
   glLoadIdentity();
   glOrtho(0.0f, (GLfloat) d->vp_w, 0.0f, (GLfloat) d->vp_h, 0.0f, 1.0f);
@@ -16,6 +55,7 @@ void rasonly(gDisplay *d) {
   glMatrixMode(GL_MODELVIEW);
   glLoadIdentity();
   glViewport(d->vp_x, d->vp_y, d->vp_w, d->vp_h);
+#endif
 }
 
 void drawFPS(gDisplay *d) {
@@ -45,9 +85,9 @@ void drawFPS(gDisplay *d) {
       int sum = 0;
       int min = 1000;
       for(i = 0; i < FPS_HSIZE; i++) {
-	sum += fps_h[i];
-	if(fps_h[i] < min)
-	  min = fps_h[i];
+    sum += fps_h[i];
+    if(fps_h[i] < min)
+      min = fps_h[i];
       }
       fps_min = min;
       fps_avg = sum / FPS_HSIZE;
@@ -56,10 +96,22 @@ void drawFPS(gDisplay *d) {
   }
 
   sprintf(tmp, "average FPS: %d", fps_avg);
+#ifdef ANDROID
+  // For Android, we'll need to implement a text rendering function
+  // This is a placeholder - you'll need to implement proper text rendering
+  // for Android using shaders and textures
+  // drawTextAndroid(d->vp_w - 180, d->vp_h - 20, 10, tmp);
+#else
   glColor4f(1.0, 0.4, 0.2, 1.0);
   drawText(d->vp_w - 180, d->vp_h - 20, 10, tmp);
+#endif
+
   sprintf(tmp, "minimum FPS: %d", fps_min);
+#ifdef ANDROID
+  // drawTextAndroid(d->vp_w - 180, d->vp_h - 35, 10, tmp);
+#else
   drawText(d->vp_w - 180, d->vp_h - 35, 10, tmp);
+#endif
 }
 
 void drawText(int x, int y, int size, char *text) {
@@ -69,13 +121,21 @@ void drawText(int x, int y, int size, char *text) {
   glEnable(GL_TEXTURE_2D);
   /* txfBindFontTexture(txf); */
 
+#ifdef ANDROID
+  // For Android, we'll need to implement a text rendering function
+  // This is a placeholder - you'll need to implement proper text rendering
+  // for Android using shaders and textures
+  // drawTextAndroid(x, y, size, text);
+#else
   glPushMatrix();
 
   glTranslatef(x, y, 0);
   glScalef(size, size, size);
   ftxRenderString(ftx, text, strlen(text));
-  
+
   glPopMatrix();
+#endif
+
   glDisable(GL_TEXTURE_2D);
   /* 
   glRasterPos2f(x, y);
@@ -90,7 +150,7 @@ int hsv2rgb(float h, float s, float v, float *r, float *g, float *b) {
   float j, f, m, n, k;
   int i;
 
-  if(s == 0) 
+  if(s == 0)
     if(h == -1)
       *r = *g = *b = v;
     else return 1;
@@ -114,15 +174,55 @@ int hsv2rgb(float h, float s, float v, float *r, float *g, float *b) {
   }
   return 0;
 }
- 
+
 void colorDisc() {
   int h;
   float r, g, b;
-  int shade_model;
 
+#ifdef ANDROID
+  // For Android, use GLES functions with shaders
+  GLuint shaderProgram = createShaderProgram();
+  useShaderProgram(shaderProgram);
 
-  glGetIntegerv(GL_SHADE_MODEL, &shade_model);
+  // Set up vertex data
+  GLfloat vertices[362*3]; // 360 degrees + center point
+  vertices[0] = 0.0f; vertices[1] = 0.0f; vertices[2] = 0.0f; // Center point
 
+  for(h = 0; h <= 360; h += 10) {
+    int index = (h/10 + 1) * 3;
+    hsv2rgb(h, 1, 1, &r, &g, &b);
+    vertices[index] = cos(h * 2 * M_PI / 360);
+    vertices[index+1] = sin(h * 2 * M_PI / 360);
+    vertices[index+2] = 0.0f;
+  }
+
+  // Get attribute and uniform locations
+  GLint positionLoc = glGetAttribLocation(shaderProgram, "position");
+  GLint colorLoc = glGetUniformLocation(shaderProgram, "color");
+
+  // Set up vertex buffer
+  GLuint vbo;
+  glGenBuffers(1, &vbo);
+  glBindBuffer(GL_ARRAY_BUFFER, vbo);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+  // Draw the triangle fan
+  glEnableVertexAttribArray(positionLoc);
+  glVertexAttribPointer(positionLoc, 3, GL_FLOAT, GL_FALSE, 0, 0);
+
+  // Draw the disc with smooth shading
+  for(h = 0; h <= 360; h += 10) {
+    hsv2rgb(h, 1, 1, &r, &g, &b);
+    glUniform4f(colorLoc, r, g, b, 1.0f);
+    glDrawArrays(GL_TRIANGLE_FAN, 0, 362/3);
+  }
+
+  // Clean up
+  glDisableVertexAttribArray(positionLoc);
+  glDeleteBuffers(1, &vbo);
+  glUseProgram(0);
+#else
+  // For desktop OpenGL
   glShadeModel(GL_SMOOTH);
   glBegin(GL_TRIANGLE_FAN);
   glColor3f(1.0, 1.0, 1.0);
@@ -130,16 +230,18 @@ void colorDisc() {
   for(h = 0; h <= 360; h += 10) {
     hsv2rgb(h, 1, 1, &r, &g, &b);
     glColor3f(r, g, b);
-    /* printf("%.2f %.2f %.2f\n", r, g, b); */
     glVertex3f(cos(h * 2 * M_PI / 360), sin(h * 2 * M_PI / 360), 0);
   }
   glEnd();
-
-  glShadeModel(shade_model);
+#endif
 }
 
-
-
-
-
-
+// Initialize shader program for Android
+#ifdef ANDROID
+void initShaderProgram() {
+  shaderProgram = createShaderProgram();
+  if (shaderProgram == 0) {
+    printf("Failed to create shader program\n");
+  }
+}
+#endif

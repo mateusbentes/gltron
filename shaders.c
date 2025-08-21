@@ -20,6 +20,11 @@ const char* fragmentShaderSource =
 
 GLuint compileShader(GLenum type, const char* source) {
     GLuint shader = glCreateShader(type);
+    if (shader == 0) {
+        printf("Failed to create shader\n");
+        return 0;
+    }
+
     glShaderSource(shader, 1, &source, NULL);
     glCompileShader(shader);
 
@@ -30,6 +35,8 @@ GLuint compileShader(GLenum type, const char* source) {
         char infoLog[512];
         glGetShaderInfoLog(shader, 512, NULL, infoLog);
         printf("Shader compilation error: %s\n", infoLog);
+        glDeleteShader(shader);
+        return 0;
     }
 
     return shader;
@@ -38,10 +45,27 @@ GLuint compileShader(GLenum type, const char* source) {
 GLuint createShaderProgram() {
     // Compile shaders
     GLuint vertexShader = compileShader(GL_VERTEX_SHADER, vertexShaderSource);
+    if (vertexShader == 0) {
+        printf("Failed to compile vertex shader\n");
+        return 0;
+    }
+
     GLuint fragmentShader = compileShader(GL_FRAGMENT_SHADER, fragmentShaderSource);
+    if (fragmentShader == 0) {
+        printf("Failed to compile fragment shader\n");
+        glDeleteShader(vertexShader);
+        return 0;
+    }
 
     // Create shader program
     GLuint shaderProgram = glCreateProgram();
+    if (shaderProgram == 0) {
+        printf("Failed to create shader program\n");
+        glDeleteShader(vertexShader);
+        glDeleteShader(fragmentShader);
+        return 0;
+    }
+
     glAttachShader(shaderProgram, vertexShader);
     glAttachShader(shaderProgram, fragmentShader);
     glLinkProgram(shaderProgram);
@@ -53,6 +77,10 @@ GLuint createShaderProgram() {
         char infoLog[512];
         glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
         printf("Shader program linking error: %s\n", infoLog);
+        glDeleteShader(vertexShader);
+        glDeleteShader(fragmentShader);
+        glDeleteProgram(shaderProgram);
+        return 0;
     }
 
     // Clean up shaders
@@ -63,10 +91,24 @@ GLuint createShaderProgram() {
 }
 
 void useShaderProgram(GLuint program) {
+    if (program == 0) {
+        printf("Invalid shader program\n");
+        return;
+    }
     glUseProgram(program);
 }
 
 void setProjectionMatrix(GLuint program, float* matrix) {
+    if (program == 0 || matrix == NULL) {
+        printf("Invalid parameters for setProjectionMatrix\n");
+        return;
+    }
+
     GLint projectionMatrixLocation = glGetUniformLocation(program, "projectionMatrix");
+    if (projectionMatrixLocation == -1) {
+        printf("Failed to get projection matrix location\n");
+        return;
+    }
+
     glUniformMatrix4fv(projectionMatrixLocation, 1, GL_FALSE, matrix);
 }

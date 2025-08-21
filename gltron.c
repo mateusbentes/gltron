@@ -25,6 +25,9 @@
 
 // Add this global variable declaration
 float projectionMatrix[16];
+#ifdef ANDROID
+GLuint shaderProgram;
+#endif
 
 int getElapsedTime(void) {
 #ifdef ANDROID
