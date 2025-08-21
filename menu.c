@@ -1,6 +1,14 @@
 #include "gltron.h"
 #include <string.h>
 
+#ifdef ANDROID
+#include <GLES2/gl2.h>
+#include "shaders.h"
+#else
+#include <GL/gl.h>
+#include <GL/freeglut.h>  // For GLUT functions
+#endif
+
 #define MENU_BUFSIZE 100
 
 Menu *pCurrent;
@@ -64,7 +72,7 @@ void menuAction(Menu *activated) {
   } else {
     switch(activated->szName[1]) { /* second char */
     case 'q': saveSettings(); exit(0); break;
-    case 'r': 
+    case 'r':
       /* Ensure any pending display changes are applied before starting */
       requestDisplayApply();
       initData();
@@ -79,7 +87,9 @@ void menuAction(Menu *activated) {
 
       /* ensure our window is current before manipulating it */
       if (game && game->screen && game->screen->win_id > 0) {
+#ifndef ANDROID
         glutSetWindow(game->screen->win_id);
+#endif
       }
 
       /* defer resolution apply to idle to avoid GLUT window state issues */
@@ -337,13 +347,30 @@ void drawMenu(gDisplay *d) {
 
   /* draw the entries */
   for(i = 0; i < pCurrent->nEntries; i++) {
+#ifdef ANDROID
+    // For Android, use shader-based color setting
+    if(i == pCurrent->iHighlight) {
+        setColor(shaderProgram, pCurrent->display.hlColor[0],
+                pCurrent->display.hlColor[1],
+                pCurrent->display.hlColor[2],
+                pCurrent->display.hlColor[3]);
+    } else {
+        setColor(shaderProgram, pCurrent->display.fgColor[0],
+                pCurrent->display.fgColor[1],
+                pCurrent->display.fgColor[2],
+                pCurrent->display.fgColor[3]);
+    }
+#else
+    // For desktop, use immediate mode color setting
     if(i == pCurrent->iHighlight)
       glColor4fv(pCurrent->display.hlColor);
-    else glColor4fv(pCurrent->display.fgColor);
+    else
+      glColor4fv(pCurrent->display.fgColor);
+#endif
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     rasonly(d);
     drawText(x, y, size,
-	     ((Menu*)*(pCurrent->pEntries + i))->display.szCaption);
+         ((Menu*)*(pCurrent->pEntries + i))->display.szCaption);
     y -= lineheight;
   }
 
@@ -352,7 +379,14 @@ void drawMenu(gDisplay *d) {
     const char* back = "Back";
     int bx = d->vp_w - (int)(size * 4);
     int by = (int)(size * 1.2f);
+#ifdef ANDROID
+    setColor(shaderProgram, pCurrent->display.fgColor[0],
+            pCurrent->display.fgColor[1],
+            pCurrent->display.fgColor[2],
+            pCurrent->display.fgColor[3]);
+#else
     glColor4fv(pCurrent->display.fgColor);
+#endif
     drawText(bx, by, size, (char*)back);
   }
 }

@@ -19,4 +19,7 @@ void setColor(GLuint program, float r, float g, float b, float a);
 void setTexture(GLuint program, GLuint textureUnit);
 GLuint createFontTexture();
 
+// Global shader program variable
+extern GLuint shaderProgram;
+
 #endif // SHADERS_H
