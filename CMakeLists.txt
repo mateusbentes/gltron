@@ -259,21 +259,6 @@ if(ANDROID AND USE_SOUND)
         target_link_libraries(gltron PRIVATE ${OpenMPT_LIBRARY})
     endif()
 
-    # Find OpenSLES library
-    find_library(OPENSLES_LIB OpenSLES
-        PATHS
-        ${ANDROID_NDK}/sources/third_party/openal/opensles
-        ${ANDROID_NDK}/sources/third_party/openal/opensles/include
-        ${ANDROID_NDK}/sources/third_party/openal/opensles/libs
-        ${ANDROID_NDK}/platforms/android-${ANDROID_PLATFORM}/arch-${ANDROID_ABI}/usr/lib
-    )
-
-    if(OPENSLES_LIB)
-        message(STATUS "Found OpenSLES library at: ${OPENSLES_LIB}")
-        target_link_libraries(gltron PRIVATE ${OPENSLES_LIB})
-    else()
-        message(FATAL_ERROR "OpenSLES library not found. Please ensure you have the Android NDK properly set up.")
-    endif()
 endif()
 
 # Platform-specific settings
@@ -287,8 +272,17 @@ if(ANDROID)
     include(${ANDROID_NDK}/build/cmake/android.toolchain.cmake)
 
     # Set up Android platform and ABI
-    set(ANDROID_ABI arm64-v8a)
-    set(ANDROID_PLATFORM android-29)
+    set(ANDROID_ABI arm64-v8a)  # or armeabi-v7a
+    set(ANDROID_PLATFORM android-29)  # or your target API level
+
+    # Set appropriate compiler flags for Android
+    if(ANDROID_ABI STREQUAL "arm64-v8a")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=armv8-a")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=armv8-a")
+    elseif(ANDROID_ABI STREQUAL "armeabi-v7a")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=armv7-a -mthumb")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=armv7-a -mthumb")
+    endif()
 
     # Add NDK include paths
     include_directories(
