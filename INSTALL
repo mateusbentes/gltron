@@ -53,16 +53,16 @@ Installation Commands for Common Linux Distributions:
 Debian/Ubuntu:
 % sudo apt-get install libmikmod-dev libvorbis-dev libflac-dev libogg-dev \
   mesa-common-dev libglu1-mesa-dev libx11-dev libxext-dev libxi-dev \
-  libxmu-dev libxt-dev cmake make gcc
+  libxmu-dev libxt-dev cmake make gcc libopenmpt-dev
 
 Fedora/RHEL/CentOS:
 % sudo dnf install mikmod-devel libvorbis-devel flac-devel libogg-devel \
   mesa-libGL-devel mesa-libGLU-devel libX11-devel libXext-devel \
-  libXi-devel libXmu-devel libXt-devel cmake make gcc
+  libXi-devel libXmu-devel libXt-devel cmake make gcc openmpt-devel
 
 Arch Linux:
 % sudo pacman -S mikmod vorbis flac ogg mesa glu libx11 libxext libxi \
-  libxmu libxt cmake make gcc
+  libxmu libxt cmake make gcc openmpt
 
 MacOS (using Homebrew):
 % brew install mikmod vorbis flac ogg mesa glu cmake

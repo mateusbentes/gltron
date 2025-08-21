@@ -203,6 +203,79 @@ if(USE_SOUND)
     endif()
 endif()
 
+if(ANDROID AND USE_SOUND)
+    # Find OpenMPT headers
+    find_path(OpenMPT_INCLUDE_DIR libopenmpt/libopenmpt.h
+        PATHS
+        /usr/include
+        /usr/local/include
+        /usr/include/libopenmpt
+        ${ANDROID_NDK}/sources/third_party/openmpt/include
+    )
+
+    if(OpenMPT_INCLUDE_DIR)
+        message(STATUS "Found OpenMPT headers at: ${OpenMPT_INCLUDE_DIR}")
+        target_include_directories(gltron PRIVATE ${OpenMPT_INCLUDE_DIR})
+    else()
+        message(FATAL_ERROR "OpenMPT headers not found. Please install libopenmpt-dev or provide the path to OpenMPT headers.")
+    endif()
+
+    # Find OpenMPT library
+    find_library(OpenMPT_LIBRARY openmpt
+        PATHS
+        /usr/lib
+        /usr/local/lib
+        /usr/lib/x86_64-linux-gnu
+        ${ANDROID_NDK}/sources/third_party/openmpt/lib
+    )
+
+    if(OpenMPT_LIBRARY)
+        message(STATUS "Found OpenMPT library at: ${OpenMPT_LIBRARY}")
+        target_link_libraries(gltron PRIVATE ${OpenMPT_LIBRARY})
+    else()
+        # If library not found, try to build it from source
+        message(STATUS "OpenMPT library not found. Attempting to build from source...")
+
+        # Create a custom target to build OpenMPT
+        add_custom_target(build_openmpt
+            COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/openmpt-build
+            COMMAND ${CMAKE_COMMAND} -E chdir ${CMAKE_BINARY_DIR}/openmpt-build
+                ${CMAKE_COMMAND} -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/openmpt-install
+                -DCMAKE_BUILD_TYPE=Release
+                ${CMAKE_CURRENT_SOURCE_DIR}/openmpt
+            COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR}/openmpt-build --target install
+            COMMENT "Building OpenMPT from source"
+        )
+
+        # Add dependency to ensure OpenMPT is built before linking
+        add_dependencies(gltron build_openmpt)
+
+        # Set paths to the built OpenMPT
+        set(OpenMPT_INCLUDE_DIR ${CMAKE_BINARY_DIR}/openmpt-install/include)
+        set(OpenMPT_LIBRARY ${CMAKE_BINARY_DIR}/openmpt-install/lib/libopenmpt.a)
+
+        message(STATUS "Using built OpenMPT from: ${OpenMPT_LIBRARY}")
+        target_include_directories(gltron PRIVATE ${OpenMPT_INCLUDE_DIR})
+        target_link_libraries(gltron PRIVATE ${OpenMPT_LIBRARY})
+    endif()
+
+    # Find OpenSLES library
+    find_library(OPENSLES_LIB OpenSLES
+        PATHS
+        ${ANDROID_NDK}/sources/third_party/openal/opensles
+        ${ANDROID_NDK}/sources/third_party/openal/opensles/include
+        ${ANDROID_NDK}/sources/third_party/openal/opensles/libs
+        ${ANDROID_NDK}/platforms/android-${ANDROID_PLATFORM}/arch-${ANDROID_ABI}/usr/lib
+    )
+
+    if(OPENSLES_LIB)
+        message(STATUS "Found OpenSLES library at: ${OPENSLES_LIB}")
+        target_link_libraries(gltron PRIVATE ${OPENSLES_LIB})
+    else()
+        message(FATAL_ERROR "OpenSLES library not found. Please ensure you have the Android NDK properly set up.")
+    endif()
+endif()
+
 # Platform-specific settings
 if(ANDROID)
     # Set Android NDK path and include the Android toolchain
