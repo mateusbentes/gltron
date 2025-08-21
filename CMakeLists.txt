@@ -221,6 +221,7 @@ if(ANDROID)
     include_directories(
         ${ANDROID_NDK}/sysroot/usr/include
         ${ANDROID_NDK}/sysroot/usr/include/${ANDROID_PLATFORM}
+        ${ANDROID_NDK}/sources/android/native_app_glue
     )
 
     # Additional Android-specific compiler flags
@@ -250,6 +251,7 @@ if(ANDROID)
         ${ANDROID_LIBRARY}
         ${EGL_LIBRARY}
         ${GLESv2_LIBRARY}
+        ${ANDROID_NDK}/sources/android/native_app_glue/android_native_app_glue.c
     )
 
     # Sound backend for Android
