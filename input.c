@@ -1,8 +1,7 @@
 #define KEYBOARD
 #include "gltron.h"
 
-void keyGame(unsigned char k, int x, int y)
-{
+void keyGame(unsigned char k, int x, int y) {
   switch (k) {
   case 'q': exit(0); break;
   case 27: switchCallbacks(&guiCallbacks); break;
@@ -21,31 +20,52 @@ void keyGame(unsigned char k, int x, int y)
     /* case 9: glutIdleFunc(0); break; */
   default: fprintf(stderr, "key %d is not bound\n", k);
   }
-
 }
 
-void specialGame(int k, int x, int y) {
-  int i;
-  switch(k) {
-
-  case GLUT_KEY_LEFT: turn(game->player[3].data, 3); break;
-  case GLUT_KEY_RIGHT: turn(game->player[3].data, 1); break;
-
-  case GLUT_KEY_F1: defaultDisplay(0); break;
-  case GLUT_KEY_F2: defaultDisplay(1); break;
-  case GLUT_KEY_F3: defaultDisplay(2); break;
-
-  case GLUT_KEY_F10:
+void specialGame(int key, int x, int y) {
+#ifdef ANDROID
+  // Android-specific key handling
+  switch(key) {
+  case 102: // Android equivalent for F1
+    defaultDisplay(0);
+    break;
+  case 103: // Android equivalent for F2
+    defaultDisplay(1);
+    break;
+  case 104: // Android equivalent for F3
+    defaultDisplay(2);
+    break;
+  case 109: // Android equivalent for F10
     game->settings->camType = (game->settings->camType + 1) % CAM_COUNT;
-    for(i = 0; i < game->players; i++)
+    for(int i = 0; i < game->players; i++)
       game->player[i].camera->camType = game->settings->camType;
     break;
-
-  case GLUT_KEY_F5: saveSettings(); break;
-    
-  default: return;
+  case 114: // Android equivalent for F5
+    saveSettings();
+    break;
   }
-  return;
+#else
+  // Desktop GLUT key handling
+  switch(key) {
+  case GLUT_KEY_F1:
+    defaultDisplay(0);
+    break;
+  case GLUT_KEY_F2:
+    defaultDisplay(1);
+    break;
+  case GLUT_KEY_F3:
+    defaultDisplay(2);
+    break;
+  case GLUT_KEY_F10:
+    game->settings->camType = (game->settings->camType + 1) % CAM_COUNT;
+    for(int i = 0; i < game->players; i++)
+      game->player[i].camera->camType = game->settings->camType;
+    break;
+  case GLUT_KEY_F5:
+    saveSettings();
+    break;
+  }
+#endif
 }
 
 
