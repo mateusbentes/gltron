@@ -136,8 +136,6 @@
 
 #define SCREENSAVER_WAIT 2000
 
-void initMainGameSettings(char *path);
-
 /* data structures */
 /* todo: move to seperate file */
 
@@ -206,6 +204,8 @@ typedef struct gDisplay {
   int fog;
   int wall;
   int onScreen;
+
+  GLuint texFont;
 
   unsigned int texFloor; 
   unsigned int texWall;
