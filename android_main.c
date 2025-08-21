@@ -128,15 +128,24 @@ void android_main(struct android_app* state) {
     }
   }
 
-  int events; struct android_poll_source* source;
+  int events;
+  struct android_poll_source* source;
+  int ident;
+  int timeout;
+
   while (1) {
-    while (ALooper_pollAll(0, NULL, &events, (void**)&source) >= 0) {
-      if (source) source->process(state, source);
+    // Use ALooper_pollOnce instead of ALooper_pollAll
+    while ((ident = ALooper_pollOnce(0, NULL, &events, (void**)&source)) >= 0) {
+      if (source != NULL) {
+        source->process(state, source);
+      }
+
       if (state->destroyRequested) {
         term_egl();
         return;
       }
     }
+
     if (s_display != EGL_NO_DISPLAY && s_surface != EGL_NO_SURFACE) {
       gltron_frame();
       eglSwapBuffers(s_display, s_surface);
