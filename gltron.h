@@ -136,6 +136,8 @@
 
 #define SCREENSAVER_WAIT 2000
 
+void initMainGameSettings(char *path);
+
 /* data structures */
 /* todo: move to seperate file */
 

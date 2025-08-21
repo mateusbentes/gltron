@@ -143,6 +143,19 @@ if(ANDROID)
     list(APPEND SOURCES android_glue.c android_main.c)
 endif()
 
+# Add shader source files only for Android
+if(ANDROID)
+    set(SHADER_SOURCES
+        shaders.c
+    )
+
+    # Add shader sources to the main sources list
+    list(APPEND SOURCES ${SHADER_SOURCES})
+
+    # Ensure shader sources are compiled as C (not C++)
+    set_source_files_properties(${SHADER_SOURCES} PROPERTIES LANGUAGE C)
+endif()
+
 # Ensure C sources are compiled as C (not C++)
 set_source_files_properties(${SOURCES} PROPERTIES LANGUAGE C)
 if(USE_SOUND)
@@ -332,3 +345,4 @@ elseif(ANDROID)
         ${GLESv2_LIBRARY}
     )
 endif()
+

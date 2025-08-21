@@ -9,8 +9,12 @@
 #include "fonttex.h"
 #include "menu.h"
 #include "sgi_texture.h"
+#include "shaders.h"
 
 #ifdef ANDROID
+#include <string.h>
+#include <time.h>
+#include <sys/time.h>
 #include <GLES2/gl2.h>
 #include <EGL/egl.h>
 #else
@@ -19,16 +23,31 @@
 #include <GL/glu.h>
 #endif
 
+// Add this global variable declaration
+float projectionMatrix[16];
+
 int getElapsedTime(void) {
 #ifdef ANDROID
-  struct timespec now;
-  clock_gettime(CLOCK_MONOTONIC, &now);
-  return (now.tv_sec * 1000) + (now.tv_nsec / 1000000);
-#endif
-#ifdef WIN32
-	return timeGetTime();
+    // Android implementation using clock_gettime
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    return (now.tv_sec * 1000) + (now.tv_nsec / 1000000);
+#elif defined(WIN32)
+    // Windows implementation using timeGetTime
+    return timeGetTime();
 #else
-  return glutGet(GLUT_ELAPSED_TIME);
+    // Default implementation for other platforms using GLUT
+    static int start_time = 0;
+    static int initialized = 0;
+
+    if (!initialized) {
+        // Initialize the start time on first call
+        start_time = glutGet(GLUT_ELAPSED_TIME);
+        initialized = 1;
+    }
+
+    // Return the elapsed time since initialization
+    return glutGet(GLUT_ELAPSED_TIME) - start_time;
 #endif
 }
 
@@ -39,6 +58,10 @@ void mouseWarp() {
 }
 
 void drawGame() {
+  #ifdef ANDROID
+    useShaderProgram(shaderProgram);
+  #endif
+
   GLint i;
   gDisplay *d;
   Player *p;
@@ -106,6 +129,9 @@ void initGLGame() {
     glDepthFunc(GL_LEQUAL);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    // Create shader program
+    shaderProgram = createShaderProgram();
 #else
     // First create the window if it doesn't exist
     if (glutGetWindow() == 0) {
@@ -159,10 +185,12 @@ int initWindow() {
 }
 
 void shutdownDisplay(gDisplay *d) {
-  deleteTextures();
-  deleteFonts();
-  glutDestroyWindow(d->win_id);
-  printf("window destroyed\n");
+    deleteTextures();
+    deleteFonts();
+#ifndef ANDROID
+    glutDestroyWindow(d->win_id);
+#endif
+    printf("window destroyed\n");
 }
 
 static int g_pending_display_apply = 0;
@@ -174,134 +202,199 @@ void requestDisplayApply() {
 }
 
 void forceViewportResetIfNeededForGui() {
-  if (!g_just_applied_display_change) return;
-  int w = glutGet(GLUT_WINDOW_WIDTH);
-  int h = glutGet(GLUT_WINDOW_HEIGHT);
-  if (w > 0 && h > 0) {
-    glViewport(0, 0, w, h);
-    guiProjection(w, h);
-    printf("GUI viewport/projection reset to %dx%d after display change.\n", w, h);
-  }
-  g_just_applied_display_change = 0;
+    if (!g_just_applied_display_change) return;
+#ifndef ANDROID
+    int w = glutGet(GLUT_WINDOW_WIDTH);
+    int h = glutGet(GLUT_WINDOW_HEIGHT);
+    if (w > 0 && h > 0) {
+        glViewport(0, 0, w, h);
+        guiProjection(w, h);
+        printf("GUI viewport/projection reset to %dx%d after display change.\n", w, h);
+    }
+#endif
+    g_just_applied_display_change = 0;
 }
 
 void forceViewportResetIfNeededForGame() {
-  if (!g_just_applied_display_change) return;
+    if (!g_just_applied_display_change) return;
 
-  int w = glutGet(GLUT_WINDOW_WIDTH);
-  int h = glutGet(GLUT_WINDOW_HEIGHT);
+    // Get the current window dimensions
+    int w = game->settings->width;
+    int h = game->settings->height;
 
-  if (w > 0 && h > 0) {
+    // Ensure valid dimensions
+    if (w <= 0 || h <= 0) {
+        // Fallback to default dimensions if invalid
+        w = 800;
+        h = 600;
+    }
+
     // Set the viewport to cover the new window size
     glViewport(0, 0, w, h);
 
-    // Update the projection matrix
+#ifdef ANDROID
+    // For Android, calculate and set the perspective matrix in the shader
+    float aspect = (float)w / (float)h;
+    float fov = game->settings->fov;
+    float near = 0.1f;
+    float far = 1000.0f;
+
+    // Calculate the perspective matrix
+    float top = near * tanf(fov * 3.14159265f / 360.0f);
+    float bottom = -top;
+    float left = bottom * aspect;
+    float right = top * aspect;
+
+    // Create a perspective matrix
+    float matrix[16] = {
+        2.0f * near / (right - left), 0.0f, 0.0f, 0.0f,
+        0.0f, 2.0f * near / (top - bottom), 0.0f, 0.0f,
+        (right + left) / (right - left), (top + bottom) / (top - bottom), -(far + near) / (far - near), -1.0f,
+        0.0f, 0.0f, -2.0f * far * near / (far - near), 0.0f
+    };
+
+    // Set the projection matrix uniform in your shader
+    // This would typically be done in your rendering code
+    // For example:
+    // glUniformMatrix4fv(projectionMatrixLocation, 1, GL_FALSE, matrix);
+#else
+    // For non-Android platforms, use standard OpenGL functions
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     gluPerspective(game->settings->fov, (float)w / (float)h, 0.1, 1000.0);
-
-    // Switch back to modelview matrix
     glMatrixMode(GL_MODELVIEW);
+#endif
 
     // Reinitialize game screen and display
     initGameScreen();
     changeDisplay();
 
     printf("Game viewport reset to %dx%d after display change.\n", w, h);
-  }
 
-  g_just_applied_display_change = 0;
+    g_just_applied_display_change = 0;
 }
 
 void applyDisplaySettingsDeferred() {
-  if (!g_pending_display_apply) return;
-  g_pending_display_apply = 0;
+    if (!g_pending_display_apply) return;
+    g_pending_display_apply = 0;
 
-  if (!game || !game->settings) return;
+    if (!game || !game->settings) return;
 
-  /* Ensure we have a window; if not, create one */
-  if (!game->screen) {
-    game->screen = (gDisplay*) malloc(sizeof(gDisplay));
-  }
+    /* Ensure we have a window; if not, create one */
+    if (!game->screen) {
+        game->screen = (gDisplay*) malloc(sizeof(gDisplay));
+    }
 
-  /* Apply windowed/fullscreen and resolution safely */
-  if (game->settings->fullscreen) {
-    /* Ensure we are current and then enter fullscreen */
-    if (game->screen->win_id <= 0) {
-      setupDisplay(game->screen);
+#ifndef ANDROID
+    /* Apply windowed/fullscreen and resolution safely */
+    if (game->settings->fullscreen) {
+        /* Ensure we are current and then enter fullscreen */
+        if (game->screen->win_id <= 0) {
+            setupDisplay(game->screen);
+        } else {
+            glutSetWindow(game->screen->win_id);
+            glutFullScreen();
+        }
+
+        /* Query actual window size and update settings */
+        int w = glutGet(GLUT_WINDOW_WIDTH);
+        int h = glutGet(GLUT_WINDOW_HEIGHT);
+        if (w > 0 && h > 0) {
+            game->settings->width = w;
+            game->settings->height = h;
+            if (game->screen) {
+                game->screen->w = w;
+                game->screen->h = h;
+            }
+        }
+
+        /* Reinitialize screen and viewports after entering fullscreen with updated size */
+        initGameScreen();
+        changeDisplay();
+        updateCallbacks();
+        printf("Applied fullscreen via deferred apply. Window size: %dx%d.\n", w, h);
+
+        /* Persist new size for next start */
+        saveSettings();
     } else {
-      glutSetWindow(game->screen->win_id);
-      glutFullScreen();
+        /* Windowed: rebuild to requested resolution */
+        printf("Applying windowed mode %dx%d via deferred apply.\n", game->settings->width, game->settings->height);
+
+        /* Destroy and recreate window to ensure clean state */
+        if (game->screen && game->screen->win_id > 0) {
+            shutdownDisplay(game->screen);
+        }
+
+        setupDisplay(game->screen);
+        initGameScreen();
+        changeDisplay();
+        updateCallbacks();
     }
+#endif
 
-    /* Query actual window size and update settings */
-    int w = glutGet(GLUT_WINDOW_WIDTH);
-    int h = glutGet(GLUT_WINDOW_HEIGHT);
-    if (w > 0 && h > 0) {
-      game->settings->width = w;
-      game->settings->height = h;
-      if (game->screen) {
-        game->screen->w = w;
-        game->screen->h = h;
-      }
-    }
-
-    /* Reinitialize screen and viewports after entering fullscreen with updated size */
-    initGameScreen();
-    changeDisplay();
-    updateCallbacks();
-    printf("Applied fullscreen via deferred apply. Window size: %dx%d.\n", w, h);
-
-    /* Persist new size for next start */
-    saveSettings();
-  } else {
-    /* Windowed: rebuild to requested resolution */
-    printf("Applying windowed mode %dx%d via deferred apply.\n", game->settings->width, game->settings->height);
-
-    /* Destroy and recreate window to ensure clean state */
-    if (game->screen && game->screen->win_id > 0) {
-      shutdownDisplay(game->screen);
-    }
-
-    setupDisplay(game->screen);
-    initGameScreen();
-    changeDisplay();
-    updateCallbacks();
-  }
-
-  /* Mark to force viewport/projection reset on next frame and skip one draw */
-  g_just_applied_display_change = 1;
-  g_apply_cooldown_frames = 1;
+    /* Mark to force viewport/projection reset on next frame and skip one draw */
+    g_just_applied_display_change = 1;
+    g_apply_cooldown_frames = 1;
 }
 
 void onReshape(int w, int h) {
-  // Update the game settings with the new window size
-  game->settings->width = w;
-  game->settings->height = h;
+    // Update the game settings with the new window size
+    game->settings->width = w;
+    game->settings->height = h;
 
-  // Update the display structure
-  if (game->screen) {
-    game->screen->w = w;
-    game->screen->h = h;
-  }
+    // Update the display structure
+    if (game->screen) {
+        game->screen->w = w;
+        game->screen->h = h;
+    }
 
-  // Set the viewport to cover the new window size
-  glViewport(0, 0, w, h);
+    // Set the viewport to cover the new window size
+    glViewport(0, 0, w, h);
 
-  // Update the projection matrix
-  glMatrixMode(GL_PROJECTION);
-  glLoadIdentity();
-  gluPerspective(game->settings->fov, (float)w / (float)h, 0.1, 1000.0);
+    // Calculate common perspective parameters
+    float aspect = (float)w / (float)h;
+    float fov = game->settings->fov;
+    float near = 0.1f;
+    float far = 1000.0f;
 
-  // Switch back to modelview matrix
-  glMatrixMode(GL_MODELVIEW);
+    // Use appropriate perspective function based on platform
+#ifdef ANDROID
+    // For Android, calculate the perspective matrix
+    float top = near * tanf(fov * 3.14159265f / 360.0f);
+    float bottom = -top;
+    float left = bottom * aspect;
+    float right = top * aspect;
 
-  // Reinitialize game screen and display
-  initGameScreen();
-  changeDisplay();
+    // Create a perspective matrix for OpenGL ES
+    float matrix[16] = {
+        2.0f * near / (right - left), 0.0f, 0.0f, 0.0f,
+        0.0f, 2.0f * near / (top - bottom), 0.0f, 0.0f,
+        (right + left) / (right - left), (top + bottom) / (top - bottom), -(far + near) / (far - near), -1.0f,
+        0.0f, 0.0f, -2.0f * far * near / (far - near), 0.0f
+    };
 
-  // Force a redisplay
-  glutPostRedisplay();
+    // Copy the matrix to the global projection matrix
+    memcpy(projectionMatrix, matrix, sizeof(matrix));
+
+    // Set the projection matrix in the shader
+    useShaderProgram(shaderProgram);
+    setProjectionMatrix(shaderProgram, projectionMatrix);
+#else
+    // For non-Android platforms, use standard OpenGL functions
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    gluPerspective(fov, aspect, near, far);
+    glMatrixMode(GL_MODELVIEW);
+#endif
+
+    // Reinitialize game screen and display
+    initGameScreen();
+    changeDisplay();
+
+    // Force a redisplay
+#ifndef ANDROID
+    glutPostRedisplay();
+#endif
 }
 
 void setupDisplay(gDisplay *d) {

@@ -2,6 +2,7 @@
 #define GLOBALS_H
 
 // Include necessary headers
+#include <unistd.h>
 #include "model.h"
 #include "fonttex.h"
 #include "menu.h"
@@ -11,6 +12,17 @@
 #include <android/asset_manager.h>
 extern AAssetManager* g_android_asset_mgr;
 #endif
+
+#ifdef ANDROID
+#include <android/asset_manager.h>
+extern AAssetManager* g_android_asset_mgr;
+#endif
+
+// Add these global variables
+extern GLuint shaderProgram;
+extern float projectionMatrix[16];
+
+void initTexture(gDisplay *d);
 
 #define CAM_FOLLOW_HEIGHT 6.0f 
 
