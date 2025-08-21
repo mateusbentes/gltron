@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
+
 project(gltron)
 
 # Set C++ standard
@@ -26,89 +27,41 @@ if(USE_SOUND)
     add_definitions(-DSOUND)
 endif()
 
-# Try to find GLUT with multiple package names
-if(NOT ANDROID)
-    # Try common package names for GLUT
-    find_package(GLUT QUIET)
-    if(NOT GLUT_FOUND)
-        find_package(glut QUIET)
-        if(NOT glut_FOUND)
-            find_package(freeglut QUIET)
-            if(NOT freeglut_FOUND)
-                message(WARNING "Could not find GLUT or freeglut. Game will run without GUI.")
-                set(USE_GUI OFF)
-            else()
-                set(USE_GUI ON)
-            endif()
-        else()
-            set(USE_GUI ON)
-        endif()
-    else()
-        set(USE_GUI ON)
+# Platform-specific settings
+if(ANDROID)
+    # Set Android NDK path and include the Android toolchain
+    set(ANDROID_NDK $ENV{ANDROID_NDK})
+    if(NOT EXISTS "${ANDROID_NDK}/build/cmake/android.toolchain.cmake")
+        message(FATAL_ERROR "Android NDK not found at ${ANDROID_NDK}. Please set ANDROID_NDK to your NDK path.")
     endif()
-else()
-    set(USE_GUI ON)
-endif()
 
-# Find MikMod and related packages for sound support
-if(USE_SOUND)
-    # Ensure CMake can find the local FindMikMod.cmake module
-    list(PREPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
+    include(${ANDROID_NDK}/build/cmake/android.toolchain.cmake)
 
-    # Use find_package which will now consult the local module
-    if(ANDROID)
-        # For Android, use the Android-specific MikMod library
-        find_package(MikMod REQUIRED)
-    else()
-        # For non-Android platforms, use the standard MikMod library
-        find_package(MikMod REQUIRED)
+    # Set up Android platform and ABI
+    set(ANDROID_ABI arm64-v8a)  # or armeabi-v7a
+    set(ANDROID_PLATFORM android-29)  # Set to minimum supported version
 
-        # Add support for WAV files by linking with additional libraries
-        # Try multiple package names for Vorbis
-        if(USE_WAV_SUPPORT)
-            find_package(Vorbis QUIET)
-            if(NOT Vorbis_FOUND)
-                find_package(vorbis QUIET)
-                if(NOT vorbis_FOUND)
-                    find_package(libvorbis QUIET)
-                    if(NOT libvorbis_FOUND)
-                        message(WARNING "Could not find Vorbis. WAV file support will be limited.")
-                        set(USE_WAV_SUPPORT OFF)
-                    endif()
-                endif()
-            endif()
-        endif()
-
-        # Try multiple package names for FLAC
-        if(USE_WAV_SUPPORT)
-            find_package(FLAC QUIET)
-            if(NOT FLAC_FOUND)
-                find_package(flac QUIET)
-                if(NOT flac_FOUND)
-                    find_package(libflac QUIET)
-                    if(NOT libflac_FOUND)
-                        message(WARNING "Could not find FLAC. WAV file support will be limited.")
-                        set(USE_WAV_SUPPORT OFF)
-                    endif()
-                endif()
-            endif()
-        endif()
-
-        # Try multiple package names for Vorbis
-        if(USE_WAV_SUPPORT)
-            find_package(Vorbis QUIET)
-            if(NOT Vorbis_FOUND)
-                find_package(vorbis QUIET)
-                if(NOT vorbis_FOUND)
-                    find_package(libvorbis QUIET)
-                    if(NOT libvorbis_FOUND)
-                        message(WARNING "Could not find Vorbis. WAV file support will be limited.")
-                        set(USE_WAV_SUPPORT OFF)
-                    endif()
-                endif()
-            endif()
-        endif()
+    # Set appropriate compiler flags for Android
+    if(ANDROID_ABI STREQUAL "arm64-v8a")
+        # Use appropriate architecture flags for ARM64
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=armv8-a")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=armv8-a")
+    elseif(ANDROID_ABI STREQUAL "armeabi-v7a")
+        # Use appropriate architecture flags for ARMv7
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=armv7-a -mfpu=vfpv3-d16 -mfloat-abi=softfp")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=armv7-a -mfpu=vfpv3-d16 -mfloat-abi=softfp")
     endif()
+
+    # Add NDK include paths
+    include_directories(
+        ${ANDROID_NDK}/sysroot/usr/include
+        ${ANDROID_NDK}/sysroot/usr/include/${ANDROID_PLATFORM}
+        ${ANDROID_NDK}/sources/android/native_app_glue
+    )
+
+    # Additional Android-specific compiler flags
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99")
 endif()
 
 # Set source files (C)
@@ -164,137 +117,8 @@ add_executable(gltron ${SOURCES})
 # Include directories
 target_include_directories(gltron PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
-# Find MikMod and related packages for sound support
-if(USE_SOUND)
-    list(PREPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
-
-    if(ANDROID)
-        find_package(MikMod REQUIRED)
-    else()
-        find_package(MikMod REQUIRED)
-
-        if(USE_WAV_SUPPORT)
-            # Try multiple package names for Vorbis
-            find_package(Vorbis QUIET)
-            if(NOT Vorbis_FOUND)
-                find_package(vorbis QUIET)
-                if(NOT vorbis_FOUND)
-                    find_package(libvorbis QUIET)
-                    if(NOT libvorbis_FOUND)
-                        message(WARNING "Could not find Vorbis. WAV file support will be limited.")
-                        set(USE_WAV_SUPPORT OFF)
-                    endif()
-                endif()
-            endif()
-
-            # Try multiple package names for FLAC
-            find_package(FLAC QUIET)
-            if(NOT FLAC_FOUND)
-                find_package(flac QUIET)
-                if(NOT flac_FOUND)
-                    find_package(libflac QUIET)
-                    if(NOT libflac_FOUND)
-                        message(WARNING "Could not find FLAC. WAV file support will be limited.")
-                        set(USE_WAV_SUPPORT OFF)
-                    endif()
-                endif()
-            endif()
-        endif()
-    endif()
-endif()
-
-if(ANDROID AND USE_SOUND)
-    # Find OpenMPT headers
-    find_path(OpenMPT_INCLUDE_DIR libopenmpt/libopenmpt.h
-        PATHS
-        /usr/include
-        /usr/local/include
-        /usr/include/libopenmpt
-        ${ANDROID_NDK}/sources/third_party/openmpt/include
-    )
-
-    if(OpenMPT_INCLUDE_DIR)
-        message(STATUS "Found OpenMPT headers at: ${OpenMPT_INCLUDE_DIR}")
-        target_include_directories(gltron PRIVATE ${OpenMPT_INCLUDE_DIR})
-    else()
-        message(FATAL_ERROR "OpenMPT headers not found. Please install libopenmpt-dev or provide the path to OpenMPT headers.")
-    endif()
-
-    # Find OpenMPT library
-    find_library(OpenMPT_LIBRARY openmpt
-        PATHS
-        /usr/lib
-        /usr/local/lib
-        /usr/lib/x86_64-linux-gnu
-        ${ANDROID_NDK}/sources/third_party/openmpt/lib
-    )
-
-    if(OpenMPT_LIBRARY)
-        message(STATUS "Found OpenMPT library at: ${OpenMPT_LIBRARY}")
-        target_link_libraries(gltron PRIVATE ${OpenMPT_LIBRARY})
-    else()
-        # If library not found, try to build it from source
-        message(STATUS "OpenMPT library not found. Attempting to build from source...")
-
-        # Create a custom target to build OpenMPT
-        add_custom_target(build_openmpt
-            COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/openmpt-build
-            COMMAND ${CMAKE_COMMAND} -E chdir ${CMAKE_BINARY_DIR}/openmpt-build
-                ${CMAKE_COMMAND} -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/openmpt-install
-                -DCMAKE_BUILD_TYPE=Release
-                ${CMAKE_CURRENT_SOURCE_DIR}/openmpt
-            COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR}/openmpt-build --target install
-            COMMENT "Building OpenMPT from source"
-        )
-
-        # Add dependency to ensure OpenMPT is built before linking
-        add_dependencies(gltron build_openmpt)
-
-        # Set paths to the built OpenMPT
-        set(OpenMPT_INCLUDE_DIR ${CMAKE_BINARY_DIR}/openmpt-install/include)
-        set(OpenMPT_LIBRARY ${CMAKE_BINARY_DIR}/openmpt-install/lib/libopenmpt.a)
-
-        message(STATUS "Using built OpenMPT from: ${OpenMPT_LIBRARY}")
-        target_include_directories(gltron PRIVATE ${OpenMPT_INCLUDE_DIR})
-        target_link_libraries(gltron PRIVATE ${OpenMPT_LIBRARY})
-    endif()
-
-endif()
-
-# Platform-specific settings
+# Platform-specific settings after target creation
 if(ANDROID)
-    # Set Android NDK path and include the Android toolchain
-    set(ANDROID_NDK $ENV{ANDROID_NDK})
-    if(NOT EXISTS "${ANDROID_NDK}/build/cmake/android.toolchain.cmake")
-        message(FATAL_ERROR "Android NDK not found at ${ANDROID_NDK}. Please set ANDROID_NDK to your NDK path.")
-    endif()
-
-    include(${ANDROID_NDK}/build/cmake/android.toolchain.cmake)
-
-    # Set up Android platform and ABI
-    set(ANDROID_ABI arm64-v8a)  # or armeabi-v7a
-    set(ANDROID_PLATFORM android-29)  # or your target API level
-
-    # Set appropriate compiler flags for Android
-    if(ANDROID_ABI STREQUAL "arm64-v8a")
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=armv8-a")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=armv8-a")
-    elseif(ANDROID_ABI STREQUAL "armeabi-v7a")
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=armv7-a -mthumb")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=armv7-a -mthumb")
-    endif()
-
-    # Add NDK include paths
-    include_directories(
-        ${ANDROID_NDK}/sysroot/usr/include
-        ${ANDROID_NDK}/sysroot/usr/include/${ANDROID_PLATFORM}
-        ${ANDROID_NDK}/sources/android/native_app_glue
-    )
-
-    # Additional Android-specific compiler flags
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99")
-
     # Define ANDROID macro for C sources
     target_compile_definitions(gltron PRIVATE ANDROID)
 
@@ -303,14 +127,6 @@ if(ANDROID)
     find_library(ANDROID_LIBRARY android)
     find_library(EGL_LIBRARY EGL)
     find_library(GLESv2_LIBRARY GLESv2)
-
-    # Add Android-specific sources
-    list(APPEND SOURCES android_glue.c android_main.c)
-
-    # Add shader sources for Android
-    set(SHADER_SOURCES shaders.c)
-    list(APPEND SOURCES ${SHADER_SOURCES})
-    set_source_files_properties(${SHADER_SOURCES} PROPERTIES LANGUAGE C)
 
     # Link Android libraries to the target
     target_link_libraries(gltron PRIVATE
@@ -377,18 +193,158 @@ else()
 
     # Sound backend for desktop
     if(USE_SOUND)
+        # Add the directory containing FindMikMod.cmake to CMAKE_MODULE_PATH
+        list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
+
+        # Find MikMod using the custom FindMikMod.cmake module
+        find_package(MikMod REQUIRED)
+
+        if(MikMod_FOUND)
+            target_link_libraries(gltron PRIVATE ${MikMod_LIBRARIES})
+            target_include_directories(gltron PRIVATE ${MikMod_INCLUDE_DIRS})
+            target_sources(gltron PRIVATE backend_mikmod.c)
+
+            # Link additional libraries for WAV support
+            if(USE_WAV_SUPPORT)
+                find_package(Vorbis QUIET)
+                if(Vorbis_FOUND)
+                    target_link_libraries(gltron PRIVATE ${Vorbis_LIBRARIES})
+                else()
+                    message(WARNING "Could not find Vorbis. WAV file support will be limited.")
+                endif()
+
+                find_package(FLAC QUIET)
+                if(FLAC_FOUND)
+                    target_link_libraries(gltron PRIVATE ${FLAC_LIBRARIES})
+                else()
+                    message(WARNING "Could not find FLAC. WAV file support will be limited.")
+                endif()
+
+                find_package(Ogg QUIET)
+                if(Ogg_FOUND)
+                    target_link_libraries(gltron PRIVATE ${Ogg_LIBRARIES})
+                else()
+                    message(WARNING "Could not find Ogg. WAV file support will be limited.")
+                endif()
+            endif()
+        else()
+            message(FATAL_ERROR "MikMod library not found. Please install libmikmod-dev or provide the path to MikMod.")
+        endif()
+    endif()
+endif()
+
+# Find MikMod and related packages for sound support
+if(USE_SOUND AND NOT ANDROID)
+    # Add the directory containing FindMikMod.cmake to CMAKE_MODULE_PATH
+    list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
+
+    # Find MikMod using the custom FindMikMod.cmake module
+    find_package(MikMod REQUIRED)
+
+    if(MikMod_FOUND)
+        message(STATUS "Found MikMod: ${MikMod_LIBRARIES}")
         target_link_libraries(gltron PRIVATE ${MikMod_LIBRARIES})
         target_include_directories(gltron PRIVATE ${MikMod_INCLUDE_DIRS})
-        target_sources(gltron PRIVATE backend_mikmod.c)
 
-        # Link additional libraries for WAV support
         if(USE_WAV_SUPPORT)
-            target_link_libraries(gltron PRIVATE
-                ${Vorbis_LIBRARIES}
-                ${FLAC_LIBRARIES}
-                ${Ogg_LIBRARIES}
-            )
+            # Try multiple package names for Vorbis
+            find_package(Vorbis QUIET)
+            if(NOT Vorbis_FOUND)
+                find_package(vorbis QUIET)
+                if(NOT vorbis_FOUND)
+                    find_package(libvorbis QUIET)
+                    if(NOT libvorbis_FOUND)
+                        message(WARNING "Could not find Vorbis. WAV file support will be limited.")
+                        set(USE_WAV_SUPPORT OFF)
+                    endif()
+                endif()
+            endif()
+
+            # Try multiple package names for FLAC
+            find_package(FLAC QUIET)
+            if(NOT FLAC_FOUND)
+                find_package(flac QUIET)
+                if(NOT flac_FOUND)
+                    find_package(libflac QUIET)
+                    if(NOT libflac_FOUND)
+                        message(WARNING "Could not find FLAC. WAV file support will be limited.")
+                        set(USE_WAV_SUPPORT OFF)
+                    endif()
+                endif()
+            endif()
+
+            # Try multiple package names for Ogg
+            find_package(Ogg QUIET)
+            if(NOT Ogg_FOUND)
+                find_package(ogg QUIET)
+                if(NOT ogg_FOUND)
+                    find_package(libogg QUIET)
+                    if(NOT libogg_FOUND)
+                        message(WARNING "Could not find Ogg. WAV file support will be limited.")
+                        set(USE_WAV_SUPPORT OFF)
+                    endif()
+                endif()
+            endif()
         endif()
+    else()
+        message(FATAL_ERROR "MikMod library not found. Please install libmikmod-dev or provide the path to MikMod.")
+    endif()
+endif()
+
+if(ANDROID AND USE_SOUND)
+    # Find OpenMPT headers
+    find_path(OpenMPT_INCLUDE_DIR libopenmpt/libopenmpt.h
+        PATHS
+        /usr/include
+        /usr/local/include
+        /usr/include/libopenmpt
+        ${ANDROID_NDK}/sources/third_party/openmpt/include
+    )
+
+    if(OpenMPT_INCLUDE_DIR)
+        message(STATUS "Found OpenMPT headers at: ${OpenMPT_INCLUDE_DIR}")
+        target_include_directories(gltron PRIVATE ${OpenMPT_INCLUDE_DIR})
+    else()
+        message(FATAL_ERROR "OpenMPT headers not found. Please install libopenmpt-dev or provide the path to OpenMPT headers.")
+    endif()
+
+    # Find OpenMPT library
+    find_library(OpenMPT_LIBRARY openmpt
+        PATHS
+        /usr/lib
+        /usr/local/lib
+        /usr/lib/x86_64-linux-gnu
+        ${ANDROID_NDK}/sources/third_party/openmpt/lib
+    )
+
+    if(OpenMPT_LIBRARY)
+        message(STATUS "Found OpenMPT library at: ${OpenMPT_LIBRARY}")
+        target_link_libraries(gltron PRIVATE ${OpenMPT_LIBRARY})
+    else()
+        # If library not found, try to build it from source
+        message(STATUS "OpenMPT library not found. Attempting to build from source...")
+
+        # Create a custom target to build OpenMPT
+        add_custom_target(build_openmpt
+            COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/openmpt-build
+            COMMAND ${CMAKE_COMMAND} -E chdir ${CMAKE_BINARY_DIR}/openmpt-build
+                ${CMAKE_COMMAND} -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/openmpt-install
+                -DCMAKE_BUILD_TYPE=Release
+                ${CMAKE_CURRENT_SOURCE_DIR}/openmpt
+            COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR}/openmpt-build --target install
+            COMMENT "Building OpenMPT from source"
+        )
+
+        # Add dependency to ensure OpenMPT is built before linking
+        add_dependencies(gltron build_openmpt)
+
+        # Set paths to the built OpenMPT
+        set(OpenMPT_INCLUDE_DIR ${CMAKE_BINARY_DIR}/openmpt-install/include)
+        set(OpenMPT_LIBRARY ${CMAKE_BINARY_DIR}/openmpt-install/lib/libopenmpt.a)
+
+        message(STATUS "Using built OpenMPT from: ${OpenMPT_LIBRARY}")
+        target_include_directories(gltron PRIVATE ${OpenMPT_INCLUDE_DIR})
+        target_link_libraries(gltron PRIVATE ${OpenMPT_LIBRARY})
     endif()
 endif()
 
@@ -508,4 +464,3 @@ elseif(ANDROID)
         ${GLESv2_LIBRARY}
     )
 endif()
-
