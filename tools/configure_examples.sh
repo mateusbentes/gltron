@@ -20,6 +20,17 @@ run_desktop() {
   echo "Desktop configure done in build-pc-config"
 }
 
+run_desktop_x86_64_cross() {
+  echo "==> Configuring desktop x86_64 cross build (requires amd64 toolchain + libs)"
+  rm -rf "$ROOT_DIR/build-pc-x86_64" && mkdir -p "$ROOT_DIR/build-pc-x86_64"
+  cmake -S "$ROOT_DIR" -B "$ROOT_DIR/build-pc-x86_64" \
+    -DCMAKE_TOOLCHAIN_FILE="$ROOT_DIR/tools/toolchains/x86_64-linux-gnu.cmake" \
+    -DDESKTOP_FORCE_X86_64=ON \
+    -DUSE_SOUND=ON \
+    -DSTRICT_ARCH_CHECK=ON
+  echo "Desktop x86_64 cross configure done in build-pc-x86_64"
+}
+
 run_android() {
   : "${ANDROID_NDK:?ANDROID_NDK is not set}"
   echo "==> Configuring Android build (ABI arm64-v8a)"

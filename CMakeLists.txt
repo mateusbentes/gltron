@@ -1,5 +1,28 @@
 cmake_minimum_required(VERSION 3.10)
 
+# Early purge of Android/AArch64-only linker flags that might leak from env/toolchains into desktop configs
+set(_STRIP_FLAGS "--fix-cortex-a53-843419;-Wl,--fix-cortex-a53-843419")
+foreach(var CMAKE_EXE_LINKER_FLAGS_INIT CMAKE_SHARED_LINKER_FLAGS_INIT CMAKE_MODULE_LINKER_FLAGS_INIT
+            CMAKE_EXE_LINKER_FLAGS CMAKE_SHARED_LINKER_FLAGS CMAKE_MODULE_LINKER_FLAGS)
+  foreach(bad IN LISTS _STRIP_FLAGS)
+    if(DEFINED ${var} AND ${var})
+      string(REPLACE "${bad}" "" ${var} "${${var}}")
+    endif()
+  endforeach()
+endforeach()
+unset(_STRIP_FLAGS)
+
+# Protect desktop builds from accidentally reusing Android toolchain in this build dir
+if(NOT ANDROID)
+  foreach(var CMAKE_C_COMPILER CMAKE_CXX_COMPILER CMAKE_LINKER)
+    if(DEFINED ${var} AND ${var})
+      if(${var} MATCHES ".*android.*" OR ${var} MATCHES ".*Android.*" OR ${var} MATCHES ".*ndk/.*/ld\\.lld.*")
+        message(FATAL_ERROR "Desktop build detected but Android/NDK toolchain is configured in this build directory (${var}='${${var}}'). Use a fresh build directory and, if cross-compiling, pass -DCMAKE_TOOLCHAIN_FILE=tools/toolchains/x86_64-linux-gnu.cmake")
+      endif()
+    endif()
+  endforeach()
+endif()
+
 # Set compiler flags for GLUT headers (desktop only; Android uses NDK sysroot)
 if(NOT ANDROID)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -I/usr/include")
@@ -8,6 +31,16 @@ endif()
 
 # OPTION: Architecture checks (OFF by default)
 option(STRICT_ARCH_CHECK "Fail if detected third-party libs do not match expected arch" OFF)
+
+# Manual option, on default use the Android NDK
+option(ANDROID "Build for Android" OFF)
+
+# If to toolchain is active, force ANDROID=ON
+if(CMAKE_SYSTEM_NAME STREQUAL "Android")
+    set(ANDROID ON CACHE BOOL "Build for Android" FORCE)
+endif()
+
+message(STATUS "ANDROID build: ${ANDROID}")
 
 # Platform-specific settings - must be before project() if Android
 if(ANDROID)
@@ -281,25 +314,48 @@ if(ANDROID)
         message(STATUS "Using OpenMPT from: ${OPENMPT_LIBRARY}")
     endif()
 
-else()
-    # Non-Android settings (desktop)
+elseif(NOT ANDROID)
+    # Non-Android (desktop Linux/macOS/Windows)
     set(USE_GUI ON)
 
     # Prefer CMake find modules; fall back to common paths if needed
-    find_package(OpenGL QUIET)
-    if(NOT OpenGL_FOUND)
-        # Fallback to typical x86_64 Linux paths
-        find_library(OPENGL_LIBRARY NAMES GL libGL PATHS /usr/lib/x86_64-linux-gnu)
-        find_library(GLU_LIBRARY NAMES GLU libGLU PATHS /usr/lib/x86_64-linux-gnu)
-        if(OPENGL_LIBRARY AND GLU_LIBRARY)
-            set(OpenGL_FOUND TRUE)
-            set(OpenGL_LIBRARIES ${OPENGL_LIBRARY} ${GLU_LIBRARY})
-        endif()
+    # Option to force x86_64 desktop builds (requires a proper cross toolchain)
+    option(DESKTOP_FORCE_X86_64 "Require desktop build to target x86_64 (use a cross toolchain on non-x86 hosts)" OFF)
+
+    # Sanitize any stray Android/AArch64-only linker flags for desktop
+    if(NOT ANDROID)
+        foreach(flag_var CMAKE_EXE_LINKER_FLAGS CMAKE_SHARED_LINKER_FLAGS CMAKE_MODULE_LINKER_FLAGS)
+            if(DEFINED ${flag_var} AND ${flag_var})
+                string(REPLACE "--fix-cortex-a53-843419" "" ${flag_var} "${${flag_var}}")
+                string(REPLACE "-Wl,--fix-cortex-a53-843419" "" ${flag_var} "${${flag_var}}")
+            endif()
+        endforeach()
     endif()
 
-    # GLUT headers and library
-    find_path(GLUT_INCLUDE_DIR GL/glut.h PATHS /usr/include)
-    find_library(GLUT_LIBRARY NAMES glut freeglut PATHS /usr/lib/x86_64-linux-gnu)
+    # Prefer pkg-config for GL/GLU/GLUT when available; rely on toolchain/pkg-config for correct arch
+    find_package(PkgConfig QUIET)
+    if(PKG_CONFIG_FOUND)
+        pkg_check_modules(GLUT QUIET glut)
+        pkg_check_modules(OPENGL QUIET gl)
+        pkg_check_modules(GLU QUIET glu)
+    endif()
+
+    if(OPENGL_FOUND AND GLU_FOUND)
+        set(OpenGL_FOUND TRUE)
+        set(OpenGL_LIBRARIES ${OPENGL_LDFLAGS} ${GLU_LDFLAGS})
+        set(OpenGL_INCLUDE_DIR ${OPENGL_INCLUDE_DIRS} ${GLU_INCLUDE_DIRS})
+    else()
+        find_package(OpenGL QUIET)
+    endif()
+
+    # GLUT headers and library (no hardcoded arch-specific lib dirs)
+    if(GLUT_FOUND)
+        set(GLUT_INCLUDE_DIR ${GLUT_INCLUDE_DIRS})
+        set(GLUT_LIBRARY ${GLUT_LDFLAGS})
+    else()
+        find_path(GLUT_INCLUDE_DIR GL/glut.h PATHS /usr/include)
+        find_library(GLUT_LIBRARY NAMES glut freeglut)
+    endif()
 
     if(GLUT_INCLUDE_DIR)
         message(STATUS "Found GLUT headers at: ${GLUT_INCLUDE_DIR}")
@@ -325,13 +381,23 @@ else()
 
     # Sound backend for desktop
     if(USE_SOUND)
-        # Add the directory containing FindMikMod.cmake to CMAKE_MODULE_PATH
-        list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
+        # Prefer pkg-config for MikMod on desktop/cross builds
+        find_package(PkgConfig QUIET)
+        if(PKG_CONFIG_FOUND)
+            pkg_check_modules(MIKMOD QUIET mikmod)
+        endif()
 
-        # Find MikMod using the custom FindMikMod.cmake module
-        find_package(MikMod REQUIRED)
+        if(MIKMOD_FOUND)
+            set(MikMod_LIBRARIES ${MIKMOD_LDFLAGS})
+            set(MikMod_INCLUDE_DIRS ${MIKMOD_INCLUDE_DIRS})
+        else()
+            # Add the directory containing FindMikMod.cmake to CMAKE_MODULE_PATH
+            list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
+            # Find MikMod using the custom FindMikMod.cmake module
+            find_package(MikMod REQUIRED)
+        endif()
 
-        if(MikMod_FOUND)
+        if(MikMod_FOUND OR MIKMOD_FOUND)
             if(STRICT_ARCH_CHECK)
                 # Verify MikMod library architecture (optional)
                 execute_process(
