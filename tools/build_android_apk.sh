@@ -27,7 +27,7 @@ MIN_SDK=21
 TARGET_SDK=33
 LIB_NAME="gltron"
 SO_NAME="lib${LIB_NAME}.so"
-APK_OUT="$OUT_DIR/gltron-debug.apk"
+APK_OUT="$OUT_DIR/gltron.apk"
 
 log() { echo "[build_android_apk] $*"; }
 err() { echo "[build_android_apk][error] $*" >&2; }
@@ -79,6 +79,8 @@ rsync -a \
   --include='*.wav' \
   --include='*.ftx' \
   --include='*.it' \
+  --include='*.obj' \
+  --include='*.mtl' \
   --include='settings.txt' \
   --include='menu.txt' \
   --include='tron.mtl' \
