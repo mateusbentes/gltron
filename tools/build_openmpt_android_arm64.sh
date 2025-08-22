@@ -48,7 +48,16 @@ SKIP_DEPS=${SKIP_DEPS:-0}
 ENV_EXPORT_FILE="$OUT_DIR/env.sh"
 
 require_dir() {
-  if [[ ! -d "$1" ]]; then err "Missing directory: $1"; exit 1; fi
+  local p="$1"
+  if [[ -z "${p}" ]]; then
+    err "require_dir called with empty path (variable unset or empty)"
+    err "Callsite hint: ensure DEPS_DIR and expected subpaths are set before invoking build steps."
+    exit 1
+  fi
+  if [[ ! -d "${p}" ]]; then
+    err "Missing directory: ${p}"
+    exit 1
+  fi
 }
 
 maybe_autogen() {
@@ -208,7 +217,9 @@ build_ogg() {
   log "Building libogg"
   if [[ -f "$src/CMakeLists.txt" ]]; then
     build_cmake "$src" \
-      -DINSTALL_DOCS=OFF -DINSTALL_PKG_CONFIG_MODULE=OFF -DINSTALL_MANPAGES=OFF
+      -DCMAKE_INSTALL_LIBDIR=lib -DCMAKE_INSTALL_INCLUDEDIR=include \
+      -DINSTALL_PKG_CONFIG_MODULE=ON -DINSTALL_PKGCONFIG_MODULE=ON \
+      -DINSTALL_DOCS=OFF -DINSTALL_MANPAGES=OFF
   else
     build_autotools "$src" --disable-shared --enable-static --disable-examples --disable-tests
   fi
@@ -220,6 +231,8 @@ build_vorbis() {
   log "Building libvorbis"
   if [[ -f "$src/CMakeLists.txt" ]]; then
     build_cmake "$src" \
+      -DCMAKE_INSTALL_LIBDIR=lib -DCMAKE_INSTALL_INCLUDEDIR=include \
+      -DINSTALL_PKG_CONFIG_MODULE=ON -DINSTALL_PKGCONFIG_MODULE=ON \
       -DOGG_INCLUDE_DIR="$INCDIR" -DOGG_LIBRARY="$LIBDIR/libogg.a" \
       -DINSTALL_DOCS=OFF -DINSTALL_MANPAGES=OFF -DBUILD_TESTING=OFF -DBUILD_SHARED_LIBS=OFF
   else
@@ -235,6 +248,8 @@ build_flac() {
   log "Building FLAC"
   if [[ -f "$src/CMakeLists.txt" ]]; then
     build_cmake "$src" \
+      -DCMAKE_INSTALL_LIBDIR=lib -DCMAKE_INSTALL_INCLUDEDIR=include \
+      -DINSTALL_PKG_CONFIG_MODULE=ON -DINSTALL_PKGCONFIG_MODULE=ON \
       -DBUILD_CXXLIBS=OFF -DBUILD_DOCS=OFF -DBUILD_EXAMPLES=OFF -DBUILD_TESTING=OFF -DBUILD_PROGRAMS=OFF -DINSTALL_MANPAGES=OFF \
       -DWITH_OGG=ON -DOGG_INCLUDE_DIR="$INCDIR" -DOGG_LIBRARY="$LIBDIR/libogg.a"
   else
@@ -261,73 +276,115 @@ build_libsndfile() {
 
 build_openmpt() {
   local src="$DEPS_DIR/openmpt"
+  log "build_openmpt: DEPS_DIR=$DEPS_DIR src=$src"
   require_dir "$src"
-  log "Building libopenmpt (make-based)"
+  log "Building libopenmpt (CMake-based, enforced Android arm64)"
 
-  # Candidate directories containing Makefile
-  local candidates=("$src" "$src/libopenmpt" "$src/build/make")
-  local mdir=""
-  for d in "${candidates[@]}"; do
-    if [[ -f "$d/Makefile" ]]; then mdir="$d"; break; fi
-  done
-  if [[ -z "$mdir" ]]; then
-    err "Could not find a Makefile for openmpt under: $src (looked in: ${candidates[*]})"
-    err "Please ensure your openmpt source contains a make-based build."
-    exit 1
+  # Prefer CMake build for robust cross-compilation
+  if [[ -f "$src/CMakeLists.txt" ]]; then
+    local cmake_args=(
+      -DOPENMPT_BUILD_SHARED=OFF
+      -DOPENMPT_BUILD_STATIC=ON
+      -DOPENMPT_BUILD_TESTS=OFF
+      -DOPENMPT_BUILD_EXAMPLES=OFF
+      -DOPENMPT_BUILD_APPS=OFF
+      -DOPENMPT_INSTALL=ON
+      -DOPENMPT_USE_PORTAUDIO=OFF
+      -DOPENMPT_USE_PORTAUDIO_DYNAMIC=OFF
+      -DOPENMPT_USE_SDL2=OFF
+      -DOPENMPT_USE_SDL2_DYNAMIC=OFF
+      -DOPENMPT_USE_PULSEAUDIO=OFF
+      -DOPENMPT_USE_PULSEAUDIO_DYNAMIC=OFF
+      -DOPENMPT_USE_ALSA=OFF
+      -DOPENMPT_USE_ALSA_DYNAMIC=OFF
+      -DOPENMPT_USE_JACK=OFF
+      -DOPENMPT_USE_JACK_DYNAMIC=OFF
+      -DOPENMPT_USE_MPG123=OFF
+      -DOPENMPT_USE_MPG123_DYNAMIC=OFF
+      -DOPENMPT_USE_VORBIS=ON
+      -DOPENMPT_USE_OPUS=ON
+      -DOPENMPT_USE_FLAC=ON
+      -DOPENMPT_USE_OGG=ON
+      -DOGG_INCLUDE_DIR="$INCDIR"
+      -DOGG_LIBRARY="$LIBDIR/libogg.a"
+      -DVORBIS_INCLUDE_DIR="$INCDIR"
+      -DVORBIS_LIBRARY="$LIBDIR/libvorbis.a"
+      -DVORBISFILE_LIBRARY="$LIBDIR/libvorbisfile.a"
+      -DVORBISENC_LIBRARY="$LIBDIR/libvorbisenc.a"
+      -DOPUS_INCLUDE_DIR="$INCDIR"
+      -DOPUS_LIBRARY="$LIBDIR/libopus.a"
+      -DFLAC_INCLUDE_DIR="$INCDIR"
+      -DFLAC_LIBRARY="$LIBDIR/libFLAC.a"
+      -DLIBSNDFILE_INCLUDE_DIR="$INCDIR"
+      -DLIBSNDFILE_LIBRARY="$LIBDIR/libsndfile.a"
+    )
+    build_cmake "$src" "${cmake_args[@]}"
+  else
+    # Fallback: use upstream GNU Makefile with staged deps and static-only
+    log "CMakeLists.txt not found at $src; building with upstream Makefile (static-only)"
+    pushd "$src" >/dev/null
+
+    # Prefer our staged deps only
+    export PKG_CONFIG=${PKG_CONFIG:-pkg-config}
+    export PKG_CONFIG_LIBDIR="$LIBDIR/pkgconfig"
+    export PKG_CONFIG_PATH="$PKG_CONFIG_LIBDIR"
+
+    # Force include/lib paths and Android-safe defines
+    export CPPFLAGS="-I$INCDIR ${CPPFLAGS:-} -DMPT_OS_ANDROID=1 -DMPT_OS_LINUX=1 -DMPT_WITH_MFC=0 -DMPT_EXCEPTIONS_USE_WINDOWS_SEH=0 -DLIBOPENMPT_BUILD=1"
+    export CFLAGS="$CFLAGS -I$INCDIR"
+    export CXXFLAGS="$CXXFLAGS -I$INCDIR"
+    export LDFLAGS="$LDFLAGS -L$LIBDIR"
+
+    log "make openmpt: PKG_CONFIG_PATH=$PKG_CONFIG_PATH CPPFLAGS=$CPPFLAGS LDFLAGS=$LDFLAGS"
+
+    # Resolve flags from pkg-config to inject directly
+    pkgc() { PKG_CONFIG_PATH="$PKG_CONFIG_PATH" PKG_CONFIG_LIBDIR="$PKG_CONFIG_LIBDIR" "$PKG_CONFIG" "$@"; }
+    OGG_CFLAGS=$(pkgc --cflags ogg 2>/dev/null || echo "-I$INCDIR"); export OGG_CFLAGS
+    OGG_LDFLAGS=$(pkgc --libs-only-L ogg 2>/dev/null || echo "-L$LIBDIR"); export OGG_LDFLAGS
+    OGG_LDLIBS=$(pkgc --libs-only-l ogg 2>/dev/null || echo "-logg"); export OGG_LDLIBS
+    VORBIS_CFLAGS=$(pkgc --cflags vorbis 2>/dev/null || echo "-I$INCDIR"); export VORBIS_CFLAGS
+    VORBIS_LDFLAGS=$(pkgc --libs-only-L vorbis 2>/dev/null || echo "-L$LIBDIR"); export VORBIS_LDFLAGS
+    VORBIS_LDLIBS=$(pkgc --libs-only-l vorbis 2>/dev/null || echo "-lvorbis"); export VORBIS_LDLIBS
+    VORBISFILE_CFLAGS=$(pkgc --cflags vorbisfile 2>/dev/null || echo "-I$INCDIR"); export VORBISFILE_CFLAGS
+    VORBISFILE_LDFLAGS=$(pkgc --libs-only-L vorbisfile 2>/dev/null || echo "-L$LIBDIR"); export VORBISFILE_LDFLAGS
+    VORBISFILE_LDLIBS=$(pkgc --libs-only-l vorbisfile 2>/dev/null || echo "-lvorbisfile"); export VORBISFILE_LDLIBS
+    FLAC_CFLAGS=$(pkgc --cflags flac 2>/dev/null || echo "-I$INCDIR"); export FLAC_CFLAGS
+    FLAC_LDFLAGS=$(pkgc --libs-only-L flac 2>/dev/null || echo "-L$LIBDIR"); export FLAC_LDFLAGS
+    FLAC_LDLIBS=$(pkgc --libs-only-l flac 2>/dev/null || echo "-lFLAC"); export FLAC_LDLIBS
+    SNDFILE_CFLAGS=$(pkgc --cflags sndfile 2>/dev/null || echo "-I$INCDIR"); export SNDFILE_CFLAGS
+    SNDFILE_LDFLAGS=$(pkgc --libs-only-L sndfile 2>/dev/null || echo "-L$LIBDIR"); export SNDFILE_LDFLAGS
+    SNDFILE_LDLIBS=$(pkgc --libs-only-l sndfile 2>/dev/null || echo "-lsndfile"); export SNDFILE_LDLIBS
+
+    # Build static library only, disable apps/examples/tests and system codecs we do not want
+    run make -j"$(nproc)" \
+      STATIC_LIB=1 SHARED_LIB=0 EXAMPLES=0 OPENMPT123=0 TEST=0 \
+      NO_ZLIB=1 NO_MPG123=1 \
+      NO_OGG=0 NO_VORBIS=0 NO_VORBISFILE=0 NO_FLAC=0 NO_SNDFILE=0 \
+      TOOLCHAIN_SUFFIX= \
+      CPPFLAGS_OGG="$OGG_CFLAGS" LDFLAGS_OGG="$OGG_LDFLAGS" LDLIBS_OGG="$OGG_LDLIBS" \
+      CPPFLAGS_VORBIS="$VORBIS_CFLAGS" LDFLAGS_VORBIS="$VORBIS_LDFLAGS" LDLIBS_VORBIS="$VORBIS_LDLIBS" \
+      CPPFLAGS_VORBISFILE="$VORBISFILE_CFLAGS" LDFLAGS_VORBISFILE="$VORBISFILE_LDFLAGS" LDLIBS_VORBISFILE="$VORBISFILE_LDLIBS" \
+      CPPFLAGS_FLAC="$FLAC_CFLAGS" LDFLAGS_FLAC="$FLAC_LDFLAGS" LDLIBS_FLAC="$FLAC_LDLIBS" \
+      CPPFLAGS_SNDFILE="$SNDFILE_CFLAGS" LDFLAGS_SNDFILE="$SNDFILE_LDFLAGS" LDLIBS_SNDFILE="$SNDFILE_LDLIBS" \
+      PREFIX="$PREFIX" || true
+
+    # Locate resulting static lib
+    local libCandidate
+    libCandidate=$(find bin -maxdepth 2 -name 'libopenmpt.a' -print -quit || true)
+    if [[ -z "$libCandidate" ]]; then
+      err "libopenmpt.a not found after upstream Makefile build. Check make output above."
+      popd >/dev/null
+      exit 1
+    fi
+    mkdir -p "$LIBDIR" "$INCDIR/libopenmpt"
+    run cp -f "$libCandidate" "$LIBDIR/libopenmpt.a"
+    # Install headers
+    if [[ -d "libopenmpt" ]]; then
+      find libopenmpt -maxdepth 1 -type f -name 'libopenmpt*.h' -exec cp -f {} "$INCDIR/libopenmpt/" \; || true
+    fi
+
+    popd >/dev/null
   fi
-
-  pushd "$mdir" >/dev/null
-  # Clean previous build if any
-  make distclean >/dev/null 2>&1 || make clean >/dev/null 2>&1 || true
-
-  # Compose flags and variables
-  local INC_FLAGS="-I$INCDIR"
-  local LIB_FLAGS="-L$LIBDIR"
-  local EXTRA_LIBS="-lsndfile -lvorbis -lvorbisfile -lvorbisenc -logg -lFLAC -lopus"
-
-  # Many makefiles honor these environment variables
-  run env \
-    CC="$CC" CXX="$CXX" AR="$AR" RANLIB="$RANLIB" STRIP="$STRIP" \
-    CPPFLAGS="$CPPFLAGS $INC_FLAGS" CFLAGS="$CFLAGS $INC_FLAGS" CXXFLAGS="$CXXFLAGS $INC_FLAGS" \
-    LDFLAGS="$LDFLAGS $LIB_FLAGS" LIBS="$EXTRA_LIBS" \
-    make -j"$(nproc)"
-
-  # Locate resulting static library
-  local built_lib=""
-  if [[ -f "$mdir/libopenmpt.a" ]]; then built_lib="$mdir/libopenmpt.a"; fi
-  if [[ -z "$built_lib" && -f "$mdir/bin/libopenmpt.a" ]]; then built_lib="$mdir/bin/libopenmpt.a"; fi
-  if [[ -z "$built_lib" ]]; then
-    # Try find under dir
-    built_lib=$(find . -maxdepth 3 -name 'libopenmpt.a' | head -n1 || true)
-  fi
-  if [[ -z "$built_lib" ]]; then
-    err "libopenmpt.a was not produced by make in $mdir"
-    exit 1
-  fi
-
-  mkdir -p "$LIBDIR" "$INCDIR/libopenmpt"
-  run cp -f "$built_lib" "$LIBDIR/"
-
-  # Try to install/copy public headers into include/libopenmpt
-  # Common header locations: include/, libopenmpt/ (public headers like libopenmpt.h)
-  local hdr_src=""
-  if [[ -d "$src/include" ]]; then hdr_src="$src/include"; fi
-  if [[ -z "$hdr_src" && -d "$src/libopenmpt" ]]; then hdr_src="$src/libopenmpt"; fi
-  if [[ -n "$hdr_src" ]]; then
-    # Copy only libopenmpt* headers
-    run rsync -a --include 'libopenmpt*.h' --include 'libopenmpt/*.h' --exclude '*' "$hdr_src/" "$INCDIR/libopenmpt/" || true
-  fi
-  # Fallback: scan tree for libopenmpt*.h
-  mapfile -t found_hdrs < <(find "$src" -type f -name 'libopenmpt*.h' 2>/dev/null || true)
-  if [[ ${#found_hdrs[@]} -gt 0 ]]; then
-    for h in "${found_hdrs[@]}"; do
-      run cp -f "$h" "$INCDIR/libopenmpt/"
-    done
-  fi
-  if [[ ! -f "$INCDIR/libopenmpt/libopenmpt.h" ]]; then
-    log "Warning: libopenmpt.h not found under $src; headers may be incomplete."
-  fi
-  popd >/dev/null
 }
 
 write_pkgconfig_files() {
@@ -371,6 +428,14 @@ validate_outputs() {
 }
 
 prepare() {
+  log "Preflight check: ROOT_DIR=$ROOT_DIR"
+  log "Preflight check: DEPS_DIR=$DEPS_DIR"
+  log "Preflight check: ANDROID_ABI=$ANDROID_ABI ANDROID_API=$ANDROID_API"
+  log "Preflight check: OUT_DIR=$OUT_DIR"
+  log "Preflight check: PREFIX=$PREFIX"
+  log "Preflight check: LIBDIR=$LIBDIR"
+  log "Preflight check: INCDIR=$INCDIR"
+
   require_dir "$DEPS_DIR"
   require_dir "$DEPS_DIR/ogg"
   require_dir "$DEPS_DIR/vorbis"
@@ -397,9 +462,32 @@ build_opus() {
   fi
 }
 
+self_check() {
+  log "Diagnostics mode: printing critical variables and paths"
+  echo "ROOT_DIR=$ROOT_DIR"
+  echo "DEPS_DIR=$DEPS_DIR"
+  echo "OUT_DIR=$OUT_DIR"
+  echo "PREFIX=$PREFIX"
+  echo "LIBDIR=$LIBDIR"
+  echo "INCDIR=$INCDIR"
+  echo "ANDROID_ABI=$ANDROID_ABI"
+  echo "ANDROID_API=$ANDROID_API"
+  echo "ANDROID_NDK=${ANDROID_NDK_HOME:-${ANDROID_NDK:-}}"
+  echo "TOOLCHAIN=$TOOLCHAIN"
+  echo "SYSROOT=$SYSROOT"
+  echo "CC=$CC"
+  echo "CXX=$CXX"
+  echo "PKG_CONFIG_PATH=$PKG_CONFIG_PATH"
+}
+
 main() {
   prepare
   setup_toolchain
+  if [[ "${RUN_DIAGNOSTICS:-0}" == 1 ]]; then
+    self_check
+    log "Diagnostics complete; exiting early as requested (RUN_DIAGNOSTICS=1)"
+    exit 0
+  fi
   if [[ "$SKIP_DEPS" == 0 ]]; then
     build_ogg
     build_vorbis
@@ -409,6 +497,21 @@ main() {
   else
     log "Skipping dependencies build as requested (SKIP_DEPS=1)"
   fi
+
+  # Pre-check pkg-config availability for OpenMPT deps
+  log "Pre-checking pkg-config .pc files in $LIBDIR/pkgconfig"
+  local missing_pc=0
+  for pc in ogg.pc vorbis.pc vorbisfile.pc flac.pc sndfile.pc; do
+    if [[ ! -f "$LIBDIR/pkgconfig/$pc" ]]; then
+      err "Missing pkg-config file: $LIBDIR/pkgconfig/$pc"
+      missing_pc=1
+    fi
+  done
+  if [[ $missing_pc -eq 1 ]]; then
+    err "One or more .pc files are missing; OpenMPT Makefile will not find deps."
+    err "Contents of $LIBDIR/pkgconfig:"; ls -l "$LIBDIR/pkgconfig" || true
+  fi
+
   build_openmpt
   validate_outputs
   write_pkgconfig_files || true
