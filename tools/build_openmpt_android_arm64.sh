@@ -27,9 +27,14 @@ run() { if [[ "${VERBOSE:-0}" == 1 ]]; then set -x; fi; "$@"; if [[ "${VERBOSE:-
 
 ROOT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 DEPS_DIR="$ROOT_DIR/android-dependencies"
-ANDROID_ABI=${ANDROID_ABI:-arm64-v8a}
+ANDROID_ABI_FORCED="arm64-v8a"
+if [[ -n "${ANDROID_ABI:-}" && "${ANDROID_ABI}" != "${ANDROID_ABI_FORCED}" ]]; then
+  err "This script only builds for arm64-v8a. You set ANDROID_ABI='${ANDROID_ABI}'."
+  exit 1
+fi
+ANDROID_ABI="${ANDROID_ABI_FORCED}"
 OUT_DIR="$DEPS_DIR/$ANDROID_ABI"
-log "Target ANDROID_ABI=$ANDROID_ABI (default arm64-v8a). ANDROID_API=${ANDROID_API:-29}"
+log "Enforcing ANDROID_ABI=$ANDROID_ABI (arm64-v8a only). ANDROID_API=${ANDROID_API:-29}"
 PREFIX="$OUT_DIR/prefix"
 LIBDIR="$PREFIX/lib"
 INCDIR="$PREFIX/include"
@@ -65,12 +70,9 @@ setup_toolchain() {
   fi
 
   case "$ANDROID_ABI" in
-    arm64-v8a) TARGET_HOST=aarch64-linux-android ;;
-    armeabi-v7a) TARGET_HOST=armv7a-linux-androideabi ;;
-    x86) TARGET_HOST=i686-linux-android ;;
-    x86_64) TARGET_HOST=x86_64-linux-android ;;
-    *) err "Unsupported ANDROID_ABI: $ANDROID_ABI"; exit 1 ;;
-  esac
+  arm64-v8a) TARGET_HOST=aarch64-linux-android ;;
+  *) err "Unsupported ANDROID_ABI: $ANDROID_ABI (this script only supports arm64-v8a)"; exit 1 ;;
+esac
   log "Using target triple: $TARGET_HOST$ANDROID_API"
   export TARGET_HOST ANDROID_API
 
