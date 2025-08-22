@@ -131,6 +131,8 @@ You can install these libraries using the Android SDK Manager.
 
 Android Installation (NDK cross-compile notes):
 
+Run script in the tools build_openmpt_android_arm64.sh to build the OpenMPT Android library.
+
 % mkdir build-android
 % cd build-android
 % cmake -DANDROID=ON ..

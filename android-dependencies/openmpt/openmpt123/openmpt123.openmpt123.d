@@ -12,7 +12,6 @@ openmpt123/openmpt123.openmpt123.o: openmpt123/openmpt123.cpp \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/sys/cdefs.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/android/versioning.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/android/api-level.h \
-  /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/get_device_api_level_inlines.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/android/ndk-version.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/__configuration/availability.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/__configuration/language.h \
@@ -300,7 +299,6 @@ openmpt123/openmpt123.openmpt123.o: openmpt123/openmpt123.cpp \
   /home/mateus/Android/Sdk/ndk/29.0.13846066/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/21/include/__stdarg___va_copy.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/21/include/__stdarg_va_copy.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/seek_constants.h \
-  /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/struct_file.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/time.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/sys/time.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/linux/time.h \
@@ -665,7 +663,6 @@ openmpt123/openmpt123.openmpt123.o: openmpt123/openmpt123.cpp \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/linux/wait.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/malloc.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/android/legacy_stdlib_inlines.h \
-  /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/stdlib_inlines.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/typeinfo \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/__exception/nested_exception.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/__exception/terminate.h \
@@ -992,7 +989,6 @@ openmpt123/openmpt123.openmpt123.o: openmpt123/openmpt123.cpp \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/linux/tty.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/ioctl.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/android/legacy_termios_inlines.h \
-  /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/termios_inlines.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/termios_winsize_inlines.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/fcntl.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/getentropy.h \
@@ -1000,7 +996,6 @@ openmpt123/openmpt123.openmpt123.o: openmpt123/openmpt123.cpp \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/lockf.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/sysconf.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/android/legacy_unistd_inlines.h \
-  /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/swab.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/sys/poll.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/poll.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/linux/poll.h \

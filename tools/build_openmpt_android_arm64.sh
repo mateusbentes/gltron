@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Logging helpers
+log() { echo "[openmpt-android] $*"; }
+err() { echo "[openmpt-android][ERROR] $*" >&2; }
+run() { if [[ "${VERBOSE:-0}" == 1 ]]; then set -x; fi; "$@"; if [[ "${VERBOSE:-0}" == 1 ]]; then set +x; fi; }
+
 # Build libopenmpt and its dependencies (ogg, vorbis, flac, libsndfile) for Android (default arm64-v8a)
 # using the Android NDK toolchain. Static libraries by default.
 #
@@ -24,21 +29,18 @@ ROOT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 DEPS_DIR="$ROOT_DIR/android-dependencies"
 ANDROID_ABI=${ANDROID_ABI:-arm64-v8a}
 OUT_DIR="$DEPS_DIR/$ANDROID_ABI"
+log "Target ANDROID_ABI=$ANDROID_ABI (default arm64-v8a). ANDROID_API=${ANDROID_API:-29}"
 PREFIX="$OUT_DIR/prefix"
 LIBDIR="$PREFIX/lib"
 INCDIR="$PREFIX/include"
 BUILD_SHARED=${BUILD_SHARED:-0}
 BUILD_VORBISENC=${BUILD_VORBISENC:-1}
-ANDROID_API=${ANDROID_API:-21}
+ANDROID_API=${ANDROID_API:-29}
 VERBOSE=${VERBOSE:-0}
 CLEAN=${CLEAN:-0}
 SKIP_DEPS=${SKIP_DEPS:-0}
 
 ENV_EXPORT_FILE="$OUT_DIR/env.sh"
-
-log() { echo "[openmpt-android] $*"; }
-err() { echo "[openmpt-android][ERROR] $*" >&2; }
-run() { if [[ "$VERBOSE" == 1 ]]; then set -x; fi; "$@"; if [[ "$VERBOSE" == 1 ]]; then set +x; fi; }
 
 require_dir() {
   if [[ ! -d "$1" ]]; then err "Missing directory: $1"; exit 1; fi
@@ -69,6 +71,7 @@ setup_toolchain() {
     x86_64) TARGET_HOST=x86_64-linux-android ;;
     *) err "Unsupported ANDROID_ABI: $ANDROID_ABI"; exit 1 ;;
   esac
+  log "Using target triple: $TARGET_HOST$ANDROID_API"
   export TARGET_HOST ANDROID_API
 
   local host_tag
@@ -346,8 +349,7 @@ write_env_exports() {
   log "Writing environment exports to $ENV_EXPORT_FILE"
   cat >"$ENV_EXPORT_FILE" <<EOF
 # Source this file to help CMake find the locally built libraries
-export CMAKE_PREFIX_PATH="$PREFIX:
-${CMAKE_PREFIX_PATH:-}"
+export CMAKE_PREFIX_PATH="$PREFIX:${CMAKE_PREFIX_PATH:-}"
 export OpenMPT_LIBRARY="$LIBDIR/libopenmpt.a"
 export OpenMPT_INCLUDE_DIR="$INCDIR"
 EOF

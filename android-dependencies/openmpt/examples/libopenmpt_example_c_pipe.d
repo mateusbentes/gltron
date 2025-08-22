@@ -5,7 +5,6 @@ examples/libopenmpt_example_c_pipe.o: \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/sys/cdefs.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/android/versioning.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/android/api-level.h \
-  /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/get_device_api_level_inlines.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/android/ndk-version.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/21/include/stddef.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/21/include/__stddef_header_macro.h \
@@ -50,9 +49,7 @@ examples/libopenmpt_example_c_pipe.o: \
   /home/mateus/Android/Sdk/ndk/29.0.13846066/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/21/include/__stdarg___va_copy.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/21/include/__stdarg_va_copy.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/seek_constants.h \
-  /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/struct_file.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/android/legacy_stdlib_inlines.h \
-  /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/stdlib_inlines.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/errno.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/linux/errno.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/aarch64-linux-android/asm/errno.h \
@@ -88,7 +85,7 @@ examples/libopenmpt_example_c_pipe.o: \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/lockf.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/sysconf.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/android/legacy_unistd_inlines.h \
-  /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/swab.h \
-  libopenmpt/libopenmpt.h libopenmpt/libopenmpt_config.h \
-  libopenmpt/libopenmpt_version.h \
-  libopenmpt/libopenmpt_stream_callbacks_fd.h
+  /home/mateus/gltron/android-dependencies/arm64-v8a/prefix/include/libopenmpt/libopenmpt.h \
+  /home/mateus/gltron/android-dependencies/arm64-v8a/prefix/include/libopenmpt/libopenmpt_config.h \
+  /home/mateus/gltron/android-dependencies/arm64-v8a/prefix/include/libopenmpt/libopenmpt_version.h \
+  /home/mateus/gltron/android-dependencies/arm64-v8a/prefix/include/libopenmpt/libopenmpt_stream_callbacks_fd.h

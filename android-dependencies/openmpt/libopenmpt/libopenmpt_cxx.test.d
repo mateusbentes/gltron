@@ -13,7 +13,6 @@ libopenmpt/libopenmpt_cxx.test.o: libopenmpt/libopenmpt_cxx.cpp \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/sys/cdefs.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/android/versioning.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/android/api-level.h \
-  /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/get_device_api_level_inlines.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/android/ndk-version.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/__configuration/availability.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/__configuration/language.h \
@@ -108,10 +107,8 @@ libopenmpt/libopenmpt_cxx.test.o: libopenmpt/libopenmpt_cxx.cpp \
   /home/mateus/Android/Sdk/ndk/29.0.13846066/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/21/include/__stdarg___va_copy.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/21/include/__stdarg_va_copy.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/seek_constants.h \
-  /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/struct_file.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/xlocale.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/android/legacy_stdlib_inlines.h \
-  /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/stdlib_inlines.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/typeinfo \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/__type_traits/is_constant_evaluated.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/cstdint \

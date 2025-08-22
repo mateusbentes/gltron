@@ -5,7 +5,6 @@ include/minimp3/minimp3.test.o: include/minimp3/minimp3.c \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/sys/cdefs.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/android/versioning.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/android/api-level.h \
-  /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/get_device_api_level_inlines.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/android/ndk-version.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/wchar_limits.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/21/include/stddef.h \
@@ -46,10 +45,8 @@ include/minimp3/minimp3.test.o: include/minimp3/minimp3.c \
   /home/mateus/Android/Sdk/ndk/29.0.13846066/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/21/include/__stdarg___va_copy.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/21/include/__stdarg_va_copy.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/seek_constants.h \
-  /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/struct_file.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/xlocale.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/android/legacy_stdlib_inlines.h \
-  /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/stdlib_inlines.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/string.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/strcasecmp.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/21/include/arm_neon.h \
