@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.10)
 
 # Platform-specific settings - must be before project() if Android
 if(ANDROID)
+    set(CMAKE_C_COMPILER $ENV{ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android29-clang)
+    set(CMAKE_CXX_COMPILER $ENV{ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android29-clang++)
     # Enforce 64-bit ARM build
     if(DEFINED ANDROID_ABI AND NOT ANDROID_ABI STREQUAL "arm64-v8a")
         message(FATAL_ERROR "This project must be built with ANDROID_ABI=arm64-v8a. Got '${ANDROID_ABI}'.")
@@ -21,8 +23,8 @@ if(ANDROID)
     # Set appropriate compiler flags for Android
     if(ANDROID_ABI STREQUAL "arm64-v8a")
         # Use appropriate architecture flags for ARM64
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=armv8-a -mfpu=vfpv3-d16 -mfloat-abi=softfp")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=armv8-a -mfpu=vfpv3-d16 -mfloat-abi=softfp")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=armv8-a")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=armv8-a")
     elseif(ANDROID_ABI STREQUAL "armeabi-v7a")
         # Use appropriate architecture flags for ARMv7
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=armv7-a -mfpu=vfpv3-d16 -mfloat-abi=softfp")
@@ -321,75 +323,84 @@ if(USE_SOUND AND NOT ANDROID)
 endif()
 
 if(ANDROID AND USE_SOUND)
-    # Use preconfigured include/library if already provided (from prebuilt detection)
-    if(DEFINED OpenMPT_INCLUDE_DIRS AND EXISTS "${OpenMPT_INCLUDE_DIRS}")
-        set(OpenMPT_INCLUDE_DIR "${OpenMPT_INCLUDE_DIRS}")
-        message(STATUS "Using preconfigured OpenMPT headers at: ${OpenMPT_INCLUDE_DIR}")
-        target_include_directories(gltron PRIVATE ${OpenMPT_INCLUDE_DIR})
-    else()
-        # Try to find headers in common locations, including android-dependencies prefix
-        find_path(OpenMPT_INCLUDE_DIR libopenmpt/libopenmpt.h
-            PATHS
-            ${CMAKE_SOURCE_DIR}/android-dependencies/${ANDROID_ABI}/prefix/include
-            ${CMAKE_SOURCE_DIR}/android-dependencies/arm64-v8a/prefix/include
-            /usr/include
-            /usr/local/include
-            /usr/include/libopenmpt
-            ${ANDROID_NDK}/sources/third_party/openmpt/include
+    # Define paths for OpenMPT library and headers
+    set(OPENMPT_PATHS
+        "${CMAKE_SOURCE_DIR}/android-dependencies/arm64-v8a/prefix"
+        "${CMAKE_SOURCE_DIR}/android-dependencies/${ANDROID_ABI}/prefix"
+        "${CMAKE_BINARY_DIR}/openmpt-install"
+        "/usr"
+        "/usr/local"
+    )
+
+    # First try to use the prebuilt library from android-dependencies
+    set(OPENMPT_LIBRARY "${CMAKE_SOURCE_DIR}/android-dependencies/arm64-v8a/prefix/lib/libopenmpt.a")
+    set(OPENMPT_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/android-dependencies/arm64-v8a/prefix/include")
+
+    # Verify the prebuilt library exists
+    if(EXISTS "${OPENMPT_LIBRARY}" AND EXISTS "${OPENMPT_INCLUDE_DIR}/libopenmpt/libopenmpt.h")
+        message(STATUS "Using prebuilt OpenMPT from: ${OPENMPT_LIBRARY}")
+
+        # Verify library architecture
+        execute_process(
+            COMMAND file ${OPENMPT_LIBRARY}
+            OUTPUT_VARIABLE LIB_ARCH
         )
-        if(OpenMPT_INCLUDE_DIR)
-            message(STATUS "Found OpenMPT headers at: ${OpenMPT_INCLUDE_DIR}")
-            target_include_directories(gltron PRIVATE ${OpenMPT_INCLUDE_DIR})
-        else()
-            message(FATAL_ERROR "OpenMPT headers not found. Please install libopenmpt-dev or provide the path to OpenMPT headers.")
+
+        if(NOT LIB_ARCH MATCHES "ARM aarch64")
+            message(WARNING "OpenMPT library is not for ARM64 architecture. Found: ${LIB_ARCH}")
+            # Continue with the prebuilt library anyway
+        endif()
+    else()
+        # If prebuilt library not found, try to build it from source with correct architecture
+        message(STATUS "OpenMPT library not found. Attempting to build from source...")
+
+        # Create a custom target to build OpenMPT with correct architecture
+        add_custom_target(build_openmpt
+            COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/openmpt-build
+            COMMAND ${CMAKE_COMMAND} -E chdir ${CMAKE_BINARY_DIR}/openmpt-build
+                ${CMAKE_COMMAND} -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/openmpt-install
+                -DCMAKE_BUILD_TYPE=Release
+                -DCMAKE_TOOLCHAIN_FILE=${ANDROID_NDK}/build/cmake/android.toolchain.cmake
+                -DANDROID_ABI=arm64-v8a
+                -DANDROID_PLATFORM=android-29
+                -DCMAKE_C_FLAGS="-march=armv8-a -mfpu=vfpv3-d16 -mfloat-abi=softfp"
+                -DCMAKE_CXX_FLAGS="-march=armv8-a -mfpu=vfpv3-d16 -mfloat-abi=softfp"
+                ${CMAKE_CURRENT_SOURCE_DIR}/openmpt
+            COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR}/openmpt-build --target install
+            COMMENT "Building OpenMPT from source for ARM64"
+        )
+
+        # Add dependency to ensure OpenMPT is built before linking
+        add_dependencies(gltron build_openmpt)
+
+        # Set paths to the built OpenMPT
+        set(OPENMPT_INCLUDE_DIR "${CMAKE_BINARY_DIR}/openmpt-install/include")
+        set(OPENMPT_LIBRARY "${CMAKE_BINARY_DIR}/openmpt-install/lib/libopenmpt.a")
+    endif()
+
+    # Find OpenMPT headers if not already set
+    if(NOT OPENMPT_INCLUDE_DIR)
+        find_path(OPENMPT_INCLUDE_DIR
+            NAMES libopenmpt/libopenmpt.h
+            PATHS ${OPENMPT_PATHS}
+            PATH_SUFFIXES include
+        )
+
+        if(NOT OPENMPT_INCLUDE_DIR)
+            message(FATAL_ERROR "OpenMPT headers not found in any of these locations:\n${OPENMPT_PATHS}\nPlease install libopenmpt-dev or provide the correct path to OpenMPT headers.")
         endif()
     endif()
 
-    # Prefer preconfigured library if available
-    if(DEFINED OpenMPT_LIBRARIES AND EXISTS "${OpenMPT_LIBRARIES}")
-        set(OpenMPT_LIBRARY "${OpenMPT_LIBRARIES}")
-        message(STATUS "Using preconfigured OpenMPT library at: ${OpenMPT_LIBRARY}")
-        target_link_libraries(gltron PRIVATE ${OpenMPT_LIBRARY})
-    else()
-        # Find OpenMPT library in common locations
-        find_library(OpenMPT_LIBRARY openmpt
-            PATHS
-            ${CMAKE_SOURCE_DIR}/android-dependencies/${ANDROID_ABI}/prefix/lib
-            ${CMAKE_SOURCE_DIR}/android-dependencies/arm64-v8a/prefix/lib
-            /usr/lib
-            /usr/local/lib
-            /usr/lib/x86_64-linux-gnu
-            ${ANDROID_NDK}/sources/third_party/openmpt/lib
-        )
-        if(OpenMPT_LIBRARY)
-            message(STATUS "Found OpenMPT library at: ${OpenMPT_LIBRARY}")
-            target_link_libraries(gltron PRIVATE ${OpenMPT_LIBRARY})
-        else()
-            # If library not found, try to build it from source
-            message(STATUS "OpenMPT library not found. Attempting to build from source...")
-
-            # Create a custom target to build OpenMPT
-            add_custom_target(build_openmpt
-                COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/openmpt-build
-                COMMAND ${CMAKE_COMMAND} -E chdir ${CMAKE_BINARY_DIR}/openmpt-build
-                    ${CMAKE_COMMAND} -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/openmpt-install
-                    -DCMAKE_BUILD_TYPE=Release
-                    ${CMAKE_CURRENT_SOURCE_DIR}/openmpt
-                COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR}/openmpt-build --target install
-                COMMENT "Building OpenMPT from source"
-            )
-
-            # Add dependency to ensure OpenMPT is built before linking
-            add_dependencies(gltron build_openmpt)
-
-            # Set paths to the built OpenMPT
-            set(OpenMPT_INCLUDE_DIR ${CMAKE_BINARY_DIR}/openmpt-install/include)
-            set(OpenMPT_LIBRARY ${CMAKE_BINARY_DIR}/openmpt-install/lib/libopenmpt.a)
-            message(STATUS "Using built OpenMPT from: ${OpenMPT_LIBRARY}")
-            target_include_directories(gltron PRIVATE ${OpenMPT_INCLUDE_DIR})
-            target_link_libraries(gltron PRIVATE ${OpenMPT_LIBRARY})
-        endif()
+    # Verify library exists before linking
+    if(NOT EXISTS "${OPENMPT_LIBRARY}")
+        message(FATAL_ERROR "OpenMPT library not found at ${OPENMPT_LIBRARY}")
     endif()
+
+    # Configure the target with OpenMPT
+    target_include_directories(gltron PRIVATE ${OPENMPT_INCLUDE_DIR})
+    target_link_libraries(gltron PRIVATE ${OPENMPT_LIBRARY})
+
+    message(STATUS "Using OpenMPT from: ${OPENMPT_LIBRARY}")
 endif()
 
 # Platform-specific settings

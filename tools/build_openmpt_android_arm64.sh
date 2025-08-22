@@ -105,7 +105,8 @@ esac
   export READELF="$TOOLCHAIN/bin/llvm-readelf"
   export SYSROOT="$TOOLCHAIN/sysroot"
 
-  export CPPFLAGS="--sysroot=$SYSROOT"
+  # Only set architecture flags that are valid for ARM64
+  export CPPFLAGS="--sysroot=$SYSROOT -march=armv8-a"
   export CFLAGS="$CPPFLAGS -fPIC -O2 -fvisibility=hidden"
   export CXXFLAGS="$CFLAGS -fvisibility-inlines-hidden"
   export LDFLAGS="--sysroot=$SYSROOT"
@@ -283,6 +284,11 @@ build_openmpt() {
   # Prefer CMake build for robust cross-compilation
   if [[ -f "$src/CMakeLists.txt" ]]; then
     local cmake_args=(
+      -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK/build/cmake/android.toolchain.cmake"
+      -DANDROID_ABI="$ANDROID_ABI"
+      -DANDROID_PLATFORM=android-$ANDROID_API
+      -DCMAKE_C_FLAGS="-march=armv8-a -mfpu=vfpv3-d16 -mfloat-abi=softfp"
+      -DCMAKE_CXX_FLAGS="-march=armv8-a -mfpu=vfpv3-d16 -mfloat-abi=softfp"
       -DOPENMPT_BUILD_SHARED=OFF
       -DOPENMPT_BUILD_STATIC=ON
       -DOPENMPT_BUILD_TESTS=OFF
