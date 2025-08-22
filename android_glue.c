@@ -8,7 +8,7 @@ void update_buttons_layout();
 extern callbacks current_callback;
 
 // base path buffer exposed for file.c
-char s_base_path[256] = "/data/data/gltron/files"; // default fallback
+char s_base_path[256] = "/data/data/com.gltron/files"; // default fallback
 
 #ifdef ANDROID
 
