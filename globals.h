@@ -13,6 +13,10 @@
 extern AAssetManager* g_android_asset_mgr;
 #endif
 
+// Screen dimensions (used by Android glue)
+extern int scr_w;
+extern int scr_h;
+
 // Add these global variables
 extern GLuint shaderProgram;
 extern float projectionMatrix[16];

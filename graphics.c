@@ -9,10 +9,7 @@
 #include <GL/glu.h>
 #endif
 
-// Global shader program for Android
-#ifdef ANDROID
-GLuint shaderProgram;
-#endif
+// Global shader program for Android is declared in shaders.h as extern.
 
 void checkGLError(char *where) {
   int error;

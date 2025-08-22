@@ -163,7 +163,12 @@ set(SOURCES
 
 # Add Android-only sources
 if(ANDROID)
-    list(APPEND SOURCES android_glue.c android_main.c)
+    list(APPEND SOURCES android_glue.c android_main.c backend_openmpt_android.c)
+else()
+    # Ensure Android-only sources are not part of desktop build
+    set_source_files_properties(android_glue.c android_main.c backend_openmpt_android.c PROPERTIES HEADER_FILE_ONLY TRUE)
+    # Also explicitly remove backend_openmpt_android.c from target on desktop to avoid duplicate symbols
+    get_source_file_property(_is_set backend_openmpt_android.c HEADER_FILE_ONLY)
 endif()
 
 # Add shader source files only for Android
@@ -173,6 +178,9 @@ if(ANDROID)
 
     # Ensure shader sources are compiled as C (not C++)
     set_source_files_properties(${SHADER_SOURCES} PROPERTIES LANGUAGE C)
+else()
+    # Exclude shaders.c from desktop build
+    set_source_files_properties(shaders.c PROPERTIES HEADER_FILE_ONLY TRUE)
 endif()
 
 # Ensure C sources are compiled as C (not C++)
@@ -205,6 +213,8 @@ if(ANDROID)
         ${EGL_LIBRARY}
         ${GLESv2_LIBRARY}
         ${OPENSLES_LIB}
+        c++_shared
+        atomic
         ${ANDROID_NDK}/sources/android/native_app_glue/android_native_app_glue.c
     )
 
@@ -374,6 +384,11 @@ elseif(NOT ANDROID)
             message(WARNING "GUI dependencies not found. Game will run without GUI.")
             set(USE_GUI OFF)
         endif()
+    endif()
+
+    # If GUI is disabled, avoid compiling GUI sources that use OpenGL fixed function
+    if(NOT USE_GUI)
+        set_source_files_properties(gui.c gui_mouse.c PROPERTIES HEADER_FILE_ONLY TRUE)
     endif()
 
     # Link math library

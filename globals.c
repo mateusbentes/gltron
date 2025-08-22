@@ -12,6 +12,10 @@ int fontID = 6;
 Menu** pMenuList;
 Menu* pRootMenu;
 float camAngle = 0;
+
+// Screen dimensions globals
+int scr_w = 0;
+int scr_h = 0;
 unsigned char* colmap = NULL;
 int colwidth;
 int dirsX[] = { 0, -1, 0, 1 };

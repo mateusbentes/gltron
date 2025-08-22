@@ -28,12 +28,14 @@ background_states bgs;
 
 void guiProjection(int x, int y) {
   checkGLError("gui.c guiProj - start");
+#ifndef ANDROID
   glMatrixMode(GL_PROJECTION);
   glLoadIdentity();
   /*glOrtho(0, 0, x, y, -1, 1); */
   checkGLError("gui.c guiProj - proj");
   glMatrixMode(GL_MODELVIEW);
   glLoadIdentity();
+#endif
   glViewport(0, 0, x, y);
   checkGLError("gui.c guiProj - end");
 }
@@ -59,7 +61,9 @@ void displayGui() {
   // Bind texture once before the loop
   glEnable(GL_TEXTURE_2D);
   glBindTexture(GL_TEXTURE_2D, game->screen->texGui);
+#ifndef ANDROID
   glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+#endif
 
   // Use vertex arrays instead of immediate mode
   GLfloat vertices[8];
@@ -77,6 +81,7 @@ void displayGui() {
   colors[6] = c2; colors[7] = c2; colors[8] = GUI_BLUE * c2;
   colors[9] = c1; colors[10] = c1; colors[11] = GUI_BLUE * c1;
 
+#ifndef ANDROID
   glEnableClientState(GL_VERTEX_ARRAY);
   glEnableClientState(GL_COLOR_ARRAY);
   glVertexPointer(2, GL_FLOAT, 0, vertices);
@@ -84,6 +89,7 @@ void displayGui() {
   glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
   glDisableClientState(GL_COLOR_ARRAY);
   glDisableClientState(GL_VERTEX_ARRAY);
+#endif
 
   for(y1 = -1; y1 < 1; y1 += 2 / N) {
     y2 = y1 + 2 / N;
@@ -109,6 +115,7 @@ void displayGui() {
       colors[6] = c2; colors[7] = c2; colors[8] = GUI_BLUE * c2;
       colors[9] = c1; colors[10] = c1; colors[11] = GUI_BLUE * c1;
 
+#ifndef ANDROID
       glEnableClientState(GL_VERTEX_ARRAY);
       glEnableClientState(GL_COLOR_ARRAY);
       glVertexPointer(2, GL_FLOAT, 0, vertices);
@@ -116,6 +123,7 @@ void displayGui() {
       glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
       glDisableClientState(GL_COLOR_ARRAY);
       glDisableClientState(GL_VERTEX_ARRAY);
+#endif
     }
   }
 
@@ -139,6 +147,7 @@ void displayGui() {
     0.0f, 1.0f
   };
 
+#ifndef ANDROID
   glEnableClientState(GL_VERTEX_ARRAY);
   glEnableClientState(GL_TEXTURE_COORD_ARRAY);
   glVertexPointer(2, GL_FLOAT, 0, vertices);
@@ -147,11 +156,13 @@ void displayGui() {
   glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
   glDisableClientState(GL_TEXTURE_COORD_ARRAY);
   glDisableClientState(GL_VERTEX_ARRAY);
+#endif
 
   glDisable(GL_TEXTURE_2D);
 
   #ifdef ANDROID
-  glColor4f(1.0f, 0.0f, 1.0f, 1.0f);
+  // OpenGL ES has no fixed-function glColor*. Menu rendering on Android sets color
+  // via setColor(...) in menu.c; no color state is set here.
 #else
   glColor3f(1.0, 0.0, 1.0);
 #endif
@@ -249,14 +260,15 @@ void initGui() {
 }
 
 void initGLGui() {
+#ifndef ANDROID
   glShadeModel(GL_SMOOTH);
-
+#endif
   glEnable(GL_BLEND);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
+#ifndef ANDROID
   glDisable(GL_LIGHTING);
   glDisable(GL_DEPTH_TEST);
-
+#endif
 }
 
 callbacks guiCallbacks = {

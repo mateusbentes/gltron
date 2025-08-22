@@ -11,7 +11,7 @@
 char* getFullPath(char *filename) {
 #ifdef ANDROID
   // On Android, prefer APK assets using AAssetManager if available.
-  extern char s_base_path[]; // from android_glue.c
+  extern char s_base_path[256]; // defined in android_glue.c, updated via gltron_set_base_path
   extern AAssetManager* g_android_asset_mgr; // Declare the external variable
 
   if (g_android_asset_mgr) {

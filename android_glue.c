@@ -4,8 +4,11 @@
 #include <string.h>
 
 extern int scr_w, scr_h;
-extern void update_buttons_layout();
+void update_buttons_layout();
 extern callbacks current_callback;
+
+// base path buffer exposed for file.c
+char s_base_path[256] = "/data/data/gltron/files"; // default fallback
 
 #ifdef ANDROID
 
@@ -13,7 +16,7 @@ extern callbacks current_callback;
 #include <GLES2/gl2ext.h>
 
 static int initialized = 0;
-static char s_base_path[256] = "/data/data/gltron/files"; // default fallback
+// base path defined above (non-static) and declared in header
 
 // Allow host (NativeActivity) to pass in the AAssetManager
 void gltron_set_asset_manager(void* mgr) {
@@ -61,6 +64,28 @@ void gltron_resize(int width, int height) {
 static int btn_left[4];   // x, y, w, h
 static int btn_right[4];  // x, y, w, h
 static int btn_pause[4];  // x, y, w, h
+
+void update_buttons_layout() {
+  if (!scr_w || !scr_h) return;
+  int margin = scr_w / 40;
+  int btnSize = scr_w / 6;
+  if (btnSize < 64) btnSize = 64;
+  // Left bottom corner
+  btn_left[0] = margin;
+  btn_left[1] = scr_h - btnSize - margin;
+  btn_left[2] = btnSize;
+  btn_left[3] = btnSize;
+  // Right bottom corner
+  btn_right[0] = scr_w - btnSize - margin;
+  btn_right[1] = scr_h - btnSize - margin;
+  btn_right[2] = btnSize;
+  btn_right[3] = btnSize;
+  // Pause at top center
+  btn_pause[2] = btnSize * 0.8f;
+  btn_pause[3] = btnSize * 0.6f;
+  btn_pause[0] = (scr_w - btn_pause[2]) / 2;
+  btn_pause[1] = margin;
+}
 static int active_left = 0;
 static int active_right = 0;
 static int active_pause = 0;
@@ -150,26 +175,34 @@ void gltron_frame(void) {
 
 /*void gltron_on_key(int key, int action) {
   (void)action; // not used currently
-  // Forward to existing keyboard/special handlers
-  // For simplicity route arrows as special keys, others as ASCII
+  // Forward to existing keyboard handler via ASCII mapping
   switch (key) {
     case 27: // ESC
     case ' ':
-    case 'a': case 'A': case 'd': case 'D': case 's': case 'S':
+    case 'A': case 'D': case 'S':
     case 'k': case 'K': case 'l': case 'L': case '5': case '6':
       keyGame((unsigned char)key, 0, 0);
       break;
+    case 'a':
+      keyGame('a', 0, 0);
+      break;
+    case 'd':
+      keyGame('d', 0, 0);
+      break;
+    case 's':
+      keyGame('s', 0, 0);
+      break;
     case GLUT_KEY_LEFT:
-      keyGame('a', 0, 0);  // Changed from specialGame to keyGame
+      keyGame('a', 0, 0);
       break;
     case GLUT_KEY_RIGHT:
-      keyGame('s', 0, 0);  // Changed from specialGame to keyGame
+      keyGame('s', 0, 0);
       break;
     case GLUT_KEY_UP:
-      keyGame('k', 0, 0);  // Changed from specialGame to keyGame
+      keyGame('k', 0, 0);
       break;
     case GLUT_KEY_DOWN:
-      keyGame('l', 0, 0);  // Changed from specialGame to keyGame
+      keyGame('l', 0, 0);
       break;
     default:
       keyGame((unsigned char)key, 0, 0);

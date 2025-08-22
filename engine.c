@@ -1,6 +1,7 @@
 #include <math.h>
 #include "gltron.h"
 #include "globals.h"
+#include "shaders.h"
 
 #ifdef ANDROID
 #include <GLES/gl.h>
@@ -611,9 +612,9 @@ void camMove() {
   modelViewMatrix[13] = -(up[0] * camX + up[1] * camY + up[2] * camZ);
   modelViewMatrix[14] = forward[0] * camX + forward[1] * camY + forward[2] * camZ;
 
-  // Apply the model-view matrix
-  glMatrixMode(GL_MODELVIEW);
-  glLoadMatrixf(modelViewMatrix);
+  // Apply the model-view matrix via shader uniform (GLES2 path)
+  useShaderProgram(shaderProgram);
+  setViewMatrix(shaderProgram, (float*)modelViewMatrix);
 #else
   // Standard OpenGL implementation
   glMatrixMode(GL_MODELVIEW);

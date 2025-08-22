@@ -5,7 +5,7 @@
 #include <string.h>
 #include <stdio.h>
 #include "sound_backend.h"
-#include "file.c" // for getFullPath; could refactor to a header if needed
+#include "gltron.h" // for getFullPath declaration
 
 #include <libopenmpt/libopenmpt.h>
 

@@ -84,7 +84,7 @@ static int32_t handle_input(struct android_app* app, AInputEvent* event) {
       default: key = 0; break;
     }
     if (key) {
-      gltron_on_key(key, action);
+      // Key input disabled; touch-only control.
       return 1;
     }
   }

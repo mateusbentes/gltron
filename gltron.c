@@ -26,6 +26,7 @@
 // Add this global variable declaration
 float projectionMatrix[16];
 #ifdef ANDROID
+// Global shader program defined here; declared as extern in shaders.h
 GLuint shaderProgram;
 #endif
 
