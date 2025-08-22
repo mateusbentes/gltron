@@ -9,7 +9,7 @@ set -euo pipefail
 #  - build-android/ must contain:
 #      * libgltron.so (arm64-v8a) — shared library to be loaded by NativeActivity
 #      * assets files: *.sgi, *.wav, *.ftx, *.it, settings.txt, menu.txt, tron.mtl
-#  - Package: com.gltron, App name: GLTron, minSdk:21, targetSdk:33
+#  - Package: org.gltron.game, App name: GLTron, minSdk:21, targetSdk:33
 #
 # Output:
 #  - build-android/gltron.apk
@@ -21,7 +21,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")"/.. && pwd)"
 OUT_DIR="$ROOT_DIR/build-android"
 STAGE_DIR="$OUT_DIR/.apk-stage"
 # Allow override via environment. Validate later.
-PKG="${ANDROID_APP_ID:-com.gltron}"
+PKG="${ANDROID_APP_ID:-org.gltron.game}"
 APP_NAME="${ANDROID_APP_NAME:-GLTron}"
 ABI="${ANDROID_ABI:-arm64-v8a}"
 MIN_SDK=${ANDROID_MIN_SDK:-21}
