@@ -12,7 +12,7 @@ set -euo pipefail
 #  - Package: com.gltron, App name: GLTron, minSdk:21, targetSdk:33
 #
 # Output:
-#  - build-android/gltron-debug.apk
+#  - build-android/gltron.apk
 #
 # Usage:
 #  tools/build_android_apk.sh
@@ -20,12 +20,13 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")"/.. && pwd)"
 OUT_DIR="$ROOT_DIR/build-android"
 STAGE_DIR="$OUT_DIR/.apk-stage"
-PKG="com.gltron"
-APP_NAME="GLTron"
-ABI="arm64-v8a"
-MIN_SDK=21
-TARGET_SDK=33
-LIB_NAME="gltron"
+# Allow override via environment. Validate later.
+PKG="${ANDROID_APP_ID:-com.gltron}"
+APP_NAME="${ANDROID_APP_NAME:-GLTron}"
+ABI="${ANDROID_ABI:-arm64-v8a}"
+MIN_SDK=${ANDROID_MIN_SDK:-21}
+TARGET_SDK=${ANDROID_TARGET_SDK:-33}
+LIB_NAME="${ANDROID_LIB_NAME:-gltron}"
 SO_NAME="lib${LIB_NAME}.so"
 APK_OUT="$OUT_DIR/gltron.apk"
 
@@ -90,6 +91,12 @@ rsync -a \
 # Copy native library
 cp "$OUT_DIR/$SO_NAME" "$STAGE_DIR/lib/$ABI/$SO_NAME"
 
+# Validate package name (Java package format): segments of [a-z][a-z0-9_]*, at least 2 segments, no leading/trailing dots
+if [[ ! "$PKG" =~ ^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)+$ ]]; then
+  err "Invalid ANDROID_APP_ID/package: '$PKG'. Use lowercase dotted identifiers like 'org.gltron.game'"
+  exit 1
+fi
+
 # Minimal manifest for NativeActivity
 cat > "$STAGE_DIR/manifest/AndroidManifest.xml" <<EOF
 <?xml version="1.0" encoding="utf-8"?>
@@ -133,6 +140,9 @@ if [[ -d "$ANDROID_SDK_ROOT/platforms" ]]; then
 fi
 
 # Package resources and manifest
+log "Using package: $PKG"
+log "Min SDK: $MIN_SDK, Target SDK: $TARGET_SDK, ABI: $ABI, LIB: $LIB_NAME"
+log "Manifest: $STAGE_DIR/manifest/AndroidManifest.xml"
 UNALIGNED_APK="$OUT_DIR/tmp-unaligned.apk"
 rm -f "$UNALIGNED_APK" "$APK_OUT"
 
