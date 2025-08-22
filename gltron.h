@@ -139,6 +139,8 @@
 /* data structures */
 /* todo: move to seperate file */
 
+void guiProjection(int x, int y);
+
 typedef struct callbacks {
   void (*display)(void);
   void (*idle)(void);

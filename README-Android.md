@@ -1,57 +1,37 @@
-Android (NDK) integration guide
+Building for Android and Desktop
+================================
 
-Overview
-- This project includes Android-native hooks and a minimal NativeActivity entry point to run GLTron on Android using OpenGL ES 2.0 and EGL.
-- Android-specific code is compiled only when ANDROID is set in the CMake toolchain (i.e., when building with the Android NDK).
+This document describes how to build GLTron for Android using the Android NDK and for desktop using your host toolchain.
 
-Components
-- android_main.c: Implements android_main() using android_native_app_glue, creates EGL context/surface, handles input, drives the render loop.
-- android_glue.h/.c: Exposes C functions for initialization, resize, frame update, input, asset manager and base path configuration:
-  - void gltron_init(void);
-  - void gltron_resize(int width, int height);
-  - void gltron_frame(void);
-  - void gltron_on_key(int key, int action);
-  - void gltron_on_touch(float x, float y, int action);
-  - void gltron_set_asset_manager(void* asset_mgr);
-  - void gltron_set_base_path(const char* base_path);
-- file.c: When ANDROID is defined, attempts to load resources from APK assets via AAssetManager and extracts to a writable base path.
+Prerequisites
+-------------
+- CMake 3.10+
+- Desktop build: a C/C++ compiler, OpenGL and GLUT dev packages (e.g. Debian/Ubuntu: sudo apt-get install build-essential freeglut3-dev mesa-common-dev)
+- Android build: Android NDK installed and ANDROID_NDK environment variable set
 
-Building
-1) Create a build directory for Android:
-   - mkdir build-android && cd build-android
-2) Configure with the Android NDK toolchain:
-   - cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-21 ..
-3) Build:
-   - cmake --build . --config Release
+Quick examples
+--------------
+A helper script is provided to configure both builds:
 
-Packaging and running
-- Use NativeActivity in your AndroidManifest.xml:
-  <application>
-    <activity android:name="android.app.NativeActivity"
-              android:label="gltron"
-              android:configChanges="orientation|keyboardHidden|screenSize">
-      <meta-data android:name="android.app.lib_name" android:value="gltron"/>
-    </activity>
-  </application>
-- Place resource files in app/src/main/assets/ (e.g., settings.txt, menu.txt, textures, sounds).
-- The engine will extract requested assets to the app's internal files directory (provided by NativeActivity->internalDataPath) and use filesystem paths expected by existing loaders.
+  ./tools/configure_examples.sh both
 
-Input mapping
-- DPAD arrow keys map to GLUT-like special keys (100–103) for compatibility.
-- Touch events are forwarded to GUI handlers (basic mapping provided; adjust as needed).
+Desktop build (host-native)
+---------------------------
+  mkdir -p build-pc && cd build-pc
+  cmake -DUSE_SOUND=ON -DSTRICT_ARCH_CHECK=OFF ..
+  cmake --build .
 
-Notes
-- By default, assets are extracted on demand to <internalDataPath>/<filename>. The code assumes the base path exists; ensure it is created (see below).
-- Desktop GLUT calls are compiled out on Android. Rendering is driven by android_main.c.
+Notes:
+- STRICT_ARCH_CHECK, when ON, verifies that desktop third-party sound libraries are x86_64; default is OFF to avoid failures on non-x86 hosts.
+- CMake tries find_package(OpenGL/GLUT) first and falls back to common x86_64 paths when necessary.
 
-Extending
-- You can provide your own Java/Kotlin UI and call the C hooks via JNI instead of using NativeActivity.
-- For advanced asset handling, consider memory-based loading instead of extraction.
+Android build (arm64-v8a)
+-------------------------
+  export ANDROID_NDK=/path/to/android/ndk
+  mkdir -p build-android && cd build-android
+  cmake -DANDROID=ON -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=29 -DUSE_SOUND=ON ..
+  cmake --build .
 
-Sound on Android (libopenmpt + OpenSL ES)
-- This project uses libopenmpt to decode tracker music (.it/.xm/.s3m/.mod) and OpenSL ES for audio output on Android.
-- You must provide libopenmpt include and library paths when configuring CMake:
-  - -DOpenMPT_INCLUDE_DIRS=/absolute/path/to/openmpt/include
-  - -DOpenMPT_LIBRARIES=/absolute/path/to/openmpt/lib/arm64-v8a/libopenmpt.a
-- SFX are loaded from .wav files and mixed into the output. Ensure your assets include the .wav files.
-- Desktop builds continue to use MikMod as before.
+Notes:
+- Prebuilt libopenmpt from android-dependencies/<ABI>/prefix is used when available; otherwise, the project attempts to build it.
+- Android-specific toolchain and libraries are configured only when -DANDROID=ON is passed to CMake.
