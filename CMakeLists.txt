@@ -2,6 +2,10 @@ cmake_minimum_required(VERSION 3.10)
 
 # Platform-specific settings - must be before project() if Android
 if(ANDROID)
+    # Enforce 64-bit ARM build
+    if(DEFINED ANDROID_ABI AND NOT ANDROID_ABI STREQUAL "arm64-v8a")
+        message(FATAL_ERROR "This project must be built with ANDROID_ABI=arm64-v8a. Got '${ANDROID_ABI}'.")
+    endif()
     # Set Android NDK path and include the Android toolchain
     set(ANDROID_NDK $ENV{ANDROID_NDK})
     if(NOT EXISTS "${ANDROID_NDK}/build/cmake/android.toolchain.cmake")

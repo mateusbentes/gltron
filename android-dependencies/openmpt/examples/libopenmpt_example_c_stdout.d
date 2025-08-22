@@ -85,7 +85,6 @@ examples/libopenmpt_example_c_stdout.o: \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/lockf.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/sysconf.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/android/legacy_unistd_inlines.h \
-  /home/mateus/gltron/android-dependencies/arm64-v8a/prefix/include/libopenmpt/libopenmpt.h \
-  /home/mateus/gltron/android-dependencies/arm64-v8a/prefix/include/libopenmpt/libopenmpt_config.h \
-  /home/mateus/gltron/android-dependencies/arm64-v8a/prefix/include/libopenmpt/libopenmpt_version.h \
-  /home/mateus/gltron/android-dependencies/arm64-v8a/prefix/include/libopenmpt/libopenmpt_stream_callbacks_file.h
+  libopenmpt/libopenmpt.h libopenmpt/libopenmpt_config.h \
+  libopenmpt/libopenmpt_version.h \
+  libopenmpt/libopenmpt_stream_callbacks_file.h

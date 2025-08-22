@@ -980,5 +980,4 @@ soundlib/load_j2b.test.o: soundlib/load_j2b.cpp common/stdafx.h \
   soundlib/patternContainer.h soundlib/PlayState.h \
   soundlib/plugins/PluginStructs.h soundlib/plugins/../Snd_defs.h \
   soundlib/RowVisitor.h src/mpt/audio/span.hpp soundlib/SampleIO.h \
-  src/openmpt/fileformat_base/magic.hpp \
-  /home/mateus/gltron/android-dependencies/arm64-v8a/prefix/include/miniz/miniz.h
+  src/openmpt/fileformat_base/magic.hpp include/miniz/miniz.h

@@ -1089,7 +1089,6 @@ test/test.test.o: test/test.cpp common/stdafx.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/fenv.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/fenv.h \
   /home/mateus/Android/Sdk/ndk/29.0.13846066//toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/fenv_arm.h \
-  /home/mateus/gltron/android-dependencies/arm64-v8a/prefix/include/miniz/miniz.h \
-  test/TestTools.h test/TestToolsTracker.h test/TestToolsLib.h \
-  test/../libopenmpt/libopenmpt.hpp \
+  include/miniz/miniz.h test/TestTools.h test/TestToolsTracker.h \
+  test/TestToolsLib.h test/../libopenmpt/libopenmpt.hpp \
   test/../libopenmpt/libopenmpt_config.h

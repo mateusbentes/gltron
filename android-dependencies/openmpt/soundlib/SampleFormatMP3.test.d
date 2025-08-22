@@ -1032,4 +1032,4 @@ soundlib/SampleFormatMP3.test.o: soundlib/SampleFormatMP3.cpp \
   src/openmpt/soundbase/SampleDecode.hpp \
   soundlib/../common/ComponentManager.h \
   soundlib/../common/../common/misc_util.h soundlib/MPEGFrame.h \
-  /home/mateus/gltron/android-dependencies/arm64-v8a/prefix/include/minimp3/minimp3.h
+  include/minimp3/minimp3.h
