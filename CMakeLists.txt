@@ -189,8 +189,13 @@ if(USE_SOUND)
     list(APPEND SOURCES sound.c)
 endif()
 
-# Add executable
-add_executable(gltron ${SOURCES})
+# Build target: executable on desktop, shared library on Android for NativeActivity
+if(ANDROID)
+    # Build a shared library libgltron.so for Android
+    add_library(gltron SHARED ${SOURCES})
+else()
+    add_executable(gltron ${SOURCES})
+endif()
 
 # Include directories
 target_include_directories(gltron PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
@@ -199,6 +204,9 @@ target_include_directories(gltron PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 if(ANDROID)
     # Define ANDROID macro for C sources
     target_compile_definitions(gltron PRIVATE ANDROID)
+
+    # Ensure shared libs are built; helpful if user passes -DBUILD_SHARED_LIBS
+    set(BUILD_SHARED_LIBS ON CACHE BOOL "Build shared libraries" FORCE)
 
     # Link Android libraries
     find_library(LOG_LIBRARY log)
