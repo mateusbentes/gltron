@@ -174,16 +174,31 @@ fi
 ALIGNED_APK="$OUT_DIR/tmp-aligned.apk"
 "$ZIPALIGN" -f 4 "$UNALIGNED_APK" "$ALIGNED_APK"
 
-# Debug keystore
-KEYSTORE="$HOME/.android/debug.keystore"
-KEYALIAS="androiddebugkey"
-KEYPASS="android"
-if [[ ! -f "$KEYSTORE" ]]; then
-  log "Generating debug keystore at $KEYSTORE"
-  mkdir -p "$(dirname "$KEYSTORE")"
-  keytool -genkey -v -keystore "$KEYSTORE" -storepass "$KEYPASS" -alias "$KEYALIAS" -keypass "$KEYPASS" -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+# Signing: release if env provided, otherwise debug
+REL_KEYSTORE="${ANDROID_SIGNING_KEYSTORE:-}"
+REL_ALIAS="${ANDROID_SIGNING_ALIAS:-}"
+REL_STOREPASS="${ANDROID_SIGNING_STOREPASS:-}"
+REL_KEYPASS="${ANDROID_SIGNING_KEYPASS:-${REL_STOREPASS}}"
+
+if [[ -n "$REL_KEYSTORE" && -n "$REL_ALIAS" && -n "$REL_STOREPASS" ]]; then
+  log "Signing APK with provided release keystore"
+  "$APKSIGNER" sign \
+    --ks "$REL_KEYSTORE" \
+    --ks-pass pass:"$REL_STOREPASS" \
+    --key-pass pass:"$REL_KEYPASS" \
+    --out "$APK_OUT" "$ALIGNED_APK"
+else
+  log "Signing APK with debug keystore"
+  KEYSTORE="$HOME/.android/debug.keystore"
+  KEYALIAS="androiddebugkey"
+  KEYPASS="android"
+  if [[ ! -f "$KEYSTORE" ]]; then
+    log "Generating debug keystore at $KEYSTORE"
+    mkdir -p "$(dirname "$KEYSTORE")"
+    keytool -genkey -v -keystore "$KEYSTORE" -storepass "$KEYPASS" -alias "$KEYALIAS" -keypass "$KEYPASS" -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+  fi
+  "$APKSIGNER" sign --ks "$KEYSTORE" --ks-pass pass:$KEYPASS --key-pass pass:$KEYPASS --out "$APK_OUT" "$ALIGNED_APK"
 fi
-"$APKSIGNER" sign --ks "$KEYSTORE" --ks-pass pass:$KEYPASS --key-pass pass:$KEYPASS --out "$APK_OUT" "$ALIGNED_APK"
 
 log "APK built: $APK_OUT"
 echo "$APK_OUT"
