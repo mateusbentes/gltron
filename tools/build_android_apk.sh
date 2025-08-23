@@ -128,18 +128,26 @@ MANIFEST_TEMP=$(mktemp)
 cat > "$MANIFEST_TEMP" <<EOF
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="$PKG"
+    package="org.android.game"
     android:versionCode="1"
     android:versionName="1.0">
-    <uses-sdk android:minSdkVersion="$MIN_SDK" android:targetSdkVersion="$TARGET_SDK"/>
-    <application android:label="@string/gltron" android:hasCode="false"
+
+    <uses-sdk android:minSdkVersion="29" android:targetSdkVersion="35" />
+
+    <application
+        android:label="GLTron"
+        android:hasCode="false"
         android:allowBackup="true"
         android:theme="@android:style/Theme.NoTitleBar.Fullscreen">
-        <activity android:name="android.app.NativeActivity"
-            android:label="@string/gltron"
+
+        <activity
+            android:name="android.app.NativeActivity"
+            android:label="GLTron"
             android:exported="true"
             android:configChanges="keyboard|keyboardHidden|orientation|screenSize">
-            <meta-data android:name="android.app.lib_name" android:value="$LIB_NAME" />
+
+            <meta-data android:name="android.app.lib_name" android:value="gltron" />
+
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
