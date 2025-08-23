@@ -99,15 +99,15 @@ fi
 
 # Minimal manifest for NativeActivity
 cat > "$STAGE_DIR/manifest/AndroidManifest.xml" <<EOF
-<?xml version="0.53" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="$PKG"
-    android:versionCode="0.53"
-    android:versionName="0.53">
+    android:versionCode="1"
+    android:versionName="1.0">
     <uses-sdk android:minSdkVersion="$MIN_SDK" android:targetSdkVersion="$TARGET_SDK"/>
     <application android:label="@string/gltron" android:hasCode="true"
         android:allowBackup="true"
-        android:theme="@android:style/org.gltron.Fullscreen">
+        android:theme="@android:style/Theme.NoTitleBar.Fullscreen">
         <activity android:name="org.gltron.NativeActivity"
             android:label="@string/gltron"
             android:exported="true"
