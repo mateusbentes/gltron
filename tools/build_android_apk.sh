@@ -128,7 +128,7 @@ MANIFEST_TEMP=$(mktemp)
 cat > "$MANIFEST_TEMP" <<EOF
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="org.android.game"
+    package="org.gltron.game"
     android:versionCode="1"
     android:versionName="1.0">
 
