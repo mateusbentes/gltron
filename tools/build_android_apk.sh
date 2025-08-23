@@ -114,6 +114,12 @@ rsync -a --delete \
 cp "$OUT_DIR/$SO_NAME" "$STAGE_DIR/lib/$ABI/$SO_NAME" || {
   err "Failed to copy native library"
 }
+
+# Copy libc++_shared.so to the lib directory
+cp "$ANDROID_NDK/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/libc++_shared.so" "$STAGE_DIR/lib/$ABI/libc++_shared.so" || {
+  err "Failed to copy libc++_shared.so"
+}
+
 if [[ -f "$ROOT_DIR/tools/minimal-classes.dex" ]]; then
   cp "$ROOT_DIR/tools/minimal-classes.dex" "$STAGE_DIR/classes.dex" || true
 fi
@@ -204,7 +210,7 @@ if [[ -x "$AAPT" ]]; then
     err "Failed to package APK with aapt"
   }
   # Add classes.dex and native libs to the APK in one go
-  (cd "$STAGE_DIR" && "$AAPT" add "$UNALIGNED_APK" "classes.dex" "lib/$ABI/$SO_NAME") || {
+  (cd "$STAGE_DIR" && "$AAPT" add "$UNALIGNED_APK" "classes.dex" "lib/$ABI/$SO_NAME" "lib/$ABI/libc++_shared.so") || {
     err "Failed to add classes.dex and native libs with aapt"
   }
 elif [[ -x "$AAPT2" ]]; then
