@@ -9,7 +9,7 @@ set -euo pipefail
 #  - build-android/ must contain:
 #      * libgltron.so (arm64-v8a) — shared library to be loaded by NativeActivity
 #      * assets files: *.sgi, *.wav, *.ftx, *.it, settings.txt, menu.txt, tron.mtl
-#  - Package: org.gltron.game, App name: GLTron, minSdk:21, targetSdk:33
+#  - Package: org.gltron.game, App name: GLTron, minSdk:29, targetSdk:33
 #
 # Output:
 #  - build-android/gltron.apk
