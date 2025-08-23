@@ -44,6 +44,19 @@ static int init_egl(ANativeWindow* window) {
   eglMakeCurrent(s_display, s_surface, s_surface, s_context);
   eglQuerySurface(s_display, s_surface, EGL_WIDTH, &s_width);
   eglQuerySurface(s_display, s_surface, EGL_HEIGHT, &s_height);
+
+  // Log GL info and confirm we use OpenGL ES via EGL (not Vulkan)
+  const char* vendor   = (const char*)glGetString(GL_VENDOR);
+  const char* renderer = (const char*)glGetString(GL_RENDERER);
+  const char* version  = (const char*)glGetString(GL_VERSION);
+  const char* slver    = (const char*)glGetString(GL_SHADING_LANGUAGE_VERSION);
+  LOGI("OpenGL ES context created");
+  LOGI("GL_VENDOR: %s", vendor ? vendor : "(null)");
+  LOGI("GL_RENDERER: %s", renderer ? renderer : "(null)");
+  LOGI("GL_VERSION: %s", version ? version : "(null)");
+  LOGI("GL_SHADING_LANGUAGE_VERSION: %s", slver ? slver : "(null)");
+  LOGI("Using OpenGL ES via EGL (no Vulkan)");
+
   gltron_init();
   gltron_resize((int)s_width, (int)s_height);
   return 1;

@@ -5,7 +5,15 @@
 
 #define BUFSIZE 100
 
+#ifdef ANDROID
+#include <android/log.h>
+#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, "GLTron", __VA_ARGS__)
+#endif
+
 void initSettingData(char *filename) {
+#ifdef ANDROID
+  LOGI("initSettingData: begin");
+#endif
   FILE *f;
   int n, i, count, j;
   char buf[BUFSIZE];
