@@ -8,6 +8,7 @@
 int loadMaterials(char *filename, Material **materials) {
   Material *m;
   FILE *f;
+  char *resolved = NULL;
   char buf[120];
   char namebuf[120];
   int iMaterial = -1;
@@ -15,10 +16,19 @@ int loadMaterials(char *filename, Material **materials) {
 
   m = (Material *) malloc(MAX_MATERIALS * sizeof(Material));
 
-  if((f = fopen(filename, "r")) == 0) {
-    fprintf(stderr, "could not open file '%s'\n", filename);
+  resolved = getFullPath(filename);
+  if(!resolved) {
+    fprintf(stderr, "could not resolve file '%s'\n", filename);
     return -1;
   }
+  {
+    char *dup = strdup(resolved);
+    if(!dup) { fprintf(stderr, "out of memory duplicating path for '%s'\n", filename); return -1; }
+    f = fopen(dup, "rb");
+    if(!f) { fprintf(stderr, "could not open file '%s'\n", dup); free(dup); return -1; }
+    free(dup);
+  }
+
   while(fgets(buf, sizeof(buf), f)) {
     switch(buf[0]) {
     case 'n':

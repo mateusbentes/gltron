@@ -32,7 +32,13 @@ fonttex *ftxLoadFont(char *filename) {
     return 0;
   }
 
-  file = fopen(path, "r");
+  file = fopen(path, "rb");
+  if(!file) {
+    fprintf(stderr, FTX_ERR "fopen failed for font '%s'\n", filename);
+    perror(FTX_ERR "fopen");
+    free(path);
+    return 0;
+  }
   free(path);
 
   // TODO(5): check for EOF errors in the following code
@@ -52,7 +58,14 @@ fonttex *ftxLoadFont(char *filename) {
     getLine(buf, sizeof(buf), file);
 
     // no spaces in texture filesnames
-    sscanf(buf, "%s ", texname);
+    sscanf(buf, "%99s", texname);
+    // sanitize: strip trailing CR/LF and whitespace just in case
+    {
+      size_t L = strlen(texname);
+      while(L > 0 && (texname[L-1] == '\r' || texname[L-1] == '\n' || texname[L-1] == ' ' || texname[L-1] == '\t')) {
+        texname[--L] = '\0';
+      }
+    }
     path = getFullPath(texname);
     if(path == 0) {
       // clean up allocated memory & spit out error
@@ -62,11 +75,23 @@ fonttex *ftxLoadFont(char *filename) {
       free(ftx->textures);
       free(ftx->fontname);
       free(ftx);
-      fprintf(stderr, FTX_ERR "can't load texture file '%s'\n", texname);
+      fprintf(stderr, FTX_ERR "can't resolve texture file '%s'\n", texname);
+      fclose(file);
       return 0;
     }
     *(ftx->textures + i) = load_sgi_texture(path);
     free(path);
+    if(!*(ftx->textures + i)) {
+      int j;
+      fprintf(stderr, FTX_ERR "Failed to load texture '%s' listed in font file '%s'\n", texname, filename);
+      for(j = 0; j < i; j++)
+        unload_sgi_texture(*(ftx->textures + j));
+      free(ftx->textures);
+      free(ftx->fontname);
+      free(ftx);
+      fclose(file);
+      return 0;
+    }
   }
   return ftx;
 }

@@ -264,8 +264,15 @@ Menu** loadMenuFile(char *filename) {
   node *z;
   int sp = 0;
 
-  if((f = fopen(filename, "r")) == NULL)
-    return 0;
+  {
+    char *resolved = getFullPath(filename);
+    if(!resolved) return 0;
+    char *dup = strdup(resolved);
+    if(!dup) return 0;
+    f = fopen(dup, "rb");
+    if(f == NULL) { free(dup); return 0; }
+    free(dup);
+  }
   /* read count of Menus */
   getNextLine(buf, MENU_BUFSIZE, f);
   sscanf(buf, "%d ", &nMenus);

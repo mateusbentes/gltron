@@ -8,6 +8,10 @@
 #include "menu.h"
 #include "sgi_texture.h"
 #include "gltron.h"
+
+// Expose file path resolver
+char* getFullPath(char *filename);
+
 #ifdef ANDROID
 #include <android/asset_manager.h>
 extern AAssetManager* g_android_asset_mgr;

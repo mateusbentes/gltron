@@ -104,10 +104,19 @@ Mesh* loadModel(const char *filename, float size, int flags) {
   int hasNorms = 0;
   int inv;
 
-  if((f = fopen(filename, "r")) == 0) {
-    printf("could not open file\n");
+  char *resolved = getFullPath(filename);
+  if(!resolved) {
+    printf("could not resolve file '%s'\n", filename);
     return 0;
   }
+  {
+    char *dup = strdup(resolved);
+    if(!dup) { printf("out of memory duplicating path for '%s'\n", filename); return 0; }
+    f = fopen(dup, "rb");
+    if(!f) { printf("could not open file '%s'\n", dup); free(dup); return 0; }
+    free(dup);
+  }
+
 
   vert = (float *) malloc(sizeof(float) * 3 * MAX_V);
   face = (int *) malloc(sizeof(int) * MODEL_FACESIZE * MAX_F);

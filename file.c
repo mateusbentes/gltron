@@ -1,5 +1,6 @@
 #include "gltron.h"
 #include <string.h>
+#include <errno.h>
 
 #ifdef ANDROID
 #include <android/asset_manager.h>  // For Android asset management
@@ -8,56 +9,54 @@
 #include <sys/types.h>  // For mkdir
 #endif
 
+// Defensive, agnostic path resolution; never segfaults.
 char* getFullPath(char *filename) {
+  // Basic sanity
+  if (filename == NULL) {
+    return NULL;
+  }
+  if (filename[0] == '\0') {
+    return NULL;
+  }
+
 #ifdef ANDROID
   // On Android, prefer APK assets using AAssetManager if available.
   extern char s_base_path[256]; // defined in android_glue.c, updated via gltron_set_base_path
-  extern AAssetManager* g_android_asset_mgr; // Declare the external variable
+  extern AAssetManager* g_android_asset_mgr; // defined in android_glue.c
 
   if (g_android_asset_mgr) {
     AAsset* asset = AAssetManager_open(g_android_asset_mgr, filename, AASSET_MODE_STREAMING);
     if (asset) {
       // Compose destination path under base path
       char tmpPath[512];
-      snprintf(tmpPath, sizeof(tmpPath), "%s/%s", s_base_path, filename);
+      tmpPath[0] = '\0';
+      // Ensure s_base_path is NUL-terminated and non-empty
+      size_t base_len = strnlen(s_base_path, sizeof(s_base_path));
+      if (base_len == 0 || base_len >= sizeof(s_base_path)) {
+        // Cannot safely extract; close and return NULL
+        AAsset_close(asset);
+        return NULL;
+      }
 
-      // Ensure base directory exists (best-effort) and create subdirs as needed
-      {
-        char dirbuf[512];
-        size_t len = strlen(s_base_path);
-        if (len >= sizeof(dirbuf)) len = sizeof(dirbuf) - 1;
-        memcpy(dirbuf, s_base_path, len);
-        dirbuf[len] = '\0';
+      // Ensure base directory exists (best-effort); ignore errors
+      mkdir(s_base_path, 0700);
 
-        // Create base path
-        mkdir(dirbuf, 0700);
-
-        // Append subdirectories from filename if any
-        const char* p = filename;
-        while (*p) {
-          if (*p == '/' || *p == '\\') {
-            // add component
-            size_t cur = strlen(dirbuf);
-            if (cur + 1 < sizeof(dirbuf)) {
-              dirbuf[cur] = '/';
-              dirbuf[cur+1] = '\0';
-            }
-            size_t remain = sizeof(dirbuf) - strlen(dirbuf) - 1;
-            strncat(dirbuf, filename, remain);
-            mkdir(dirbuf, 0700);
-          }
-          p++;
-        }
+      // Join base + '/' + filename; guard against overflow
+      int n = snprintf(tmpPath, sizeof(tmpPath), "%s/%s", s_base_path, filename);
+      if (n < 0 || (size_t)n >= sizeof(tmpPath)) {
+        AAsset_close(asset);
+        return NULL;
       }
 
       // If target exists, skip re-extract (simple cache)
       FILE* existed = fopen(tmpPath, "rb");
       if (existed) {
         fclose(existed);
+        size_t len = strlen(tmpPath);
+        char* ret = (char*)malloc(len + 1);
+        if (!ret) { AAsset_close(asset); return NULL; }
+        memcpy(ret, tmpPath, len + 1);
         AAsset_close(asset);
-        char* ret = malloc(strlen(tmpPath)+1);
-        strcpy(ret, tmpPath);
-        printf("asset '%s' cached at '%s'\n", filename, ret);
         return ret;
       }
 
@@ -66,91 +65,95 @@ char* getFullPath(char *filename) {
       if (out) {
         const size_t bufSize = 4096;
         char buf[bufSize];
-        int n;
-        while ((n = AAsset_read(asset, buf, bufSize)) > 0) {
-          fwrite(buf, 1, n, out);
+        int nread;
+        int ok = 1;
+        while ((nread = AAsset_read(asset, buf, bufSize)) > 0) {
+          size_t w = fwrite(buf, 1, (size_t)nread, out);
+          if (w != (size_t)nread) { ok = 0; break; }
         }
-        fclose(out);
+        if (fclose(out) != 0) ok = 0;
         AAsset_close(asset);
-        char* ret = malloc(strlen(tmpPath)+1);
-        strcpy(ret, tmpPath);
-        printf("loaded asset '%s' to '%s'\n", filename, ret);
+        if (!ok) {
+          remove(tmpPath);
+          return NULL;
+        }
+        size_t len = strlen(tmpPath);
+        char* ret = (char*)malloc(len + 1);
+        if (!ret) return NULL;
+        memcpy(ret, tmpPath, len + 1);
         return ret;
       }
 
+      // Could not open output file; return NULL instead of inconsistent fallback
       AAsset_close(asset);
+      return NULL;
     }
   }
 #endif
 
   // For non-Android platforms or if asset loading failed
-  char *path;
+  char *path = NULL;
   FILE *fp = NULL;
-  char *base;
+  const char *share1 = "/usr/share/games/gltron";
+  const char *share2 = "/usr/local/share/games/gltron";
 
-  char *share1 = "/usr/share/games/gltron";
-  char *share2 = "/usr/local/share/games/gltron";
-
-  /* check a few directories for the files and */
-  /* return the full path. */
-
-  /* check: current directory, GLTRON_HOME, and, for UNIX only: */
-  /* /usr/share/games/gltron and /usr/local/share/games/gltron */
-
-  path = malloc(strlen(filename) + 1);
-  sprintf(path, "%s", filename);
-
-  printf("checking '%s'...", path);
-  fp = fopen(path, "r");
-  if(fp != 0) {
+  // 1) Try current directory ./filename (test readability first)
+  fp = fopen(filename, "rb");
+  if (fp) {
     fclose(fp);
-    printf("ok\n");
+    size_t len = strlen(filename);
+    path = (char*)malloc(len + 1);
+    if (!path) return NULL;
+    memcpy(path, filename, len + 1);
     return path;
   }
-  free(path);
-  printf("unsuccessful\n");
 
-  base = getenv("GLTRON_HOME");
-  if(base != 0) {
-    path = malloc(strlen(base) + 1 + strlen(filename) + 1);
-    sprintf(path, "%s%c%s", base, SEPERATOR, filename);
-
-    printf("checking '%s'...", path);
-    fp = fopen(path, "r");
-    if(fp != 0) {
-      fclose(fp);
-      printf("ok\n");
-      return path;
+  // 2) Try $GLTRON_HOME/filename
+  const char *base = getenv("GLTRON_HOME");
+  if (base && base[0]) {
+    size_t base_len = strlen(base);
+    size_t namelen = strlen(filename);
+    size_t needed = base_len + 1 + namelen + 1; // base + sep + name + NUL
+    path = (char*)malloc(needed);
+    if (!path) return NULL;
+    int n = snprintf(path, needed, "%s%c%s", base, SEPERATOR, filename);
+    if (n >= 0 && (size_t)n < needed) {
+      fp = fopen(path, "rb");
+      if (fp) { fclose(fp); return path; }
     }
-    free(path);
-    printf("unsuccessful\n");
+    free(path); path = NULL;
   }
 
-  path = malloc(strlen(share1) + 1 + strlen(filename) + 1);
-  sprintf(path, "%s%c%s", share1, SEPERATOR, filename);
-
-  printf("checking '%s'", path);
-  fp = fopen(path, "r");
-  if(fp != 0) {
-    printf("ok\n");
-    fclose(fp);
-    return path;
+  // 3) Try /usr/share/games/gltron/filename
+  {
+    size_t s1_len = strlen(share1);
+    size_t namelen = strlen(filename);
+    size_t needed = s1_len + 1 + namelen + 1;
+    path = (char*)malloc(needed);
+    if (!path) return NULL;
+    int n = snprintf(path, needed, "%s%c%s", share1, SEPERATOR, filename);
+    if (n >= 0 && (size_t)n < needed) {
+      fp = fopen(path, "rb");
+      if (fp) { fclose(fp); return path; }
+    }
+    free(path); path = NULL;
   }
-  free(path);
-  printf("unsuccessful\n");
 
-  path = malloc(strlen(share2) + 1 + strlen(filename) + 1);
-  sprintf(path, "%s%c%s", share2, SEPERATOR, filename);
-
-  printf("checking '%s'", path);
-  fp = fopen(path, "r");
-  if(fp != 0) {
-    fclose(fp);
-    printf("ok\n");
-    return path;
+  // 4) Try /usr/local/share/games/gltron/filename
+  {
+    size_t s2_len = strlen(share2);
+    size_t namelen = strlen(filename);
+    size_t needed = s2_len + 1 + namelen + 1;
+    path = (char*)malloc(needed);
+    if (!path) return NULL;
+    int n = snprintf(path, needed, "%s%c%s", share2, SEPERATOR, filename);
+    if (n >= 0 && (size_t)n < needed) {
+      fp = fopen(path, "rb");
+      if (fp) { fclose(fp); return path; }
+    }
+    free(path); path = NULL;
   }
-  free(path);
-  printf("unsuccessful\n");
 
-  return 0;
+  // Not found
+  return NULL;
 }
