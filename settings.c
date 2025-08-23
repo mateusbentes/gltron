@@ -162,9 +162,11 @@ void initMainGameSettings(char *filename) {
     fname = malloc(strlen(home) + strlen(RC_NAME) + 2);
     sprintf(fname, "%s%c%s", home, SEPERATOR, RC_NAME);
   }
+#ifndef ANDROID
   f = fopen(fname, "r");
   if(f == 0) {
     printf("no %s found - using defaults\n", fname);
+    free(fname);
     return; /* no rc exists */
   }
   while(fgets(buf, sizeof(buf), f)) {
@@ -194,6 +196,10 @@ void initMainGameSettings(char *filename) {
   }
   free(fname);
   fclose(f);
+#else
+  /* On Android, skip reading rc file; use defaults and enforce fullscreen */
+  if(fname) free(fname);
+#endif
 #ifdef ANDROID
   // Always enforce fullscreen on Android at load time
   game->settings->fullscreen = 1; // Ignore persisted width/height; let fullscreen apply/reshape set real size
