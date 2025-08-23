@@ -19,7 +19,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")"/.. && pwd)"
 OUT_DIR="$ROOT_DIR/build-android"
-STAGE_DIR="$OUT_DIR/.apk-stage"
+STAGE_DIR="$(mktemp -d "${TMPDIR:-/tmp}/gltron-apk.XXXXXX")"
 # Allow override via environment. Validate later.
 PKG="${ANDROID_APP_ID:-org.gltron.game}"
 APP_NAME="${ANDROID_APP_NAME:-GLTron}"
@@ -88,12 +88,11 @@ if [[ ! -f "$OUT_DIR/$SO_NAME" ]]; then
 fi
 
 # Prepare staging structure (single pass)
-rm -rf "$STAGE_DIR"
 mkdir -p "$STAGE_DIR"/{manifest,res/values,assets,lib/$ABI}
 
-# Copy assets from build-android
+# Copy assets from build-android (explicitly exclude staging and other dot dirs)
 log "Copying assets from $OUT_DIR"
-rsync -a \
+rsync -a --delete \
   --include='*/' \
   --include='*.sgi' \
   --include='*.wav' \
@@ -104,15 +103,20 @@ rsync -a \
   --include='settings.txt' \
   --include='menu.txt' \
   --include='tron.mtl' \
+  --exclude='.apk-stage/' \
+  --exclude='.*' \
   --exclude='*' \
   "$OUT_DIR/" "$STAGE_DIR/assets/" || {
   err "Failed to copy assets"
 }
 
-# Copy native library
+# Copy native library and minimal classes.dex (to satisfy some v1 signing expectations)
 cp "$OUT_DIR/$SO_NAME" "$STAGE_DIR/lib/$ABI/$SO_NAME" || {
   err "Failed to copy native library"
 }
+if [[ -f "$ROOT_DIR/tools/minimal-classes.dex" ]]; then
+  cp "$ROOT_DIR/tools/minimal-classes.dex" "$STAGE_DIR/classes.dex" || true
+fi
 
 # Validate package name (Java package format): segments of [a-z][a-z0-9_]*, at least 2 segments, no leading/trailing dots
 if [[ ! "$PKG" =~ ^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)+$ ]]; then
@@ -128,17 +132,17 @@ cat > "$MANIFEST_TEMP" <<EOF
     android:versionCode="1"
     android:versionName="1.0">
     <uses-sdk android:minSdkVersion="$MIN_SDK" android:targetSdkVersion="$TARGET_SDK"/>
-    <application android:label="@string/gltron" android:hasCode="true"
+    <application android:label="@string/gltron" android:hasCode="false"
         android:allowBackup="true"
         android:theme="@android:style/Theme.NoTitleBar.Fullscreen">
-        <activity android:name="org.gltron.NativeActivity"
+        <activity android:name="android.app.NativeActivity"
             android:label="@string/gltron"
             android:exported="true"
             android:configChanges="keyboard|keyboardHidden|orientation|screenSize">
-            <meta-data android:name="org.gltron.lib_name" android:value="$LIB_NAME" />
+            <meta-data android:name="android.app.lib_name" android:value="$LIB_NAME" />
             <intent-filter>
-                <action android:name="org.gltron.action.MAIN" />
-                <category android:name="org.gltron.category.LAUNCHER" />
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
     </application>
@@ -175,16 +179,32 @@ fi
 log "Using package: $PKG"
 log "Min SDK: $MIN_SDK, Target SDK: $TARGET_SDK, ABI: $ABI, LIB: $LIB_NAME"
 log "Manifest: $STAGE_DIR/manifest/AndroidManifest.xml"
-UNALIGNED_APK="$OUT_DIR/tmp-unaligned.apk"
-rm -f "$UNALIGNED_APK" "$APK_OUT"
+# Ensure temp files are cleaned on exit
+cleanup() { rm -rf "$STAGE_DIR" "$UNALIGNED_APK" "$ALIGNED_APK" 2>/dev/null || true; }
+trap cleanup EXIT
+UNALIGNED_APK="$(mktemp "${TMPDIR:-/tmp}/gltron-unaligned.XXXXXX.apk")"
+rm -f "$APK_OUT"
 
-if [[ -x "$AAPT2" ]]; then
-  log "Building APK with aapt2"
+if [[ -x "$AAPT" ]]; then
+  log "Building APK with aapt (preferred for v1+v2 signing)"
+  "$AAPT" package -f \
+    -M "$STAGE_DIR/manifest/AndroidManifest.xml" \
+    -S "$STAGE_DIR/res" \
+    -A "$STAGE_DIR/assets" \
+    -I "$ANDROID_SDK_ROOT/platforms/android-$TARGET_SDK/android.jar" \
+    -F "$UNALIGNED_APK" || {
+    err "Failed to package APK with aapt"
+  }
+  # Add classes.dex and native libs to the APK in one go
+  (cd "$STAGE_DIR" && "$AAPT" add "$UNALIGNED_APK" "classes.dex" "lib/$ABI/$SO_NAME") || {
+    err "Failed to add classes.dex and native libs with aapt"
+  }
+elif [[ -x "$AAPT2" ]]; then
+  log "Building APK with aapt2 (fallback)"
   mkdir -p "$STAGE_DIR/compiled-res"
   "$AAPT2" compile -o "$STAGE_DIR/compiled-res" "$STAGE_DIR/res/values/strings.xml" || {
     err "Failed to compile resources with aapt2"
   }
-  # Collect all compiled .flat files
   COMPILED_RES_FILES=("$STAGE_DIR"/compiled-res/*.flat)
   "$AAPT2" link -o "$UNALIGNED_APK" \
     --manifest "$STAGE_DIR/manifest/AndroidManifest.xml" \
@@ -194,10 +214,11 @@ if [[ -x "$AAPT2" ]]; then
     "${COMPILED_RES_FILES[@]}" || {
     err "Failed to link resources with aapt2"
   }
-  # Add assets and native libs to the APK
   (cd "$STAGE_DIR" && zip -qur "$UNALIGNED_APK" assets lib || {
     err "Failed to add assets and libs to APK"
   })
+else
+  err "Neither aapt nor aapt2 found in $BUILD_TOOLS_DIR"
 fi
 
 # Verify the unaligned APK was created
@@ -206,7 +227,7 @@ if [[ ! -f "$UNALIGNED_APK" ]]; then
 fi
 
 # Align and sign
-ALIGNED_APK="$OUT_DIR/tmp-aligned.apk"
+ALIGNED_APK="$(mktemp "${TMPDIR:-/tmp}/gltron-aligned.XXXXXX.apk")"
 "$ZIPALIGN" -f 4 "$UNALIGNED_APK" "$ALIGNED_APK" || {
   err "Failed to align APK"
 }
@@ -216,7 +237,7 @@ if [[ ! -f "$ALIGNED_APK" ]]; then
   err "Failed to create aligned APK"
 fi
 
-# Signing: use debug keystore with both v1 and v2 schemes
+# Signing: use debug keystore with both v1 and v2 schemes (apksigner only)
 log "Signing APK with debug keystore (v1 and v2 schemes)"
 KEYSTORE="$HOME/.android/debug.keystore"
 KEYALIAS="androiddebugkey"
@@ -232,36 +253,27 @@ if ! keytool -list -keystore "$KEYSTORE" -storepass "$KEYPASS" >/dev/null 2>&1; 
   err "Cannot access debug keystore. Check passphrase or keystore integrity."
 fi
 
-# First sign with jarsigner to ensure v1 scheme
-"$JARSIGNER" -verbose \
-  -sigalg SHA256withRSA \
-  -digestalg SHA-256 \
-  -keystore "$KEYSTORE" \
-  -storepass "$KEYPASS" \
-  -keypass "$KEYPASS" \
-  "$ALIGNED_APK" \
-  "$KEYALIAS" || {
-  err "Failed to sign APK with jarsigner (v1 scheme)"
-}
-
-# Then sign with apksigner to ensure v2 scheme (v1 already applied by jarsigner)
 "$APKSIGNER" sign \
   --ks "$KEYSTORE" \
   --ks-pass pass:"$KEYPASS" \
   --key-pass pass:"$KEYPASS" \
-  --v1-signing-enabled false \
+  --v1-signing-enabled true \
   --v2-signing-enabled true \
   --v3-signing-enabled false \
   --out "$APK_OUT" \
   "$ALIGNED_APK" || {
-  err "Failed to sign APK with apksigner (v2 scheme)"
+  err "Failed to sign APK with apksigner (v1+v2)"
 }
 
-# Verify the signing
-if ! "$APKSIGNER" verify --verbose "$APK_OUT" | grep -q "Verified using v1 scheme (JAR signing): true" && \
-   ! "$APKSIGNER" verify --verbose "$APK_OUT" | grep -q "Verified using v2 scheme (APK Signature Scheme v2): true"; then
-  err "Failed to properly sign the APK with both v1 and v2 schemes"
+# Verify the signing (require v2, warn if v1 is false)
+VERIFY_OUT=$("$APKSIGNER" verify --verbose "$APK_OUT")
+if ! echo "$VERIFY_OUT" | grep -q "Verified using v2 scheme (APK Signature Scheme v2): true"; then
+  echo "$VERIFY_OUT"
+  err "Failed to sign APK with v2 scheme"
+fi
+if ! echo "$VERIFY_OUT" | grep -q "Verified using v1 scheme (JAR signing): true"; then
+  log "Warning: v1 (JAR) signing is false. This is acceptable for minSdk $MIN_SDK (v2 is present)."
 fi
 
-log "APK built and signed with v1 and v2 schemes: $APK_OUT"
+log "APK built and signed (v2 verified): $APK_OUT"
 echo "$APK_OUT"
