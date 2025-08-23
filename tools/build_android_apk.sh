@@ -146,7 +146,7 @@ cat > "$MANIFEST_TEMP" <<EOF
             android:exported="true"
             android:configChanges="keyboard|keyboardHidden|orientation|screenSize">
 
-            <meta-data android:name="android.app.lib_name" android:value="gltron" />
+            <meta-data android:name="android.app.gltron" android:value="gltron" />
 
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
