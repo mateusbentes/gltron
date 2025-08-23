@@ -8,6 +8,7 @@ set -euo pipefail
 #  - ANDROID_SDK_ROOT must be set and contain build-tools (aapt/aapt2, d8, zipalign, apksigner)
 #  - build-android/ must contain:
 #      * libgltron.so (arm64-v8a) — shared library to be loaded by NativeActivity
+#      * libc++_shared.so (arm64-v8a) — shared library to be loaded by libgltron.so
 #      * assets files: *.sgi, *.wav, *.ftx, *.it, settings.txt, menu.txt, tron.mtl
 #  - Package: org.gltron.game, App name: GLTron, minSdk:29, targetSdk:35
 #
@@ -110,7 +111,7 @@ rsync -a --delete \
   err "Failed to copy assets"
 }
 
-# Copy native library and minimal classes.dex (to satisfy some v1 signing expectations)
+# Copy native libraries and minimal classes.dex (to satisfy some v1 signing expectations)
 cp "$OUT_DIR/$SO_NAME" "$STAGE_DIR/lib/$ABI/$SO_NAME" || {
   err "Failed to copy native library"
 }
