@@ -24,7 +24,7 @@ STAGE_DIR="$OUT_DIR/.apk-stage"
 PKG="${ANDROID_APP_ID:-org.gltron.game}"
 APP_NAME="${ANDROID_APP_NAME:-GLTron}"
 ABI="${ANDROID_ABI:-arm64-v8a}"
-MIN_SDK=${ANDROID_MIN_SDK:-21}
+MIN_SDK=${ANDROID_MIN_SDK:-29}
 TARGET_SDK=${ANDROID_TARGET_SDK:-33}
 LIB_NAME="${ANDROID_LIB_NAME:-gltron}"
 SO_NAME="lib${LIB_NAME}.so"
@@ -99,23 +99,23 @@ fi
 
 # Minimal manifest for NativeActivity
 cat > "$STAGE_DIR/manifest/AndroidManifest.xml" <<EOF
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version="0.53" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="$PKG"
-    android:versionCode="1"
-    android:versionName="1.0">
+    android:versionCode="0.53"
+    android:versionName="0.53">
     <uses-sdk android:minSdkVersion="$MIN_SDK" android:targetSdkVersion="$TARGET_SDK"/>
-    <application android:label="@string/app_name" android:hasCode="true"
+    <application android:label="@string/gltron" android:hasCode="true"
         android:allowBackup="true"
-        android:theme="@android:style/Theme.NoTitleBar.Fullscreen">
-        <activity android:name="android.app.NativeActivity"
-            android:label="@string/app_name"
+        android:theme="@android:style/org.gltron.Fullscreen">
+        <activity android:name="org.gltron.NativeActivity"
+            android:label="@string/gltron"
             android:exported="true"
             android:configChanges="keyboard|keyboardHidden|orientation|screenSize">
-            <meta-data android:name="android.app.lib_name" android:value="$LIB_NAME" />
+            <meta-data android:name="org.gltron.lib_name" android:value="$LIB_NAME" />
             <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
+                <action android:name="org.gltron.action.MAIN" />
+                <category android:name="org.gltron.category.LAUNCHER" />
             </intent-filter>
         </activity>
     </application>
@@ -125,7 +125,7 @@ EOF
 # Strings resource
 cat > "$STAGE_DIR/res/values/strings.xml" <<EOF
 <resources>
-    <string name="app_name">$APP_NAME</string>
+    <string name="gltron">$APP_NAME</string>
 </resources>
 EOF
 

@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"name": "gltron",
+			"path": "."
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"gl2ext.h": "c"
+		}
+	}
+}
