@@ -9,7 +9,7 @@ set -euo pipefail
 #  - build-android/ must contain:
 #      * libgltron.so (arm64-v8a) — shared library to be loaded by NativeActivity
 #      * assets files: *.sgi, *.wav, *.ftx, *.it, settings.txt, menu.txt, tron.mtl
-#  - Package: org.gltron.game, App name: GLTron, minSdk:29, targetSdk:33
+#  - Package: org.gltron.game, App name: GLTron, minSdk:29, targetSdk:35
 #
 # Output:
 #  - build-android/gltron.apk
@@ -25,27 +25,35 @@ PKG="${ANDROID_APP_ID:-org.gltron.game}"
 APP_NAME="${ANDROID_APP_NAME:-GLTron}"
 ABI="${ANDROID_ABI:-arm64-v8a}"
 MIN_SDK=${ANDROID_MIN_SDK:-29}
-TARGET_SDK=${ANDROID_TARGET_SDK:-33}
+TARGET_SDK=${ANDROID_TARGET_SDK:-35}
 LIB_NAME="${ANDROID_LIB_NAME:-gltron}"
 SO_NAME="lib${LIB_NAME}.so"
 APK_OUT="$OUT_DIR/gltron.apk"
 
 log() { echo "[build_android_apk] $*"; }
-err() { echo "[build_android_apk][error] $*" >&2; }
+err() { echo "[build_android_apk][error] $*" >&2; exit 1; }
 
-require_cmd() { command -v "$1" >/dev/null 2>&1 || { err "Missing required tool: $1"; exit 1; }; }
+require_cmd() { command -v "$1" >/dev/null 2>&1 || { err "Missing required tool: $1"; }; }
 
-# Locate Android build-tools
-if [[ -z "${ANDROID_SDK_ROOT:-}" ]]; then
-  err "ANDROID_SDK_ROOT is not set. Please set it to your Android SDK path."; exit 1;
+# Locate Android build-tools - use version 35.0.1
+BUILD_TOOLS_VERSION="35.0.1"
+BUILD_TOOLS_DIR="$ANDROID_SDK_ROOT/build-tools/$BUILD_TOOLS_VERSION"
+
+if [[ ! -d "$BUILD_TOOLS_DIR" ]]; then
+  err "Build-tools version $BUILD_TOOLS_VERSION not found in $ANDROID_SDK_ROOT/build-tools"
 fi
-BUILD_TOOLS_DIR=""
-if [[ -d "$ANDROID_SDK_ROOT/build-tools" ]]; then
-  BUILD_TOOLS_DIR=$(ls -1 "$ANDROID_SDK_ROOT/build-tools" | sort -V | tail -n1)
-  BUILD_TOOLS_DIR="$ANDROID_SDK_ROOT/build-tools/$BUILD_TOOLS_DIR"
+
+# Verify tools exist
+if [[ ! -x "$BUILD_TOOLS_DIR/zipalign" || ! -x "$BUILD_TOOLS_DIR/apksigner" ]]; then
+  err "zipalign or apksigner not found in $BUILD_TOOLS_DIR"
 fi
-if [[ -z "$BUILD_TOOLS_DIR" || ! -d "$BUILD_TOOLS_DIR" ]]; then
-  err "Could not locate build-tools under $ANDROID_SDK_ROOT/build-tools"; exit 1;
+
+# Find the latest platform version
+if [[ -d "$ANDROID_SDK_ROOT/platforms" ]]; then
+  HIGHEST_PLATFORM=$(ls -1 "$ANDROID_SDK_ROOT/platforms" | sed -n 's/android-\([0-9][0-9]*\)/\1/p' | sort -n | tail -n1 || true)
+  if [[ -n "${HIGHEST_PLATFORM:-}" && -f "$ANDROID_SDK_ROOT/platforms/android-$HIGHEST_PLATFORM/android.jar" ]]; then
+    TARGET_SDK=$HIGHEST_PLATFORM
+  fi
 fi
 
 # Prefer aapt2 + d8; fallback to aapt + dx if necessary
@@ -56,8 +64,20 @@ DX="$BUILD_TOOLS_DIR/dx"
 ZIPALIGN="$BUILD_TOOLS_DIR/zipalign"
 APKSIGNER="$BUILD_TOOLS_DIR/apksigner"
 
+# Locate jarsigner
+JARSIGNER=""
+if [[ -x "$BUILD_TOOLS_DIR/jarsigner" ]]; then
+  JARSIGNER="$BUILD_TOOLS_DIR/jarsigner"
+else
+  # Fallback to system jarsigner if not found in Android SDK
+  JARSIGNER=$(command -v jarsigner || true)
+  if [[ ! -x "$JARSIGNER" ]]; then
+    err "jarsigner not found. Please install it or ensure it's in your PATH."
+  fi
+fi
+
 if [[ ! -x "$ZIPALIGN" || ! -x "$APKSIGNER" ]]; then
-  err "zipalign or apksigner not found in $BUILD_TOOLS_DIR"; exit 1;
+  err "zipalign or apksigner not found in $BUILD_TOOLS_DIR"
 fi
 
 # Check shared library presence
@@ -65,10 +85,9 @@ if [[ ! -f "$OUT_DIR/$SO_NAME" ]]; then
   err "Missing $SO_NAME in $OUT_DIR. A NativeActivity APK requires a shared library."
   err "Please build your Android shared library and place it at: $OUT_DIR/$SO_NAME"
   err "Example (CMake): add_library(${LIB_NAME} SHARED ...); target ABI arm64-v8a."
-  exit 1
 fi
 
-# Prepare staging structure
+# Prepare staging structure (single pass)
 rm -rf "$STAGE_DIR"
 mkdir -p "$STAGE_DIR"/{manifest,res/values,assets,lib/$ABI}
 
@@ -86,19 +105,23 @@ rsync -a \
   --include='menu.txt' \
   --include='tron.mtl' \
   --exclude='*' \
-  "$OUT_DIR/" "$STAGE_DIR/assets/"
+  "$OUT_DIR/" "$STAGE_DIR/assets/" || {
+  err "Failed to copy assets"
+}
 
 # Copy native library
-cp "$OUT_DIR/$SO_NAME" "$STAGE_DIR/lib/$ABI/$SO_NAME"
+cp "$OUT_DIR/$SO_NAME" "$STAGE_DIR/lib/$ABI/$SO_NAME" || {
+  err "Failed to copy native library"
+}
 
 # Validate package name (Java package format): segments of [a-z][a-z0-9_]*, at least 2 segments, no leading/trailing dots
 if [[ ! "$PKG" =~ ^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)+$ ]]; then
   err "Invalid ANDROID_APP_ID/package: '$PKG'. Use lowercase dotted identifiers like 'org.gltron.game'"
-  exit 1
 fi
 
-# Minimal manifest for NativeActivity
-cat > "$STAGE_DIR/manifest/AndroidManifest.xml" <<EOF
+# Create AndroidManifest.xml using a temporary file
+MANIFEST_TEMP=$(mktemp)
+cat > "$MANIFEST_TEMP" <<EOF
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="$PKG"
@@ -122,14 +145,23 @@ cat > "$STAGE_DIR/manifest/AndroidManifest.xml" <<EOF
 </manifest>
 EOF
 
-# Strings resource
-cat > "$STAGE_DIR/res/values/strings.xml" <<EOF
+# Move the temporary file to the final location
+mv "$MANIFEST_TEMP" "$STAGE_DIR/manifest/AndroidManifest.xml" || {
+  err "Failed to create AndroidManifest.xml"
+}
+
+# Create strings.xml using a temporary file
+STRINGS_TEMP=$(mktemp)
+cat > "$STRINGS_TEMP" <<EOF
 <resources>
     <string name="gltron">$APP_NAME</string>
 </resources>
 EOF
 
-# No Java/DEX needed for NativeActivity-only APK; skip classes.dex generation
+# Move the temporary file to the final location
+mv "$STRINGS_TEMP" "$STAGE_DIR/res/values/strings.xml" || {
+  err "Failed to create strings.xml"
+}
 
 # Auto-detect highest installed Android platform if available
 if [[ -d "$ANDROID_SDK_ROOT/platforms" ]]; then
@@ -149,56 +181,87 @@ rm -f "$UNALIGNED_APK" "$APK_OUT"
 if [[ -x "$AAPT2" ]]; then
   log "Building APK with aapt2"
   mkdir -p "$STAGE_DIR/compiled-res"
-  "$AAPT2" compile -o "$STAGE_DIR/compiled-res" "$STAGE_DIR/res/values/strings.xml"
+  "$AAPT2" compile -o "$STAGE_DIR/compiled-res" "$STAGE_DIR/res/values/strings.xml" || {
+    err "Failed to compile resources with aapt2"
+  }
   # Collect all compiled .flat files
   COMPILED_RES_FILES=("$STAGE_DIR"/compiled-res/*.flat)
   "$AAPT2" link -o "$UNALIGNED_APK" \
     --manifest "$STAGE_DIR/manifest/AndroidManifest.xml" \
     -I "$ANDROID_SDK_ROOT/platforms/android-$TARGET_SDK/android.jar" \
-    --min-sdk-version $MIN_SDK \
-    --target-sdk-version $TARGET_SDK \
-    "${COMPILED_RES_FILES[@]}"
+    --min-sdk-version "$MIN_SDK" \
+    --target-sdk-version "$TARGET_SDK" \
+    "${COMPILED_RES_FILES[@]}" || {
+    err "Failed to link resources with aapt2"
+  }
   # Add assets and native libs to the APK
-  (cd "$STAGE_DIR" && zip -qur "$UNALIGNED_APK" assets lib || true)
-else
-  if [[ ! -x "$AAPT" ]]; then
-    err "Neither aapt2 nor aapt found in $BUILD_TOOLS_DIR"; exit 1;
-  fi
-  log "Building APK with aapt (legacy)"
-  "$AAPT" package -f -M "$STAGE_DIR/manifest/AndroidManifest.xml" \
-    -S "$STAGE_DIR/res" -I "$ANDROID_SDK_ROOT/platforms/android-$TARGET_SDK/android.jar" \
-    -F "$UNALIGNED_APK" "$STAGE_DIR"
+  (cd "$STAGE_DIR" && zip -qur "$UNALIGNED_APK" assets lib || {
+    err "Failed to add assets and libs to APK"
+  })
+fi
+
+# Verify the unaligned APK was created
+if [[ ! -f "$UNALIGNED_APK" ]]; then
+  err "Failed to create unaligned APK"
 fi
 
 # Align and sign
 ALIGNED_APK="$OUT_DIR/tmp-aligned.apk"
-"$ZIPALIGN" -f 4 "$UNALIGNED_APK" "$ALIGNED_APK"
+"$ZIPALIGN" -f 4 "$UNALIGNED_APK" "$ALIGNED_APK" || {
+  err "Failed to align APK"
+}
 
-# Signing: release if env provided, otherwise debug
-REL_KEYSTORE="${ANDROID_SIGNING_KEYSTORE:-}"
-REL_ALIAS="${ANDROID_SIGNING_ALIAS:-}"
-REL_STOREPASS="${ANDROID_SIGNING_STOREPASS:-}"
-REL_KEYPASS="${ANDROID_SIGNING_KEYPASS:-${REL_STOREPASS}}"
-
-if [[ -n "$REL_KEYSTORE" && -n "$REL_ALIAS" && -n "$REL_STOREPASS" ]]; then
-  log "Signing APK with provided release keystore"
-  "$APKSIGNER" sign \
-    --ks "$REL_KEYSTORE" \
-    --ks-pass pass:"$REL_STOREPASS" \
-    --key-pass pass:"$REL_KEYPASS" \
-    --out "$APK_OUT" "$ALIGNED_APK"
-else
-  log "Signing APK with debug keystore"
-  KEYSTORE="$HOME/.android/debug.keystore"
-  KEYALIAS="androiddebugkey"
-  KEYPASS="android"
-  if [[ ! -f "$KEYSTORE" ]]; then
-    log "Generating debug keystore at $KEYSTORE"
-    mkdir -p "$(dirname "$KEYSTORE")"
-    keytool -genkey -v -keystore "$KEYSTORE" -storepass "$KEYPASS" -alias "$KEYALIAS" -keypass "$KEYPASS" -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
-  fi
-  "$APKSIGNER" sign --ks "$KEYSTORE" --ks-pass pass:$KEYPASS --key-pass pass:$KEYPASS --out "$APK_OUT" "$ALIGNED_APK"
+# Verify the aligned APK was created
+if [[ ! -f "$ALIGNED_APK" ]]; then
+  err "Failed to create aligned APK"
 fi
 
-log "APK built: $APK_OUT"
+# Signing: use debug keystore with both v1 and v2 schemes
+log "Signing APK with debug keystore (v1 and v2 schemes)"
+KEYSTORE="$HOME/.android/debug.keystore"
+KEYALIAS="androiddebugkey"
+KEYPASS="android"
+
+# Ensure the keystore exists
+if [[ ! -f "$KEYSTORE" ]]; then
+  err "Debug keystore not found at $KEYSTORE"
+fi
+
+# Verify the keystore can be accessed
+if ! keytool -list -keystore "$KEYSTORE" -storepass "$KEYPASS" >/dev/null 2>&1; then
+  err "Cannot access debug keystore. Check passphrase or keystore integrity."
+fi
+
+# First sign with jarsigner to ensure v1 scheme
+"$JARSIGNER" -verbose \
+  -sigalg SHA256withRSA \
+  -digestalg SHA-256 \
+  -keystore "$KEYSTORE" \
+  -storepass "$KEYPASS" \
+  -keypass "$KEYPASS" \
+  "$ALIGNED_APK" \
+  "$KEYALIAS" || {
+  err "Failed to sign APK with jarsigner (v1 scheme)"
+}
+
+# Then sign with apksigner to ensure v2 scheme (v1 already applied by jarsigner)
+"$APKSIGNER" sign \
+  --ks "$KEYSTORE" \
+  --ks-pass pass:"$KEYPASS" \
+  --key-pass pass:"$KEYPASS" \
+  --v1-signing-enabled false \
+  --v2-signing-enabled true \
+  --v3-signing-enabled false \
+  --out "$APK_OUT" \
+  "$ALIGNED_APK" || {
+  err "Failed to sign APK with apksigner (v2 scheme)"
+}
+
+# Verify the signing
+if ! "$APKSIGNER" verify --verbose "$APK_OUT" | grep -q "Verified using v1 scheme (JAR signing): true" && \
+   ! "$APKSIGNER" verify --verbose "$APK_OUT" | grep -q "Verified using v2 scheme (APK Signature Scheme v2): true"; then
+  err "Failed to properly sign the APK with both v1 and v2 schemes"
+fi
+
+log "APK built and signed with v1 and v2 schemes: $APK_OUT"
 echo "$APK_OUT"
