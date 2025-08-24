@@ -66,7 +66,7 @@ void mouseWarp() {
 
 void drawGame() {
   #ifdef ANDROID
-    useShaderProgram(shaderProgram);
+    { GLuint sp = shader_get_basic(); if (sp) useShaderProgram(sp); }
   #endif
 
   GLint i;
@@ -387,8 +387,8 @@ void onReshape(int w, int h) {
     memcpy(projectionMatrix, matrix, sizeof(matrix));
 
     // Set the projection matrix in the shader
-    useShaderProgram(shaderProgram);
-    setProjectionMatrix(shaderProgram, projectionMatrix);
+    { GLuint sp = shader_get_basic(); if (sp) useShaderProgram(sp); }
+    { GLuint sp = shader_get_basic(); if (sp) setProjectionMatrix(sp, projectionMatrix); }
 #else
     // For non-Android platforms, use standard OpenGL functions
     glMatrixMode(GL_PROJECTION);

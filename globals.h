@@ -21,8 +21,7 @@ extern AAssetManager* g_android_asset_mgr;
 extern int scr_w;
 extern int scr_h;
 
-// Add these global variables
-extern GLuint shaderProgram;
+// Android GL shader state (avoid using extern shaderProgram, use shader_get_basic())
 extern float projectionMatrix[16];
 
 void initTexture(gDisplay *d);

@@ -26,7 +26,7 @@ fonttex *ftxLoadFont(char *filename) {
 
   fonttex *ftx;
 
-  path = getFullPath(filename);
+  path = (char*)getFullPath(filename);  // Explicit cast
   if(path == 0) {
     fprintf(stderr, FTX_ERR "can't load font file '%s'\n", filename);
     return 0;
@@ -66,7 +66,8 @@ fonttex *ftxLoadFont(char *filename) {
         texname[--L] = '\0';
       }
     }
-    path = getFullPath(texname);
+    // resolve the parsed texture filename, not the .ftx file name
+    path = (char*)getFullPath(texname);  // Explicit cast
     if(path == 0) {
       // clean up allocated memory & spit out error
       int j;
@@ -78,6 +79,14 @@ fonttex *ftxLoadFont(char *filename) {
       fprintf(stderr, FTX_ERR "can't resolve texture file '%s'\n", texname);
       fclose(file);
       return 0;
+    }
+    // sanity check: avoid passing .ftx here
+    {
+      const char *dot = strrchr(texname, '.');
+      if (!dot || strcmp(dot, ".sgi") != 0) {
+        fprintf(stderr, FTX_ERR "unexpected texture filename '%s' (expect .sgi) in font '%s'\n", texname, filename);
+      }
+      fprintf(stderr, "[fonttex] loading texture '%s'\n", texname);
     }
     *(ftx->textures + i) = load_sgi_texture(path);
     free(path);
@@ -163,26 +172,28 @@ void ftxRenderString(fonttex *ftx, char *string, int len) {
 
     // Enable texture and set up shader (for Android)
 #ifdef ANDROID
-    // Get shader program (you'll need to store this somewhere)
-    extern GLuint shaderProgram; // Assuming this is defined elsewhere
-    useShaderProgram(shaderProgram);
+    GLuint sp = shader_get_basic();
+    if (!sp) return;
+    useShaderProgram(sp);
 
-    // Set up matrices
-    setProjectionMatrix(shaderProgram, projection);
-    setModelMatrix(shaderProgram, modelView);
-    setViewMatrix(shaderProgram, modelView);
+    // Build orthographic projection and model matrices for 2D text
+    extern float projectionMatrix[16];
+    GLfloat viewIdentity[16] = {
+        1,0,0,0,
+        0,1,0,0,
+        0,0,1,0,
+        0,0,0,1
+    };
+    setProjectionMatrix(sp, projectionMatrix);
+    setModelMatrix(sp, modelView);
+    setViewMatrix(sp, viewIdentity);
+    setColor(sp, 1.0f, 1.0f, 1.0f, 1.0f);
+    setTexture(sp, 0);
 
-    // Set color to white
-    setColor(shaderProgram, 1.0f, 1.0f, 1.0f, 1.0f);
-
-    // Set texture unit
-    setTexture(shaderProgram, 0);
-
-    // Get attribute locations
-    GLint positionLoc = glGetAttribLocation(shaderProgram, "position");
-    GLint texCoordLoc = glGetAttribLocation(shaderProgram, "texCoord");
-
-    // Enable attributes
+    // Attribute locations
+    GLint positionLoc = glGetAttribLocation(sp, "position");
+    GLint texCoordLoc = glGetAttribLocation(sp, "texCoord");
+    if (positionLoc < 0 || texCoordLoc < 0) return;
     glEnableVertexAttribArray(positionLoc);
     glEnableVertexAttribArray(texCoordLoc);
 #endif

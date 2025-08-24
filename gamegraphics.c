@@ -1244,6 +1244,10 @@ void drawCam(Player *p, gDisplay *d) {
   projectionMatrix[15] = 0.0f;
 
   setProjectionMatrix(shaderProgram, projectionMatrix);
+  {
+    GLfloat viewIdentity[16] = {1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1};
+    setViewMatrix(shaderProgram, viewIdentity);
+  }
 
   // Set up view matrix
   GLfloat viewMatrix[16];
@@ -1414,6 +1418,10 @@ void drawAI(gDisplay *d) {
     -1.0f, 1.0f, 0.0f, 1.0f
   };
   setProjectionMatrix(shaderProgram, projectionMatrix);
+  {
+    GLfloat viewIdentity[16] = {1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1};
+    setViewMatrix(shaderProgram, viewIdentity);
+  }
 
   // Set color (white)
   GLint colorLoc = glGetUniformLocation(shaderProgram, "color");
@@ -1530,6 +1538,10 @@ void drawPause(gDisplay *display) {
     -1.0f, 1.0f, 0.0f, 1.0f
   };
   setProjectionMatrix(shaderProgram, projectionMatrix);
+  {
+    GLfloat viewIdentity[16] = {1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1};
+    setViewMatrix(shaderProgram, viewIdentity);
+  }
 
   // Set color (red to yellow based on d)
   GLint colorLoc = glGetUniformLocation(shaderProgram, "color");

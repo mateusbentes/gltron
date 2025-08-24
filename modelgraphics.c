@@ -1,10 +1,7 @@
 #include "gltron.h"
-
 #ifdef ANDROID
-#include <GLES2/gl2.h>
 #include "shaders.h"
-#else
-#include <GL/gl.h>
+#include <GLES2/gl2.h>
 #endif
 
 void drawMeshPart(MeshPart* meshpart, int flag) {
@@ -252,36 +249,23 @@ void drawModel(Mesh *mesh, int mode, int flag) {
 
 void drawExplosion(Mesh *mesh, float radius, int mode, int flag) {
   int i;
-  /* printf("radius: %.2f\n", radius); */
-  for(i = 0; i < mesh->nMaterials; i++) {
+  for (i = 0; i < mesh->nMaterials; i++) {
 #ifdef ANDROID
-    // For Android, set material properties in the shader
-    extern GLuint shaderProgram; // Assuming this is defined elsewhere
-
-    // Use the shader program
+    GLuint shaderProgram = shader_get_basic();
+    if (!shaderProgram) continue;
     useShaderProgram(shaderProgram);
 
-    // Set ambient color
+    // Set per-material colors as uniforms if present in shader
     GLint ambientLoc = glGetUniformLocation(shaderProgram, "material.ambient");
-    glUniform4fv(ambientLoc, 1, (mesh->materials + i)->ambient);
-
-    // Set diffuse color
+    if (ambientLoc >= 0) glUniform4fv(ambientLoc, 1, (mesh->materials + i)->ambient);
     GLint diffuseLoc = glGetUniformLocation(shaderProgram, "material.diffuse");
-    glUniform4fv(diffuseLoc, 1, (mesh->materials + i)->diffuse);
-
-    // Set specular color
+    if (diffuseLoc >= 0) glUniform4fv(diffuseLoc, 1, (mesh->materials + i)->diffuse);
     GLint specularLoc = glGetUniformLocation(shaderProgram, "material.specular");
-    glUniform4fv(specularLoc, 1, (mesh->materials + i)->specular);
+    if (specularLoc >= 0) glUniform4fv(specularLoc, 1, (mesh->materials + i)->specular);
 #else
-    // Desktop OpenGL - use immediate mode
-    glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT,
-                 (mesh->materials + i)->ambient);
-
-    glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE,
-                 (mesh->materials + i)->diffuse);
-
-    glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR,
-                 (mesh->materials + i)->specular);
+    glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT,  (mesh->materials + i)->ambient);
+    glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE,  (mesh->materials + i)->diffuse);
+    glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, (mesh->materials + i)->specular);
 #endif
     drawExplosionPart(mesh->meshparts + i, radius, flag);
   }

@@ -1,4 +1,5 @@
 #include "android_glue.h"
+#include "shaders.h"
 #include "globals.h"
 #include "gltron.h"
 #include <string.h>
@@ -120,12 +121,13 @@ static void draw_rect(int x, int y, int w, int h, float r, float g, float b, flo
   };
 
   // Use shader program
-  extern GLuint shaderProgram; // Assuming this is defined elsewhere
+  GLuint shaderProgram = shader_get_basic();
+  if (!shaderProgram) return;
   glUseProgram(shaderProgram);
 
   // Set up matrices
   GLint projectionLoc = glGetUniformLocation(shaderProgram, "projectionMatrix");
-  GLint modelViewLoc = glGetUniformLocation(shaderProgram, "modelViewMatrix");
+  GLint modelViewLoc = glGetUniformLocation(shaderProgram, "modelView");
   GLint colorLoc = glGetUniformLocation(shaderProgram, "color");
 
   glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, projection);

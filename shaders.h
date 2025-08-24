@@ -23,7 +23,4 @@ GLuint createFontTexture();
 void init_shaders_android();
 GLuint shader_get_basic();
 
-// Global shader program variable
-extern GLuint shaderProgram;
-
 #endif // SHADERS_H

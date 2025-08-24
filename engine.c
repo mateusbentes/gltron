@@ -613,8 +613,8 @@ void camMove() {
   modelViewMatrix[14] = forward[0] * camX + forward[1] * camY + forward[2] * camZ;
 
   // Apply the model-view matrix via shader uniform (GLES2 path)
-  useShaderProgram(shaderProgram);
-  setViewMatrix(shaderProgram, (float*)modelViewMatrix);
+  { GLuint sp = shader_get_basic(); if (!sp) return; useShaderProgram(sp); }
+  { GLuint sp = shader_get_basic(); if (!sp) return; setViewMatrix(sp, (float*)modelViewMatrix); }
 #else
   // Standard OpenGL implementation
   glMatrixMode(GL_MODELVIEW);
