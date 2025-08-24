@@ -2,6 +2,7 @@
 
 #ifdef ANDROID
 #include <GLES2/gl2.h>
+#include "shaders.h"
 #else
 #include <GL/gl.h>
 #endif
@@ -256,6 +257,9 @@ void drawExplosion(Mesh *mesh, float radius, int mode, int flag) {
 #ifdef ANDROID
     // For Android, set material properties in the shader
     extern GLuint shaderProgram; // Assuming this is defined elsewhere
+
+    // Use the shader program
+    useShaderProgram(shaderProgram);
 
     // Set ambient color
     GLint ambientLoc = glGetUniformLocation(shaderProgram, "material.ambient");

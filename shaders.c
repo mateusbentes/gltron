@@ -6,6 +6,9 @@
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, "GLTron", __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, "GLTron", __VA_ARGS__)
 
+// Centralized program storage
+static GLuint g_shader_basic = 0;
+
 // Simple vertex shader source
 static const char* vertexShaderSource =
     "attribute vec4 position;\n"
@@ -193,9 +196,6 @@ void setTexture(GLuint program, GLuint textureUnit) {
 
     glUniform1i(textureLocation, textureUnit);
 }
-
-// Centralized program storage
-static GLuint g_shader_basic = 0;
 
 void init_shaders_android() {
     if (g_shader_basic != 0) return;

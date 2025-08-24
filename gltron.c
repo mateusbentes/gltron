@@ -137,8 +137,10 @@ void initGLGame() {
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    // Initialize centralized shader(s)
+    // Initialize shaders
     init_shaders_android();
+
+    // Create shader program
     shaderProgram = shader_get_basic();
 #else
     // First create the window if it doesn't exist
