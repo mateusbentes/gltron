@@ -246,74 +246,93 @@ void drawFloor(gDisplay *d) {
 
   if(game->settings->show_floor_texture) {
     glDepthMask(GL_TRUE);
+#ifdef ANDROID
+    // Android GLES2: validate resources first
+    if (!game || !game->screen || game->screen->texFloor == 0) {
+      // No texture available; skip textured floor
+      glDepthMask(GL_FALSE);
+    } else {
+      glBindTexture(GL_TEXTURE_2D, game->screen->texFloor);
+      // Build geometry on heap to avoid stack overflow
+      l = GSIZE / 4;
+      t = 5;
+      const int quadsPerSide = (l > 0) ? (GSIZE / l) : 0;
+      const int quadCount = quadsPerSide * quadsPerSide;
+      if (l <= 0 || quadsPerSide <= 0 || quadCount <= 0) {
+        glDepthMask(GL_FALSE);
+      } else {
+        size_t vertCount = (size_t)quadCount * 4; // 4 vertices per quad
+        size_t idxCount = (size_t)quadCount * 6;  // 6 indices per quad
+        size_t vbytes = vertCount * 4 * sizeof(GLfloat); // 4 floats per vertex (pos.xy, uv.xy)
+        size_t ibytes = idxCount * sizeof(GLuint);
+        GLfloat* vertices = (GLfloat*)malloc(vbytes);
+        GLuint* indices = (GLuint*)malloc(ibytes);
+        if (!vertices || !indices) {
+          free(vertices); free(indices);
+          glDepthMask(GL_FALSE);
+        } else {
+          int vertexCount = 0;
+          int indexCount = 0;
+          for(j = 0; j < GSIZE; j += l) {
+            for(k = 0; k < GSIZE; k += l) {
+              // Add vertices: (x,y,u,v)
+              vertices[vertexCount++] = (GLfloat)j;     vertices[vertexCount++] = (GLfloat)k;     vertices[vertexCount++] = 0.0f; vertices[vertexCount++] = 0.0f;
+              vertices[vertexCount++] = (GLfloat)(j+l); vertices[vertexCount++] = (GLfloat)k;     vertices[vertexCount++] = (GLfloat)t; vertices[vertexCount++] = 0.0f;
+              vertices[vertexCount++] = (GLfloat)(j+l); vertices[vertexCount++] = (GLfloat)(k+l); vertices[vertexCount++] = (GLfloat)t; vertices[vertexCount++] = (GLfloat)t;
+              vertices[vertexCount++] = (GLfloat)j;     vertices[vertexCount++] = (GLfloat)(k+l); vertices[vertexCount++] = 0.0f; vertices[vertexCount++] = (GLfloat)t;
+              // Base index for this quad
+              GLuint base = (GLuint)(((j / l) * quadsPerSide + (k / l)) * 4);
+              indices[indexCount++] = base + 0;
+              indices[indexCount++] = base + 1;
+              indices[indexCount++] = base + 2;
+              indices[indexCount++] = base + 0;
+              indices[indexCount++] = base + 2;
+              indices[indexCount++] = base + 3;
+            }
+          }
+
+          // Create buffers
+          GLuint vbo = 0, ibo = 0;
+          glGenBuffers(1, &vbo);
+          glGenBuffers(1, &ibo);
+          glBindBuffer(GL_ARRAY_BUFFER, vbo);
+          glBufferData(GL_ARRAY_BUFFER, vbytes, vertices, GL_STATIC_DRAW);
+          glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+          glBufferData(GL_ELEMENT_ARRAY_BUFFER, ibytes, indices, GL_STATIC_DRAW);
+
+          GLuint shaderProgram = createShaderProgram();
+          if (shaderProgram != 0) {
+            useShaderProgram(shaderProgram);
+            GLint positionLoc = glGetAttribLocation(shaderProgram, "position");
+            GLint texCoordLoc = glGetAttribLocation(shaderProgram, "texCoord");
+            if (positionLoc >= 0) {
+              glEnableVertexAttribArray(positionLoc);
+              glVertexAttribPointer(positionLoc, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (void*)0);
+            }
+            if (texCoordLoc >= 0) {
+              glEnableVertexAttribArray(texCoordLoc);
+              glVertexAttribPointer(texCoordLoc, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (void*)(2 * sizeof(GLfloat)));
+            }
+            // Draw
+            glDrawElements(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, (void*)0);
+            // Clean up attribs
+            if (positionLoc >= 0) glDisableVertexAttribArray(positionLoc);
+            if (texCoordLoc >= 0) glDisableVertexAttribArray(texCoordLoc);
+            glUseProgram(0);
+          }
+          // Clean up buffers and heap
+          glBindBuffer(GL_ARRAY_BUFFER, 0);
+          glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+          if (vbo) glDeleteBuffers(1, &vbo);
+          if (ibo) glDeleteBuffers(1, &ibo);
+          free(vertices);
+          free(indices);
+        }
+      }
+    }
+#else
     glEnable(GL_TEXTURE_2D);
     glBindTexture(GL_TEXTURE_2D, game->screen->texFloor);
-
-#ifdef ANDROID
-    // For Android, use vertex buffers for better performance
-    GLfloat vertices[GSIZE * GSIZE * 4 * 4]; // 4 vertices per quad, 4 floats per vertex
-    GLuint indices[GSIZE * GSIZE * 6];      // 6 indices per quad
-
-    int vertexCount = 0;
-    int indexCount = 0;
-
-    l = GSIZE / 4;
-    t = 5;
-    for(j = 0; j < GSIZE; j += l)
-      for(k = 0; k < GSIZE; k += l) {
-        // Add vertices
-        vertices[vertexCount++] = j; vertices[vertexCount++] = k; vertices[vertexCount++] = 0.0f; vertices[vertexCount++] = 0.0f;
-        vertices[vertexCount++] = j + l; vertices[vertexCount++] = k; vertices[vertexCount++] = t; vertices[vertexCount++] = 0.0f;
-        vertices[vertexCount++] = j + l; vertices[vertexCount++] = k + l; vertices[vertexCount++] = t; vertices[vertexCount++] = t;
-        vertices[vertexCount++] = j; vertices[vertexCount++] = k + l; vertices[vertexCount++] = 0.0f; vertices[vertexCount++] = t;
-
-        // Add indices
-        indices[indexCount++] = (j / l) * (GSIZE / l) * 4 + (k / l) * 4 + 0;
-        indices[indexCount++] = (j / l) * (GSIZE / l) * 4 + (k / l) * 4 + 1;
-        indices[indexCount++] = (j / l) * (GSIZE / l) * 4 + (k / l) * 4 + 2;
-        indices[indexCount++] = (j / l) * (GSIZE / l) * 4 + (k / l) * 4 + 0;
-        indices[indexCount++] = (j / l) * (GSIZE / l) * 4 + (k / l) * 4 + 2;
-        indices[indexCount++] = (j / l) * (GSIZE / l) * 4 + (k / l) * 4 + 3;
-      }
-
-    // Create and bind vertex buffer
-    GLuint vbo;
-    glGenBuffers(1, &vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-    // Create and bind index buffer
-    GLuint ibo;
-    glGenBuffers(1, &ibo);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-
-    // Use shader program
-    GLuint shaderProgram = createShaderProgram();
-    useShaderProgram(shaderProgram);
-
-    // Set up attributes
-    GLint positionLoc = glGetAttribLocation(shaderProgram, "position");
-    GLint texCoordLoc = glGetAttribLocation(shaderProgram, "texCoord");
-
-    glEnableVertexAttribArray(positionLoc);
-    glVertexAttribPointer(positionLoc, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), 0);
-
-    glEnableVertexAttribArray(texCoordLoc);
-    glVertexAttribPointer(texCoordLoc, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (void*)(2 * sizeof(GLfloat)));
-
-    // Draw
-    glDrawElements(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, 0);
-
-    // Clean up
-    glDisableVertexAttribArray(positionLoc);
-    glDisableVertexAttribArray(texCoordLoc);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-    glDeleteBuffers(1, &vbo);
-    glDeleteBuffers(1, &ibo);
-    glUseProgram(0);
-#else
     // For desktop OpenGL
     glColor4f(1.0, 1.0, 1.0, 1.0);
     l = GSIZE / 4;
