@@ -14,41 +14,102 @@ void initSettingData(char *filename) {
 #ifdef ANDROID
   LOGI("initSettingData: begin");
 #endif
-  FILE *f;
-  int n, i, count, j;
+  FILE *f = NULL;
+  int n = 0, i, count = 0, j;
   char buf[BUFSIZE];
-  char c;
+  char c = 0;
 
-  f = fopen(filename, "r");
-  fgets(buf, BUFSIZE, f);
-  sscanf(buf, "%d ", &n);
+  if (!filename || filename[0] == '\0') {
+#ifdef ANDROID
+    LOGI("initSettingData: invalid filename");
+#endif
+    return;
+  }
+
+  // Try to resolve via getFullPath first (desktop may package settings in share dir)
+  char *resolved = getFullPath(filename);
+  const char *openName = resolved ? resolved : filename;
+#ifdef ANDROID
+  LOGI("initSettingData: resolved path: %s", openName ? openName : "(null)");
+#endif
+
+  f = fopen(openName, "r");
+  if (!f) {
+#ifdef ANDROID
+    LOGI("initSettingData: fopen failed for %s", openName ? openName : "(null)");
+#endif
+    if (resolved) free(resolved);
+    return; // fall back to defaults
+  }
+
+  if (!fgets(buf, BUFSIZE, f)) {
+    fclose(f);
+    if (resolved) free(resolved);
+    return;
+  }
+  if (sscanf(buf, "%d ", &n) != 1 || n < 0 || n > 1024) {
+    fclose(f);
+    if (resolved) free(resolved);
+    return;
+  }
   for(i = 0; i < n; i++) {
-    fgets(buf, BUFSIZE, f);
-    sscanf(buf, "%c%d ", &c, &count);
+    if (!fgets(buf, BUFSIZE, f)) break;
+    if (sscanf(buf, "%c%d ", &c, &count) != 2 || count < 0 || count > 1024) {
+      continue;
+    }
     switch(c) {
     case 'i': /* it's int */
-      si = malloc(sizeof(struct settings_int) * count);
+      free(si); si = NULL; si_count = 0;
+      si = malloc(sizeof(struct settings_int) * (size_t)count);
+      if (!si) { fclose(f); if (resolved) free(resolved); return; }
       si_count = count;
       for(j = 0; j < count; j++) {
-	fgets(buf, BUFSIZE, f);
-	buf[31] = 0;
-	sscanf(buf, "%s ", (si + j)->name);
+        if (!fgets(buf, BUFSIZE, f)) { si_count = j; break; }
+        buf[BUFSIZE - 1] = 0;
+        // Read a token into name (max 31 chars + NUL)
+        if (sscanf(buf, "%31s", (si + j)->name) != 1) {
+          (si + j)->name[0] = '\0';
+        }
       }
+#ifdef ANDROID
+      LOGI("initSettingData: parsed %d integer settings", si_count);
+#endif
       break;
     case 'f': /* float */
-      sf = malloc(sizeof(struct settings_float) * count);
+      free(sf); sf = NULL; sf_count = 0;
+      sf = malloc(sizeof(struct settings_float) * (size_t)count);
+      if (!sf) { fclose(f); if (resolved) free(resolved); return; }
       sf_count = count;
       for(j = 0; j < count; j++) {
-	fgets(buf, BUFSIZE, f);
-	buf[31] = 0;
-	sscanf(buf, "%s ", (sf + j)->name);
+        if (!fgets(buf, BUFSIZE, f)) { sf_count = j; break; }
+        buf[BUFSIZE - 1] = 0;
+        if (sscanf(buf, "%31s", (sf + j)->name) != 1) {
+          (sf + j)->name[0] = '\0';
+        }
       }
+#ifdef ANDROID
+      LOGI("initSettingData: parsed %d float settings", sf_count);
+#endif
       break;
     default:
-      printf("unrecognized type '%c' in settings.txt\n", c);
-      exit(1);
+#ifdef ANDROID
+      LOGI("initSettingData: unrecognized type '%c'", c);
+#endif
+      // ignore unknown sections instead of aborting
+      break;
     }
   }
+
+  if (resolved) free(resolved);
+
+  if (!game || !game->settings || !si || !sf) {
+    // Ensure arrays are allocated to expected minimal sizes to avoid later deref
+    if (!si) { si = calloc(28, sizeof(struct settings_int)); si_count = 28; }
+    if (!sf) { sf = calloc(1, sizeof(struct settings_float)); sf_count = 1; }
+  }
+
+  // Guard against NULL settings
+  if (!game || !game->settings) return;
 
   si[0].value = &(game->settings->show_help);
   si[1].value = &(game->settings->show_fps);
@@ -106,6 +167,8 @@ void initMainGameSettings(char *filename) {
 
   game = &main_game;
   game->settings = (Settings*) malloc(sizeof(Settings));
+  if (!game->settings) return;
+  memset(game->settings, 0, sizeof(Settings));
   initSettingData(filename);
 
   /* initialize defaults, then load modifications from file */
