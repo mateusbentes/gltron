@@ -4,6 +4,9 @@
 */
 
 #include "gltron.h"
+#ifdef ANDROID
+#include "shaders.h"
+#endif
 #include "globals.h"
 #include "model.h"
 #include "fonttex.h"
@@ -134,8 +137,9 @@ void initGLGame() {
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    // Create shader program
-    shaderProgram = createShaderProgram();
+    // Initialize centralized shader(s)
+    init_shaders_android();
+    shaderProgram = shader_get_basic();
 #else
     // First create the window if it doesn't exist
     if (glutGetWindow() == 0) {

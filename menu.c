@@ -355,17 +355,22 @@ void drawMenu(gDisplay *d) {
   /* draw the entries */
   for(i = 0; i < pCurrent->nEntries; i++) {
 #ifdef ANDROID
-    // For Android, use shader-based color setting
-    if(i == pCurrent->iHighlight) {
-        setColor(shaderProgram, pCurrent->display.hlColor[0],
-                pCurrent->display.hlColor[1],
-                pCurrent->display.hlColor[2],
-                pCurrent->display.hlColor[3]);
-    } else {
-        setColor(shaderProgram, pCurrent->display.fgColor[0],
-                pCurrent->display.fgColor[1],
-                pCurrent->display.fgColor[2],
-                pCurrent->display.fgColor[3]);
+    // For Android, use shader-based color setting via centralized shader
+    {
+      GLuint prog = shader_get_basic();
+      if (prog) {
+        if(i == pCurrent->iHighlight) {
+          setColor(prog, pCurrent->display.hlColor[0],
+                   pCurrent->display.hlColor[1],
+                   pCurrent->display.hlColor[2],
+                   pCurrent->display.hlColor[3]);
+        } else {
+          setColor(prog, pCurrent->display.fgColor[0],
+                   pCurrent->display.fgColor[1],
+                   pCurrent->display.fgColor[2],
+                   pCurrent->display.fgColor[3]);
+        }
+      }
     }
 #else
     // For desktop, use immediate mode color setting
@@ -387,10 +392,15 @@ void drawMenu(gDisplay *d) {
     int bx = d->vp_w - (int)(size * 4);
     int by = (int)(size * 1.2f);
 #ifdef ANDROID
-    setColor(shaderProgram, pCurrent->display.fgColor[0],
-            pCurrent->display.fgColor[1],
-            pCurrent->display.fgColor[2],
-            pCurrent->display.fgColor[3]);
+    {
+      GLuint prog = shader_get_basic();
+      if (prog) {
+        setColor(prog, pCurrent->display.fgColor[0],
+                 pCurrent->display.fgColor[1],
+                 pCurrent->display.fgColor[2],
+                 pCurrent->display.fgColor[3]);
+      }
+    }
 #else
     glColor4fv(pCurrent->display.fgColor);
 #endif

@@ -4,13 +4,13 @@
 
 #ifdef ANDROID
 #include <GLES2/gl2.h>
-#else
-#include <GL/gl.h>
-#endif
+#include <GLES2/gl2ext.h>
 
-// Function declarations
-GLuint compileShader(GLenum type, const char* source);
-GLuint createShaderProgram();
+// Android-only shader utilities
+void init_shaders_android();
+void shutdown_shaders_android();
+GLuint shader_get_basic();
+
 void useShaderProgram(GLuint program);
 void setProjectionMatrix(GLuint program, float* matrix);
 void setModelMatrix(GLuint program, float* matrix);
@@ -18,8 +18,6 @@ void setViewMatrix(GLuint program, float* matrix);
 void setColor(GLuint program, float r, float g, float b, float a);
 void setTexture(GLuint program, GLuint textureUnit);
 GLuint createFontTexture();
-
-// Global shader program variable
-extern GLuint shaderProgram;
+#endif
 
 #endif // SHADERS_H

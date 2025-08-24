@@ -143,7 +143,8 @@ void drawDebugTex(gDisplay *d) {
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
   // Use shader program
-  GLuint shaderProgram = createShaderProgram();
+  GLuint shaderProgram = shader_get_basic();
+  if (!shaderProgram) return;
   useShaderProgram(shaderProgram);
 
   // Set up attributes
@@ -213,7 +214,8 @@ void drawScore(Player *p, gDisplay *d) {
   glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
   // Use shader program
-  GLuint shaderProgram = createShaderProgram();
+  GLuint shaderProgram = shader_get_basic();
+  if (!shaderProgram) return;
   useShaderProgram(shaderProgram);
 
   // Set up attributes
@@ -300,7 +302,8 @@ void drawFloor(gDisplay *d) {
           glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
           glBufferData(GL_ELEMENT_ARRAY_BUFFER, ibytes, indices, GL_STATIC_DRAW);
 
-          GLuint shaderProgram = createShaderProgram();
+          GLuint shaderProgram = shader_get_basic();
+  if (!shaderProgram) return;
           if (shaderProgram != 0) {
             useShaderProgram(shaderProgram);
             GLint positionLoc = glGetAttribLocation(shaderProgram, "position");
@@ -381,7 +384,8 @@ void drawFloor(gDisplay *d) {
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
     // Use shader program
-    GLuint shaderProgram = createShaderProgram();
+    GLuint shaderProgram = shader_get_basic();
+  if (!shaderProgram) return;
     useShaderProgram(shaderProgram);
 
     // Set up attributes
@@ -466,7 +470,8 @@ void drawTraces(Player *p, gDisplay *d, int instance) {
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
     // Use shader program
-    GLuint shaderProgram = createShaderProgram();
+    GLuint shaderProgram = shader_get_basic();
+  if (!shaderProgram) return;
     useShaderProgram(shaderProgram);
 
     // Set up attributes
@@ -579,7 +584,8 @@ void drawCrash(float radius) {
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
   // Use shader program
-  GLuint shaderProgram = createShaderProgram();
+  GLuint shaderProgram = shader_get_basic();
+  if (!shaderProgram) return;
   useShaderProgram(shaderProgram);
 
   // Set up attributes
@@ -703,7 +709,8 @@ void drawCycle(Player *p) {
   multiplyMatrices(modelMatrix, finalTranslationMatrix, modelMatrix);
 
   // Set the model matrix in the shader
-  GLuint shaderProgram = createShaderProgram();
+  GLuint shaderProgram = shader_get_basic();
+  if (!shaderProgram) return;
   useShaderProgram(shaderProgram);
   GLint modelMatrixLoc = glGetUniformLocation(shaderProgram, "modelMatrix");
   glUniformMatrix4fv(modelMatrixLoc, 1, GL_FALSE, modelMatrix);
@@ -823,7 +830,8 @@ void drawPlayers(Player *p) {
 
 #ifdef ANDROID
   // For Android, use vertex buffers for better performance
-  GLuint shaderProgram = createShaderProgram();
+  GLuint shaderProgram = shader_get_basic();
+  if (!shaderProgram) return;
   useShaderProgram(shaderProgram);
 
   // Set up common shader parameters
@@ -925,7 +933,8 @@ void drawPlayers(Player *p) {
 void drawGlow(Player *p, gDisplay *d, float dim) {
 #ifdef ANDROID
   // For Android, use vertex buffers for better performance
-  GLuint shaderProgram = createShaderProgram();
+  GLuint shaderProgram = shader_get_basic();
+  if (!shaderProgram) return;
   useShaderProgram(shaderProgram);
 
   // Set up common shader parameters
@@ -1103,7 +1112,8 @@ void drawWalls(gDisplay *d) {
   glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
   // Use shader program
-  GLuint shaderProgram = createShaderProgram();
+  GLuint shaderProgram = shader_get_basic();
+  if (!shaderProgram) return;
   useShaderProgram(shaderProgram);
 
   // Set up attributes
@@ -1216,7 +1226,8 @@ void drawCam(Player *p, gDisplay *d) {
 
 #ifdef ANDROID
   // For Android, use shaders for rendering
-  GLuint shaderProgram = createShaderProgram();
+  GLuint shaderProgram = shader_get_basic();
+  if (!shaderProgram) return;
   useShaderProgram(shaderProgram);
 
   // Set up projection matrix
@@ -1403,8 +1414,9 @@ void drawAI(gDisplay *d) {
   rasonly(d);
 
 #ifdef ANDROID
-  // For Android, use shaders for text rendering
-  GLuint shaderProgram = createShaderProgram();
+  // For Android, use centralized shader for text rendering
+  GLuint shaderProgram = shader_get_basic();
+  if (!shaderProgram) return;
   useShaderProgram(shaderProgram);
 
   // Set up projection matrix
@@ -1518,8 +1530,9 @@ void drawPause(gDisplay *display) {
   rasonly(game->screen);
 
 #ifdef ANDROID
-  // For Android, use shaders for text rendering
-  GLuint shaderProgram = createShaderProgram();
+  // For Android, use centralized shader for text rendering
+  GLuint shaderProgram = shader_get_basic();
+  if (!shaderProgram) return;
   useShaderProgram(shaderProgram);
 
   // Set up projection matrix

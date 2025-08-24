@@ -1,8 +1,13 @@
 #include "shaders.h"
-#include <stdio.h>
+
+#ifdef ANDROID
+#include <android/log.h>
+#include <string.h>
+#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, "GLTron", __VA_ARGS__)
+#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, "GLTron", __VA_ARGS__)
 
 // Simple vertex shader source
-const char* vertexShaderSource =
+static const char* vertexShaderSource =
     "attribute vec4 position;\n"
     "attribute vec2 texCoord;\n"
     "uniform mat4 projectionMatrix;\n"
@@ -16,7 +21,7 @@ const char* vertexShaderSource =
     "}\n";
 
 // Simple fragment shader source
-const char* fragmentShaderSource =
+static const char* fragmentShaderSource =
     "precision mediump float;\n"
     "varying vec2 vTexCoord;\n"
     "uniform sampler2D texture;\n"
@@ -27,10 +32,10 @@ const char* fragmentShaderSource =
     "    gl_FragColor = vec4(color.rgb * texColor.rgb, color.a * texColor.a);\n"
     "}\n";
 
-GLuint compileShader(GLenum type, const char* source) {
+static GLuint compileShader(GLenum type, const char* source) {
     GLuint shader = glCreateShader(type);
     if (shader == 0) {
-        printf("Failed to create shader\n");
+        LOGE("Failed to create shader");
         return 0;
     }
 
@@ -38,12 +43,14 @@ GLuint compileShader(GLenum type, const char* source) {
     glCompileShader(shader);
 
     // Check for compilation errors
-    GLint success;
+    GLint success = GL_FALSE;
     glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
     if (!success) {
         char infoLog[512];
-        glGetShaderInfoLog(shader, 512, NULL, infoLog);
-        printf("Shader compilation error: %s\n", infoLog);
+        GLsizei len = 0;
+        glGetShaderInfoLog(shader, sizeof(infoLog), &len, infoLog);
+        LOGE("Shader compilation error (%s): %s", type == GL_VERTEX_SHADER ? "VERTEX" : "FRAGMENT", infoLog);
+        LOGE("Source:\n%.*s", len ? len : (GLsizei)strlen(source), source);
         glDeleteShader(shader);
         return 0;
     }
@@ -51,17 +58,17 @@ GLuint compileShader(GLenum type, const char* source) {
     return shader;
 }
 
-GLuint createShaderProgram() {
+static GLuint createShaderProgram() {
     // Compile shaders
     GLuint vertexShader = compileShader(GL_VERTEX_SHADER, vertexShaderSource);
     if (vertexShader == 0) {
-        printf("Failed to compile vertex shader\n");
+        LOGE("Failed to compile vertex shader");
         return 0;
     }
 
     GLuint fragmentShader = compileShader(GL_FRAGMENT_SHADER, fragmentShaderSource);
     if (fragmentShader == 0) {
-        printf("Failed to compile fragment shader\n");
+        LOGE("Failed to compile fragment shader");
         glDeleteShader(vertexShader);
         return 0;
     }
@@ -69,7 +76,7 @@ GLuint createShaderProgram() {
     // Create shader program
     GLuint shaderProgram = glCreateProgram();
     if (shaderProgram == 0) {
-        printf("Failed to create shader program\n");
+        LOGE("Failed to create shader program");
         glDeleteShader(vertexShader);
         glDeleteShader(fragmentShader);
         return 0;
@@ -77,15 +84,20 @@ GLuint createShaderProgram() {
 
     glAttachShader(shaderProgram, vertexShader);
     glAttachShader(shaderProgram, fragmentShader);
+
+    // Optionally bind attribute locations before linking
+    glBindAttribLocation(shaderProgram, 0, "position");
+    glBindAttribLocation(shaderProgram, 1, "texCoord");
+
     glLinkProgram(shaderProgram);
 
     // Check for linking errors
-    GLint success;
+    GLint success = GL_FALSE;
     glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
     if (!success) {
         char infoLog[512];
         glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
-        printf("Shader program linking error: %s\n", infoLog);
+        LOGE("Shader program linking error: %s", infoLog);
         glDeleteShader(vertexShader);
         glDeleteShader(fragmentShader);
         glDeleteProgram(shaderProgram);
@@ -101,7 +113,7 @@ GLuint createShaderProgram() {
 
 void useShaderProgram(GLuint program) {
     if (program == 0) {
-        printf("Invalid shader program\n");
+        LOGE("Invalid shader program");
         return;
     }
     glUseProgram(program);
@@ -109,13 +121,13 @@ void useShaderProgram(GLuint program) {
 
 void setProjectionMatrix(GLuint program, float* matrix) {
     if (program == 0 || matrix == NULL) {
-        printf("Invalid parameters for setProjectionMatrix\n");
+        LOGE("Invalid parameters for setProjectionMatrix");
         return;
     }
 
     GLint projectionMatrixLocation = glGetUniformLocation(program, "projectionMatrix");
     if (projectionMatrixLocation == -1) {
-        printf("Failed to get projection matrix location\n");
+        LOGE("Failed to get projection matrix location");
         return;
     }
 
@@ -124,13 +136,13 @@ void setProjectionMatrix(GLuint program, float* matrix) {
 
 void setModelMatrix(GLuint program, float* matrix) {
     if (program == 0 || matrix == NULL) {
-        printf("Invalid parameters for setModelMatrix\n");
+        LOGE("Invalid parameters for setModelMatrix");
         return;
     }
 
     GLint modelMatrixLocation = glGetUniformLocation(program, "modelMatrix");
     if (modelMatrixLocation == -1) {
-        printf("Failed to get model matrix location\n");
+        LOGE("Failed to get model matrix location");
         return;
     }
 
@@ -139,13 +151,13 @@ void setModelMatrix(GLuint program, float* matrix) {
 
 void setViewMatrix(GLuint program, float* matrix) {
     if (program == 0 || matrix == NULL) {
-        printf("Invalid parameters for setViewMatrix\n");
+        LOGE("Invalid parameters for setViewMatrix");
         return;
     }
 
     GLint viewMatrixLocation = glGetUniformLocation(program, "viewMatrix");
     if (viewMatrixLocation == -1) {
-        printf("Failed to get view matrix location\n");
+        LOGE("Failed to get view matrix location");
         return;
     }
 
@@ -154,13 +166,13 @@ void setViewMatrix(GLuint program, float* matrix) {
 
 void setColor(GLuint program, float r, float g, float b, float a) {
     if (program == 0) {
-        printf("Invalid shader program\n");
+        LOGE("Invalid shader program");
         return;
     }
 
     GLint colorLocation = glGetUniformLocation(program, "color");
     if (colorLocation == -1) {
-        printf("Failed to get color location\n");
+        LOGE("Failed to get color location");
         return;
     }
 
@@ -169,17 +181,41 @@ void setColor(GLuint program, float r, float g, float b, float a) {
 
 void setTexture(GLuint program, GLuint textureUnit) {
     if (program == 0) {
-        printf("Invalid shader program\n");
+        LOGE("Invalid shader program");
         return;
     }
 
     GLint textureLocation = glGetUniformLocation(program, "texture");
     if (textureLocation == -1) {
-        printf("Failed to get texture location\n");
+        LOGE("Failed to get texture location");
         return;
     }
 
     glUniform1i(textureLocation, textureUnit);
+}
+
+// Centralized program storage
+static GLuint g_shader_basic = 0;
+
+void init_shaders_android() {
+    if (g_shader_basic != 0) return;
+    g_shader_basic = createShaderProgram();
+    if (!g_shader_basic) {
+        LOGE("init_shaders_android: failed to create basic shader");
+    } else {
+        LOGI("init_shaders_android: basic shader created %u", (unsigned)g_shader_basic);
+    }
+}
+
+void shutdown_shaders_android() {
+    if (g_shader_basic) {
+        glDeleteProgram(g_shader_basic);
+        g_shader_basic = 0;
+    }
+}
+
+GLuint shader_get_basic() {
+    return g_shader_basic;
 }
 
 // Function to create a font texture (simplified)
@@ -214,3 +250,4 @@ GLuint createFontTexture() {
 
     return texture;
 }
+#endif
