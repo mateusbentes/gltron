@@ -6,6 +6,7 @@
 #include <EGL/egl.h>
 #include <GLES2/gl2.h>
 #include "android_glue.h"
+#include "shaders.h"
 
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, "gltron", __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, "gltron", __VA_ARGS__)
@@ -58,6 +59,8 @@ static int init_egl(ANativeWindow* window) {
   LOGI("Using OpenGL ES via EGL (no Vulkan)");
 
   gltron_init();
+  // Initialize centralized shaders after GL context is current
+  init_shaders_android();
   gltron_resize((int)s_width, (int)s_height);
   return 1;
 }

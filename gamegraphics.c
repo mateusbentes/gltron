@@ -652,10 +652,13 @@ void drawCycle(Player *p) {
 
 #ifdef ANDROID
   // For Android, use matrix operations with shaders
+  GLuint prog = shader_get_basic();
+  if (!prog) return;
+  useShaderProgram(prog);
+
   GLfloat modelMatrix[16];
   glGetFloatv(GL_MODELVIEW_MATRIX, modelMatrix);
 
-  // Apply translations
   GLfloat translationMatrix[16] = {
     1, 0, 0, 0,
     0, 1, 0, 0,
@@ -664,19 +667,14 @@ void drawCycle(Player *p) {
   };
   multiplyMatrices(modelMatrix, translationMatrix, modelMatrix);
 
-  // Apply rotation
   if(game->settings->turn_cycle) {
     time = abs(p->data->turn_time - getElapsedTime());
     if(time < turn_length) {
       last_dir = p->data->last_dir;
-      if(p->data->dir == 3 && last_dir == 2)
-        last_dir = 4;
-      if(p->data->dir == 2 && last_dir == 3)
-        last_dir = 5;
-      dirangle = ((turn_length - time) * dirangles[last_dir] +
-                  time * dirangles[p->data->dir]) / turn_length;
-    } else
-      dirangle = dirangles[p->data->dir];
+      if(p->data->dir == 3 && last_dir == 2) last_dir = 4;
+      if(p->data->dir == 2 && last_dir == 3) last_dir = 5;
+      dirangle = ((turn_length - time) * dirangles[last_dir] + time * dirangles[p->data->dir]) / turn_length;
+    } else dirangle = dirangles[p->data->dir];
   } else {
     dirangle = dirangles[p->data->dir];
   }
@@ -685,21 +683,15 @@ void drawCycle(Player *p) {
   createRotationMatrix(rotationMatrix, dirangle, 0, 0, 1);
   multiplyMatrices(modelMatrix, rotationMatrix, modelMatrix);
 
-  // Apply additional rotation for turning
   if(game->settings->turn_cycle && time < turn_length) {
     float axis = 1.0;
-    if(p->data->dir < p->data->last_dir && p->data->last_dir != 3)
-      axis = -1.0;
-    else if((p->data->last_dir == 3 && p->data->dir == 2) ||
-            (p->data->last_dir == 0 && p->data->dir == 3))
-      axis = -1.0;
-
+    if(p->data->dir < p->data->last_dir && p->data->last_dir != 3) axis = -1.0;
+    else if((p->data->last_dir == 3 && p->data->dir == 2) || (p->data->last_dir == 0 && p->data->dir == 3)) axis = -1.0;
     GLfloat tiltMatrix[16];
     createRotationMatrix(tiltMatrix, neigung * sin(M_PI * time / turn_length), 0, axis, 0);
     multiplyMatrices(modelMatrix, tiltMatrix, modelMatrix);
   }
 
-  // Apply final translation
   GLfloat finalTranslationMatrix[16] = {
     1, 0, 0, 0,
     0, 1, 0, 0,
@@ -709,13 +701,8 @@ void drawCycle(Player *p) {
   multiplyMatrices(modelMatrix, finalTranslationMatrix, modelMatrix);
 
   // Set the model matrix in the shader
-  GLuint shaderProgram = shader_get_basic();
-  if (!shaderProgram) return;
-  useShaderProgram(shaderProgram);
-  GLint modelMatrixLoc = glGetUniformLocation(shaderProgram, "modelMatrix");
-  glUniformMatrix4fv(modelMatrixLoc, 1, GL_FALSE, modelMatrix);
+  setModelMatrix(prog, modelMatrix);
 
-  // Draw the model
   if(p->data->exp_radius == 0)
     drawModel(cycle, MODEL_USE_MATERIAL, 0);
   else if(p->data->exp_radius < EXP_RADIUS_MAX) {
