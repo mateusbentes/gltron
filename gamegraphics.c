@@ -128,7 +128,7 @@ void drawDebugTex(gDisplay *d) {
     x, y + GSIZE, 0.0f, 0.0f
   };
 
-  GLuint indices[] = {0, 1, 2, 0, 2, 3};
+  GLushort indices[] = {0, 1, 2, 0, 2, 3};
 
   // Create and bind vertex buffer
   GLuint vbo;
@@ -162,7 +162,7 @@ void drawDebugTex(gDisplay *d) {
   glBindTexture(GL_TEXTURE_2D, game->screen->texFloor);
 
   // Draw
-  glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+  glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, 0);
 
   // Clean up
   glDisableVertexAttribArray(positionLoc);
@@ -569,7 +569,7 @@ void drawCrash(float radius) {
     -CRASH_W, 0.0f, CRASH_W, 0.0f, 0.5f
   };
 
-  GLuint indices[] = {0, 1, 2, 0, 2, 3};
+  GLushort indices[] = {0, 1, 2, 0, 2, 3};
 
   // Create and bind vertex buffer
   GLuint vbo;
@@ -607,7 +607,7 @@ void drawCrash(float radius) {
   glBindTexture(GL_TEXTURE_2D, game->screen->texCrash);
 
   // Draw
-  glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+  glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, 0);
 
   // Clean up
   glDisableVertexAttribArray(positionLoc);
@@ -663,8 +663,13 @@ void drawCycle(Player *p) {
   if (!prog) return;
   useShaderProgram(prog);
 
-  GLfloat modelMatrix[16];
-  glGetFloatv(GL_MODELVIEW_MATRIX, modelMatrix);
+  // Build model matrix from identity (no fixed-function in GLES2)
+  GLfloat modelMatrix[16] = {
+    1,0,0,0,
+    0,1,0,0,
+    0,0,1,0,
+    0,0,0,1
+  };
 
   GLfloat translationMatrix[16] = {
     1, 0, 0, 0,
@@ -1142,14 +1147,27 @@ void drawWalls(gDisplay *d) {
   // Enable culling
   glEnable(GL_CULL_FACE);
 
-  // Draw
-  glDrawArrays(GL_QUADS, 0, 16);
+  // Draw using triangles (6 vertices per quad, 4 quads => 24 indices)
+  // Build an index buffer for 4 quads (0..15 vertices)
+  GLushort indices[] = {
+    0,1,2, 0,2,3,
+    4,5,6, 4,6,7,
+    8,9,10, 8,10,11,
+    12,13,14, 12,14,15
+  };
+  GLuint ibo;
+  glGenBuffers(1, &ibo);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+  glDrawElements(GL_TRIANGLES, 24, GL_UNSIGNED_SHORT, 0);
 
   // Clean up
   glDisableVertexAttribArray(positionLoc);
   glDisableVertexAttribArray(texCoordLoc);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
   glDeleteBuffers(1, &vbo);
+  glDeleteBuffers(1, &ibo);
   glUseProgram(0);
 
   // Disable culling

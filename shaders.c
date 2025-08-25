@@ -8,6 +8,14 @@
 
 // Centralized program storage
 static GLuint g_shader_basic = 0;
+// Cached uniform/attrib locations for basic shader
+static GLint u_proj = -1;
+static GLint u_view = -1;
+static GLint u_model = -1;
+static GLint u_color = -1;
+static GLint u_tex = -1;
+static GLint a_pos = -1;
+static GLint a_texcoord = -1;
 
 // Simple vertex shader source
 static const char* vertexShaderSource =
@@ -62,6 +70,8 @@ static GLuint compileShader(GLenum type, const char* source) {
 }
 
 static GLuint createShaderProgram() {
+    u_proj = u_view = u_model = u_color = u_tex = -1;
+    a_pos = a_texcoord = -1;
     // Compile shaders
     GLuint vertexShader = compileShader(GL_VERTEX_SHADER, vertexShaderSource);
     if (vertexShader == 0) {
@@ -111,6 +121,17 @@ static GLuint createShaderProgram() {
     glDeleteShader(vertexShader);
     glDeleteShader(fragmentShader);
 
+    // Cache uniform and attribute locations
+    glUseProgram(shaderProgram);
+    u_proj = glGetUniformLocation(shaderProgram, "projectionMatrix");
+    u_view = glGetUniformLocation(shaderProgram, "viewMatrix");
+    u_model = glGetUniformLocation(shaderProgram, "modelMatrix");
+    u_color = glGetUniformLocation(shaderProgram, "color");
+    u_tex = glGetUniformLocation(shaderProgram, "texture");
+    a_pos = glGetAttribLocation(shaderProgram, "position");
+    a_texcoord = glGetAttribLocation(shaderProgram, "texCoord");
+    glUseProgram(0);
+
     return shaderProgram;
 }
 
@@ -127,14 +148,14 @@ void setProjectionMatrix(GLuint program, float* matrix) {
         LOGE("Invalid parameters for setProjectionMatrix");
         return;
     }
-
-    GLint projectionMatrixLocation = glGetUniformLocation(program, "projectionMatrix");
-    if (projectionMatrixLocation == -1) {
+    if (program != g_shader_basic || u_proj == -1) {
+        u_proj = glGetUniformLocation(program, "projectionMatrix");
+    }
+    if (u_proj == -1) {
         LOGE("Failed to get projection matrix location");
         return;
     }
-
-    glUniformMatrix4fv(projectionMatrixLocation, 1, GL_FALSE, matrix);
+    glUniformMatrix4fv(u_proj, 1, GL_FALSE, matrix);
 }
 
 void setModelMatrix(GLuint program, float* matrix) {
@@ -142,14 +163,14 @@ void setModelMatrix(GLuint program, float* matrix) {
         LOGE("Invalid parameters for setModelMatrix");
         return;
     }
-
-    GLint modelMatrixLocation = glGetUniformLocation(program, "modelMatrix");
-    if (modelMatrixLocation == -1) {
+    if (program != g_shader_basic || u_model == -1) {
+        u_model = glGetUniformLocation(program, "modelMatrix");
+    }
+    if (u_model == -1) {
         LOGE("Failed to get model matrix location");
         return;
     }
-
-    glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, matrix);
+    glUniformMatrix4fv(u_model, 1, GL_FALSE, matrix);
 }
 
 void setViewMatrix(GLuint program, float* matrix) {
@@ -157,14 +178,14 @@ void setViewMatrix(GLuint program, float* matrix) {
         LOGE("Invalid parameters for setViewMatrix");
         return;
     }
-
-    GLint viewMatrixLocation = glGetUniformLocation(program, "viewMatrix");
-    if (viewMatrixLocation == -1) {
+    if (program != g_shader_basic || u_view == -1) {
+        u_view = glGetUniformLocation(program, "viewMatrix");
+    }
+    if (u_view == -1) {
         LOGE("Failed to get view matrix location");
         return;
     }
-
-    glUniformMatrix4fv(viewMatrixLocation, 1, GL_FALSE, matrix);
+    glUniformMatrix4fv(u_view, 1, GL_FALSE, matrix);
 }
 
 void setColor(GLuint program, float r, float g, float b, float a) {
@@ -172,14 +193,14 @@ void setColor(GLuint program, float r, float g, float b, float a) {
         LOGE("Invalid shader program");
         return;
     }
-
-    GLint colorLocation = glGetUniformLocation(program, "color");
-    if (colorLocation == -1) {
+    if (program != g_shader_basic || u_color == -1) {
+        u_color = glGetUniformLocation(program, "color");
+    }
+    if (u_color == -1) {
         LOGE("Failed to get color location");
         return;
     }
-
-    glUniform4f(colorLocation, r, g, b, a);
+    glUniform4f(u_color, r, g, b, a);
 }
 
 void setTexture(GLuint program, GLuint textureUnit) {
@@ -187,14 +208,14 @@ void setTexture(GLuint program, GLuint textureUnit) {
         LOGE("Invalid shader program");
         return;
     }
-
-    GLint textureLocation = glGetUniformLocation(program, "texture");
-    if (textureLocation == -1) {
+    if (program != g_shader_basic || u_tex == -1) {
+        u_tex = glGetUniformLocation(program, "texture");
+    }
+    if (u_tex == -1) {
         LOGE("Failed to get texture location");
         return;
     }
-
-    glUniform1i(textureLocation, textureUnit);
+    glUniform1i(u_tex, (GLint)textureUnit);
 }
 
 void init_shaders_android() {
@@ -204,6 +225,15 @@ void init_shaders_android() {
         LOGE("init_shaders_android: failed to create basic shader");
     } else {
         LOGI("init_shaders_android: basic shader created %u", (unsigned)g_shader_basic);
+        // Bind once and set sampler uniform 'texture' to unit 0
+        glUseProgram(g_shader_basic);
+        GLint texLoc = glGetUniformLocation(g_shader_basic, "texture");
+        if (texLoc != -1) {
+            glUniform1i(texLoc, 0);
+        } else {
+            LOGE("init_shaders_android: sampler uniform 'texture' not found");
+        }
+        glUseProgram(0);
     }
 }
 

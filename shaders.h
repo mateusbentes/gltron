@@ -9,8 +9,6 @@
 #endif
 
 // Function declarations
-static GLuint compileShader(GLenum type, const char* source);
-static GLuint createShaderProgram();
 void useShaderProgram(GLuint program);
 void setProjectionMatrix(GLuint program, float* matrix);
 void setModelMatrix(GLuint program, float* matrix);
