@@ -7,6 +7,10 @@
 #include <android/asset_manager_jni.h>  // For AAssetManager functions
 #include <sys/stat.h>  // For mkdir
 #include <sys/types.h>  // For mkdir
+#include <limits.h>
+#ifndef PATH_MAX
+#define PATH_MAX 1024
+#endif
 #endif
 
 // Defensive, agnostic path resolution; never segfaults.
@@ -21,14 +25,14 @@ char* getFullPath(char *filename) {
 
 #ifdef ANDROID
   // On Android, prefer APK assets using AAssetManager if available.
-  extern char s_base_path[256]; // defined in android_glue.c, updated via gltron_set_base_path
+  extern char s_base_path[PATH_MAX]; // defined in android_glue.c, updated via gltron_set_base_path
   extern AAssetManager* g_android_asset_mgr; // defined in android_glue.c
 
   if (g_android_asset_mgr) {
     AAsset* asset = AAssetManager_open(g_android_asset_mgr, filename, AASSET_MODE_STREAMING);
     if (asset) {
       // Compose destination path under base path
-      char tmpPath[512];
+      char tmpPath[PATH_MAX];
       tmpPath[0] = '\0';
       // Ensure s_base_path is NUL-terminated and non-empty
       size_t base_len = strnlen(s_base_path, sizeof(s_base_path));
@@ -46,6 +50,16 @@ char* getFullPath(char *filename) {
       if (n < 0 || (size_t)n >= sizeof(tmpPath)) {
         AAsset_close(asset);
         return NULL;
+      }
+
+      // Ensure intermediate directories exist for nested assets
+      // Walk through tmpPath and create directories for each '/'
+      for (char* p = tmpPath + base_len + 1; *p; ++p) {
+        if (*p == '/') {
+          *p = '\0';
+          mkdir(tmpPath, 0700);
+          *p = '/';
+        }
       }
 
       // If target exists, skip re-extract (simple cache)
@@ -91,7 +105,12 @@ char* getFullPath(char *filename) {
   }
 #endif
 
-  // For non-Android platforms or if asset loading failed
+#ifdef ANDROID
+  // If on Android and asset load fails, do not fall back to desktop paths
+  return NULL;
+#endif
+
+  // For non-Android platforms
   char *path = NULL;
   FILE *fp = NULL;
   const char *share1 = "/usr/share/games/gltron";

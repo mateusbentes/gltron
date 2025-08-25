@@ -9,7 +9,10 @@ void update_buttons_layout();
 extern callbacks current_callback;
 
 // base path buffer exposed for file.c
-char s_base_path[256] = "/data/data/org.gltron.game/files"; // default fallback
+#ifndef PATH_MAX
+#define PATH_MAX 1024
+#endif
+char s_base_path[PATH_MAX] = "/data/data/org.gltron.game/files"; // default fallback
 
 #ifdef ANDROID
 
