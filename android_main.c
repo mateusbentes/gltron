@@ -62,6 +62,8 @@ static int init_egl(ANativeWindow* window) {
   // Initialize centralized shaders after GL context is current
   init_shaders_android();
   gltron_resize((int)s_width, (int)s_height);
+  glViewport(0, 0, (GLint)s_width, (GLint)s_height);
+  glClearColor(0.f, 0.f, 0.f, 1.f);
   return 1;
 }
 
@@ -124,6 +126,7 @@ static void handle_cmd(struct android_app* app, int32_t cmd) {
         eglQuerySurface(s_display, s_surface, EGL_WIDTH, &s_width);
         eglQuerySurface(s_display, s_surface, EGL_HEIGHT, &s_height);
         gltron_resize((int)s_width, (int)s_height);
+        glViewport(0, 0, (GLint)s_width, (GLint)s_height);
       }
       break;
     default:

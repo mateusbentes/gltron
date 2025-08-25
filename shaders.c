@@ -19,7 +19,7 @@ static GLint a_texcoord = -1;
 
 // Simple vertex shader source
 static const char* vertexShaderSource =
-    "attribute vec4 position;\n"
+    "attribute vec3 position;\n"
     "attribute vec2 texCoord;\n"
     "uniform mat4 projectionMatrix;\n"
     "uniform mat4 modelMatrix;\n"
@@ -27,7 +27,7 @@ static const char* vertexShaderSource =
     "varying vec2 vTexCoord;\n"
     "void main()\n"
     "{\n"
-    "    gl_Position = projectionMatrix * viewMatrix * modelMatrix * position;\n"
+    "    gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position, 1.0);\n"
     "    vTexCoord = texCoord;\n"
     "}\n";
 

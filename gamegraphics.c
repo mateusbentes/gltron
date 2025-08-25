@@ -170,8 +170,7 @@ void drawDebugTex(gDisplay *d) {
   glBindBuffer(GL_ARRAY_BUFFER, 0);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
   glDeleteBuffers(1, &vbo);
-  glDeleteBuffers(1, &ibo);
-  glUseProgram(0);
+  glDeleteBuffers(1, &ibo); /* keep program bound */
 #else
   // For desktop OpenGL
   glColor4f(.0, 1.0, .0, 1.0);
@@ -234,8 +233,7 @@ void drawScore(Player *p, gDisplay *d) {
   // Clean up
   glDisableVertexAttribArray(positionLoc);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
-  glDeleteBuffers(1, &vbo);
-  glUseProgram(0);
+  glDeleteBuffers(1, &vbo); /* keep program bound */
 #else
   // For desktop OpenGL
   glColor4f(1.0, 1.0, 0.2, 1.0);
@@ -320,8 +318,7 @@ void drawFloor(gDisplay *d) {
             glDrawElements(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, (void*)0);
             // Clean up attribs
             if (positionLoc >= 0) glDisableVertexAttribArray(positionLoc);
-            if (texCoordLoc >= 0) glDisableVertexAttribArray(texCoordLoc);
-            glUseProgram(0);
+            if (texCoordLoc >= 0) glDisableVertexAttribArray(texCoordLoc); /* keep program bound */
           }
           // Clean up buffers and heap
           glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -400,8 +397,7 @@ void drawFloor(gDisplay *d) {
     // Clean up
     glDisableVertexAttribArray(positionLoc);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glDeleteBuffers(1, &vbo);
-    glUseProgram(0);
+    glDeleteBuffers(1, &vbo); /* keep program bound */
 #else
     // For desktop OpenGL
     glColor3f(0.0, 0.0, 1.0);
@@ -486,8 +482,7 @@ void drawTraces(Player *p, gDisplay *d, int instance) {
     // Clean up
     glDisableVertexAttribArray(positionLoc);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glDeleteBuffers(1, &vbo);
-    glUseProgram(0);
+    glDeleteBuffers(1, &vbo); /* keep program bound */
 
     if(game->settings->camType == 1) {
       GLfloat quadVertices[] = {
@@ -516,8 +511,7 @@ void drawTraces(Player *p, gDisplay *d, int instance) {
       // Clean up
       glDisableVertexAttribArray(positionLoc);
       glBindBuffer(GL_ARRAY_BUFFER, 0);
-      glDeleteBuffers(1, &quadVbo);
-      glUseProgram(0);
+      glDeleteBuffers(1, &quadVbo); /* keep program bound */
 
       polycount++;
     }
@@ -615,8 +609,7 @@ void drawCrash(float radius) {
   glBindBuffer(GL_ARRAY_BUFFER, 0);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
   glDeleteBuffers(1, &vbo);
-  glDeleteBuffers(1, &ibo);
-  glUseProgram(0);
+  glDeleteBuffers(1, &ibo); /* keep program bound */
 #else
   // For desktop OpenGL
   glColor4f(1.0, 1.0, 1.0, (EXP_RADIUS_MAX - radius) / EXP_RADIUS_MAX);
@@ -723,8 +716,7 @@ void drawCycle(Player *p) {
     drawExplosion(cycle, p->data->exp_radius, MODEL_USE_MATERIAL, 0);
   }
 
-  // Clean up
-  glUseProgram(0);
+  // Clean up /* keep program bound */
 #else
   // For desktop OpenGL
   glPushMatrix();
@@ -896,8 +888,7 @@ void drawPlayers(Player *p) {
     }
   }
 
-  // Clean up
-  glUseProgram(0);
+  // Clean up /* keep program bound */
   if(game->settings->show_alpha != 1) glDisable(GL_BLEND);
 #else
   // For desktop OpenGL
@@ -1016,8 +1007,7 @@ void drawGlow(Player *p, gDisplay *d, float dim) {
   polycount += 8;
 
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-  if(game->settings->show_alpha != 1) glDisable(GL_BLEND);
-  glUseProgram(0);
+  if(game->settings->show_alpha != 1) glDisable(GL_BLEND); /* keep program bound */
 #else
   // For desktop OpenGL
   float mat[4*4];
@@ -1167,8 +1157,7 @@ void drawWalls(gDisplay *d) {
   glBindBuffer(GL_ARRAY_BUFFER, 0);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
   glDeleteBuffers(1, &vbo);
-  glDeleteBuffers(1, &ibo);
-  glUseProgram(0);
+  glDeleteBuffers(1, &ibo); /* keep program bound */
 
   // Disable culling
   glDisable(GL_CULL_FACE);
@@ -1370,8 +1359,7 @@ void drawCam(Player *p, gDisplay *d) {
       if ((p != &(game->player[i])) && (game->player[i].data->speed > 0))
         drawGlow(&(game->player[i]), d, TRAIL_HEIGHT * 4);
 
-  // Clean up
-  glUseProgram(0);
+  // Clean up /* keep program bound */
   glDisable(GL_FOG);
 #else
   // For desktop OpenGL
@@ -1518,8 +1506,7 @@ void drawAI(gDisplay *d) {
     x += textScale;
   }
 
-  // Clean up
-  glUseProgram(0);
+  // Clean up /* keep program bound */
 #else
   // For desktop OpenGL
   glColor3f(1.0, 1.0, 1.0);
@@ -1701,8 +1688,7 @@ void drawPause(gDisplay *display) {
     }
   }
 
-  // Clean up
-  glUseProgram(0);
+  // Clean up /* keep program bound */
 #else
   // For desktop OpenGL
   glColor3f(1.0, (sin(d) + 1) / 2, (sin(d) + 1) / 2);

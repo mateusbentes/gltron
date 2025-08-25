@@ -172,7 +172,8 @@ void gltron_frame(void) {
   }
   // Simulate the usual idle/display cycle
   idleGame();
-  // Render
+  // Clear and render
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   displayGame();
   // Overlay controls
   draw_android_overlay();
