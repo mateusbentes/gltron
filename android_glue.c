@@ -39,9 +39,20 @@ void gltron_init(void) {
   if (initialized) return;
   // Initialize core game structures and data
   initMainGameSettings("settings.txt");
+  // Load menu.txt similar to desktop gltron.c
+  char *path = getFullPath("menu.txt");
+  if (path) {
+    pMenuList = loadMenuFile(path);
+    free(path);
+  }
   initGameStructures();
   resetScores();
   initData();
+  // Ensure screen struct exists
+  if (!game->screen) {
+    game->screen = (gDisplay*)malloc(sizeof(gDisplay));
+    memset(game->screen, 0, sizeof(gDisplay));
+  }
   initialized = 1;
 }
 
