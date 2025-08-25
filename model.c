@@ -364,28 +364,43 @@ Mesh* loadModel(const char *filename, float size, int flags) {
 }
 
 void setMaterialAmbient(Mesh *mesh, int material, float color[4]) {
-  int i;
-  for(i = 0; i < 4; i++)
-    (mesh->materials + material)->ambient[i] = color[i];
+  if (!mesh || !mesh->materials || material < 0 || material >= mesh->nMaterials) {
+#ifdef ANDROID
+    // Invalid material assignment; avoid crash. Consider logging in debug builds.
+#endif
+    return;
+  }
+  for (int i = 0; i < 4; i++)
+    mesh->materials[material].ambient[i] = color[i];
 }
 
 void setMaterialDiffuse(Mesh *mesh, int material, float color[4]) {
-  int i;
-  for(i = 0; i < 4; i++)
-    (mesh->materials + material)->diffuse[i] = color[i];
+  if (!mesh || !mesh->materials || material < 0 || material >= mesh->nMaterials) {
+#ifdef ANDROID
+    // Invalid material assignment; avoid crash. Consider logging in debug builds.
+#endif
+    return;
+  }
+  for (int i = 0; i < 4; i++)
+    mesh->materials[material].diffuse[i] = color[i];
 }
 
 void setMaterialSpecular(Mesh *mesh, int material, float color[4]) {
-  int i;
-  for(i = 0; i < 4; i++)
-    (mesh->materials + material)->specular[i] = color[i];
+  if (!mesh || !mesh->materials || material < 0 || material >= mesh->nMaterials) {
+#ifdef ANDROID
+    // Invalid material assignment; avoid crash. Consider logging in debug builds.
+#endif
+    return;
+  }
+  for (int i = 0; i < 4; i++)
+    mesh->materials[material].specular[i] = color[i];
 }
   
 void setMaterialAlphas(Mesh *mesh, float alpha) {
-  int i;
+  if (!mesh || !mesh->materials || mesh->nMaterials <= 0) return;
   // vertex alpha is the alpha of the diffuse material component
-  for(i = 0; i < mesh->nMaterials; i++)
-    (mesh->materials + i)->diffuse[3] = alpha;
+  for (int i = 0; i < mesh->nMaterials; i++)
+    mesh->materials[i].diffuse[3] = alpha;
 }
 
 void unloadModel(Mesh *mesh) {
