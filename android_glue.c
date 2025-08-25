@@ -140,6 +140,8 @@ static void draw_rect(int x, int y, int w, int h, float r, float g, float b, flo
   // Set up vertex attribute
   GLint positionLoc = glGetAttribLocation(shaderProgram, "position");
   glEnableVertexAttribArray(positionLoc);
+  // Ensure client array pointer is used (no VBO bound)
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
   glVertexAttribPointer(positionLoc, 2, GL_FLOAT, GL_FALSE, 0, vertices);
 
   // Draw the rectangle

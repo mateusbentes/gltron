@@ -345,6 +345,7 @@ void drawMenu(gDisplay *d) {
   int i;
   int x, y, size, lineheight;
 
+  // Setup 2D projection
   rasonly(d);
 
   x = d->vp_w / 6;
@@ -355,10 +356,11 @@ void drawMenu(gDisplay *d) {
   /* draw the entries */
   for(i = 0; i < pCurrent->nEntries; i++) {
 #ifdef ANDROID
-    // For Android, use shader-based color setting via centralized shader
+    // Android GLES2 path: bind basic shader, set color via uniform, draw text
     {
       GLuint prog = shader_get_basic();
       if (prog) {
+        useShaderProgram(prog);
         if(i == pCurrent->iHighlight) {
           setColor(prog, pCurrent->display.hlColor[0],
                    pCurrent->display.hlColor[1],
@@ -373,7 +375,7 @@ void drawMenu(gDisplay *d) {
       }
     }
 #else
-    // For desktop, use immediate mode color setting
+    // Desktop OpenGL path unchanged
     if(i == pCurrent->iHighlight)
       glColor4fv(pCurrent->display.hlColor);
     else
@@ -395,6 +397,7 @@ void drawMenu(gDisplay *d) {
     {
       GLuint prog = shader_get_basic();
       if (prog) {
+        useShaderProgram(prog);
         setColor(prog, pCurrent->display.fgColor[0],
                  pCurrent->display.fgColor[1],
                  pCurrent->display.fgColor[2],

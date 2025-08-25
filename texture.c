@@ -13,10 +13,19 @@ void loadTexture(char *filename, int format) {
     char *path;
     sgi_texture *tex;
 
+#ifdef ANDROID
+    __android_log_print(ANDROID_LOG_INFO, "GLTron", "loadTexture: requesting '%s'", filename);
+#endif
     path = getFullPath(filename);
+#ifdef ANDROID
+    __android_log_print(ANDROID_LOG_INFO, "GLTron", "loadTexture: resolved path '%s'", path ? path : "(null)");
+#endif
     if(path != 0)
         tex = load_sgi_texture(path);
     else {
+#ifdef ANDROID
+        __android_log_print(ANDROID_LOG_ERROR, "GLTron", "loadTexture: getFullPath failed for '%s'", filename);
+#endif
         fprintf(stderr, "fatal: could not load %s, exiting...\n", filename);
         exit(1);
     }
@@ -25,6 +34,10 @@ void loadTexture(char *filename, int format) {
     // Remove the GL_RGB16 check entirely
     glTexImage2D(GL_TEXTURE_2D, 0, format, tex->width, tex->height, 0,
                  GL_RGBA, GL_UNSIGNED_BYTE, tex->data);
+#ifdef ANDROID
+    GLint boundTex = 0; glGetIntegerv(GL_TEXTURE_BINDING_2D, &boundTex);
+    __android_log_print(ANDROID_LOG_INFO, "GLTron", "loadTexture: uploaded '%s' to GL id %d (%dx%d)", filename, boundTex, tex->width, tex->height);
+#endif
     free(tex->data);
     free(tex);
 }

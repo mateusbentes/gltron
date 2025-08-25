@@ -1134,8 +1134,8 @@ void drawWalls(gDisplay *d) {
   // Enable blending
   glEnable(GL_BLEND);
 
-  // Enable culling
-  glEnable(GL_CULL_FACE);
+  // Enable culling (disabled for Android debug to ensure visibility)
+  // glEnable(GL_CULL_FACE);
 
   // Draw using triangles (6 vertices per quad, 4 quads => 24 indices)
   // Build an index buffer for 4 quads (0..15 vertices)
@@ -1228,7 +1228,9 @@ void drawHelp(gDisplay *d) {
 void drawCam(Player *p, gDisplay *d) {
   int i;
 
+#ifndef ANDROID
   if (d->fog == 1) glEnable(GL_FOG);
+#endif
 
 #ifdef ANDROID
   // For Android, use shaders for rendering
@@ -1341,8 +1343,16 @@ void drawCam(Player *p, gDisplay *d) {
   viewMatrix[15] = 1.0f;
 
   // Set view matrix in shader
-  GLint viewMatrixLoc = glGetUniformLocation(shaderProgram, "viewMatrix");
-  glUniformMatrix4fv(viewMatrixLoc, 1, GL_FALSE, viewMatrix);
+  setViewMatrix(shaderProgram, viewMatrix);
+
+  // Draw scene; re-apply matrices before sub-draws to ensure state
+  setProjectionMatrix(shaderProgram, projectionMatrix);
+  setViewMatrix(shaderProgram, viewMatrix);
+  if (game->settings->show_wall == 1) {
+    setProjectionMatrix(shaderProgram, projectionMatrix);
+    setViewMatrix(shaderProgram, viewMatrix);
+    drawWalls(d);
+  }
 
   // Draw scene
   drawFloor(d);
@@ -1351,6 +1361,7 @@ void drawCam(Player *p, gDisplay *d) {
 
   for (i = 0; i < game->players; i++)
     drawTraces(&(game->player[i]), d, i);
+
 
   drawPlayers(p);
 

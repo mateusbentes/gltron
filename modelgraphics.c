@@ -4,6 +4,60 @@
 #include <GLES2/gl2.h>
 #endif
 
+#ifdef ANDROID
+// Minimal unlit GLES2 renderer for Android
+static void drawMeshPart_unlit_android(Mesh *mesh, int part) {
+  MeshPart *mp = mesh->meshparts + part;
+  if (!mp || !mp->facesizes) return;
+  int triCount = *(mp->facesizes);
+  if (triCount <= 0) return;
+  int vertCount = triCount * 3;
+
+  GLfloat *pos = (GLfloat*)malloc(sizeof(GLfloat) * vertCount * 3);
+  if (!pos) return;
+  int v = 0;
+  for (int i = 0; i < triCount; ++i) {
+    const GLfloat* base = mp->vertices + 9 * i;
+    pos[v++] = base[0]; pos[v++] = base[1]; pos[v++] = base[2];
+    pos[v++] = base[3]; pos[v++] = base[4]; pos[v++] = base[5];
+    pos[v++] = base[6]; pos[v++] = base[7]; pos[v++] = base[8];
+  }
+
+  GLuint prog = shader_get_basic();
+  if (!prog) { free(pos); return; }
+  useShaderProgram(prog);
+
+  GLint colorLoc = glGetUniformLocation(prog, "color");
+  if (colorLoc >= 0)
+    glUniform4fv(colorLoc, 1, (mesh->materials + part)->diffuse);
+
+  GLuint vbo = 0;
+  glGenBuffers(1, &vbo);
+  glBindBuffer(GL_ARRAY_BUFFER, vbo);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * vertCount * 3, pos, GL_STATIC_DRAW);
+
+  GLint positionLoc = glGetAttribLocation(prog, "position");
+  if (positionLoc >= 0) {
+    glEnableVertexAttribArray(positionLoc);
+    glVertexAttribPointer(positionLoc, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (void*)0);
+  }
+
+  glDrawArrays(GL_TRIANGLES, 0, vertCount);
+
+  if (positionLoc >= 0) glDisableVertexAttribArray(positionLoc);
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
+  if (vbo) glDeleteBuffers(1, &vbo);
+  free(pos);
+}
+
+void drawModel_unlit_android(Mesh *mesh) {
+  if (!mesh) return;
+  for (int i = 0; i < mesh->nMaterials; ++i) {
+    drawMeshPart_unlit_android(mesh, i);
+  }
+}
+#endif
+
 void drawMeshPart(MeshPart* meshpart, int flag) {
   int i, j;
   int type, c;

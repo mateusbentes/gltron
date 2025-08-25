@@ -77,7 +77,11 @@ void drawGame() {
   glClearColor(.0, .0, .0, .0);
   glDepthMask(GL_TRUE);
   glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-  glDepthMask(GL_FALSE);
+
+  // Enable depth test for 3D scene
+#ifdef ANDROID
+  glEnable(GL_DEPTH_TEST);
+#endif
 
   for(i = 0; i < vp_max[ game->settings->display_type]; i++) {
     p = &(game->player[ game->settings->content[i] ]);
@@ -85,15 +89,23 @@ void drawGame() {
       d = p->display;
       glViewport(d->vp_x, d->vp_y, d->vp_w, d->vp_h);
       drawCam(p, d);
-      drawScore(p, d);
+      // Disable depth for UI overlays drawn per-viewport
+#ifdef ANDROID
+      glDisable(GL_DEPTH_TEST);
+#endif
       if(game->settings->show_ai_status)
 	if(p->ai->active == 1)
 	  drawAI(d);
+#ifdef ANDROID
+      glEnable(GL_DEPTH_TEST);
+#endif
     }
   }
 
-  if(game->settings->show_2d > 0)
-    drawDebugTex(game->screen);
+  // Disable depth for global 2D overlays
+#ifdef ANDROID
+  glDisable(GL_DEPTH_TEST);
+#endif
   if(game->settings->show_fps)
     drawFPS(game->screen);
 
@@ -416,6 +428,12 @@ void setupDisplay(gDisplay *d) {
     initFonts();
     printf("loading textures...\n");
     initTexture(d);
+#ifdef ANDROID
+    // Log texture IDs on Android for diagnostics
+    __android_log_print(ANDROID_LOG_INFO, "GLTron", "Android textures: texFloor=%u texWall=%u texCrash=%u texFont=%u",
+           (unsigned)game->screen->texFloor, (unsigned)game->screen->texWall,
+           (unsigned)game->screen->texCrash, (unsigned)game->screen->texFont);
+#endif
     printf("window created with ID: %d\n", d->win_id);
 #else
     printf("trying to create window\n");

@@ -19,6 +19,8 @@ static int32_t s_width = 0, s_height = 0;
 static int init_egl(ANativeWindow* window) {
   s_display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
   eglInitialize(s_display, 0, 0);
+  EGLint eglErr = eglGetError();
+  if (eglErr != EGL_SUCCESS) { LOGE("eglInitialize error: 0x%04x", eglErr); }
 
   const EGLint cfgAttribs[] = {
     EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
@@ -30,19 +32,27 @@ static int init_egl(ANativeWindow* window) {
   };
   EGLConfig config; EGLint numCfg;
   eglChooseConfig(s_display, cfgAttribs, &config, 1, &numCfg);
+  eglErr = eglGetError();
+  if (eglErr != EGL_SUCCESS) { LOGE("eglChooseConfig error: 0x%04x", eglErr); }
   EGLint format;
   eglGetConfigAttrib(s_display, config, EGL_NATIVE_VISUAL_ID, &format);
   ANativeWindow_setBuffersGeometry(window, 0, 0, format);
 
   s_surface = eglCreateWindowSurface(s_display, config, window, NULL);
+  eglErr = eglGetError();
+  if (eglErr != EGL_SUCCESS) { LOGE("eglCreateWindowSurface error: 0x%04x", eglErr); }
 
   const EGLint ctxAttribs[] = { EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE };
   s_context = eglCreateContext(s_display, config, EGL_NO_CONTEXT, ctxAttribs);
+  eglErr = eglGetError();
+  if (eglErr != EGL_SUCCESS) { LOGE("eglCreateContext error: 0x%04x", eglErr); }
   if (s_display == EGL_NO_DISPLAY || s_surface == EGL_NO_SURFACE || s_context == EGL_NO_CONTEXT) {
     LOGE("EGL create failed");
     return 0;
   }
   eglMakeCurrent(s_display, s_surface, s_surface, s_context);
+  eglErr = eglGetError();
+  if (eglErr != EGL_SUCCESS) { LOGE("eglMakeCurrent error: 0x%04x", eglErr); }
   eglQuerySurface(s_display, s_surface, EGL_WIDTH, &s_width);
   eglQuerySurface(s_display, s_surface, EGL_HEIGHT, &s_height);
 
@@ -64,6 +74,8 @@ static int init_egl(ANativeWindow* window) {
   gltron_resize((int)s_width, (int)s_height);
   glViewport(0, 0, (GLint)s_width, (GLint)s_height);
   glClearColor(0.f, 0.f, 0.f, 1.f);
+  // Initialize textures/fonts and any display-related GL resources on Android
+  setupDisplay(game->screen);
   return 1;
 }
 
@@ -167,7 +179,11 @@ void android_main(struct android_app* state) {
 
     if (s_display != EGL_NO_DISPLAY && s_surface != EGL_NO_SURFACE) {
       gltron_frame();
-      eglSwapBuffers(s_display, s_surface);
+      EGLBoolean ok = eglSwapBuffers(s_display, s_surface);
+      if (!ok) {
+        EGLint e = eglGetError();
+        LOGE("eglSwapBuffers failed: 0x%04x", e);
+      }
     }
   }
 }

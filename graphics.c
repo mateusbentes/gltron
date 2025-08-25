@@ -190,7 +190,7 @@ void colorDisc() {
 
   glDisableVertexAttribArray(positionLoc);
   glDeleteBuffers(1, &vbo);
-  glUseProgram(0);
+  /* keep program bound; drawCam controls unbinding */
 #else
   // For desktop OpenGL
   glShadeModel(GL_SMOOTH);
