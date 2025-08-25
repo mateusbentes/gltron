@@ -7,9 +7,8 @@
 #include "gui_mouse.h"
 
 #ifdef ANDROID
-#include <GLES/gl.h>
-#include <GLES/glext.h>
-#define USE_ES1 1
+#include <GLES2/gl2.h>
+#include "shaders.h"
 #else
 #include <GL/gl.h>
 #include <GL/glu.h>
@@ -52,18 +51,55 @@ void displayGui() {
   glClearColor(0.0, 0.0, 1.0, 0.0);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+#ifdef ANDROID
+  // Ensure 2D projection and bind shader for Android GUI
+  rasonly(game->screen);
+  { GLuint sp = shader_get_basic(); if (sp) useShaderProgram(sp); }
+  // Draw a simple background (textured if available, else solid)
+  {
+    GLuint sp = shader_get_basic();
+    if (sp) {
+      // Fullscreen quad in pixel coords
+      GLfloat vx = 0.f, vy = 0.f;
+      GLfloat vw = (GLfloat)game->screen->vp_w;
+      GLfloat vh = (GLfloat)game->screen->vp_h;
+      GLfloat verts[8] = { vx, vy,  vx+vw, vy,  vx+vw, vy+vh,  vx, vy+vh };
+      // Try textured background using texGui
+      int textured = (game && game->screen && game->screen->texGui != 0);
+      GLint a_pos = glGetAttribLocation(sp, "position");
+      GLint a_uv  = glGetAttribLocation(sp, "texCoord");
+      glEnableVertexAttribArray(a_pos);
+      glVertexAttribPointer(a_pos, 2, GL_FLOAT, GL_FALSE, 0, verts);
+      if (textured) {
+        GLfloat uvs[8] = { 0,0, 1,0, 1,1, 0,1 };
+        glEnableVertexAttribArray(a_uv);
+        glVertexAttribPointer(a_uv, 2, GL_FLOAT, GL_FALSE, 0, uvs);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, game->screen->texGui);
+        setTexture(sp, 0);
+        setColor(sp, 1,1,1,1);
+      } else {
+        // Solid subtle blue background
+        setColor(sp, 0.1f, 0.15f, 0.25f, 1.0f);
+      }
+      glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+      if (textured) glDisableVertexAttribArray(a_uv);
+      glDisableVertexAttribArray(a_pos);
+    }
+  }
+#endif
+
   guiProjection(game->screen->vp_w, game->screen->vp_h);
 
-  // Set texture parameters
+#ifndef ANDROID
+  // Set texture parameters and draw background using fixed-function on desktop
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
   // Bind texture once before the loop
   glEnable(GL_TEXTURE_2D);
   glBindTexture(GL_TEXTURE_2D, game->screen->texGui);
-#ifndef ANDROID
   glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-#endif
 
   // Use vertex arrays instead of immediate mode
   GLfloat vertices[8];
@@ -81,7 +117,6 @@ void displayGui() {
   colors[6] = c2; colors[7] = c2; colors[8] = GUI_BLUE * c2;
   colors[9] = c1; colors[10] = c1; colors[11] = GUI_BLUE * c1;
 
-#ifndef ANDROID
   glEnableClientState(GL_VERTEX_ARRAY);
   glEnableClientState(GL_COLOR_ARRAY);
   glVertexPointer(2, GL_FLOAT, 0, vertices);
@@ -89,8 +124,11 @@ void displayGui() {
   glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
   glDisableClientState(GL_COLOR_ARRAY);
   glDisableClientState(GL_VERTEX_ARRAY);
+#else
+  // Android: skip legacy background to avoid ES1 usage
 #endif
 
+#ifndef ANDROID
   for(y1 = -1; y1 < 1; y1 += 2 / N) {
     y2 = y1 + 2 / N;
     for(x = -1; x < 1; x += 2 / N) {
@@ -115,7 +153,6 @@ void displayGui() {
       colors[6] = c2; colors[7] = c2; colors[8] = GUI_BLUE * c2;
       colors[9] = c1; colors[10] = c1; colors[11] = GUI_BLUE * c1;
 
-#ifndef ANDROID
       glEnableClientState(GL_VERTEX_ARRAY);
       glEnableClientState(GL_COLOR_ARRAY);
       glVertexPointer(2, GL_FLOAT, 0, vertices);
@@ -123,9 +160,9 @@ void displayGui() {
       glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
       glDisableClientState(GL_COLOR_ARRAY);
       glDisableClientState(GL_VERTEX_ARRAY);
-#endif
     }
   }
+#endif
 
   x = bgs.posx;
   y = bgs.posy;
@@ -134,6 +171,7 @@ void displayGui() {
 
   alpha = (sin(bgs.d - M_PI / 2) + 1) / 2;
 
+#ifndef ANDROID
   // Use vertex arrays instead of immediate mode
   vertices[0] = x - w / 2; vertices[1] = y - h / 2;
   vertices[2] = x + w / 2; vertices[3] = y - h / 2;
@@ -147,7 +185,6 @@ void displayGui() {
     0.0f, 1.0f
   };
 
-#ifndef ANDROID
   glEnableClientState(GL_VERTEX_ARRAY);
   glEnableClientState(GL_TEXTURE_COORD_ARRAY);
   glVertexPointer(2, GL_FLOAT, 0, vertices);

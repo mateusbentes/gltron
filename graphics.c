@@ -108,17 +108,91 @@ void drawFPS(gDisplay *d) {
 
 void drawText(int x, int y, int size, char *text) {
   glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+#ifndef ANDROID
   glEnable(GL_TEXTURE_2D);
-#ifdef ANDROID
-  // TODO: Android text rendering via shaders/texture atlas
-#else
   glPushMatrix();
   glTranslatef(x, y, 0);
   glScalef(size, size, size);
   ftxRenderString(ftx, text, strlen(text));
   glPopMatrix();
-#endif
   glDisable(GL_TEXTURE_2D);
+#else
+  // Android GLES2 implementation using basic shader and a 16x16 ASCII atlas
+  if (!text) return;
+  if (!game || !game->screen || game->screen->texFont == 0) return;
+  GLuint prog = shader_get_basic();
+  if (!prog) return;
+  useShaderProgram(prog);
+
+  // Orthographic projection should already be set by rasonly(d) before calling drawText
+  // Build a model matrix for starting position
+  float model[16] = {
+    1,0,0,0,
+    0,1,0,0,
+    0,0,1,0,
+    0,0,0,1
+  };
+  // Set texture unit 0 once
+  setTexture(prog, 0);
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, game->screen->texFont);
+
+  // Vertex buffer for a single character quad (two triangles)
+  // We will update positions per character in pixel space; projection handles to NDC
+  typedef struct { float x,y; float u,v; } V;
+  V verts[6];
+
+  // Assume a monospace base cell size equal to 'size' for both width and height
+  // Atlas layout: 16x16 grid covering ASCII 0..255
+  const float inv = 1.0f / 16.0f;
+  int pen_x = x;
+  int pen_y = y;
+
+  // Enable blending for text
+  glEnable(GL_BLEND);
+  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+  // Set initial model matrix to identity and use absolute positions
+  setModelMatrix(prog, model);
+
+  // Prepare client arrays for GLES2
+  GLint a_pos = glGetAttribLocation(prog, "position");
+  GLint a_uv  = glGetAttribLocation(prog, "texCoord");
+  glEnableVertexAttribArray(a_pos);
+  glEnableVertexAttribArray(a_uv);
+
+  for (size_t i = 0; i < strlen(text); ++i) {
+    unsigned char c = (unsigned char)text[i];
+    if (c == '\n') { pen_x = x; pen_y -= size * 2; continue; }
+    float u0 = (c % 16) * inv;
+    float v0 = (c / 16) * inv;
+    float u1 = u0 + inv;
+    float v1 = v0 + inv;
+
+    float x0 = (float)pen_x;
+    float y0 = (float)pen_y;
+    float x1 = x0 + (float)size;
+    float y1 = y0 + (float)size;
+
+    // Two triangles
+    verts[0] = (V){ x0, y0, u0, v0 };
+    verts[1] = (V){ x1, y0, u1, v0 };
+    verts[2] = (V){ x1, y1, u1, v1 };
+
+    verts[3] = (V){ x0, y0, u0, v0 };
+    verts[4] = (V){ x1, y1, u1, v1 };
+    verts[5] = (V){ x0, y1, u0, v1 };
+
+    glVertexAttribPointer(a_pos, 2, GL_FLOAT, GL_FALSE, sizeof(V), &verts[0].x);
+    glVertexAttribPointer(a_uv,  2, GL_FLOAT, GL_FALSE, sizeof(V), &verts[0].u);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+
+    pen_x += size; // advance
+  }
+
+  glDisableVertexAttribArray(a_uv);
+  glDisableVertexAttribArray(a_pos);
+#endif
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
   polycount += strlen(text);
 }

@@ -6,7 +6,7 @@
 
 extern int scr_w, scr_h;
 void update_buttons_layout();
-extern callbacks current_callback;
+extern callbacks *current_callback;
 
 // base path buffer exposed for file.c
 #ifndef PATH_MAX
@@ -153,7 +153,7 @@ static void draw_rect(int x, int y, int w, int h, float r, float g, float b, flo
 
 static int is_gui_active() {
   extern callbacks guiCallbacks; // declared in other compilation units
-  return &current_callback == &guiCallbacks;
+  return current_callback == &guiCallbacks;
 }
 
 static void draw_android_overlay() {
@@ -172,12 +172,12 @@ void gltron_frame(void) {
   } else if (active_right) {
     keyGame('s', 0, 0);
   }
-  // Simulate the usual idle/display cycle
-  idleGame();
+  // Simulate the usual idle/display cycle based on current callback
+  if (current_callback && current_callback->idle) current_callback->idle();
   // Clear and render
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-  displayGame();
-  // Overlay controls
+  if (current_callback && current_callback->display) current_callback->display();
+  // Overlay controls (hidden in GUI)
   draw_android_overlay();
 }
 

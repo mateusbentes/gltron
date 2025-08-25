@@ -152,6 +152,7 @@ cat > "$MANIFEST_TEMP" <<EOF
             android:label="GLTron"
             android:exported="true"
             android:configChanges="keyboard|keyboardHidden|orientation|screenSize">
+            android:launchMode="singleTask" />
 
             <meta-data android:name="android.app.lib_name" android:value="gltron" />
 
