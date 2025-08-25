@@ -648,7 +648,14 @@ void drawCycle(Player *p) {
 
 #define turn_length 500
 
+#ifdef ANDROID
+  if (!p || !p->model || !p->model->mesh) {
+    return;
+  }
   cycle = p->model->mesh;
+#else
+  cycle = p->model->mesh;
+#endif
 
 #ifdef ANDROID
   // For Android, use matrix operations with shaders
@@ -828,23 +835,27 @@ void drawPlayers(Player *p) {
   glEnable(GL_BLEND);
 
   for(i = 0; i < game->players; i++) {
-    height = game->player[i].data->trail_height;
-    if(height > 0) {
-      // Create model matrix for this player
-      GLfloat modelMatrix[16] = {
-        1, 0, 0, 0,
-        0, 1, 0, 0,
-        0, 0, 1, 0,
-        game->player[i].data->posx, game->player[i].data->posy, 0, 1
-      };
-      glUniformMatrix4fv(modelMatrixLoc, 1, GL_FALSE, modelMatrix);
+    // Validate model before any use
+    if (!game->player[i].model || !game->player[i].model->mesh) {
+      // Still allow visibility test and drawCycle check below to skip
+    } else {
+      height = game->player[i].data->trail_height;
+      if(height > 0) {
+        // Create model matrix for this player
+        GLfloat modelMatrix[16] = {
+          1, 0, 0, 0,
+          0, 1, 0, 0,
+          0, 0, 1, 0,
+          game->player[i].data->posx, game->player[i].data->posy, 0, 1
+        };
+        glUniformMatrix4fv(modelMatrixLoc, 1, GL_FALSE, modelMatrix);
 
-      // Set color
-      glUniform4fv(colorLoc, 1, game->player[i].model->color_model);
+        // Set color
+        glUniform4fv(colorLoc, 1, game->player[i].model->color_model);
 
-      // Create quad vertices
-      dir = game->player[i].data->dir;
-      GLfloat quadVertices[] = {
+        // Create quad vertices
+        dir = game->player[i].data->dir;
+        GLfloat quadVertices[] = {
         0, 0, 0,
         -dirsX[dir] * l, -dirsY[dir] * l, 0,
         -dirsX[dir] * l, -dirsY[dir] * l, height,
@@ -872,9 +883,10 @@ void drawPlayers(Player *p) {
 
       polycount++;
     }
+    }
 
     if(playerVisible(p, &(game->player[i]))) {
-      if(game->settings->show_model)
+      if(game->settings->show_model && game->player[i].model && game->player[i].model->mesh)
         drawCycle(&(game->player[i]));
     }
   }
@@ -1213,6 +1225,9 @@ void drawCam(Player *p, gDisplay *d) {
 
 #ifdef ANDROID
   // For Android, use shaders for rendering
+  if (!p || !p->data || !game || !game->screen) {
+    return;
+  }
   GLuint shaderProgram = shader_get_basic();
   if (!shaderProgram) return;
   useShaderProgram(shaderProgram);
