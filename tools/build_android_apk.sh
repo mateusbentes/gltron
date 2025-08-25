@@ -169,6 +169,22 @@ mv "$MANIFEST_TEMP" "$STAGE_DIR/manifest/AndroidManifest.xml" || {
   err "Failed to create AndroidManifest.xml"
 }
 
+# ------------------------------------------------------------------
+# Stage assets into APK under /assets so AAssetManager can load them
+# ------------------------------------------------------------------
+mkdir -p "$STAGE_DIR/assets"
+# Copy root-level files used by the game
+cp -a "$ROOT_DIR"/menu.txt "$STAGE_DIR/assets/" 2>/dev/null || true
+cp -a "$ROOT_DIR"/settings.txt "$STAGE_DIR/assets/" 2>/dev/null || true
+cp -a "$ROOT_DIR"/xenotron.ftx "$STAGE_DIR/assets/" 2>/dev/null || true
+cp -a "$ROOT_DIR"/tron.mtl "$STAGE_DIR/assets/" 2>/dev/null || true
+cp -a "$ROOT_DIR"/t-u-low.obj "$STAGE_DIR/assets/" 2>/dev/null || true
+cp -a "$ROOT_DIR"/gltron.it "$STAGE_DIR/assets/" 2>/dev/null || true
+# Copy textures, sounds, shaders matching project expectations
+cp -a "$ROOT_DIR"/*.sgi "$STAGE_DIR/assets/" 2>/dev/null || true
+cp -a "$ROOT_DIR"/*.wav "$STAGE_DIR/assets/" 2>/dev/null || true
+# Copy shaders directory if present (retain structure)
+cp -a "$ROOT_DIR"/shaders "$STAGE_DIR/assets/" 2>/dev/null || true
 # Create strings.xml using a temporary file
 STRINGS_TEMP=$(mktemp)
 cat > "$STRINGS_TEMP" <<EOF
