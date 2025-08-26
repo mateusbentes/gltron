@@ -48,6 +48,15 @@ void gltron_init(void) {
   initGameStructures();
   resetScores();
   initData();
+
+  // Initialize shaders and font system early on Android
+#ifdef ANDROID
+  init_shaders_android();
+  // initialize font texture/renderer
+  if (ftx == NULL) {
+    initFonts();
+  }
+#endif
   // Ensure screen struct exists
   if (!game->screen) {
     game->screen = (gDisplay*)malloc(sizeof(gDisplay));

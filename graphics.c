@@ -118,12 +118,59 @@ void drawText(int x, int y, int size, char *text) {
   glPopMatrix();
   glDisable(GL_TEXTURE_2D);
 #else
-  // Android: delegate to the existing font renderer, which already uses GLES2 shaders
+  // Android: render text at pixel position (x,y) with uniform scale 'size'.
   if (!text) return;
-  __android_log_print(ANDROID_LOG_INFO, "GLTron", "drawText: '%s' texFont=%u",
-    text ? text : "(null)", (unsigned)(game && game->screen ? game->screen->texFont : 0));
   glDisable(GL_TEXTURE_2D); // no fixed-function textures in ES2
-  ftxRenderString(ftx, text, strlen(text));
+
+  // Bind shader and fully set render state for text
+  GLuint prog = shader_get_basic();
+  if (prog && game && game->screen) {
+    useShaderProgram(prog);
+    // Ortho projection in screen pixels
+    GLfloat left = 0.0f, right = (GLfloat)game->screen->vp_w;
+    GLfloat bottom = 0.0f, top = (GLfloat)game->screen->vp_h;
+    GLfloat znear = 0.0f, zfar = 1.0f;
+    GLfloat proj[16] = {
+      2.0f/(right-left), 0, 0, 0,
+      0, 2.0f/(top-bottom), 0, 0,
+      0, 0, -2.0f/(zfar-znear), 0,
+      -(right+left)/(right-left), -(top+bottom)/(top-bottom), -(zfar+znear)/(zfar-znear), 1
+    };
+    setProjectionMatrix(prog, proj);
+    // View identity
+    GLfloat view[16] = {1,0,0,0,  0,1,0,0,  0,0,1,0,  0,0,0,1};
+    setViewMatrix(prog, view);
+    // Model: translate to (x,y), scale by 'size'
+    GLfloat model[16] = {
+      (GLfloat)size, 0, 0, 0,
+      0, (GLfloat)size, 0, 0,
+      0, 0, 1, 0,
+      (GLfloat)x, (GLfloat)y, 0, 1
+    };
+    setModelMatrix(prog, model);
+
+    // Bind font texture if available
+    if (game->screen->texFont) {
+      glActiveTexture(GL_TEXTURE0);
+      glBindTexture(GL_TEXTURE_2D, game->screen->texFont);
+      setTexture(prog, 0);
+    }
+  }
+
+  // If we have a font texture, render string; else draw a placeholder block
+  if (game && game->screen && game->screen->texFont) {
+    ftxRenderString(ftx, text, strlen(text));
+  } else if (prog) {
+    // Debug placeholder quad at (x,y)
+    GLint a_pos = glGetAttribLocation(prog, "position");
+    GLfloat verts[8] = { (GLfloat)x, (GLfloat)y, (GLfloat)(x+size), (GLfloat)y,
+                         (GLfloat)(x+size), (GLfloat)(y+size), (GLfloat)x, (GLfloat)(y+size) };
+    glEnableVertexAttribArray(a_pos);
+    glVertexAttribPointer(a_pos, 2, GL_FLOAT, GL_FALSE, 0, verts);
+    setColor(prog, 1.f, 0.f, 0.f, 0.8f);
+    glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+    glDisableVertexAttribArray(a_pos);
+  }
 #endif
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
   polycount += strlen(text);
