@@ -214,16 +214,33 @@ void displayGui() {
   }
 
   // Draw logo
+  // Compute logo in pixel space for consistent sizing
+  alpha = (sin(bgs.d - M_PI / 2) + 1) / 2;
+#ifdef ANDROID
+  float vpw = (float)game->screen->vp_w;
+  float vph = (float)game->screen->vp_h;
+  // Logo size: half of viewport width, 4:1 aspect
+  w = vpw * 0.5f;
+  h = w * 0.25f;
+  // Map bgs.posx,posy [-1,1] to pixel center
+  x = (bgs.posx * 0.5f + 0.5f) * vpw;
+  y = (bgs.posy * 0.5f + 0.5f) * vph;
+  // Build pixel-space quad
+  GLfloat logoVerts[8];
+  logoVerts[0] = x - w * 0.5f; logoVerts[1] = y - h * 0.5f;
+  logoVerts[2] = x + w * 0.5f; logoVerts[3] = y - h * 0.5f;
+  logoVerts[4] = x + w * 0.5f; logoVerts[5] = y + h * 0.5f;
+  logoVerts[6] = x - w * 0.5f; logoVerts[7] = y + h * 0.5f;
+#else
   x = bgs.posx;
   y = bgs.posy;
   w = 1;
   h = w/4;
-  alpha = (sin(bgs.d - M_PI / 2) + 1) / 2;
-
   vertices[0] = x - w / 2; vertices[1] = y - h / 2;
   vertices[2] = x + w / 2; vertices[3] = y - h / 2;
   vertices[4] = x + w / 2; vertices[5] = y + h / 2;
   vertices[6] = x - w / 2; vertices[7] = y + h / 2;
+#endif
 
   GLfloat texCoords[8] = {
     0.0f, 0.0f,
@@ -233,15 +250,14 @@ void displayGui() {
   };
 
 #ifdef ANDROID
-  // Android/GLES2: before logo/text rendering, restore 2D pixel-space projection expected by text pipeline
-  // Build orthographic projection similar to font rendering
+  // Android/GLES2: before logo/text rendering, set 2D pixel-space projection
   float wvp = (float)game->screen->vp_w;
   float hvp = (float)game->screen->vp_h;
   GLfloat proj2D[16] = {
-    2.0f / wvp, 0.0f,        0.0f, 0.0f,
-    0.0f,      -2.0f / hvp,  0.0f, 0.0f,
-    0.0f,       0.0f,        1.0f, 0.0f,
-    -1.0f,      1.0f,        0.0f, 1.0f
+    2.0f / wvp, 0.0f,       0.0f, 0.0f,
+    0.0f,       2.0f / hvp, 0.0f, 0.0f,
+    0.0f,       0.0f,       1.0f, 0.0f,
+    -1.0f,     -1.0f,       0.0f, 1.0f
   };
   const GLfloat Ilogo[16] = {
     1,0,0,0,
@@ -253,12 +269,12 @@ void displayGui() {
   setViewMatrix(shaderProgram, (float*)Ilogo);
   setModelMatrix(shaderProgram, (float*)Ilogo);
 
-  // Now draw the logo (still using clip-like coordinates, but we can map to pixels later if needed)
+  // Draw the logo with pixel-space vertices
   GLint a_pos_logo = glGetAttribLocation(shaderProgram, "position");
   GLint a_uv_logo  = glGetAttribLocation(shaderProgram, "texCoord");
   glEnableVertexAttribArray(a_pos_logo);
   glEnableVertexAttribArray(a_uv_logo);
-  glVertexAttribPointer(a_pos_logo, 2, GL_FLOAT, GL_FALSE, 0, vertices);
+  glVertexAttribPointer(a_pos_logo, 2, GL_FLOAT, GL_FALSE, 0, logoVerts);
   glVertexAttribPointer(a_uv_logo, 2, GL_FLOAT, GL_FALSE, 0, texCoords);
 
   glActiveTexture(GL_TEXTURE0);
@@ -290,6 +306,24 @@ void displayGui() {
   // Draw menu
 #ifdef ANDROID
   if (shaderProgram) {
+    // Ensure 2D pixel projection is set before text drawing
+    float wvp = (float)game->screen->vp_w;
+    float hvp = (float)game->screen->vp_h;
+    GLfloat proj2D[16] = {
+      2.0f / wvp, 0.0f,       0.0f, 0.0f,
+      0.0f,       2.0f / hvp, 0.0f, 0.0f,
+      0.0f,       0.0f,       1.0f, 0.0f,
+      -1.0f,     -1.0f,       0.0f, 1.0f
+    };
+    const GLfloat I2D[16] = {
+      1,0,0,0,
+      0,1,0,0,
+      0,0,1,0,
+      0,0,0,1
+    };
+    setProjectionMatrix(shaderProgram, (float*)proj2D);
+    setViewMatrix(shaderProgram, (float*)I2D);
+    setModelMatrix(shaderProgram, (float*)I2D);
     setColor(shaderProgram, 1.0f, 0.0f, 1.0f, 1.0f); // Set color for menu
   }
 #else
