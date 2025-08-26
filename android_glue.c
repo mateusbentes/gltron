@@ -330,6 +330,8 @@ static int is_gui_active() {
 
 static void draw_android_overlay() {
   if (!scr_w || !scr_h) return;
+  // Always draw a small debug banner at top to prove overlay works
+  draw_rect(8, 8, scr_w/3, scr_h/20, 1.f, 1.f, 1.f, 0.15f);
   if (is_gui_active()) return; // hide controls in menus
   draw_rect(btn_left[0], btn_left[1], btn_left[2], btn_left[3], 1,1,1,0.35f);
   draw_rect(btn_right[0], btn_right[1], btn_right[2], btn_right[3], 1,1,1,0.35f);

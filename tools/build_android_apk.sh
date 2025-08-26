@@ -116,10 +116,18 @@ cp "$OUT_DIR/$SO_NAME" "$STAGE_DIR/lib/$ABI/$SO_NAME" || {
   err "Failed to copy native library"
 }
 
-# Copy libc++_shared.so to the lib directory
-cp "$ANDROID_NDK/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/libc++_shared.so" "$STAGE_DIR/lib/$ABI/libc++_shared.so" || {
-  err "Failed to copy libc++_shared.so"
-}
+# Copy libc++_shared.so to the lib directory (prefer ANDROID_NDK_HOME, fallback to ANDROID_NDK)
+LIBCXX_SRC=""
+if [[ -n "${ANDROID_NDK_HOME:-}" && -d "${ANDROID_NDK_HOME:-}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android" ]]; then
+  LIBCXX_SRC="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/libc++_shared.so"
+elif [[ -n "${ANDROID_NDK:-}" && -d "${ANDROID_NDK:-}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android" ]]; then
+  LIBCXX_SRC="$ANDROID_NDK/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/libc++_shared.so"
+fi
+if [[ -n "$LIBCXX_SRC" && -f "$LIBCXX_SRC" ]]; then
+  cp "$LIBCXX_SRC" "$STAGE_DIR/lib/$ABI/libc++_shared.so"
+else
+  err "Failed to copy libc++_shared.so (source not found). Ensure ANDROID_NDK_HOME points to a valid NDK."
+fi
 
 if [[ -f "$ROOT_DIR/tools/minimal-classes.dex" ]]; then
   cp "$ROOT_DIR/tools/minimal-classes.dex" "$STAGE_DIR/classes.dex" || true

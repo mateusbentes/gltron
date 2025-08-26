@@ -8,8 +8,7 @@
 #include "android_glue.h"
 #include "shaders.h"
 
-#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, "gltron", __VA_ARGS__)
-#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, "gltron", __VA_ARGS__)
+void initGLGui(void);
 
 static EGLDisplay s_display = EGL_NO_DISPLAY;
 static EGLSurface s_surface = EGL_NO_SURFACE;
@@ -78,6 +77,13 @@ static int init_egl(ANativeWindow* window) {
   glClearColor(0.f, 0.f, 0.f, 1.f);
   // Initialize textures/fonts and any display-related GL resources on Android
   setupDisplay(game->screen);
+  // Initialize GUI GL state explicitly after GLES context is ready
+  initGLGui();
+  // Set a neutral clear color; GUI will paint over it
+  glClearColor(0.f, 0.f, 0.f, 1.f);
+  // Ensure we start in GUI (menu)
+  extern callbacks guiCallbacks;
+  switchCallbacks(&guiCallbacks);
   return 1;
 }
 

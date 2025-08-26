@@ -122,6 +122,8 @@ void drawText(int x, int y, int size, char *text) {
   if (!text) return;
   glDisable(GL_TEXTURE_2D); // no fixed-function textures in ES2
 
+  static int logged_once = 0;
+
   // Bind shader and fully set render state for text
   GLuint prog = shader_get_basic();
   if (prog && game && game->screen) {
@@ -157,19 +159,33 @@ void drawText(int x, int y, int size, char *text) {
     }
   }
 
-  // If we have a font texture, render string; else draw a placeholder block
-  if (game && game->screen && game->screen->texFont) {
-    ftxRenderString(ftx, text, strlen(text));
-  } else if (prog) {
-    // Debug placeholder quad at (x,y)
+  // Force Android fallback: draw simple quads per character so text is visible
+  if (prog) {
+    if (!logged_once) {
+      __android_log_print(ANDROID_LOG_INFO, "gltron", "drawText(FALLBACK): text='%s' size=%d ftx=%p texFont=%u prog=%u",
+                          text, size, ftx, (unsigned) (game && game->screen ? game->screen->texFont : 0), (unsigned)prog);
+      logged_once = 1;
+    }
+    useShaderProgram(prog);
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_CULL_FACE);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    // basic white color; menu.c may set color before calling drawText
+    setColor(prog, 1.f, 1.f, 1.f, 1.f);
+    // Draw monospace placeholders for each character so text is visible
     GLint a_pos = glGetAttribLocation(prog, "position");
-    GLfloat verts[8] = { (GLfloat)x, (GLfloat)y, (GLfloat)(x+size), (GLfloat)y,
-                         (GLfloat)(x+size), (GLfloat)(y+size), (GLfloat)x, (GLfloat)(y+size) };
-    glEnableVertexAttribArray(a_pos);
-    glVertexAttribPointer(a_pos, 2, GL_FLOAT, GL_FALSE, 0, verts);
-    setColor(prog, 1.f, 0.f, 0.f, 0.8f);
-    glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-    glDisableVertexAttribArray(a_pos);
+    int n = (int)strlen(text);
+    float advance = size * 0.6f;
+    for (int i = 0; i < n; ++i) {
+      float cx = x + advance * i;
+      GLfloat verts[8] = { cx, (GLfloat)y, (GLfloat)(cx+advance), (GLfloat)y,
+                           (GLfloat)(cx+advance), (GLfloat)(y+size), (GLfloat)cx, (GLfloat)(y+size) };
+      glEnableVertexAttribArray(a_pos);
+      glVertexAttribPointer(a_pos, 2, GL_FLOAT, GL_FALSE, 0, verts);
+      glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+      glDisableVertexAttribArray(a_pos);
+    }
   }
 #endif
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);

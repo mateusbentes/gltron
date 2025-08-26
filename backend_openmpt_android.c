@@ -193,8 +193,8 @@ int sb_load_sfx(int id, const char* path) {
   if (!full) return 0;
   short* data=NULL; int frames=0; int ch=0;
   int ok = load_wav(full, &data, &frames, &ch);
-  free(full);
   if (!ok) return 0;
+  free(full);
   if (sfx[id].data) free(sfx[id].data);
   sfx[id].data = data; sfx[id].frames = frames; sfx[id].channels = ch; sfx[id].playing = 0; sfx[id].pos = 0;
   return 1;

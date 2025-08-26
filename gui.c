@@ -59,9 +59,8 @@ void displayGui() {
   // Ensure 2D projection and bind shader for Android GUI
   rasonly(game->screen);
   { GLuint sp = shader_get_basic(); if (sp) useShaderProgram(sp); }
-#endif
-
   guiProjection(game->screen->vp_w, game->screen->vp_h);
+#endif
 
 #ifndef ANDROID
   // Set texture parameters and draw background using fixed-function on desktop
@@ -274,10 +273,9 @@ void initGLGui() {
 #endif
   glEnable(GL_BLEND);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-#ifndef ANDROID
-  glDisable(GL_LIGHTING);
+  // Ensure GUI overlays render on Android/GLES
   glDisable(GL_DEPTH_TEST);
-#endif
+  glDisable(GL_CULL_FACE);
 }
 
 callbacks guiCallbacks = {
