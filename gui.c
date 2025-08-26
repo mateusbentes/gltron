@@ -45,6 +45,10 @@ void displayGui() {
   float y1, y2;
   float a, b1, b2, c1, c2;
   float alpha;
+#ifdef ANDROID
+  static int logged = 0;
+  if (!logged) { __android_log_print(ANDROID_LOG_INFO, "gltron", "displayGui: drawing GUI"); logged = 1; }
+#endif
 
 #define N 20.0
   checkGLError("gui.c displayGui - before clear");

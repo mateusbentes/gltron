@@ -174,8 +174,7 @@ void gltron_init(void) {
 #ifdef ANDROID
   // Diagnostics and fallback menu on Android
   if (pMenuList && pMenuList[0]) {
-    __android_log_print(ANDROID_LOG_INFO, "gltron", "menu loaded: first=%p name='%s' entries=%d",
-      pMenuList[0], pMenuList[0]->szName, pMenuList[0]->nEntries);
+      pMenuList[0], pMenuList[0]->szName, pMenuList[0]->nEntries;
     // Ensure current menu pointer is set
     pCurrent = pMenuList[0];
   } else {
@@ -349,6 +348,13 @@ void gltron_frame(void) {
   if (current_callback && current_callback->idle) current_callback->idle();
   // Clear and render
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+#ifdef ANDROID
+  static int logged_cb = 0;
+  if (!logged_cb) {
+    __android_log_print(ANDROID_LOG_INFO, "gltron", "frame: current_callback=%p display=%p idle=%p", current_callback, current_callback ? current_callback->display : NULL, current_callback ? current_callback->idle : NULL);
+    logged_cb = 1;
+  }
+#endif
   if (current_callback && current_callback->display) current_callback->display();
   // Overlay controls (hidden in GUI)
   draw_android_overlay();
