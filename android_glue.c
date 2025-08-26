@@ -37,13 +37,35 @@ void gltron_set_base_path(const char* base_path) {
 
 void gltron_init(void) {
   if (initialized) return;
+#ifdef ANDROID
+  __android_log_print(ANDROID_LOG_INFO, "gltron", "gltron_init: base_path='%s' mgr=%p", s_base_path, g_android_asset_mgr);
+#endif
   // Initialize core game structures and data
+#ifdef ANDROID
+  // Prefer internal writable settings file under s_base_path
+  char settingsPathBuf[PATH_MAX];
+  settingsPathBuf[0] = '\0';
+  if (s_base_path[0]) {
+    snprintf(settingsPathBuf, sizeof(settingsPathBuf), "%s/%s", s_base_path, "settings.txt");
+    initMainGameSettings(settingsPathBuf);
+  } else {
+    initMainGameSettings("settings.txt");
+  }
+#else
   initMainGameSettings("settings.txt");
+#endif
   // Load menu.txt similar to desktop gltron.c
   char *path = getFullPath("menu.txt");
   if (path) {
     pMenuList = loadMenuFile(path);
+#ifdef ANDROID
+    __android_log_print(ANDROID_LOG_INFO, "gltron", "menu.txt loaded from %s", path);
+#endif
     free(path);
+  } else {
+#ifdef ANDROID
+    __android_log_print(ANDROID_LOG_ERROR, "gltron", "Failed to load menu.txt via getFullPath");
+#endif
   }
   initGameStructures();
   resetScores();

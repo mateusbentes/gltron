@@ -21,6 +21,8 @@ static int init_egl(ANativeWindow* window) {
   eglInitialize(s_display, 0, 0);
   EGLint eglErr = eglGetError();
   if (eglErr != EGL_SUCCESS) { LOGE("eglInitialize error: 0x%04x", eglErr); }
+  // Ensure asset manager/base path are set before any resource loads
+  // Note: We can only set them here if we have a valid activity (passed via android_main)
 
   const EGLint cfgAttribs[] = {
     EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,

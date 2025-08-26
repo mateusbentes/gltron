@@ -3,6 +3,7 @@
 #include <errno.h>
 
 #ifdef ANDROID
+#include <android/log.h>
 #include <android/asset_manager.h>  // For Android asset management
 #include <android/asset_manager_jni.h>  // For AAssetManager functions
 #include <sys/stat.h>  // For mkdir
@@ -43,10 +44,10 @@ char* getFullPath(char *filename) {
 
   if (g_android_asset_mgr) {
     // Debug log
-    __android_log_print(ANDROID_LOG_INFO, "GLTron", "getFullPath: trying asset '%s'", filename ? filename : "(null)");
+    __android_log_print(ANDROID_LOG_INFO, "gltron", "getFullPath: trying asset '%s'", filename ? filename : "(null)");
     AAsset* asset = AAssetManager_open(g_android_asset_mgr, filename, AASSET_MODE_STREAMING);
     if (asset) {
-      __android_log_print(ANDROID_LOG_INFO, "GLTron", "getFullPath: asset open OK '%s'", filename);
+      __android_log_print(ANDROID_LOG_INFO, "gltron", "getFullPath: asset open OK '%s'", filename);
       // Compose destination path under base path
       char tmpPath[PATH_MAX];
       tmpPath[0] = '\0';
@@ -86,7 +87,7 @@ char* getFullPath(char *filename) {
         char* ret = (char*)malloc(len + 1);
         if (!ret) { AAsset_close(asset); return NULL; }
         memcpy(ret, tmpPath, len + 1);
-        __android_log_print(ANDROID_LOG_INFO, "GLTron", "getFullPath: using cached '%s'", tmpPath);
+        __android_log_print(ANDROID_LOG_INFO, "gltron", "getFullPath: using cached '%s'", tmpPath);
         AAsset_close(asset);
         return ret;
       }
@@ -105,7 +106,7 @@ char* getFullPath(char *filename) {
         if (fclose(out) != 0) ok = 0;
         AAsset_close(asset);
         if (!ok) {
-          __android_log_print(ANDROID_LOG_ERROR, "GLTron", "getFullPath: write failed '%s'", tmpPath);
+          __android_log_print(ANDROID_LOG_ERROR, "gltron", "getFullPath: write failed '%s'", tmpPath);
           remove(tmpPath);
           return NULL;
         }
@@ -117,11 +118,11 @@ char* getFullPath(char *filename) {
       }
 
       // Could not open output file; return NULL instead of inconsistent fallback
-      __android_log_print(ANDROID_LOG_ERROR, "GLTron", "getFullPath: couldn't open output '%s'", tmpPath);
+      __android_log_print(ANDROID_LOG_ERROR, "gltron", "getFullPath: couldn't open output '%s'", tmpPath);
       AAsset_close(asset);
       return NULL;
     } else {
-      __android_log_print(ANDROID_LOG_ERROR, "GLTron", "getFullPath: AAssetManager_open failed for '%s'", filename);
+      __android_log_print(ANDROID_LOG_ERROR, "gltron", "getFullPath: AAssetManager_open failed for '%s'", filename);
     }
   }
 #endif
