@@ -60,11 +60,11 @@ void displayGui() {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 #ifdef ANDROID
-  // Set up 2D projection and shader for Android
-  rasonly(game->screen);
+  // Android: prepare shader but avoid forcing projection/view/model here
   GLuint shaderProgram = shader_get_basic();
   if (shaderProgram) {
     useShaderProgram(shaderProgram);
+    setColor(shaderProgram, 1.0f, 1.0f, 1.0f, 1.0f);
   }
 #else
   // Set up 2D projection for non-Android
@@ -92,38 +92,48 @@ void displayGui() {
   colors[9] = c1; colors[10] = c1; colors[11] = GUI_BLUE * c1;
 
 #ifdef ANDROID
-  // For Android, we need to use VBOs and vertex attributes
-  GLuint bgVboVertices, bgVboColors;
-  glGenBuffers(1, &bgVboVertices);
-  glGenBuffers(1, &bgVboColors);
+  // Android/GLES2: draw background in clip-space with identity matrices
+  // Bind white texture to avoid black modulation
+  glActiveTexture(GL_TEXTURE0);
+  static GLuint s_white_tex_bg = 0;
+  if (s_white_tex_bg == 0) {
+    GLubyte px[4] = {255,255,255,255};
+    glGenTextures(1, &s_white_tex_bg);
+    glBindTexture(GL_TEXTURE_2D, s_white_tex_bg);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, px);
+  }
+  glBindTexture(GL_TEXTURE_2D, s_white_tex_bg);
+  setTexture(shaderProgram, 0);
 
-  // Upload vertex data
-  glBindBuffer(GL_ARRAY_BUFFER, bgVboVertices);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+  // Use identity matrices locally for clip-space verts
+  const GLfloat I[16] = {
+    1,0,0,0,
+    0,1,0,0,
+    0,0,1,0,
+    0,0,0,1
+  };
+  setProjectionMatrix(shaderProgram, (float*)I);
+  setViewMatrix(shaderProgram, (float*)I);
+  setModelMatrix(shaderProgram, (float*)I);
 
-  // Upload color data
-  glBindBuffer(GL_ARRAY_BUFFER, bgVboColors);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(colors), colors, GL_STATIC_DRAW);
+  // Background uses a solid color for simplicity
+  setColor(shaderProgram, 0.2f, 0.2f, 0.5f, 1.0f);
 
-  // Set up vertex attributes
-  glBindBuffer(GL_ARRAY_BUFFER, bgVboVertices);
-  glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
-  glEnableVertexAttribArray(0);
-
-  glBindBuffer(GL_ARRAY_BUFFER, bgVboColors);
-  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
-  glEnableVertexAttribArray(1);
-
-  // Draw the background
+  GLfloat bgVerts[8] = {
+    -1.0f,-1.0f,
+     1.0f,-1.0f,
+     1.0f, 1.0f,
+    -1.0f, 1.0f
+  };
+  GLint a_pos_bg = glGetAttribLocation(shaderProgram, "position");
+  glEnableVertexAttribArray(a_pos_bg);
+  glVertexAttribPointer(a_pos_bg, 2, GL_FLOAT, GL_FALSE, 0, bgVerts);
   glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-
-  // Disable vertex attributes
-  glDisableVertexAttribArray(0);
-  glDisableVertexAttribArray(1);
-
-  // Delete buffers
-  glDeleteBuffers(1, &bgVboVertices);
-  glDeleteBuffers(1, &bgVboColors);
+  glDisableVertexAttribArray(a_pos_bg);
 #else
   // Draw background using immediate mode for non-Android
   glBegin(GL_TRIANGLE_FAN);
@@ -158,38 +168,39 @@ void displayGui() {
       colors[9] = c1; colors[10] = c1; colors[11] = GUI_BLUE * c1;
 
 #ifdef ANDROID
-      // For Android, use VBOs and vertex attributes
-      GLuint gridVboVertices, gridVboColors;
-      glGenBuffers(1, &gridVboVertices);
-      glGenBuffers(1, &gridVboColors);
+      // Android/GLES2: draw grid tile in clip-space with identity
+      glActiveTexture(GL_TEXTURE0);
+      static GLuint s_white_tex_grid = 0;
+      if (s_white_tex_grid == 0) {
+        GLubyte px[4] = {255,255,255,255};
+        glGenTextures(1, &s_white_tex_grid);
+        glBindTexture(GL_TEXTURE_2D, s_white_tex_grid);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, px);
+      }
+      glBindTexture(GL_TEXTURE_2D, s_white_tex_grid);
+      setTexture(shaderProgram, 0);
 
-      // Upload vertex data
-      glBindBuffer(GL_ARRAY_BUFFER, gridVboVertices);
-      glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+      const GLfloat Igrid[16] = {
+        1,0,0,0,
+        0,1,0,0,
+        0,0,1,0,
+        0,0,0,1
+      };
+      setProjectionMatrix(shaderProgram, (float*)Igrid);
+      setViewMatrix(shaderProgram, (float*)Igrid);
+      setModelMatrix(shaderProgram, (float*)Igrid);
 
-      // Upload color data
-      glBindBuffer(GL_ARRAY_BUFFER, gridVboColors);
-      glBufferData(GL_ARRAY_BUFFER, sizeof(colors), colors, GL_STATIC_DRAW);
-
-      // Set up vertex attributes
-      glBindBuffer(GL_ARRAY_BUFFER, gridVboVertices);
-      glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
-      glEnableVertexAttribArray(0);
-
-      glBindBuffer(GL_ARRAY_BUFFER, gridVboColors);
-      glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
-      glEnableVertexAttribArray(1);
-
-      // Draw the grid
+      GLint a_pos_grid = glGetAttribLocation(shaderProgram, "position");
+      glEnableVertexAttribArray(a_pos_grid);
+      glVertexAttribPointer(a_pos_grid, 2, GL_FLOAT, GL_FALSE, 0, vertices);
+      // use left edge color as uniform approximation
+      setColor(shaderProgram, colors[0], colors[1], colors[2], 1.0f);
       glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-
-      // Disable vertex attributes
-      glDisableVertexAttribArray(0);
-      glDisableVertexAttribArray(1);
-
-      // Delete buffers
-      glDeleteBuffers(1, &gridVboVertices);
-      glDeleteBuffers(1, &gridVboColors);
+      glDisableVertexAttribArray(a_pos_grid);
 #else
       // Draw grid using immediate mode for non-Android
       glBegin(GL_TRIANGLE_FAN);
@@ -222,44 +233,43 @@ void displayGui() {
   };
 
 #ifdef ANDROID
-  // For Android, use VBOs and vertex attributes
-  GLuint logoVboVertices, logoVboTexCoords;
-  glGenBuffers(1, &logoVboVertices);
-  glGenBuffers(1, &logoVboTexCoords);
+  // Android/GLES2: before logo/text rendering, restore 2D pixel-space projection expected by text pipeline
+  // Build orthographic projection similar to font rendering
+  float wvp = (float)game->screen->vp_w;
+  float hvp = (float)game->screen->vp_h;
+  GLfloat proj2D[16] = {
+    2.0f / wvp, 0.0f,        0.0f, 0.0f,
+    0.0f,      -2.0f / hvp,  0.0f, 0.0f,
+    0.0f,       0.0f,        1.0f, 0.0f,
+    -1.0f,      1.0f,        0.0f, 1.0f
+  };
+  const GLfloat Ilogo[16] = {
+    1,0,0,0,
+    0,1,0,0,
+    0,0,1,0,
+    0,0,0,1
+  };
+  setProjectionMatrix(shaderProgram, (float*)proj2D);
+  setViewMatrix(shaderProgram, (float*)Ilogo);
+  setModelMatrix(shaderProgram, (float*)Ilogo);
 
-  // Upload vertex data
-  glBindBuffer(GL_ARRAY_BUFFER, logoVboVertices);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+  // Now draw the logo (still using clip-like coordinates, but we can map to pixels later if needed)
+  GLint a_pos_logo = glGetAttribLocation(shaderProgram, "position");
+  GLint a_uv_logo  = glGetAttribLocation(shaderProgram, "texCoord");
+  glEnableVertexAttribArray(a_pos_logo);
+  glEnableVertexAttribArray(a_uv_logo);
+  glVertexAttribPointer(a_pos_logo, 2, GL_FLOAT, GL_FALSE, 0, vertices);
+  glVertexAttribPointer(a_uv_logo, 2, GL_FLOAT, GL_FALSE, 0, texCoords);
 
-  // Upload texture coordinate data
-  glBindBuffer(GL_ARRAY_BUFFER, logoVboTexCoords);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(texCoords), texCoords, GL_STATIC_DRAW);
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, game->screen->texGui);
+  setTexture(shaderProgram, 0);
+  setColor(shaderProgram, 1.0f, 1.0f, 1.0f, alpha);
 
-  // Set up vertex attributes
-  glBindBuffer(GL_ARRAY_BUFFER, logoVboVertices);
-  glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
-  glEnableVertexAttribArray(0);
-
-  glBindBuffer(GL_ARRAY_BUFFER, logoVboTexCoords);
-  glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 0, 0);
-  glEnableVertexAttribArray(2);
-
-  // Set up shader for logo on Android
-  if (shaderProgram) {
-    setColor(shaderProgram, 1.0f, 1.0f, 0.0f, alpha);
-    setTexture(shaderProgram, 0); // Assuming texture unit 0
-  }
-
-  // Draw the logo
   glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 
-  // Disable vertex attributes
-  glDisableVertexAttribArray(0);
-  glDisableVertexAttribArray(2);
-
-  // Delete buffers
-  glDeleteBuffers(1, &logoVboVertices);
-  glDeleteBuffers(1, &logoVboTexCoords);
+  glDisableVertexAttribArray(a_pos_logo);
+  glDisableVertexAttribArray(a_uv_logo);
 #else
   // Set up color for logo on non-Android
   glColor4f(1.0f, 1.0f, 0.0f, alpha);
@@ -384,6 +394,21 @@ void initGLGui() {
   // Ensure GUI overlays render on Android/GLES
   glDisable(GL_DEPTH_TEST);
   glDisable(GL_CULL_FACE);
+#ifdef ANDROID
+  // Initialize a 1x1 white texture for non-textured GUI draws
+  static GLuint s_white_tex = 0;
+  if (s_white_tex == 0) {
+    GLubyte pixel[4] = {255,255,255,255};
+    glGenTextures(1, &s_white_tex);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, s_white_tex);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixel);
+  }
+#endif
 }
 
 callbacks guiCallbacks = {
