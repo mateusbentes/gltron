@@ -176,6 +176,8 @@ void gltron_init(void) {
   if (pMenuList && pMenuList[0]) {
     __android_log_print(ANDROID_LOG_INFO, "gltron", "menu loaded: first=%p name='%s' entries=%d",
       pMenuList[0], pMenuList[0]->szName, pMenuList[0]->nEntries);
+    // Ensure current menu pointer is set
+    pCurrent = pMenuList[0];
   } else {
     __android_log_print(ANDROID_LOG_ERROR, "gltron", "menu load failed; creating minimal fallback menu");
     // Create a minimal menu hierarchy with 1 top-level menu and a few entries
@@ -191,6 +193,7 @@ void gltron_init(void) {
     strcpy(root->pEntries[1]->szCapFormat, "Quit");
     pMenuList = (Menu**)calloc(1, sizeof(Menu*));
     pMenuList[0] = root;
+    pCurrent = root;
   }
 #endif
   initGameStructures();
