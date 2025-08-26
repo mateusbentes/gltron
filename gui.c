@@ -47,32 +47,35 @@ void displayGui() {
   float alpha;
 #ifdef ANDROID
   static int logged = 0;
-  if (!logged) { __android_log_print(ANDROID_LOG_INFO, "gltron", "displayGui: drawing GUI"); logged = 1; }
+  if (!logged) {
+    __android_log_print(ANDROID_LOG_INFO, "gltron", "displayGui: drawing GUI");
+    logged = 1;
+  }
 #endif
-
-#define N 20.0
+  #define N 20.0
   checkGLError("gui.c displayGui - before clear");
+
+  // Clear the screen
   glClearColor(0.0, 0.0, 1.0, 0.0);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 #ifdef ANDROID
-  // Ensure 2D projection and bind shader for Android GUI
+  // Set up 2D projection and shader for Android
   rasonly(game->screen);
-  { GLuint sp = shader_get_basic(); if (sp) useShaderProgram(sp); }
-  guiProjection(game->screen->vp_w, game->screen->vp_h);
+  GLuint shaderProgram = shader_get_basic();
+  if (shaderProgram) {
+    useShaderProgram(shaderProgram);
+  }
+#else
+  // Set up 2D projection for non-Android
+  glMatrixMode(GL_PROJECTION);
+  glLoadIdentity();
+  glOrtho(-1.0, 1.0, -1.0, 1.0, -1.0, 1.0);
+  glMatrixMode(GL_MODELVIEW);
+  glLoadIdentity();
 #endif
 
-#ifndef ANDROID
-  // Set texture parameters and draw background using fixed-function on desktop
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-  // Bind texture once before the loop
-  glEnable(GL_TEXTURE_2D);
-  glBindTexture(GL_TEXTURE_2D, game->screen->texGui);
-  glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-
-  // Use vertex arrays instead of immediate mode
+  // Draw background
   GLfloat vertices[8];
   GLfloat colors[12];
 
@@ -88,6 +91,7 @@ void displayGui() {
   colors[6] = c2; colors[7] = c2; colors[8] = GUI_BLUE * c2;
   colors[9] = c1; colors[10] = c1; colors[11] = GUI_BLUE * c1;
 
+  // Draw background
   glEnableClientState(GL_VERTEX_ARRAY);
   glEnableClientState(GL_COLOR_ARRAY);
   glVertexPointer(2, GL_FLOAT, 0, vertices);
@@ -95,21 +99,16 @@ void displayGui() {
   glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
   glDisableClientState(GL_COLOR_ARRAY);
   glDisableClientState(GL_VERTEX_ARRAY);
-#else
-  // Android: skip legacy background to avoid ES1 usage
-#endif
 
-#ifndef ANDROID
+  // Draw animated grid
   for(y1 = -1; y1 < 1; y1 += 2 / N) {
     y2 = y1 + 2 / N;
     for(x = -1; x < 1; x += 2 / N) {
       c1 = (x + 1) / 2;
       c2 = (x + 2 / N + 1) / 2;
-
       c1 = c1 / 2 + 0.25;
       c2 = c2 / 2 + 0.25;
 
-      // Use vertex arrays instead of immediate mode
       a = x + sin(bgs.d) / 10;
       b1 = x + 2 / N;
       b2 = b1 + cos(bgs.d) / 10;
@@ -133,17 +132,14 @@ void displayGui() {
       glDisableClientState(GL_VERTEX_ARRAY);
     }
   }
-#endif
 
+  // Draw logo
   x = bgs.posx;
   y = bgs.posy;
   w = 1;
   h = w/4;
-
   alpha = (sin(bgs.d - M_PI / 2) + 1) / 2;
 
-#ifndef ANDROID
-  // Use vertex arrays instead of immediate mode
   vertices[0] = x - w / 2; vertices[1] = y - h / 2;
   vertices[2] = x + w / 2; vertices[3] = y - h / 2;
   vertices[4] = x + w / 2; vertices[5] = y + h / 2;
@@ -156,28 +152,44 @@ void displayGui() {
     0.0f, 1.0f
   };
 
+#ifdef ANDROID
+  // Set up shader for logo on Android
+  if (shaderProgram) {
+    setColor(shaderProgram, 1.0f, 1.0f, 0.0f, alpha);
+    setTexture(shaderProgram, 0); // Assuming texture unit 0
+  }
+#else
+  // Set up color for logo on non-Android
+  glColor4f(1.0f, 1.0f, 0.0f, alpha);
+  glEnable(GL_TEXTURE_2D);
+  glBindTexture(GL_TEXTURE_2D, game->screen->texGui);
+#endif
+
   glEnableClientState(GL_VERTEX_ARRAY);
   glEnableClientState(GL_TEXTURE_COORD_ARRAY);
   glVertexPointer(2, GL_FLOAT, 0, vertices);
   glTexCoordPointer(2, GL_FLOAT, 0, texCoords);
-  glColor4f(1.0f, 1.0f, 0.0f, alpha);
   glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
   glDisableClientState(GL_TEXTURE_COORD_ARRAY);
   glDisableClientState(GL_VERTEX_ARRAY);
+
+#ifndef ANDROID
+  glDisable(GL_TEXTURE_2D);
 #endif
 
-  glDisable(GL_TEXTURE_2D);
-
-  #ifdef ANDROID
-  // OpenGL ES has no fixed-function glColor*. Menu rendering on Android sets color
-  // via setColor(...) in menu.c; no color state is set here.
+  // Draw menu
+#ifdef ANDROID
+  if (shaderProgram) {
+    setColor(shaderProgram, 1.0f, 0.0f, 1.0f, 1.0f); // Set color for menu
+  }
 #else
-  glColor3f(1.0, 0.0, 1.0);
+  glColor3f(1.0f, 0.0f, 1.0f); // Set color for menu
 #endif
   drawMenu(game->screen);
 
   if(game->settings->mouse_warp)
     mouseWarp();
+
 #ifndef ANDROID
   glutSwapBuffers();
 #endif
