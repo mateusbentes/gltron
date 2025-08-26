@@ -404,21 +404,34 @@ void drawMenu(gDisplay *d) {
 // New: Load menu from in-memory buffer (no filesystem required)
 Menu** loadMenuFromBuffer(const char* buffer) {
   if (!buffer) return 0;
+  // Normalize buffer: strip UTF-8 BOM and convert CRLF to LF in a temp allocation
+  size_t inlen = strlen(buffer);
+  const unsigned char* ub = (const unsigned char*)buffer;
+  size_t start = 0;
+  if (inlen >= 3 && ub[0] == 0xEF && ub[1] == 0xBB && ub[2] == 0xBF) start = 3; // skip BOM
+  char* norm = (char*)malloc(inlen - start + 1);
+  if (!norm) return 0;
+  size_t w = 0;
+  for (size_t r = start; r < inlen; ++r) {
+    if (buffer[r] == '\r') continue;
+    norm[w++] = buffer[r];
+  }
+  norm[w] = '\0';
   // Write buffer to a temporary in-memory FILE* when available, else to a temp file
 #if defined(__ANDROID_API__) && (__ANDROID_API__ >= 23)
   // Try fmemopen when available
-  FILE* f = fmemopen((void*)buffer, strlen(buffer), "rb");
-  if (!f) return 0;
+  FILE* f = fmemopen((void*)norm, strlen(norm), "rb");
+  if (!f) { free(norm); return 0; }
 #else
   // Portable fallback: write to a temporary file in internal storage
   char tmpPath[512];
   snprintf(tmpPath, sizeof(tmpPath), "/data/local/tmp/gltron_menu_buf_%ld.txt", (long)getpid());
   FILE* tf = fopen(tmpPath, "wb");
-  if (!tf) return 0;
-  fwrite(buffer, 1, strlen(buffer), tf);
+  if (!tf) { free(norm); return 0; }
+  fwrite(norm, 1, strlen(norm), tf);
   fclose(tf);
   FILE* f = fopen(tmpPath, "rb");
-  if (!f) { remove(tmpPath); return 0; }
+  if (!f) { remove(tmpPath); free(norm); return 0; }
 #endif
 
   char buf[MENU_BUFSIZE];
