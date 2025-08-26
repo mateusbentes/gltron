@@ -55,38 +55,6 @@ void displayGui() {
   // Ensure 2D projection and bind shader for Android GUI
   rasonly(game->screen);
   { GLuint sp = shader_get_basic(); if (sp) useShaderProgram(sp); }
-  // Draw a simple background (textured if available, else solid)
-  {
-    GLuint sp = shader_get_basic();
-    if (sp) {
-      // Fullscreen quad in pixel coords
-      GLfloat vx = 0.f, vy = 0.f;
-      GLfloat vw = (GLfloat)game->screen->vp_w;
-      GLfloat vh = (GLfloat)game->screen->vp_h;
-      GLfloat verts[8] = { vx, vy,  vx+vw, vy,  vx+vw, vy+vh,  vx, vy+vh };
-      // Try textured background using texGui
-      int textured = (game && game->screen && game->screen->texGui != 0);
-      GLint a_pos = glGetAttribLocation(sp, "position");
-      GLint a_uv  = glGetAttribLocation(sp, "texCoord");
-      glEnableVertexAttribArray(a_pos);
-      glVertexAttribPointer(a_pos, 2, GL_FLOAT, GL_FALSE, 0, verts);
-      if (textured) {
-        GLfloat uvs[8] = { 0,0, 1,0, 1,1, 0,1 };
-        glEnableVertexAttribArray(a_uv);
-        glVertexAttribPointer(a_uv, 2, GL_FLOAT, GL_FALSE, 0, uvs);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, game->screen->texGui);
-        setTexture(sp, 0);
-        setColor(sp, 1,1,1,1);
-      } else {
-        // Solid subtle blue background
-        setColor(sp, 0.1f, 0.15f, 0.25f, 1.0f);
-      }
-      glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-      if (textured) glDisableVertexAttribArray(a_uv);
-      glDisableVertexAttribArray(a_pos);
-    }
-  }
 #endif
 
   guiProjection(game->screen->vp_w, game->screen->vp_h);

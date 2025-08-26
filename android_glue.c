@@ -54,6 +54,8 @@ void gltron_init(void) {
     memset(game->screen, 0, sizeof(gDisplay));
   }
   initialized = 1;
+  // Ensure we start in GUI (menu) on Android
+  switchCallbacks(&guiCallbacks);
 }
 
 void gltron_resize(int width, int height) {
