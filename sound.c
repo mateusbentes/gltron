@@ -74,6 +74,30 @@ SAMPLE* action_sfx = NULL;
 // helper to load music module by common names/paths
 static int loadMusicModule(void) {
     if (sound_module) return 0; // already loaded
+#ifdef ANDROID
+    // Try APK assets via getFullPath() first, extracting to internal storage if needed
+    const char* names[] = {"gltron", "music", NULL};
+    const char* exts[] = {".it", ".xm", ".s3m", ".mod", NULL};
+    for (int n=0; names[n]; ++n) {
+        for (int e=0; exts[e]; ++e) {
+            char cand[128];
+            snprintf(cand, sizeof(cand), "%s%s", names[n], exts[e]);
+            char* p = getFullPath(cand);
+            if (p) {
+                printf("Attempting to load music from: %s\n", p);
+                sound_module = Player_Load(p, 64, 0);
+                if (sound_module) {
+                    printf("Successfully loaded music: %s\n", p);
+                    free(p);
+                    return 0;
+                }
+                free(p);
+            }
+        }
+    }
+    printf("Could not load music module from assets: %s\n", MikMod_strerror(MikMod_errno));
+    return 1;
+#else
     const char* paths[] = {"./", "/usr/share/games/gltron/", "/usr/local/share/games/gltron/", NULL};
     const char* names[] = {"gltron", "music", NULL};
     const char* exts[] = {".it", ".xm", ".s3m", ".mod", NULL};
@@ -93,6 +117,7 @@ static int loadMusicModule(void) {
     }
     printf("Could not load music module: %s\n", MikMod_strerror(MikMod_errno));
     return 1;
+#endif
 }
 
 // Initialize sound system
@@ -159,6 +184,28 @@ int initSound(void) {
 
 // Load a sample (SFX) from file
 int loadSampleEffect(char* name, SAMPLE** sfx_out) {
+#ifdef ANDROID
+    const char* exts[] = {".wav", ".aiff", ".aif", ".au", NULL};
+    *sfx_out = NULL;
+    for (int e=0; exts[e]; ++e) {
+        char cand[256];
+        snprintf(cand, sizeof(cand), "%s%s", name, exts[e]);
+        char* p = getFullPath(cand);
+        if (p) {
+            printf("Attempting to load sample from: %s\n", p);
+            SAMPLE* s = Sample_Load(p);
+            if (s) {
+                *sfx_out = s;
+                printf("Successfully loaded sample: %s\n", p);
+                free(p);
+                return 0;
+            }
+            free(p);
+        }
+    }
+    printf("Could not load sample %s from assets: %s\n", name, MikMod_strerror(MikMod_errno));
+    return 1;
+#else
     const char* paths[] = {
         "./",
         "/usr/share/games/gltron/",
@@ -183,6 +230,7 @@ int loadSampleEffect(char* name, SAMPLE** sfx_out) {
     }
     printf("Could not load sample %s: %s\n", name, MikMod_strerror(MikMod_errno));
     return 1;
+#endif
 }
 
 // Play a sample (SFX)
