@@ -27,10 +27,14 @@ void initSettingData(char *filename) {
   }
 
   // Try to resolve via getFullPath first (desktop may package settings in share dir)
+#ifdef ANDROID
+  // On Android, settings is in internal storage path; do not use getFullPath (assets are read-only)
+  char *resolved = NULL;
+  const char *openName = filename;
+  LOGI("initSettingData: resolved path: %s", openName ? openName : "(null)");
+#else
   char *resolved = getFullPath(filename);
   const char *openName = resolved ? resolved : filename;
-#ifdef ANDROID
-  LOGI("initSettingData: resolved path: %s", openName ? openName : "(null)");
 #endif
 
   f = fopen(openName, "r");
@@ -102,15 +106,27 @@ void initSettingData(char *filename) {
 
   if (resolved) free(resolved);
 
-  if (!game || !game->settings || !si || !sf) {
-    // Ensure arrays are allocated to expected minimal sizes to avoid later deref
-    if (!si) { si = calloc(28, sizeof(struct settings_int)); si_count = 28; }
-    if (!sf) { sf = calloc(1, sizeof(struct settings_float)); sf_count = 1; }
-  }
-
-  // Guard against NULL settings
   if (!game || !game->settings) return;
 
+  // Ensure arrays are allocated to expected minimal sizes to avoid later deref
+  if (!si || si_count < 28) {
+    if (si) free(si);
+    si = calloc(28, sizeof(struct settings_int));
+    si_count = 28;
+    // Initialize names to match defaults if parsing failed
+    const char* names_int[28] = {
+      "show_help","show_fps","show_wall","show_glow","show_2d","show_alpha","show_floor_texture","line_spacing","erase_crashed","fast_finish","fov","width","height","show_ai_status","camType","display_type","playSound","show_model","ai_player1","ai_player2","ai_player3","ai_player4","show_crash_texture","turn_cycle","mouse_warp","sound_driver","input_mode","fullscreen"
+    };
+    for (int k = 0; k < 28; ++k) strncpy(si[k].name, names_int[k], sizeof(si[k].name)-1);
+  }
+  if (!sf || sf_count < 1) {
+    if (sf) free(sf);
+    sf = calloc(1, sizeof(struct settings_float));
+    sf_count = 1;
+    strncpy(sf[0].name, "speed", sizeof(sf[0].name)-1);
+  }
+
+  // Bind pointers
   si[0].value = &(game->settings->show_help);
   si[1].value = &(game->settings->show_fps);
   si[2].value = &(game->settings->show_wall);
@@ -169,11 +185,58 @@ void initMainGameSettings(char *filename) {
   game->settings = (Settings*) malloc(sizeof(Settings));
   if (!game->settings) return;
   memset(game->settings, 0, sizeof(Settings));
-  initSettingData(filename);
 
-  /* initialize defaults, then load modifications from file */
-
+  /* initialize defaults first, then load names/bindings from file */
   game->pauseflag = 0;
+
+  game->settings->show_help = 0;
+  game->settings->show_fps = 1;
+  game->settings->show_wall = 1;
+  game->settings->show_glow = 1;
+  game->settings->show_2d = 0;
+  game->settings->show_alpha = 1;
+  game->settings->show_floor_texture = 1;
+  game->settings->show_crash_texture = 1;
+  game->settings->show_model = 1;
+  game->settings->turn_cycle = 1;
+  game->settings->line_spacing = 20;
+  game->settings->erase_crashed = 0;
+  game->settings->fast_finish = 1;
+  game->settings->fov = 105;
+  game->settings->speed = 4.2;
+  game->settings->width = 640;
+  game->settings->height = 480;
+  game->settings->show_ai_status = 1;
+  game->settings->camType = 0;
+  game->settings->mouse_warp = 0;
+  game->settings->input_mode = 1; /* default to Mouse for menu usability */
+#ifdef ANDROID
+  game->settings->fullscreen = 1;
+#else
+  game->settings->fullscreen = 0;
+#endif
+  game->settings->display_type = 0;
+  game->settings->playSound = 1;
+  game->settings->playMusic = 1;
+
+  game->settings->ai_player1 = 0;
+  game->settings->ai_player2 = 1;
+  game->settings->ai_player3 = 1;
+  game->settings->ai_player4 = 1;
+
+  game->settings->sound_driver = 0;
+
+  /* not included in .gltronrc */
+
+  game->settings->screenSaver = 0;
+  game->settings->windowMode = 0;
+  game->settings->content[0] = 0;
+  game->settings->content[1] = 1;
+  game->settings->content[2] = 2;
+  game->settings->content[3] = 3;
+
+  /* now load settings names and bind pointers */
+  initSettingData(filename);
 
   game->settings->show_help = 0;
   game->settings->show_fps = 1;
@@ -224,6 +287,7 @@ void initMainGameSettings(char *filename) {
 
   /* go for .gltronrc (or whatever is defined in RC_NAME) */
 
+#ifndef ANDROID
   home = getenv(HOMEVAR);
   if(home == 0) /* evaluate homedir */ {
     fname = malloc(strlen(CURRENT_DIR) + strlen(RC_NAME) + 2);
@@ -233,7 +297,6 @@ void initMainGameSettings(char *filename) {
     fname = malloc(strlen(home) + strlen(RC_NAME) + 2);
     sprintf(fname, "%s%c%s", home, SEPERATOR, RC_NAME);
   }
-#ifndef ANDROID
   f = fopen(fname, "r");
   if(f == 0) {
     printf("no %s found - using defaults\n", fname);
@@ -268,14 +331,12 @@ void initMainGameSettings(char *filename) {
   free(fname);
   fclose(f);
 #else
-  /* On Android, skip reading rc file; use defaults and enforce fullscreen */
-  if(fname) free(fname);
+  /* On Android, skip reading rc file to avoid early aborts; defaults + parsed settings are sufficient */
+  (void)fname; (void)home; (void)i; (void)buf; (void)expbuf; (void)f;
 #endif
 #ifdef ANDROID
-  // Always enforce fullscreen on Android at load time
-  game->settings->fullscreen = 1; // Ignore persisted width/height; let fullscreen apply/reshape set real size
-  game->settings->width = 0;
-  game->settings->height = 0;
+  // Always enforce fullscreen on Android at load time (surface applies real size)
+  game->settings->fullscreen = 1;
 #endif
 
 }
@@ -285,6 +346,7 @@ void saveSettings() {
   int i;
   FILE* f;
 
+#ifndef ANDROID
   home = getenv(HOMEVAR);
   if(home == 0) /* evaluate homedir */ {
     fname = malloc(strlen(CURRENT_DIR) + strlen(RC_NAME) + 2);
@@ -294,10 +356,16 @@ void saveSettings() {
     fname = malloc(strlen(home) + strlen(RC_NAME) + 2);
     sprintf(fname, "%s%c%s", home, SEPERATOR, RC_NAME);
   }
+#else
+  extern char s_base_path[1024];
+  fname = malloc(strlen(s_base_path) + 1 + strlen(RC_NAME) + 1);
+  sprintf(fname, "%s%c%s", s_base_path, SEPERATOR, RC_NAME);
+#endif
   f = fopen(fname, "w");
   if(f == 0) {
     printf("can't open %s ", fname);
     perror("for writing");
+    free(fname);
     return; /* can't write rc */
   }
   for(i = 0; i < si_count; i++)

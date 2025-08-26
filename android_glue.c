@@ -3,6 +3,11 @@
 #include "globals.h"
 #include "gltron.h"
 #include <string.h>
+#ifdef ANDROID
+#include <android/log.h>
+#include <android/asset_manager.h>
+#include <sys/stat.h>
+#endif
 
 extern int scr_w, scr_h;
 void update_buttons_layout();
@@ -35,22 +40,92 @@ void gltron_set_base_path(const char* base_path) {
   s_base_path[n] = '\0';
 }
 
+static void init_settings_android() {
+#ifdef ANDROID
+  if (!s_base_path[0]) return;
+  char settingsPathBuf[PATH_MAX];
+  snprintf(settingsPathBuf, sizeof(settingsPathBuf), "%s/%s", s_base_path, "settings.txt");
+  // Ensure base directory exists
+  mkdir(s_base_path, 0700);
+  // If file does not exist, try to seed from asset; else create defaults
+  FILE* f = fopen(settingsPathBuf, "rb");
+  if (!f) {
+    __android_log_print(ANDROID_LOG_INFO, "gltron", "settings.txt not found; seeding from assets or defaults at %s", settingsPathBuf);
+    if (g_android_asset_mgr) {
+      AAsset* asset = AAssetManager_open(g_android_asset_mgr, "settings.txt", AASSET_MODE_STREAMING);
+      if (asset) {
+        FILE* out = fopen(settingsPathBuf, "wb");
+        if (out) {
+          char buf[4096];
+          int r;
+          while ((r = AAsset_read(asset, buf, sizeof(buf))) > 0) fwrite(buf, 1, (size_t)r, out);
+          fclose(out);
+          __android_log_print(ANDROID_LOG_INFO, "gltron", "Seeded settings.txt from APK asset");
+        }
+        AAsset_close(asset);
+      }
+    }
+    // If still missing, write minimal defaults
+    f = fopen(settingsPathBuf, "rb");
+    if (!f) {
+      FILE* out = fopen(settingsPathBuf, "wb");
+      if (out) {
+        const char* defaults =
+          "2\n"               /* number of sections */
+          "i 28\n"           /* 28 integer setting names */
+          "show_help\n"
+          "show_fps\n"
+          "show_wall\n"
+          "show_glow\n"
+          "show_2d\n"
+          "show_alpha\n"
+          "show_floor_texture\n"
+          "line_spacing\n"
+          "erase_crashed\n"
+          "fast_finish\n"
+          "fov\n"
+          "width\n"
+          "height\n"
+          "show_ai_status\n"
+          "camType\n"
+          "display_type\n"
+          "playSound\n"
+          "show_model\n"
+          "ai_player1\n"
+          "ai_player2\n"
+          "ai_player3\n"
+          "ai_player4\n"
+          "show_crash_texture\n"
+          "turn_cycle\n"
+          "mouse_warp\n"
+          "sound_driver\n"
+          "input_mode\n"
+          "fullscreen\n"
+          "f 1\n"           /* 1 float setting name */
+          "speed\n";
+        fwrite(defaults, 1, strlen(defaults), out);
+        fclose(out);
+        __android_log_print(ANDROID_LOG_INFO, "gltron", "Wrote default settings.txt (formatted)");
+      }
+    } else {
+      fclose(f);
+    }
+    // Let settings module initialize from this path now
+    initMainGameSettings(settingsPathBuf);
+    return;
+  } else {
+    fclose(f);
+    initMainGameSettings(settingsPathBuf);
+    return;
+  }
+#endif
+}
+
 void gltron_init(void) {
   if (initialized) return;
 #ifdef ANDROID
   __android_log_print(ANDROID_LOG_INFO, "gltron", "gltron_init: base_path='%s' mgr=%p", s_base_path, g_android_asset_mgr);
-#endif
-  // Initialize core game structures and data
-#ifdef ANDROID
-  // Prefer internal writable settings file under s_base_path
-  char settingsPathBuf[PATH_MAX];
-  settingsPathBuf[0] = '\0';
-  if (s_base_path[0]) {
-    snprintf(settingsPathBuf, sizeof(settingsPathBuf), "%s/%s", s_base_path, "settings.txt");
-    initMainGameSettings(settingsPathBuf);
-  } else {
-    initMainGameSettings("settings.txt");
-  }
+  init_settings_android();
 #else
   initMainGameSettings("settings.txt");
 #endif
