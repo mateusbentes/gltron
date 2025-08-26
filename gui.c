@@ -91,14 +91,48 @@ void displayGui() {
   colors[6] = c2; colors[7] = c2; colors[8] = GUI_BLUE * c2;
   colors[9] = c1; colors[10] = c1; colors[11] = GUI_BLUE * c1;
 
-  // Draw background
-  glEnableClientState(GL_VERTEX_ARRAY);
-  glEnableClientState(GL_COLOR_ARRAY);
-  glVertexPointer(2, GL_FLOAT, 0, vertices);
-  glColorPointer(3, GL_FLOAT, 0, colors);
+#ifdef ANDROID
+  // For Android, we need to use VBOs and vertex attributes
+  GLuint bgVboVertices, bgVboColors;
+  glGenBuffers(1, &bgVboVertices);
+  glGenBuffers(1, &bgVboColors);
+
+  // Upload vertex data
+  glBindBuffer(GL_ARRAY_BUFFER, bgVboVertices);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+  // Upload color data
+  glBindBuffer(GL_ARRAY_BUFFER, bgVboColors);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(colors), colors, GL_STATIC_DRAW);
+
+  // Set up vertex attributes
+  glBindBuffer(GL_ARRAY_BUFFER, bgVboVertices);
+  glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
+  glEnableVertexAttribArray(0);
+
+  glBindBuffer(GL_ARRAY_BUFFER, bgVboColors);
+  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
+  glEnableVertexAttribArray(1);
+
+  // Draw the background
   glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-  glDisableClientState(GL_COLOR_ARRAY);
-  glDisableClientState(GL_VERTEX_ARRAY);
+
+  // Disable vertex attributes
+  glDisableVertexAttribArray(0);
+  glDisableVertexAttribArray(1);
+
+  // Delete buffers
+  glDeleteBuffers(1, &bgVboVertices);
+  glDeleteBuffers(1, &bgVboColors);
+#else
+  // Draw background using immediate mode for non-Android
+  glBegin(GL_TRIANGLE_FAN);
+  for (int i = 0; i < 4; i++) {
+    glColor3f(colors[i*3], colors[i*3+1], colors[i*3+2]);
+    glVertex2f(vertices[i*2], vertices[i*2+1]);
+  }
+  glEnd();
+#endif
 
   // Draw animated grid
   for(y1 = -1; y1 < 1; y1 += 2 / N) {
@@ -123,13 +157,48 @@ void displayGui() {
       colors[6] = c2; colors[7] = c2; colors[8] = GUI_BLUE * c2;
       colors[9] = c1; colors[10] = c1; colors[11] = GUI_BLUE * c1;
 
-      glEnableClientState(GL_VERTEX_ARRAY);
-      glEnableClientState(GL_COLOR_ARRAY);
-      glVertexPointer(2, GL_FLOAT, 0, vertices);
-      glColorPointer(3, GL_FLOAT, 0, colors);
+#ifdef ANDROID
+      // For Android, use VBOs and vertex attributes
+      GLuint gridVboVertices, gridVboColors;
+      glGenBuffers(1, &gridVboVertices);
+      glGenBuffers(1, &gridVboColors);
+
+      // Upload vertex data
+      glBindBuffer(GL_ARRAY_BUFFER, gridVboVertices);
+      glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+      // Upload color data
+      glBindBuffer(GL_ARRAY_BUFFER, gridVboColors);
+      glBufferData(GL_ARRAY_BUFFER, sizeof(colors), colors, GL_STATIC_DRAW);
+
+      // Set up vertex attributes
+      glBindBuffer(GL_ARRAY_BUFFER, gridVboVertices);
+      glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
+      glEnableVertexAttribArray(0);
+
+      glBindBuffer(GL_ARRAY_BUFFER, gridVboColors);
+      glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
+      glEnableVertexAttribArray(1);
+
+      // Draw the grid
       glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-      glDisableClientState(GL_COLOR_ARRAY);
-      glDisableClientState(GL_VERTEX_ARRAY);
+
+      // Disable vertex attributes
+      glDisableVertexAttribArray(0);
+      glDisableVertexAttribArray(1);
+
+      // Delete buffers
+      glDeleteBuffers(1, &gridVboVertices);
+      glDeleteBuffers(1, &gridVboColors);
+#else
+      // Draw grid using immediate mode for non-Android
+      glBegin(GL_TRIANGLE_FAN);
+      for (int i = 0; i < 4; i++) {
+        glColor3f(colors[i*3], colors[i*3+1], colors[i*3+2]);
+        glVertex2f(vertices[i*2], vertices[i*2+1]);
+      }
+      glEnd();
+#endif
     }
   }
 
@@ -153,27 +222,58 @@ void displayGui() {
   };
 
 #ifdef ANDROID
+  // For Android, use VBOs and vertex attributes
+  GLuint logoVboVertices, logoVboTexCoords;
+  glGenBuffers(1, &logoVboVertices);
+  glGenBuffers(1, &logoVboTexCoords);
+
+  // Upload vertex data
+  glBindBuffer(GL_ARRAY_BUFFER, logoVboVertices);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+  // Upload texture coordinate data
+  glBindBuffer(GL_ARRAY_BUFFER, logoVboTexCoords);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(texCoords), texCoords, GL_STATIC_DRAW);
+
+  // Set up vertex attributes
+  glBindBuffer(GL_ARRAY_BUFFER, logoVboVertices);
+  glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
+  glEnableVertexAttribArray(0);
+
+  glBindBuffer(GL_ARRAY_BUFFER, logoVboTexCoords);
+  glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 0, 0);
+  glEnableVertexAttribArray(2);
+
   // Set up shader for logo on Android
   if (shaderProgram) {
     setColor(shaderProgram, 1.0f, 1.0f, 0.0f, alpha);
     setTexture(shaderProgram, 0); // Assuming texture unit 0
   }
+
+  // Draw the logo
+  glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+
+  // Disable vertex attributes
+  glDisableVertexAttribArray(0);
+  glDisableVertexAttribArray(2);
+
+  // Delete buffers
+  glDeleteBuffers(1, &logoVboVertices);
+  glDeleteBuffers(1, &logoVboTexCoords);
 #else
   // Set up color for logo on non-Android
   glColor4f(1.0f, 1.0f, 0.0f, alpha);
   glEnable(GL_TEXTURE_2D);
   glBindTexture(GL_TEXTURE_2D, game->screen->texGui);
-#endif
 
-  glEnableClientState(GL_VERTEX_ARRAY);
-  glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-  glVertexPointer(2, GL_FLOAT, 0, vertices);
-  glTexCoordPointer(2, GL_FLOAT, 0, texCoords);
-  glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-  glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-  glDisableClientState(GL_VERTEX_ARRAY);
+  // Draw logo using immediate mode for non-Android
+  glBegin(GL_TRIANGLE_FAN);
+  for (int i = 0; i < 4; i++) {
+    glTexCoord2f(texCoords[i*2], texCoords[i*2+1]);
+    glVertex2f(vertices[i*2], vertices[i*2+1]);
+  }
+  glEnd();
 
-#ifndef ANDROID
   glDisable(GL_TEXTURE_2D);
 #endif
 
@@ -209,8 +309,8 @@ void idleGui() {
   delta /= 1000.0;
   bgs.d += delta;
   /* printf("%.5f\n", delta); */
-  
-  if(bgs.d > 2 * M_PI) { 
+
+  if(bgs.d > 2 * M_PI) {
     bgs.d -= 2 * M_PI;
     bgs.posx = 1.0 * (float)rand() / (float)RAND_MAX - 1;
     bgs.posy = 1.5 * (float)rand() / (float)RAND_MAX - 1;
@@ -219,11 +319,7 @@ void idleGui() {
   applyDisplaySettingsDeferred();
   forceViewportResetIfNeededForGui();
 #ifndef ANDROID
-  #ifndef ANDROID
   glutPostRedisplay();
-#endif
-#else
-  /* On Android, redisplay should be driven by the app render loop */
 #endif
 }
 
