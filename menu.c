@@ -337,7 +337,35 @@ void drawMenu(gDisplay *d) {
   int x, y, size, lineheight;
 
   // Setup 2D projection
+#ifdef ANDROID
+  // Android/GLES2: use basic shader with bottom-left origin 2D projection in pixels
+  {
+    GLuint prog = shader_get_basic();
+    if (prog) {
+      useShaderProgram(prog);
+      float wvp = (float)d->vp_w;
+      float hvp = (float)d->vp_h;
+      GLfloat proj2D[16] = {
+        2.0f / wvp, 0.0f,       0.0f, 0.0f,
+        0.0f,       2.0f / hvp, 0.0f, 0.0f,
+        0.0f,       0.0f,       1.0f, 0.0f,
+        -1.0f,     -1.0f,       0.0f, 1.0f
+      };
+      GLfloat I[16] = {
+        1,0,0,0,
+        0,1,0,0,
+        0,0,1,0,
+        0,0,0,1
+      };
+      setProjectionMatrix(prog, (float*)proj2D);
+      setViewMatrix(prog, (float*)I);
+      setModelMatrix(prog, (float*)I);
+      setTexture(prog, 0);
+    }
+  }
+#else
   rasonly(d);
+#endif
 
   x = d->vp_w / 6;
   size = d->vp_w / 32;
@@ -355,7 +383,9 @@ void drawMenu(gDisplay *d) {
     }
 #endif
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+#ifndef ANDROID
     rasonly(d);
+#endif
     drawText(x, y, size, "Menu failed to load");
     return;
   }
@@ -389,7 +419,9 @@ void drawMenu(gDisplay *d) {
       glColor4fv(pCurrent->display.fgColor);
 #endif
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+#ifndef ANDROID
     rasonly(d);
+#endif
     drawText(x, y, size,
          ((Menu*)*(pCurrent->pEntries + i))->display.szCaption);
     y -= lineheight;
@@ -409,6 +441,7 @@ void drawMenu(gDisplay *d) {
                  pCurrent->display.fgColor[1],
                  pCurrent->display.fgColor[2],
                  pCurrent->display.fgColor[3]);
+        // Projection already set at top of drawMenu
       }
     }
 #else
@@ -417,6 +450,7 @@ void drawMenu(gDisplay *d) {
     drawText(bx, by, size, (char*)back);
   }
 }
+
 // New: Load menu from in-memory buffer (no filesystem required)
 Menu** loadMenuFromBuffer(const char* buffer) {
   if (!buffer) return 0;
