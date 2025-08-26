@@ -341,8 +341,24 @@ void drawMenu(gDisplay *d) {
 
   x = d->vp_w / 6;
   size = d->vp_w / 32;
+  if (size < 14) size = 14;
   y = 2 * d->vp_h / 3;
   lineheight = size * 2;
+
+  // Hard fallback: if no menu loaded, display a simple message
+  if (!pMenuList || !pCurrent) {
+#ifdef ANDROID
+    GLuint prog = shader_get_basic();
+    if (prog) {
+      useShaderProgram(prog);
+      setColor(prog, 1.0f, 1.0f, 1.0f, 1.0f);
+    }
+#endif
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    rasonly(d);
+    drawText(x, y, size, "Menu failed to load");
+    return;
+  }
 
   /* draw the entries */
   for(i = 0; i < pCurrent->nEntries; i++) {

@@ -122,6 +122,34 @@ static int loadMusicModule(void) {
 
 // Initialize sound system
 int initSound(void) {
+#ifdef ANDROID
+    // Use OpenMPT + OpenSL ES backend on Android
+    if (!sb_init()) {
+        printf("OpenMPT backend init failed\n");
+        return 1;
+    }
+    sb_set_enabled(game->settings->playSound, game->settings->playMusic);
+    // Load SFX via backend (WAV)
+    if (game->settings->playSound) {
+        sb_load_sfx(0, "game_crash.wav");
+        sb_load_sfx(1, "game_lose.wav");
+        sb_load_sfx(2, "game_win.wav");
+        sb_load_sfx(3, "menu_highlight.wav");
+        sb_load_sfx(4, "game_engine.wav");
+        sb_load_sfx(5, "game_start.wav");
+        sb_load_sfx(6, "menu_action.wav");
+    }
+    // Load music (try common names)
+    if (game->settings->playMusic) {
+        if (!(sb_load_music("gltron.it") || sb_load_music("music.it") || sb_load_music("music.xm") || sb_load_music("music.s3m") || sb_load_music("music.mod"))) {
+            printf("No music module found in assets\n");
+        } else {
+            sb_play_music();
+            printf("music started (OpenMPT backend)\n");
+        }
+    }
+    return 0;
+#else
     // Set sound mode and frequency
     md_mode |= DMODE_SOFT_MUSIC | DMODE_SOFT_SNDFX;
     md_mixfreq = 44100;
@@ -180,6 +208,7 @@ int initSound(void) {
     }
 
     return 0;
+#endif
 }
 
 // Load a sample (SFX) from file
@@ -259,6 +288,14 @@ int loadSound(char* name) {
 
 // Play the current sound module
 int playSound(void) {
+#ifdef ANDROID
+    if (game->settings->playMusic) {
+        sb_play_music();
+        printf("sound started (OpenMPT)\n");
+        return 0;
+    }
+    return 1;
+#else
     if (!sound_module) {
         loadMusicModule();
     }
@@ -268,20 +305,30 @@ int playSound(void) {
         return 0;
     }
     return 1;
+#endif
 }
 
 // Stop the current sound module
 int stopSound(void) {
+#ifdef ANDROID
+    sb_stop_music();
+    printf("sound stopped (OpenMPT)\n");
+    return 0;
+#else
     if (Player_Active()) {
         Player_Stop();
         printf("sound stopped\n");
         return 0;
     }
     return 1;
+#endif
 }
 
 // Clean up sound system
 void deleteSound(void) {
+#ifdef ANDROID
+    sb_shutdown();
+#else
     // Stop any playing sound
     if (Player_Active())
         Player_Stop();
@@ -301,6 +348,7 @@ void deleteSound(void) {
 
     // Exit MikMod
     MikMod_Exit();
+#endif
 }
 
 // Update sound system
