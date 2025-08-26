@@ -13,6 +13,10 @@
 
 Menu *pCurrent;
 
+// Forward declarations
+static void getNextLine(char *buf, int bufsize, FILE* f);
+static Menu* loadMenu(FILE* f, char* buf, Menu* parent, int level);
+
 void changeAction(char *name) {
   printf("changeAction called with: %s\n", name);  // Debug output
 
@@ -276,7 +280,7 @@ Menu** loadMenuFile(char *filename) {
   /* read count of Menus */
   getNextLine(buf, MENU_BUFSIZE, f);
   sscanf(buf, "%d ", &nMenus);
-  if(nMenus <= 0) return 0;
+  if(nMenus <= 0) { fclose(f); return 0; }
 
   /* allocate space for data structures */
   list = (Menu**) malloc(sizeof(Menu*) * nMenus);
@@ -284,16 +288,12 @@ Menu** loadMenuFile(char *filename) {
   /* load data */
   for(i = 0; i < nMenus; i++) {
     /* printf("loading menu set %d\n", i); */
-    if(i > 10) exit(1);
+    if(i > 10) { fclose(f); exit(1); }
     *(list + i) = loadMenu(f, buf, NULL, 0);
   }
+  fclose(f);
 
-  /* TODO(3): now since I eliminated the need for cx/cy, why */
-  /* do I need to traverse the Menu Tree? Just to set the colors??? */
-
-  /* traverse Menu Tree and set Menu Color to some boring default */
-  /* printf("finished parsing file - now traversing menus\n"); */
-  /* setup stack */
+  /* traverse Menu Tree and set Menu Color defaults */
   z = (node*) malloc(sizeof(node));
   z->next = z;
   head = (node*) malloc(sizeof(node));
@@ -310,11 +310,6 @@ Menu** loadMenuFile(char *filename) {
       head->next = t->next;
       m = (Menu*) t->data;
       free(t);
-      /* printf("stack count: %d\n", --sp); */
-      /* printf("visiting %s\n", m->szName); */
-      /* visit m */
-
-      /* TODO(0): put the color defaults somewhere else */
 
       m->display.fgColor[0] = 0.0;
       m->display.fgColor[1] = 0.0;
@@ -325,15 +320,11 @@ Menu** loadMenuFile(char *filename) {
       m->display.hlColor[2] = 20.0 / 255.0;
       m->display.hlColor[3] = 1.0;
 
-      /* push all of m's submenus */
       for(j = 0; j < m->nEntries; j++) {
-	t = (node*) malloc(sizeof(node));
-	t->data = *(m->pEntries + j);
-	t->next = head->next;
-	head->next = t;
-	/* printf("pushing %s\n", ((Menu*)t->data)->szName); */
-	/* printf("stack count: %d\n", ++sp); */
-	
+        t = (node*) malloc(sizeof(node));
+        t->data = *(m->pEntries + j);
+        t->next = head->next;
+        head->next = t;
       }
     }
   }
@@ -410,15 +401,99 @@ void drawMenu(gDisplay *d) {
     drawText(bx, by, size, (char*)back);
   }
 }
+// New: Load menu from in-memory buffer (no filesystem required)
+Menu** loadMenuFromBuffer(const char* buffer) {
+  if (!buffer) return 0;
+  // Write buffer to a temporary in-memory FILE* when available, else to a temp file
+#if defined(__ANDROID_API__) && (__ANDROID_API__ >= 23)
+  // Try fmemopen when available
+  FILE* f = fmemopen((void*)buffer, strlen(buffer), "rb");
+  if (!f) return 0;
+#else
+  // Portable fallback: write to a temporary file in internal storage
+  char tmpPath[512];
+  snprintf(tmpPath, sizeof(tmpPath), "/data/local/tmp/gltron_menu_buf_%ld.txt", (long)getpid());
+  FILE* tf = fopen(tmpPath, "wb");
+  if (!tf) return 0;
+  fwrite(buffer, 1, strlen(buffer), tf);
+  fclose(tf);
+  FILE* f = fopen(tmpPath, "rb");
+  if (!f) { remove(tmpPath); return 0; }
+#endif
 
+  char buf[MENU_BUFSIZE];
+  Menu* m;
+  Menu** list = NULL;
+  int nMenus;
+  int i, j;
+  node *head;
+  node *t;
+  node *z;
+  int sp = 0;
 
+  // read count of Menus
+  getNextLine(buf, MENU_BUFSIZE, f);
+  if (sscanf(buf, "%d ", &nMenus) != 1 || nMenus <= 0) {
+#if !(defined(__ANDROID_API__))
+    fclose(f); remove(tmpPath);
+#else
+    fclose(f);
+#endif
+    return 0;
+  }
 
+  list = (Menu**) malloc(sizeof(Menu*) * nMenus);
+  for(i = 0; i < nMenus; i++) {
+    if(i > 10) {
+#if !(defined(__ANDROID_API__))
+      fclose(f); remove(tmpPath);
+#else
+      fclose(f);
+#endif
+      exit(1);
+    }
+    *(list + i) = loadMenu(f, buf, NULL, 0);
+  }
+  fclose(f);
+#if !(defined(__ANDROID_API__))
+  remove(tmpPath);
+#endif
 
+  // Traverse to set colors
+  z = (node*) malloc(sizeof(node));
+  z->next = z;
+  head = (node*) malloc(sizeof(node));
+  head->next = z;
 
-
-
-
-
+  for(i = 0; i < nMenus; i++) {
+    t = (node*) malloc(sizeof(node));
+    t->data = *(list + i);
+    t->next = head->next;
+    head->next = t;
+    sp++;
+    while(head->next != z) {
+      t = head->next;
+      head->next = t->next;
+      m = (Menu*) t->data;
+      free(t);
+      m->display.fgColor[0] = 0.0;
+      m->display.fgColor[1] = 0.0;
+      m->display.fgColor[2] = 0.0;
+      m->display.fgColor[3] = 1.0;
+      m->display.hlColor[0] = 255.0 / 255.0;
+      m->display.hlColor[1] = 20.0 / 255.0;
+      m->display.hlColor[2] = 20.0 / 255.0;
+      m->display.hlColor[3] = 1.0;
+      for(j = 0; j < m->nEntries; j++) {
+        t = (node*) malloc(sizeof(node));
+        t->data = *(m->pEntries + j);
+        t->next = head->next;
+        head->next = t;
+      }
+    }
+  }
+  return list;
+}
 
 
 

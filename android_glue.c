@@ -64,7 +64,36 @@ void gltron_init(void) {
     free(path);
   } else {
 #ifdef ANDROID
-    __android_log_print(ANDROID_LOG_ERROR, "gltron", "Failed to load menu.txt via getFullPath");
+    __android_log_print(ANDROID_LOG_WARN, "gltron", "getFullPath failed for menu.txt, trying direct asset stream");
+    if (g_android_asset_mgr) {
+      AAsset* asset = AAssetManager_open(g_android_asset_mgr, "menu.txt", AASSET_MODE_STREAMING);
+      if (asset) {
+        off_t len = AAsset_getLength(asset);
+        char* buf = (char*)malloc((size_t)len + 1);
+        if (buf) {
+          int total = 0;
+          while (total < len) {
+            int r = AAsset_read(asset, buf + total, (size_t)(len - total));
+            if (r <= 0) break;
+            total += r;
+          }
+          buf[total] = '\0';
+          if (total > 0) {
+            pMenuList = loadMenuFromBuffer(buf);
+            if (!pMenuList) {
+              __android_log_print(ANDROID_LOG_ERROR, "gltron", "loadMenuFromBuffer failed for menu.txt");
+            }
+          }
+          free(buf);
+        }
+        AAsset_close(asset);
+      } else {
+        __android_log_print(ANDROID_LOG_ERROR, "gltron", "AAssetManager_open(menu.txt) failed");
+      }
+    }
+    if (!pMenuList) {
+      __android_log_print(ANDROID_LOG_ERROR, "gltron", "Failed to load menu.txt via all fallbacks");
+    }
 #endif
   }
   initGameStructures();

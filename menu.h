@@ -25,9 +25,10 @@ typedef struct {
   void* next;
 } node;
 
+// Existing API
+Menu** loadMenuFile(char *filename);
+
+// New helper: load menu from a buffer in memory (Android asset stream fallback)
+Menu** loadMenuFromBuffer(const char* buffer);
+
 #endif
-
-
-
-
-
