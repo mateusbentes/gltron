@@ -506,7 +506,7 @@ Menu** loadMenuFromBuffer(const char* buffer) {
   }
   norm[w] = '\0';
   // Write buffer to a temporary in-memory FILE* when available, else to a temp file
-#if defined(__ANDROID_API__) && (__ANDROID_API__ >= 23)
+#ifdef ANDROID
   // Try fmemopen when available
   FILE* f = fmemopen((void*)norm, strlen(norm), "rb");
   if (!f) { free(norm); return 0; }
