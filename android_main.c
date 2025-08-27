@@ -3,6 +3,7 @@
 #include <android/native_activity.h>
 #include <android/native_window.h>
 #include <android_native_app_glue.h>
+#include <jni.h>
 #include <EGL/egl.h>
 #include <GLES2/gl2.h>
 #include "android_glue.h"
@@ -15,7 +16,50 @@ static EGLSurface s_surface = EGL_NO_SURFACE;
 static EGLContext s_context = EGL_NO_CONTEXT;
 static int32_t s_width = 0, s_height = 0;
 
-static int init_egl(ANativeWindow* window) {
+static void set_immersive_fullscreen(struct android_app* app) {
+  if (!app || !app->activity || !app->activity->clazz) return;
+  JNIEnv* env = NULL;
+  (*app->activity->vm)->AttachCurrentThread(app->activity->vm, &env, NULL);
+  if (!env) return;
+  jobject activity = app->activity->clazz;
+  jclass activityClass = (*env)->GetObjectClass(env, activity);
+  jmethodID getWindow = (*env)->GetMethodID(env, activityClass, "getWindow", "()Landroid/view/Window;");
+  jobject window = (*env)->CallObjectMethod(env, activity, getWindow);
+  jclass windowClass = (*env)->GetObjectClass(env, window);
+  jmethodID getDecorView = (*env)->GetMethodID(env, windowClass, "getDecorView", "()Landroid/view/View;");
+  jobject decorView = (*env)->CallObjectMethod(env, window, getDecorView);
+  jclass viewClass = (*env)->GetObjectClass(env, decorView);
+  jfieldID fid_imm_sticky = (*env)->GetStaticFieldID(env, viewClass, "SYSTEM_UI_FLAG_IMMERSIVE_STICKY", "I");
+  jfieldID fid_hide_nav = (*env)->GetStaticFieldID(env, viewClass, "SYSTEM_UI_FLAG_HIDE_NAVIGATION", "I");
+  jfieldID fid_fullscreen = (*env)->GetStaticFieldID(env, viewClass, "SYSTEM_UI_FLAG_FULLSCREEN", "I");
+  jfieldID fid_layout_stable = (*env)->GetStaticFieldID(env, viewClass, "SYSTEM_UI_FLAG_LAYOUT_STABLE", "I");
+  jfieldID fid_layout_hide_nav = (*env)->GetStaticFieldID(env, viewClass, "SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION", "I");
+  jfieldID fid_layout_fullscreen = (*env)->GetStaticFieldID(env, viewClass, "SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN", "I");
+  jint f_imm = (*env)->GetStaticIntField(env, viewClass, fid_imm_sticky);
+  jint f_hide = (*env)->GetStaticIntField(env, viewClass, fid_hide_nav);
+  jint f_full = (*env)->GetStaticIntField(env, viewClass, fid_fullscreen);
+  jint f_stable = (*env)->GetStaticIntField(env, viewClass, fid_layout_stable);
+  jint f_lhide = (*env)->GetStaticIntField(env, viewClass, fid_layout_hide_nav);
+  jint f_lfull = (*env)->GetStaticIntField(env, viewClass, fid_layout_fullscreen);
+  jint flags = f_imm | f_hide | f_full | f_stable | f_lhide | f_lfull;
+  // Call Java helper to apply immersive on UI thread
+  jclass uiCls = (*env)->FindClass(env, "org/gltron/game/UiHelpers");
+  if (uiCls) {
+    jmethodID mid = (*env)->GetStaticMethodID(env, uiCls, "applyImmersive", "(Landroid/app/Activity;Landroid/view/View;I)V");
+    if (mid) {
+      (*env)->CallStaticVoidMethod(env, uiCls, mid, activity, decorView, flags);
+    } else {
+      // Method not found; skip without crashing
+      (*env)->ExceptionClear(env);
+    }
+  } else {
+    // Class not found; clear exception and skip to avoid crash
+    (*env)->ExceptionClear(env);
+  }
+  (*app->activity->vm)->DetachCurrentThread(app->activity->vm);
+}
+
+static int init_egl(ANativeWindow* window, struct android_app* app) {
   s_display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
   eglInitialize(s_display, 0, 0);
   EGLint eglErr = eglGetError();
@@ -133,8 +177,13 @@ static void handle_cmd(struct android_app* app, int32_t cmd) {
   switch (cmd) {
     case APP_CMD_INIT_WINDOW:
       if (app->window) {
-        if (!init_egl(app->window)) {
+        if (!init_egl(app->window, app)) {
           LOGE("Failed to init EGL");
+        } else {
+          // Apply immersive fullscreen from UI-thread context after EGL init
+          if (game && game->settings && game->settings->fullscreen) {
+            set_immersive_fullscreen(app);
+          }
         }
       }
       break;

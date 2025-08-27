@@ -188,7 +188,15 @@ void ftxRenderString(fonttex *ftx, char *string, int len) {
     setModelMatrix(sp, modelView);
     setViewMatrix(sp, viewIdentity);
     setColor(sp, 1.0f, 1.0f, 1.0f, 1.0f);
+
+    // Ensure font atlas is bound to unit 0 before drawing
+    static int logged_once = 0;
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, ftx->texID ? ftx->texID[0] : 0);
     setTexture(sp, 0);
+    if (!logged_once) {
+      logged_once = 1;
+    }
 
     // Attribute locations
     GLint positionLoc = glGetAttribLocation(sp, "position");

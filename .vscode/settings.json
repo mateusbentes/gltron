@@ -52,6 +52,7 @@
         "utility": "c",
         "valarray": "c",
         "variant": "c",
-        "version": "c"
+        "version": "c",
+        "stat.h": "c"
     }
 }

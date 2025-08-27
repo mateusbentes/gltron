@@ -393,11 +393,30 @@ void drawMenu(gDisplay *d) {
   /* draw the entries */
   for(i = 0; i < pCurrent->nEntries; i++) {
 #ifdef ANDROID
-    // Android GLES2 path: bind basic shader, set color via uniform, draw text
+    // Android GLES2 path: re-assert full text pipeline state defensively before each drawText
     {
       GLuint prog = shader_get_basic();
       if (prog) {
         useShaderProgram(prog);
+        // Bottom-left-origin pixel-space projection
+        float wvp = (float)d->vp_w;
+        float hvp = (float)d->vp_h;
+        GLfloat proj2D[16] = {
+          2.0f / wvp, 0.0f,       0.0f, 0.0f,
+          0.0f,       2.0f / hvp, 0.0f, 0.0f,
+          0.0f,       0.0f,       1.0f, 0.0f,
+          -1.0f,     -1.0f,       0.0f, 1.0f
+        };
+        GLfloat I[16] = {
+          1,0,0,0,
+          0,1,0,0,
+          0,0,1,0,
+          0,0,0,1
+        };
+        setProjectionMatrix(prog, (float*)proj2D);
+        setViewMatrix(prog, (float*)I);
+        setModelMatrix(prog, (float*)I);
+        setTexture(prog, 0);
         if(i == pCurrent->iHighlight) {
           setColor(prog, pCurrent->display.hlColor[0],
                    pCurrent->display.hlColor[1],
@@ -437,6 +456,25 @@ void drawMenu(gDisplay *d) {
       GLuint prog = shader_get_basic();
       if (prog) {
         useShaderProgram(prog);
+        // Bottom-left-origin pixel-space projection
+        float wvp = (float)d->vp_w;
+        float hvp = (float)d->vp_h;
+        GLfloat proj2D[16] = {
+          2.0f / wvp, 0.0f,       0.0f, 0.0f,
+          0.0f,       2.0f / hvp, 0.0f, 0.0f,
+          0.0f,       0.0f,       1.0f, 0.0f,
+          -1.0f,     -1.0f,       0.0f, 1.0f
+        };
+        GLfloat I[16] = {
+          1,0,0,0,
+          0,1,0,0,
+          0,0,1,0,
+          0,0,0,1
+        };
+        setProjectionMatrix(prog, (float*)proj2D);
+        setViewMatrix(prog, (float*)I);
+        setModelMatrix(prog, (float*)I);
+        setTexture(prog, 0);
         setColor(prog, pCurrent->display.fgColor[0],
                  pCurrent->display.fgColor[1],
                  pCurrent->display.fgColor[2],

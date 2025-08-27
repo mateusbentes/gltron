@@ -3,6 +3,7 @@
 #include "globals.h"
 #include "gltron.h"
 #include <string.h>
+#include <errno.h>
 #ifdef ANDROID
 #include <android/log.h>
 #include <android/asset_manager.h>
@@ -41,104 +42,28 @@ void gltron_set_base_path(const char* base_path) {
 }
 
 static void init_settings_android() {
-#ifdef ANDROID
-  if (!s_base_path[0]) return;
-  char settingsPathBuf[PATH_MAX];
-  snprintf(settingsPathBuf, sizeof(settingsPathBuf), "%s/%s", s_base_path, "settings.txt");
-  // Ensure base directory exists
-  mkdir(s_base_path, 0700);
-  // If file does not exist, try to seed from asset; else create defaults
-  FILE* f = fopen(settingsPathBuf, "rb");
-  if (!f) {
-    __android_log_print(ANDROID_LOG_INFO, "gltron", "settings.txt not found; seeding from assets or defaults at %s", settingsPathBuf);
-    if (g_android_asset_mgr) {
-      AAsset* asset = AAssetManager_open(g_android_asset_mgr, "settings.txt", AASSET_MODE_STREAMING);
-      if (asset) {
-        FILE* out = fopen(settingsPathBuf, "wb");
-        if (out) {
-          char buf[4096];
-          int r;
-          while ((r = AAsset_read(asset, buf, sizeof(buf))) > 0) fwrite(buf, 1, (size_t)r, out);
-          fclose(out);
-          __android_log_print(ANDROID_LOG_INFO, "gltron", "Seeded settings.txt from APK asset");
-        }
-        AAsset_close(asset);
-      }
-    }
-    // If still missing, write minimal defaults
-    f = fopen(settingsPathBuf, "rb");
-    if (!f) {
-      FILE* out = fopen(settingsPathBuf, "wb");
-      if (out) {
-        const char* defaults =
-          "2\n"               /* number of sections */
-          "i 28\n"           /* 28 integer setting names */
-          "show_help\n"
-          "show_fps\n"
-          "show_wall\n"
-          "show_glow\n"
-          "show_2d\n"
-          "show_alpha\n"
-          "show_floor_texture\n"
-          "line_spacing\n"
-          "erase_crashed\n"
-          "fast_finish\n"
-          "fov\n"
-          "width\n"
-          "height\n"
-          "show_ai_status\n"
-          "camType\n"
-          "display_type\n"
-          "playSound\n"
-          "show_model\n"
-          "ai_player1\n"
-          "ai_player2\n"
-          "ai_player3\n"
-          "ai_player4\n"
-          "show_crash_texture\n"
-          "turn_cycle\n"
-          "mouse_warp\n"
-          "sound_driver\n"
-          "input_mode\n"
-          "fullscreen\n"
-          "f 1\n"           /* 1 float setting name */
-          "speed\n";
-        fwrite(defaults, 1, strlen(defaults), out);
-        fclose(out);
-        __android_log_print(ANDROID_LOG_INFO, "gltron", "Wrote default settings.txt (formatted)");
-      }
-    } else {
-      fclose(f);
-    }
-    // Let settings module initialize from this path now
-    initMainGameSettings(settingsPathBuf);
-    return;
+  // Load settings.txt similar to desktop gltron.c
+  char *path = getFullPath("settings.txt");
+  if (path != NULL) {
+    initMainGameSettings(path); /* reads defaults from ~/.gltronrc */
+    free(path);
   } else {
-    fclose(f);
-    initMainGameSettings(settingsPathBuf);
-    return;
+    printf("fatal: could not find settings.txt, exiting...\n");
+    exit(1);
   }
-#endif
 }
 
 void gltron_init(void) {
   if (initialized) return;
-#ifdef ANDROID
   __android_log_print(ANDROID_LOG_INFO, "gltron", "gltron_init: base_path='%s' mgr=%p", s_base_path, g_android_asset_mgr);
   init_settings_android();
-#else
-  initMainGameSettings("settings.txt");
-#endif
   // Load menu.txt similar to desktop gltron.c
   char *path = getFullPath("menu.txt");
   if (path) {
     pMenuList = loadMenuFile(path);
-#ifdef ANDROID
     __android_log_print(ANDROID_LOG_INFO, "gltron", "menu.txt loaded from %s", path);
-#endif
     free(path);
   } else {
-#ifdef ANDROID
     __android_log_print(ANDROID_LOG_WARN, "gltron", "getFullPath failed for menu.txt, trying direct asset stream");
     if (g_android_asset_mgr) {
       AAsset* asset = AAssetManager_open(g_android_asset_mgr, "menu.txt", AASSET_MODE_STREAMING);
@@ -169,9 +94,7 @@ void gltron_init(void) {
     if (!pMenuList) {
       __android_log_print(ANDROID_LOG_ERROR, "gltron", "Failed to load menu.txt via all fallbacks");
     }
-#endif
   }
-#ifdef ANDROID
   // Diagnostics and fallback menu on Android
   if (pMenuList && pMenuList[0]) {
       pMenuList[0], pMenuList[0]->szName, pMenuList[0]->nEntries;
@@ -194,19 +117,17 @@ void gltron_init(void) {
     pMenuList[0] = root;
     pCurrent = root;
   }
-#endif
+#
   initGameStructures();
   resetScores();
   initData();
 
   // Initialize shaders and font system early on Android
-#ifdef ANDROID
   init_shaders_android();
   // initialize font texture/renderer
   if (ftx == NULL) {
     initFonts();
   }
-#endif
   // Ensure screen struct exists
   if (!game->screen) {
     game->screen = (gDisplay*)malloc(sizeof(gDisplay));

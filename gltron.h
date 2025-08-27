@@ -418,7 +418,7 @@ extern void parse_args(int argc, char *argv[]);
 
 /* settings -> settings.c */
 
-extern void initMainGameSettings();
+extern void initMainGameSettings(char *filename);
 extern void saveSettings();
 
 /* menu -> menu.c */

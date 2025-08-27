@@ -503,6 +503,7 @@ int main( int argc, char *argv[] ) {
         printf("Current working directory: %s\n", cwd);
     }
 
+#ifndef ANDROID
     path = getFullPath("settings.txt");
     if(path != 0)
         initMainGameSettings(path); /* reads defaults from ~/.gltronrc */
@@ -510,6 +511,9 @@ int main( int argc, char *argv[] ) {
         printf("fatal: could not settings.txt, exiting...\n");
         exit(1);
     }
+#else
+    // On Android, settings are initialized via android_glue.c:init_settings_android
+#endif
 
     parse_args(argc, argv);
 

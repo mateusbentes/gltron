@@ -2,17 +2,35 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <errno.h>
+#include <unistd.h>
 
 #define BUFSIZE 100
 
 #ifdef ANDROID
-#include <android/log.h>
-#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, "GLTron", __VA_ARGS__)
+// Remove the LOGI macro definition to avoid redefinition
+// #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, "GLTron", __VA_ARGS__)
+#endif
+
+// Forward declaration for Android base path
+#ifdef ANDROID
+extern char s_base_path[1024];
 #endif
 
 void initSettingData(char *filename) {
 #ifdef ANDROID
   LOGI("initSettingData: begin");
+  // Guard: ensure base path is initialized by android_main before proceeding
+  if (!s_base_path[0]) {
+    LOGI("initSettingData: s_base_path not set yet; deferring to android_glue init path");
+    return;
+  }
+  // If filename is not an absolute path, defer to android_glue path (avoid creating in unknown CWD)
+  if (filename && filename[0] != '/') {
+    LOGI("initSettingData: non-absolute filename '%s' on Android; deferring to android_glue init path", filename);
+    return;
+  }
 #endif
   FILE *f = NULL;
   int n = 0, i, count = 0, j;
@@ -26,12 +44,26 @@ void initSettingData(char *filename) {
     return;
   }
 
-  // Try to resolve via getFullPath first (desktop may package settings in share dir)
+  // For Android, use internal storage path
 #ifdef ANDROID
-  // On Android, settings is in internal storage path; do not use getFullPath (assets are read-only)
-  char *resolved = NULL;
-  const char *openName = filename;
-  LOGI("initSettingData: resolved path: %s", openName ? openName : "(null)");
+  // Ensure base directory exists (store settings.txt directly under s_base_path)
+  if (mkdir(s_base_path, 0755) != 0 && errno != EEXIST) {
+    LOGI("initSettingData: failed to create base directory '%s': %s", s_base_path, strerror(errno));
+    return;
+  }
+
+  // Construct full path to settings file directly in base path
+  char fullPath[1024];
+  snprintf(fullPath, sizeof(fullPath), "%s/%s", s_base_path, filename);
+
+  // Check if file exists; if not on Android, do not create here unless path is absolute (already ensured)
+  if (access(fullPath, F_OK) != 0) {
+    LOGI("initSettingData: settings file doesn't exist; deferring creation to android_glue (Android) or continuing with defaults");
+    return;
+  }
+
+  const char *openName = fullPath;
+  LOGI("initSettingData: opening settings file at: %s", openName);
 #else
   char *resolved = getFullPath(filename);
   const char *openName = resolved ? resolved : filename;
@@ -40,20 +72,26 @@ void initSettingData(char *filename) {
   f = fopen(openName, "r");
   if (!f) {
 #ifdef ANDROID
-    LOGI("initSettingData: fopen failed for %s", openName ? openName : "(null)");
+    LOGI("initSettingData: fopen failed for %s: %s", openName, strerror(errno));
 #endif
+#ifndef ANDROID
     if (resolved) free(resolved);
+#endif
     return; // fall back to defaults
   }
 
   if (!fgets(buf, BUFSIZE, f)) {
     fclose(f);
+#ifndef ANDROID
     if (resolved) free(resolved);
+#endif
     return;
   }
   if (sscanf(buf, "%d ", &n) != 1 || n < 0 || n > 1024) {
     fclose(f);
+#ifndef ANDROID
     if (resolved) free(resolved);
+#endif
     return;
   }
   for(i = 0; i < n; i++) {
@@ -65,7 +103,7 @@ void initSettingData(char *filename) {
     case 'i': /* it's int */
       free(si); si = NULL; si_count = 0;
       si = malloc(sizeof(struct settings_int) * (size_t)count);
-      if (!si) { fclose(f); if (resolved) free(resolved); return; }
+      if (!si) { fclose(f); return; }
       si_count = count;
       for(j = 0; j < count; j++) {
         if (!fgets(buf, BUFSIZE, f)) { si_count = j; break; }
@@ -82,7 +120,7 @@ void initSettingData(char *filename) {
     case 'f': /* float */
       free(sf); sf = NULL; sf_count = 0;
       sf = malloc(sizeof(struct settings_float) * (size_t)count);
-      if (!sf) { fclose(f); if (resolved) free(resolved); return; }
+      if (!sf) { fclose(f); return; }
       sf_count = count;
       for(j = 0; j < count; j++) {
         if (!fgets(buf, BUFSIZE, f)) { sf_count = j; break; }
@@ -104,7 +142,9 @@ void initSettingData(char *filename) {
     }
   }
 
+#ifndef ANDROID
   if (resolved) free(resolved);
+#endif
 
   if (!game || !game->settings) return;
 
@@ -115,7 +155,12 @@ void initSettingData(char *filename) {
     si_count = 28;
     // Initialize names to match defaults if parsing failed
     const char* names_int[28] = {
-      "show_help","show_fps","show_wall","show_glow","show_2d","show_alpha","show_floor_texture","line_spacing","erase_crashed","fast_finish","fov","width","height","show_ai_status","camType","display_type","playSound","show_model","ai_player1","ai_player2","ai_player3","ai_player4","show_crash_texture","turn_cycle","mouse_warp","sound_driver","input_mode","fullscreen"
+      "show_help","show_fps","show_wall","show_glow","show_2d","show_alpha",
+      "show_floor_texture","line_spacing","erase_crashed","fast_finish",
+      "fov","width","height","show_ai_status","camType","display_type",
+      "playSound","show_model","ai_player1","ai_player2","ai_player3",
+      "ai_player4","show_crash_texture","turn_cycle","mouse_warp",
+      "sound_driver","input_mode","fullscreen"
     };
     for (int k = 0; k < 28; ++k) strncpy(si[k].name, names_int[k], sizeof(si[k].name)-1);
   }
@@ -168,7 +213,7 @@ void initSettingData(char *filename) {
 int* getVi(char* name) {
   int i;
   for(i = 0; i < si_count; i++) {
-    if(strstr(name, si[i].name) == name) 
+    if(strstr(name, si[i].name) == name)
       return si[i].value;
   }
   return 0;
@@ -273,7 +318,7 @@ void initMainGameSettings(char *filename) {
   game->settings->ai_player2 = 1;
   game->settings->ai_player3 = 1;
   game->settings->ai_player4 = 1;
-  
+
   game->settings->sound_driver = 0;
 
   /* not included in .gltronrc */
@@ -338,7 +383,6 @@ void initMainGameSettings(char *filename) {
   // Always enforce fullscreen on Android at load time (surface applies real size)
   game->settings->fullscreen = 1;
 #endif
-
 }
 
 void saveSettings() {
@@ -346,7 +390,17 @@ void saveSettings() {
   int i;
   FILE* f;
 
-#ifndef ANDROID
+#ifdef ANDROID
+  // For Android, use internal storage base path directly and ensure it exists
+  if (mkdir(s_base_path, 0755) != 0 && errno != EEXIST) {
+    LOGI("saveSettings: failed to create base directory '%s': %s", s_base_path, strerror(errno));
+    return;
+  }
+
+  // Construct full path to settings file directly under base path
+  fname = malloc(strlen(s_base_path) + 1 + strlen(RC_NAME) + 1);
+  sprintf(fname, "%s/%s", s_base_path, RC_NAME);
+#else
   home = getenv(HOMEVAR);
   if(home == 0) /* evaluate homedir */ {
     fname = malloc(strlen(CURRENT_DIR) + strlen(RC_NAME) + 2);
@@ -356,11 +410,12 @@ void saveSettings() {
     fname = malloc(strlen(home) + strlen(RC_NAME) + 2);
     sprintf(fname, "%s%c%s", home, SEPERATOR, RC_NAME);
   }
-#else
-  extern char s_base_path[1024];
-  fname = malloc(strlen(s_base_path) + 1 + strlen(RC_NAME) + 1);
-  sprintf(fname, "%s%c%s", s_base_path, SEPERATOR, RC_NAME);
 #endif
+
+#ifdef ANDROID
+  LOGI("saveSettings: saving to %s", fname);
+#endif
+
   f = fopen(fname, "w");
   if(f == 0) {
     printf("can't open %s ", fname);
@@ -368,11 +423,34 @@ void saveSettings() {
     free(fname);
     return; /* can't write rc */
   }
+
+  // Write header with counts
+  fprintf(f, "%d\n", 2); // Number of sections (int and float)
+
+  // Write integer settings
+  fprintf(f, "i %d\n", si_count);
+  for(i = 0; i < si_count; i++) {
+    fprintf(f, "%s\n", si[i].name);
+  }
+
+  // Write float settings
+  fprintf(f, "f %d\n", sf_count);
+  for(i = 0; i < sf_count; i++) {
+    fprintf(f, "%s\n", sf[i].name);
+  }
+
+  // Write actual values
   for(i = 0; i < si_count; i++)
     fprintf(f, "iset %s %d\n", si[i].name, *(si[i].value));
   for(i = 0; i < sf_count; i++)
     fprintf(f, "fset %s %.2f\n", sf[i].name, *(sf[i].value));
+
+#ifdef ANDROID
+  LOGI("saveSettings: written settings to %s", fname);
+#else
   printf("written settings to %s\n", fname);
+#endif
+
   free(fname);
   fclose(f);
   // Note: On Android, fullscreen enforcement happens at load time to avoid
