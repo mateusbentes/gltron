@@ -456,7 +456,7 @@ extern void onReshape(int w, int h);
 extern void checkGLError(char *where);
 extern void rasonly(gDisplay *d);
 extern void drawFPS(gDisplay *d);
-extern void drawText(int x, int y, int size, char *text);
+extern void drawText(int x, int y, int size, const char *text);
 extern int hsv2rgb(float, float, float, float*, float*, float*);
 extern void colorDisc();
 

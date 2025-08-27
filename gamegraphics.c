@@ -1711,7 +1711,7 @@ void drawPause(gDisplay *display) {
     const char* hint = "Tap to resume";
     glColor3f(1.0, 1.0, 1.0);
     drawText(display->vp_w / 6, 20 + display->vp_h / 12,
-             display->vp_w / (8.0 * strlen(hint)), (char*)hint);
+             display->vp_w / (8.0 * strlen(hint)), hint);
   }
 #endif
 }

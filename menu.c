@@ -485,7 +485,7 @@ void drawMenu(gDisplay *d) {
 #else
     glColor4fv(pCurrent->display.fgColor);
 #endif
-    drawText(bx, by, size, (char*)back);
+    drawText(bx, by, size, back);
   }
 }
 

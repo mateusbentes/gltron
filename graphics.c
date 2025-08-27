@@ -107,7 +107,7 @@ void drawFPS(gDisplay *d) {
 #endif
 }
 
-void drawText(int x, int y, int size, char *text) {
+void drawText(int x, int y, int size, const char *text) {
   glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 #ifndef ANDROID
   glEnable(GL_TEXTURE_2D);
