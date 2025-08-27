@@ -16,6 +16,9 @@ void initFonts() {
     // printf("using font from '%s'\n", path);
     // txfEstablishTexture(txf, 1, GL_TRUE);
     ftxEstablishTexture(ftx, GL_TRUE);
+    if (game && game->screen && ftx && ftx->texID) {
+      game->screen->texFont = ftx->texID[0];
+    }
   } else {
     printf("fatal: could not load font\n");
     exit(1);
