@@ -7,7 +7,7 @@
 #include "sound_backend.h"
 #include "gltron.h" // for getFullPath declaration
 
-#include <libopenmpt/libopenmpt.h>
+#include "android-dependencies/openmpt/libopenmpt/libopenmpt.h"
 
 #define SAMPLE_RATE 44100
 #define BUFFER_SAMPLES 1024

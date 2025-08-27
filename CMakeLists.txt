@@ -124,7 +124,7 @@ if(ANDROID)
         set(OpenMPT_INCLUDE_DIR "${_OPENMPT_INC}" CACHE PATH "Path to OpenMPT headers")
         # Help CMake find these prebuilt deps if any sub-find_package is used
         set(CMAKE_PREFIX_PATH "${_OPENMPT_PREFIX};${CMAKE_PREFIX_PATH}" CACHE STRING "" FORCE)
-        include_directories(BEFORE SYSTEM "${_OPENMPT_INC}")
+        include_directories(~/gltron/android-dependencies/openmpt/)
         link_directories(BEFORE "${_OPENMPT_PREFIX}/lib")
     endif()
 endif()
