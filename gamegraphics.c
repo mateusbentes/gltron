@@ -419,6 +419,9 @@ void drawFloor(gDisplay *d) {
       if (!shaderProgram) return;
     }
     useShaderProgram(shaderProgram);
+    
+    // Set identity model matrix for floor lines
+    setIdentityMatrix(shaderProgram, MATRIX_MODEL);
 
     // Set up attributes
     GLint positionLoc = glGetAttribLocation(shaderProgram, "position");
@@ -508,6 +511,9 @@ void drawTraces(Player *p, gDisplay *d, int instance) {
       if (!shaderProgram) return;
     }
     useShaderProgram(shaderProgram);
+    
+    // Set identity model matrix for floor lines
+    setIdentityMatrix(shaderProgram, MATRIX_MODEL);
 
     // Set up attributes
     GLint positionLoc = glGetAttribLocation(shaderProgram, "position");
@@ -1502,7 +1508,11 @@ void drawAI(gDisplay *d) {
 #ifdef ANDROID
   // For Android, use centralized shader for text rendering
   GLuint shaderProgram = shader_get_basic();
-  if (!shaderProgram) return;
+  if (!shaderProgram) {
+    init_shaders_android();
+    shaderProgram = shader_get_basic();
+    if (!shaderProgram) return;
+  }
   useShaderProgram(shaderProgram);
 
   // Set up projection matrix
@@ -1621,7 +1631,11 @@ void drawPause(gDisplay *display) {
 #ifdef ANDROID
   // For Android, use centralized shader for text rendering
   GLuint shaderProgram = shader_get_basic();
-  if (!shaderProgram) return;
+  if (!shaderProgram) {
+    init_shaders_android();
+    shaderProgram = shader_get_basic();
+    if (!shaderProgram) return;
+  }
   useShaderProgram(shaderProgram);
 
   // Set up projection matrix
