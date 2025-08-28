@@ -57,6 +57,10 @@ void gltron_init(void) {
   if (initialized) return;
   __android_log_print(ANDROID_LOG_INFO, "gltron", "gltron_init: base_path='%s' mgr=%p", s_base_path, g_android_asset_mgr);
   init_settings_android();
+  // Ensure touch input is enabled on Android
+  if (game && game->settings) {
+    game->settings->input_mode = 1; // enable touch/mouse input
+  }
   // Load menu.txt similar to desktop gltron.c
   char *path = getFullPath("menu.txt");
   if (path) {
@@ -349,9 +353,19 @@ void gltron_on_touch(float x, float y, int action) {
 
   // If GUI (menu) is active, route all touches to menu handlers
   if (is_gui_active()) {
-    motionGui(ix, iy);
-    if (actionMasked == 1 /* UP */) {
+#ifdef ANDROID
+    if (actionMasked == 0) __android_log_print(ANDROID_LOG_INFO, "gltron", "touch->GUI: down %d,%d", ix, iy);
+    if (actionMasked == 2) __android_log_print(ANDROID_LOG_INFO, "gltron", "touch->GUI: move %d,%d", ix, iy);
+    if (actionMasked == 1) __android_log_print(ANDROID_LOG_INFO, "gltron", "touch->GUI: up %d,%d (click)", ix, iy);
+#endif
+    if (actionMasked == 0 || actionMasked == 2) {
+      motionGui(ix, iy);
+    } else if (actionMasked == 1) {
       mouseGui(0, 0, ix, iy);
+      // Safety: if highlight is valid, trigger menu action explicitly
+      if (pCurrent && pCurrent->iHighlight >= 0 && pCurrent->iHighlight < pCurrent->nEntries) {
+        menuAction(*(pCurrent->pEntries + pCurrent->iHighlight));
+      }
     }
     return;
   }

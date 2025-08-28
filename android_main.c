@@ -61,24 +61,46 @@ static void set_immersive_fullscreen(struct android_app* app) {
   jint f_lfull = (*env)->GetStaticIntField(env, viewClass, fid_layout_fullscreen);
   jint flags = f_imm | f_hide | f_full | f_stable | f_lhide | f_lfull;
   // Call Java helper to apply immersive on UI thread
-  jclass uiCls = (*env)->FindClass(env, "org/gltron/game/UiHelpers");
-  if (!uiCls) {
-    LOGE("Failed to find UiHelpers class");
+  jclass uiCls = NULL;
+  // Preferred: resolve via the Activity's ClassLoader so app classes are visible on native threads
+  jclass activityCls = (*env)->GetObjectClass(env, activity);
+  jmethodID getClassLoader = (*env)->GetMethodID(env, activityCls, "getClassLoader", "()Ljava/lang/ClassLoader;");
+  if (getClassLoader) {
+    jobject cl = (*env)->CallObjectMethod(env, activity, getClassLoader);
+    if (cl) {
+      jclass loaderCls = (*env)->GetObjectClass(env, cl);
+      jmethodID loadClass = (*env)->GetMethodID(env, loaderCls, "loadClass", "(Ljava/lang/String;)Ljava/lang/Class;");
+      if (loadClass) {
+        jstring name = (*env)->NewStringUTF(env, "org.gltron.game.UiHelpers");
+        jobject clsObj = (*env)->CallObjectMethod(env, cl, loadClass, name);
+        (*env)->DeleteLocalRef(env, name);
+        if (clsObj) {
+          uiCls = (jclass)clsObj;
+        } else {
+          (*env)->ExceptionClear(env);
+        }
+      }
+    }
   }
-  if (uiCls) {
+  // Fallback: system FindClass (may fail on native threads)
+  if (!uiCls) {
+    uiCls = (*env)->FindClass(env, "org/gltron/game/UiHelpers");
+  }
+  if (!uiCls) {
+    LOGE("Failed to resolve UiHelpers via ClassLoader and FindClass");
+    (*env)->ExceptionClear(env);
+  } else {
     jmethodID mid = (*env)->GetStaticMethodID(env, uiCls, "applyImmersive", "(Landroid/app/Activity;Landroid/view/View;I)V");
     if (!mid) {
       LOGE("Failed to get applyImmersive method ID");
-    }
-    if (mid) {
-      (*env)->CallStaticVoidMethod(env, uiCls, mid, activity, decorView, flags);
-    } else {
-      // Method not found; skip without crashing
       (*env)->ExceptionClear(env);
+    } else {
+      (*env)->CallStaticVoidMethod(env, uiCls, mid, activity, decorView, flags);
+      if ((*env)->ExceptionCheck(env)) {
+        LOGE("Exception calling UiHelpers.applyImmersive");
+        (*env)->ExceptionClear(env);
+      }
     }
-  } else {
-    // Class not found; clear exception and skip to avoid crash
-    (*env)->ExceptionClear(env);
   }
   (*app->activity->vm)->DetachCurrentThread(app->activity->vm);
 }

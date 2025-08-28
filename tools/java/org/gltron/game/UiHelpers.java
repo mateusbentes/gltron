@@ -1,31 +1,36 @@
 package org.gltron.game;
 
 import android.app.Activity;
+import android.os.Build;
 import android.view.View;
 
+/**
+ * Minimal helper for applying immersive fullscreen flags from native code.
+ * Compatible with API 19+ and resilient to missing features.
+ */
 public final class UiHelpers {
     private UiHelpers() {}
 
-    private static final class SetUiVisibilityRunnable implements Runnable {
-        private final View decorView;
-        private final int flags;
-        SetUiVisibilityRunnable(View decorView, int flags) {
-            this.decorView = decorView;
-            this.flags = flags;
-        }
-        @Override public void run() {
-            if (decorView != null) {
-                decorView.setSystemUiVisibility(flags);
-            }
-        }
-    }
-
-    public static void applyImmersive(final Activity activity, final View decorView, final int flags) {
-        if (activity == null || decorView == null) return;
+    public static void applyImmersive(final Activity activity, final View decor, final int flags) {
+        if (activity == null || decor == null) return;
         try {
-            activity.runOnUiThread(new SetUiVisibilityRunnable(decorView, flags));
+            activity.runOnUiThread(new Runnable() {
+                @Override public void run() {
+                    try {
+                        int f = flags;
+                        // Some devices need the low-profile flag to keep nav dimmed
+                        if (Build.VERSION.SDK_INT >= 19) {
+                            // ensure layout stable for consistent content area
+                            f |= View.SYSTEM_UI_FLAG_LAYOUT_STABLE;
+                        }
+                        decor.setSystemUiVisibility(f);
+                    } catch (Throwable t) {
+                        // ignore; immersive is best-effort
+                    }
+                }
+            });
         } catch (Throwable t) {
-            // Best-effort: ignore if cannot post to UI thread
+            // ignore; best-effort only
         }
     }
 }

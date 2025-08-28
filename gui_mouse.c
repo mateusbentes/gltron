@@ -22,21 +22,21 @@ static int gui_hit_test(int x_win, int y_win) {
 
   if (lineheight <= 0) return -1;
 
-  /* Convert window coords to viewport-local coords with origin at bottom-left */
+  /* Convert window coords to viewport-local coords with origin at bottom-left (viewport-local) */
   int x_local = x_win - vx;
-  int y_local = (game->screen->h - y_win) - vy; /* GLUT y is typically from top */
+  int y_local = vh - (y_win - vy); /* use viewport height consistently */
 
   /* Determine which line rectangle contains the point */
   for (int i = 0; i < pCurrent->nEntries; i++) {
     int item_y_base = y_start - i * lineheight;
     int rect_x0 = x_start;
-    int rect_y0 = item_y_base - (int)(1.2f * size); /* a bit taller than font */
+    int rect_y0 = item_y_base - (int)(1.3f * size); /* a bit taller than font */
 
     /* Estimate text width: roughly 0.6 * size pixels per character */
     const char* txt = ((Menu*)*(pCurrent->pEntries + i))->display.szCaption;
     int len = (int)strlen(txt);
-    int rect_w = (int)(size * 0.6f * len) + size * 2; /* padding */
-    int rect_h = lineheight; /* height of the clickable area */
+    int rect_w = (int)(size * 0.65f * len) + size * 3; /* more forgiving width */
+    int rect_h = (int)(lineheight * 1.1f); /* slightly larger hit height */
 
     if (x_local >= rect_x0 && x_local <= rect_x0 + rect_w &&
         y_local >= rect_y0 && y_local <= rect_y0 + rect_h) {

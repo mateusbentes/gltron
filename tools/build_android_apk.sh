@@ -112,10 +112,15 @@ rsync -a --delete \
   err "Failed to copy assets"
 }
 
-# Copy native libraries and minimal classes.dex (to satisfy some v1 signing expectations)
+# Copy native libraries and include classes.dex if present
 cp "$OUT_DIR/$SO_NAME" "$STAGE_DIR/lib/$ABI/$SO_NAME" || {
   err "Failed to copy native library"
 }
+if [[ -f "$STAGE_DIR/classes.dex" ]]; then
+  echo "Including classes.dex in APK"
+else
+  echo "Note: classes.dex not found; APK will run without Java helper"
+fi
 
 # Copy libc++_shared.so to the lib directory (prefer ANDROID_NDK_HOME, fallback to ANDROID_NDK)
 LIBCXX_SRC=""
@@ -137,15 +142,23 @@ if [[ -d "$JAVA_SRC_DIR" ]]; then
   # Find android.jar (API 29+) for compilation
   ANDROID_JAR=$(python3 - <<'PY'
 import os
-candidates=[
-    '/usr/lib/android-sdk/platforms/android-35/android.jar',
-    '/usr/lib/android-sdk/platforms/android-34/android.jar',
-    '/opt/android-sdk/platforms/android-35/android.jar',
-    os.path.expanduser('~/Android/Sdk/platforms/android-35/android.jar'),
-    os.path.expanduser('~/Android/Sdk/platforms/android-34/android.jar'),
+roots=[
+    os.environ.get('ANDROID_SDK_ROOT'),
+    os.environ.get('ANDROID_HOME'),
+    '/usr/lib/android-sdk',
+    '/opt/android-sdk',
+    os.path.expanduser('~/Android/Sdk'),
 ]
-for c in candidates:
-  if os.path.isfile(c):
+cands=[]
+for r in roots:
+    if not r: continue
+    plat=os.path.join(r,'platforms')
+    if os.path.isdir(plat):
+        for name in sorted(os.listdir(plat), reverse=True):
+            jar=os.path.join(plat,name,'android.jar')
+            if os.path.isfile(jar):
+                cands.append(jar)
+for c in cands:
     print(c)
     break
 PY
@@ -156,6 +169,23 @@ PY
     echo "Compiling Java sources..."
     mkdir -p "$STAGE_DIR/classes"
     echo "Running javac: javac -source 1.8 -target 1.8 -bootclasspath \"$ANDROID_JAR\" -classpath \"$ANDROID_JAR\" -d \"$STAGE_DIR/classes\" \"$JAVA_SRC_DIR/org/gltron/game/UiHelpers.java\""
+    if ! javac -source 1.8 -target 1.8 -bootclasspath "$ANDROID_JAR" -classpath "$ANDROID_JAR" -d "$STAGE_DIR/classes" "$JAVA_SRC_DIR/org/gltron/game/UiHelpers.java"; then
+      echo "Warning: javac failed; skipping Java helper"
+    else
+      # Locate d8
+      D8_BIN="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}/build-tools"
+      if [[ -d "$D8_BIN" ]]; then
+        D8_BIN=$(ls -d "$D8_BIN"/* 2>/dev/null | sort -V | tail -n1)/d8
+      else
+        D8_BIN=$(command -v d8 || true)
+      fi
+      if [[ -x "$D8_BIN" ]]; then
+        echo "Running d8 to produce classes.dex"
+        "$D8_BIN" --release --min-api 19 --lib "$ANDROID_JAR" --output "$STAGE_DIR" "$STAGE_DIR/classes" || echo "Warning: d8 failed; skipping classes.dex"
+      else
+        echo "Warning: d8 not found; skipping classes.dex"
+      fi
+    fi
     javac -source 1.8 -target 1.8 -bootclasspath "$ANDROID_JAR" -classpath "$ANDROID_JAR" -d "$STAGE_DIR/classes" "$JAVA_SRC_DIR/org/gltron/game/UiHelpers.java"
     if [[ $? -ne 0 ]]; then
       echo "ERROR: javac failed to compile Java sources"
