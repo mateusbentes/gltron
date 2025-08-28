@@ -31,89 +31,6 @@ typedef struct {
 static android_callbacks current_android_callbacks;
 static android_callbacks last_android_callbacks;
 
-// Wrapper functions for display callbacks
-void android_display_menu_wrapper() {
-  if (game && game->screen) {
-    drawMenu(game->screen);
-  }
-}
-
-void android_display_gui_wrapper() {
-  displayGui();
-}
-
-void android_init_gui_wrapper() {
-  initGui();
-}
-
-void android_init_gl_gui_wrapper() {
-  initGLGui();
-}
-
-void android_display_game_wrapper() {
-  if (game && game->screen) {
-    drawGame();
-  }
-}
-
-void android_idle_game_wrapper() {
-  idleGame();
-}
-
-void android_key_game_wrapper(unsigned char k, int x, int y) {
-  keyGame(k, x, y);
-}
-
-void android_special_game_wrapper(int k, int x, int y) {
-  specialGame(k, x, y);
-}
-
-static void ensure_game_prereqs(void) {
-  if (!game) {
-    initGameStructures();
-  }
-  if (game) {
-    if (!game->settings) {
-      // initMainGameSettings will allocate and populate settings; ensure basic defaults exist
-      char *settings_path = getFullPath("settings.txt");
-      if (settings_path) {
-        initMainGameSettings(settings_path);
-        free(settings_path);
-      }
-    }
-    if (!game->screen) {
-      game->screen = (gDisplay*)malloc(sizeof(gDisplay));
-      memset(game->screen, 0, sizeof(gDisplay));
-    }
-    if (scr_w > 0 && scr_h > 0) {
-      game->settings->width = scr_w;
-      game->settings->height = scr_h;
-      game->screen->w = scr_w;
-      game->screen->h = scr_h;
-      game->screen->vp_w = scr_w;
-      game->screen->vp_h = scr_h;
-    }
-  }
-}
-
-void android_init_game_wrapper() {
-  // Ensure core structures and dimensions exist before init
-  ensure_game_prereqs();
-  // Initialize core game logic and data
-  initGame();
-  initData();
-  resetScores();
-  if (game) game->pauseflag = 0;
-}
-
-void android_init_gl_game_wrapper() {
-  // Initialize GL state for game then ensure display settings are applied
-  ensure_game_prereqs();
-  initGLGame();
-  requestDisplayApply();
-  applyDisplaySettingsDeferred();
-}
-
 void android_switchCallbacks(android_callbacks *new) {
   last_android_callbacks = current_android_callbacks;
   current_android_callbacks = *new;
@@ -349,12 +266,12 @@ void gltron_init(void) {
   initialized = 1;
   // Set up initial Android callbacks
   android_callbacks gui_callbacks = {
-    .display = android_display_gui_wrapper,
+    .display = displayGui,
     .idle = idleGui,
     .keyboard = NULL,
     .special = NULL,
-    .init = android_init_gui_wrapper,
-    .initGL = android_init_gl_gui_wrapper
+    .init = initGui,
+    .initGL = initGLGui
   };
   android_switchCallbacks(&gui_callbacks);
 }
@@ -561,15 +478,15 @@ void gltron_on_touch(float x, float y, int action) {
   // If paused and not game finished, unpause on touch-up
   if (game && (game->pauseflag != 0)) {
     if ((action & 0xFF) == 1 /* ACTION_UP */ && !(game->pauseflag & PAUSE_GAME_FINISHED)) {
-  android_callbacks game_callbacks = {
-    .display = android_display_game_wrapper,
-    .idle = android_idle_game_wrapper,
-    .keyboard = android_key_game_wrapper,
-    .special = android_special_game_wrapper,
-    .init = android_init_game_wrapper,
-    .initGL = android_init_gl_game_wrapper
-  };
-  android_switchCallbacks(&game_callbacks);
+      android_callbacks game_callbacks = {
+        .display = drawGame,
+        .idle = idleGame,
+        .keyboard = keyGame,
+        .special = specialGame,
+        .init = initGame,
+        .initGL = initGLGame
+      };
+      android_switchCallbacks(&game_callbacks);
       // Apply display settings after switching to game callbacks
       requestDisplayApply();
       applyDisplaySettingsDeferred();
@@ -613,12 +530,12 @@ void gltron_on_touch(float x, float y, int action) {
             pCurrent = pCurrent->parent;
             pCurrent->iHighlight = -1;
             android_callbacks gui_callbacks = {
-              .display = android_display_gui_wrapper,
+              .display = displayGui,
               .idle = idleGui,
               .keyboard = NULL,
               .special = NULL,
-              .init = android_init_gui_wrapper,
-              .initGL = android_init_gl_gui_wrapper
+              .init = initGui,
+              .initGL = initGLGui
             };
             android_switchCallbacks(&gui_callbacks);
             requestDisplayApply();
@@ -641,12 +558,12 @@ void gltron_on_touch(float x, float y, int action) {
             pCurrent = pCurrent->parent;
             pCurrent->iHighlight = -1;
             android_callbacks gui_callbacks = {
-              .display = android_display_gui_wrapper,
+              .display = displayGui,
               .idle = idleGui,
               .keyboard = NULL,
               .special = NULL,
-              .init = android_init_gui_wrapper,
-              .initGL = android_init_gl_gui_wrapper
+              .init = initGui,
+              .initGL = initGLGui
             };
             android_switchCallbacks(&gui_callbacks);
             requestDisplayApply();
@@ -655,13 +572,13 @@ void gltron_on_touch(float x, float y, int action) {
         } else if (idx >= 0) {
           pCurrent->iHighlight = idx;
           // If selecting 'Start Game' from minimal menu, ensure unpaused and force viewport reset
-      if (*(pCurrent->pEntries + pCurrent->iHighlight) && strcmp((*(pCurrent->pEntries + pCurrent->iHighlight))->szCapFormat, "Start") == 0) {
-        if (game) game->pauseflag = 0;
-        // Force a viewport/projection reset safely via public API
-        requestDisplayApply();
-        applyDisplaySettingsDeferred();
-      }
-      menuAction(*(pCurrent->pEntries + pCurrent->iHighlight));
+          if (*(pCurrent->pEntries + pCurrent->iHighlight) && strcmp((*(pCurrent->pEntries + pCurrent->iHighlight))->szCapFormat, "Start") == 0) {
+            if (game) game->pauseflag = 0;
+            // Force a viewport/projection reset safely via public API
+            requestDisplayApply();
+            applyDisplaySettingsDeferred();
+          }
+          menuAction(*(pCurrent->pEntries + pCurrent->iHighlight));
         }
       }
       s_gui_down_on_back = 0;
