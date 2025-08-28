@@ -1,4 +1,5 @@
 #include "android_glue.h"
+#include "sound_backend.h"
 #include "shaders.h"
 #include "globals.h"
 #include "gltron.h"
@@ -188,6 +189,21 @@ void gltron_init(void) {
   initGameStructures();
   resetScores();
   initData();
+
+  // Initialize sound backend and try to load/play music on Android
+#ifdef ANDROID
+  if (sb_init()) {
+    __android_log_print(ANDROID_LOG_INFO, "gltron", "sound: sb_init OK, loading music");
+    if (!sb_load_music("gltron.it")) {
+      __android_log_print(ANDROID_LOG_WARN, "gltron", "sound: sb_load_music(gltron.it) failed");
+    } else {
+      sb_play_music();
+      __android_log_print(ANDROID_LOG_INFO, "gltron", "sound: music started");
+    }
+  } else {
+    __android_log_print(ANDROID_LOG_ERROR, "gltron", "sound: sb_init failed");
+  }
+#endif
 
   // Initialize shaders and font system early on Android
   init_shaders_android();

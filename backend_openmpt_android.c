@@ -9,6 +9,8 @@
 
 #include "android-dependencies/openmpt/libopenmpt/libopenmpt.h"
 
+#include <android/asset_manager.h>
+
 #define SAMPLE_RATE 44100
 #define BUFFER_SAMPLES 1024
 #define SFX_MAX 8
@@ -161,20 +163,53 @@ void sb_shutdown(void) {
 int sb_load_music(const char* path) {
   if (mod) { openmpt_module_destroy(mod); mod = NULL; }
   char* full = getFullPath((char*)path);
-  if (!full) return 0;
-  FILE* f = fopen(full, "rb");
-  if (!f) { free(full); return 0; }
-  fseek(f, 0, SEEK_END); long sz = ftell(f); fseek(f, 0, SEEK_SET);
-  void* buf = malloc(sz);
-  fread(buf,1,sz,f);
-  fclose(f);
+  void* buf = NULL; long sz = 0;
+  FILE* f = NULL;
+  if (full) {
+    f = fopen(full, "rb");
+  }
+  if (f) {
+    fseek(f, 0, SEEK_END); sz = ftell(f); fseek(f, 0, SEEK_SET);
+    buf = malloc(sz);
+    if (buf) fread(buf,1,sz,f);
+    fclose(f);
+  } else {
+    // Fallback: load via AAssetManager
+#ifdef ANDROID
+    extern AAssetManager* g_android_asset_mgr;
+    if (g_android_asset_mgr) {
+      AAsset* asset = AAssetManager_open(g_android_asset_mgr, path, AASSET_MODE_BUFFER);
+      if (!asset) asset = AAssetManager_open(g_android_asset_mgr, path, AASSET_MODE_STREAMING);
+      if (asset) {
+        sz = AAsset_getLength(asset);
+        buf = malloc((size_t)sz);
+        if (buf) {
+          int total = 0; int r;
+          while (total < sz && (r = AAsset_read(asset, (char*)buf + total, (size_t)(sz - total))) > 0) total += r;
+          if (total != sz) { __android_log_print(ANDROID_LOG_WARN, "gltron", "sb_load_music: asset short read %ld/%ld", (long)total, sz); }
+        }
+        AAsset_close(asset);
+      }
+    }
+#endif
+  }
+  if (!buf || sz <= 0) {
+    __android_log_print(ANDROID_LOG_ERROR, "gltron", "sb_load_music: failed to load '%s' via file or assets", path ? path : "(null)");
+    if (full) free(full);
+    if (buf) free(buf);
+    return 0;
+  }
   mod = openmpt_module_create_from_memory2(buf, sz, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
   if (!mod) {
-    __android_log_print(ANDROID_LOG_ERROR, "gltron", "sb_load_music: openmpt_module_create_from_memory2 failed");
+    __android_log_print(ANDROID_LOG_ERROR, "gltron", "sb_load_music: openmpt_module_create_from_memory2 failed for '%s'", path ? path : "(null)");
+  } else {
+#ifdef ANDROID
+    const char* title = openmpt_module_get_metadata(mod, "title");
+    __android_log_print(ANDROID_LOG_INFO, "gltron", "sb_load_music: loaded '%s' (title='%s', %ld bytes)", path ? path : "(null)", title ? title : "", sz);
+#endif
   }
-
   free(buf);
-  free(full);
+  if (full) free(full);
   return mod != NULL;
 }
 
@@ -194,11 +229,62 @@ void sb_set_enabled(int sound_on, int music_on) {
 int sb_load_sfx(int id, const char* path) {
   if (id < 0 || id >= SFX_MAX) return 0;
   char* full = getFullPath((char*)path);
-  if (!full) return 0;
-  short* data=NULL; int frames=0; int ch=0;
-  int ok = load_wav(full, &data, &frames, &ch);
+  short* data=NULL; int frames=0; int ch=0; int ok = 0;
+  if (full) {
+    ok = load_wav(full, &data, &frames, &ch);
+    free(full);
+  }
+#ifdef ANDROID
+  if (!ok) {
+    // Try reading WAV from assets
+    extern AAssetManager* g_android_asset_mgr;
+    if (g_android_asset_mgr) {
+      AAsset* asset = AAssetManager_open(g_android_asset_mgr, path, AASSET_MODE_BUFFER);
+      if (!asset) asset = AAssetManager_open(g_android_asset_mgr, path, AASSET_MODE_STREAMING);
+      if (asset) {
+        off_t sz = AAsset_getLength(asset);
+        void* buf = malloc((size_t)sz);
+        if (buf) {
+          int total = 0; int r;
+          while (total < sz && (r = AAsset_read(asset, (char*)buf + total, (size_t)(sz - total))) > 0) total += r;
+        }
+        // load_wav expects a file; for simplicity, write to a temp file in internal storage
+        // but to avoid file I/O, implement a small load_wav_from_memory clone here
+        if (buf) {
+          // Minimal parser for PCM16 WAV in memory
+          unsigned char* p = (unsigned char*)buf;
+          if (sz >= 44 && memcmp(p, "RIFF", 4) == 0 && memcmp(p+8, "WAVE", 4) == 0) {
+            unsigned short channels = *(unsigned short*)(p+22);
+            unsigned int sampleRate = *(unsigned int*)(p+24);
+            unsigned short bits = *(unsigned short*)(p+34);
+            if (bits == 16) {
+              // find 'data' chunk from byte 12
+              size_t off = 12; unsigned int csz = 0; int found = 0;
+              while (off + 8 <= (size_t)sz) {
+                if (memcmp(p+off, "data", 4) == 0) { csz = *(unsigned int*)(p+off+4); off += 8; found = 1; break; }
+                unsigned int skip = *(unsigned int*)(p+off+4); off += 8 + skip;
+              }
+              if (found && off + csz <= (size_t)sz) {
+                frames = (int)(csz / (2 * channels));
+                data = (short*)malloc(csz);
+                if (data) {
+                  memcpy(data, p+off, csz);
+                  ch = channels; ok = 1;
+                  if (sampleRate != SAMPLE_RATE) {
+                    __android_log_print(ANDROID_LOG_WARN, "gltron", "WAV %s sampleRate %u differs from %d; pitch may be off", path, sampleRate, SAMPLE_RATE);
+                  }
+                }
+              }
+            }
+          }
+          free(buf);
+        }
+        AAsset_close(asset);
+      }
+    }
+  }
+#endif
   if (!ok) return 0;
-  free(full);
   if (sfx[id].data) free(sfx[id].data);
   sfx[id].data = data; sfx[id].frames = frames; sfx[id].channels = ch; sfx[id].playing = 0; sfx[id].pos = 0;
   return 1;
