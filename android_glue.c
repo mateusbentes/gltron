@@ -1,4 +1,5 @@
 #include "android_glue.h"
+#include "gltron.h"
 #include "sound_backend.h"
 #include "shaders.h"
 #include "globals.h"
@@ -10,6 +11,133 @@
 #include <android/asset_manager.h>
 #include <sys/stat.h>
 #endif
+
+// Forward declarations for GUI functions implemented in gui.c
+void displayGui(void);
+void initGui(void);
+void initGLGui(void);
+void idleGui(void);
+
+// Android-specific callback management
+typedef struct {
+  void (*display)(void);
+  void (*idle)(void);
+  void (*keyboard)(unsigned char, int, int);
+  void (*special)(int, int, int);
+  void (*init)(void);
+  void (*initGL)(void);
+} android_callbacks;
+
+static android_callbacks current_android_callbacks;
+static android_callbacks last_android_callbacks;
+
+// Wrapper functions for display callbacks
+void android_display_menu_wrapper() {
+  if (game && game->screen) {
+    drawMenu(game->screen);
+  }
+}
+
+void android_display_gui_wrapper() {
+  displayGui();
+}
+
+void android_init_gui_wrapper() {
+  initGui();
+}
+
+void android_init_gl_gui_wrapper() {
+  initGLGui();
+}
+
+void android_display_game_wrapper() {
+  if (game && game->screen) {
+    drawGame();
+  }
+}
+
+void android_idle_game_wrapper() {
+  idleGame();
+}
+
+void android_key_game_wrapper(unsigned char k, int x, int y) {
+  keyGame(k, x, y);
+}
+
+void android_special_game_wrapper(int k, int x, int y) {
+  specialGame(k, x, y);
+}
+
+static void ensure_game_prereqs(void) {
+  if (!game) {
+    initGameStructures();
+  }
+  if (game) {
+    if (!game->settings) {
+      // initMainGameSettings will allocate and populate settings; ensure basic defaults exist
+      char *settings_path = getFullPath("settings.txt");
+      if (settings_path) {
+        initMainGameSettings(settings_path);
+        free(settings_path);
+      }
+    }
+    if (!game->screen) {
+      game->screen = (gDisplay*)malloc(sizeof(gDisplay));
+      memset(game->screen, 0, sizeof(gDisplay));
+    }
+    if (scr_w > 0 && scr_h > 0) {
+      game->settings->width = scr_w;
+      game->settings->height = scr_h;
+      game->screen->w = scr_w;
+      game->screen->h = scr_h;
+      game->screen->vp_w = scr_w;
+      game->screen->vp_h = scr_h;
+    }
+  }
+}
+
+void android_init_game_wrapper() {
+  // Ensure core structures and dimensions exist before init
+  ensure_game_prereqs();
+  // Initialize core game logic and data
+  initGame();
+  initData();
+  resetScores();
+  if (game) game->pauseflag = 0;
+}
+
+void android_init_gl_game_wrapper() {
+  // Initialize GL state for game then ensure display settings are applied
+  ensure_game_prereqs();
+  initGLGame();
+  requestDisplayApply();
+  applyDisplaySettingsDeferred();
+}
+
+void android_switchCallbacks(android_callbacks *new) {
+  last_android_callbacks = current_android_callbacks;
+  current_android_callbacks = *new;
+  lasttime = getElapsedTime();
+  if (new->init) {
+    new->init();
+  }
+  if (new->initGL) {
+    new->initGL();
+  }
+}
+
+void android_updateCallbacks() {
+  lasttime = getElapsedTime();
+  LOGI("Android callbacks restored");
+}
+
+void android_restoreCallbacks() {
+  if (last_android_callbacks.display == NULL) {
+    LOGE("No last Android callback present");
+    return;
+  }
+  android_switchCallbacks(&last_android_callbacks);
+}
 
 /* extern flag from android_main.c to request Activity.finish() */
 extern int g_finish_requested;
@@ -219,8 +347,16 @@ void gltron_init(void) {
     memset(game->screen, 0, sizeof(gDisplay));
   }
   initialized = 1;
-  // Ensure we start in GUI (menu) on Android
-  switchCallbacks(&guiCallbacks);
+  // Set up initial Android callbacks
+  android_callbacks gui_callbacks = {
+    .display = android_display_gui_wrapper,
+    .idle = idleGui,
+    .keyboard = NULL,
+    .special = NULL,
+    .init = android_init_gui_wrapper,
+    .initGL = android_init_gl_gui_wrapper
+  };
+  android_switchCallbacks(&gui_callbacks);
 }
 
 void gltron_resize(int width, int height) {
@@ -352,18 +488,18 @@ void gltron_frame(void) {
   } else if (active_right) {
     keyGame('s', 0, 0);
   }
-  // Simulate the usual idle/display cycle based on current callback
-  if (current_callback && current_callback->idle) current_callback->idle();
+  // Simulate the usual idle/display cycle based on current Android callback
+  if (current_android_callbacks.idle) current_android_callbacks.idle();
   // Clear and render
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 #ifdef ANDROID
   static int logged_cb = 0;
   if (!logged_cb) {
-    __android_log_print(ANDROID_LOG_INFO, "gltron", "frame: current_callback=%p display=%p idle=%p", current_callback, current_callback ? current_callback->display : NULL, current_callback ? current_callback->idle : NULL);
+    __android_log_print(ANDROID_LOG_INFO, "gltron", "frame: current_android_callbacks=%p display=%p idle=%p", &current_android_callbacks, current_android_callbacks.display, current_android_callbacks.idle);
     logged_cb = 1;
   }
 #endif
-  if (current_callback && current_callback->display) current_callback->display();
+  if (current_android_callbacks.display) current_android_callbacks.display();
   // Overlay controls (hidden in GUI)
   draw_android_overlay();
 }
@@ -425,8 +561,21 @@ void gltron_on_touch(float x, float y, int action) {
   // If paused and not game finished, unpause on touch-up
   if (game && (game->pauseflag != 0)) {
     if ((action & 0xFF) == 1 /* ACTION_UP */ && !(game->pauseflag & PAUSE_GAME_FINISHED)) {
-      switchCallbacks(&gameCallbacks);
-      game->pauseflag = 0;
+  android_callbacks game_callbacks = {
+    .display = android_display_game_wrapper,
+    .idle = android_idle_game_wrapper,
+    .keyboard = android_key_game_wrapper,
+    .special = android_special_game_wrapper,
+    .init = android_init_game_wrapper,
+    .initGL = android_init_gl_game_wrapper
+  };
+  android_switchCallbacks(&game_callbacks);
+      // Apply display settings after switching to game callbacks
+      requestDisplayApply();
+      applyDisplaySettingsDeferred();
+      if (game) game->pauseflag = 0;
+      // Ensure viewport/proj are correct on first frame
+      forceViewportResetIfNeededForGame();
       return;
     }
   }
@@ -458,12 +607,20 @@ void gltron_on_touch(float x, float y, int action) {
 #endif
           requestDisplayApply();
           if (!pCurrent || pCurrent->parent == NULL) {
-            restoreCallbacks();
+            android_restoreCallbacks();
             g_finish_requested = 1;
           } else {
             pCurrent = pCurrent->parent;
             pCurrent->iHighlight = -1;
-            switchCallbacks(&guiCallbacks);
+            android_callbacks gui_callbacks = {
+              .display = android_display_gui_wrapper,
+              .idle = idleGui,
+              .keyboard = NULL,
+              .special = NULL,
+              .init = android_init_gui_wrapper,
+              .initGL = android_init_gl_gui_wrapper
+            };
+            android_switchCallbacks(&gui_callbacks);
             requestDisplayApply();
             applyDisplaySettingsDeferred();
           }
@@ -478,12 +635,20 @@ void gltron_on_touch(float x, float y, int action) {
           // BACK
           requestDisplayApply();
           if (!pCurrent || pCurrent->parent == NULL) {
-            restoreCallbacks();
+            android_restoreCallbacks();
             g_finish_requested = 1;
           } else {
             pCurrent = pCurrent->parent;
             pCurrent->iHighlight = -1;
-            switchCallbacks(&guiCallbacks);
+            android_callbacks gui_callbacks = {
+              .display = android_display_gui_wrapper,
+              .idle = idleGui,
+              .keyboard = NULL,
+              .special = NULL,
+              .init = android_init_gui_wrapper,
+              .initGL = android_init_gl_gui_wrapper
+            };
+            android_switchCallbacks(&gui_callbacks);
             requestDisplayApply();
             applyDisplaySettingsDeferred();
           }
