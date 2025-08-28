@@ -219,6 +219,25 @@ static int32_t handle_input(struct android_app* app, AInputEvent* event) {
   return 0;
 }
 
+int g_finish_requested = 0;
+
+static void finish_activity(struct android_app* app) {
+  if (!app || !app->activity || !app->activity->clazz) return;
+  JNIEnv* env = NULL;
+  (*app->activity->vm)->AttachCurrentThread(app->activity->vm, &env, NULL);
+  if (!env) return;
+  jobject activity = app->activity->clazz;
+  jclass activityClass = (*env)->GetObjectClass(env, activity);
+  jmethodID finish = (*env)->GetMethodID(env, activityClass, "finish", "()V");
+  if (finish) {
+    (*env)->CallVoidMethod(env, activity, finish);
+  } else {
+    LOGE("Failed to find Activity.finish method");
+    (*env)->ExceptionClear(env);
+  }
+  (*app->activity->vm)->DetachCurrentThread(app->activity->vm);
+}
+
 static void handle_cmd(struct android_app* app, int32_t cmd) {
   switch (cmd) {
     case APP_CMD_INIT_WINDOW:
@@ -288,6 +307,11 @@ void android_main(struct android_app* state) {
       if (!ok) {
         EGLint e = eglGetError();
         LOGE("eglSwapBuffers failed: 0x%04x", e);
+      }
+      if (g_finish_requested) {
+        LOGI("Finishing activity on BACK at top-level");
+        finish_activity(state);
+        g_finish_requested = 0;
       }
     }
   }

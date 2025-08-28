@@ -10,6 +10,70 @@
 #include <sys/stat.h>
 #endif
 
+/* extern flag from android_main.c to request Activity.finish() */
+extern int g_finish_requested;
+
+/* Local helper: detect BACK hit in GUI using same viewport math as gui_mouse.c */
+static int hit_test_back_in_viewport(int x_win, int y_win) {
+  if (!game || !game->screen) return 0;
+  int vx = game->screen->vp_x;
+  int vy = game->screen->vp_y;
+  int vw = game->screen->vp_w;
+  int vh = game->screen->vp_h;
+  int x_local = x_win - vx;
+  int y_local = vh - (y_win - vy);
+  int size = vw / 32;
+  const float ANDROID_GUI_HIT_HEIGHT_SCALE = 1.25f;
+  const float ANDROID_GUI_HIT_WIDTH_PER_CHAR = 0.70f;
+  const int   ANDROID_GUI_HIT_XPAD = 3;
+  int len = 4; /* "Back" */
+  int bx = vw - (int)(size * 4.5f);
+  int by = (int)(size * 1.2f);
+  int rect_x0 = bx - (int)(0.5f * size);
+  int rect_y0 = by - (int)(0.5f * size);
+  int rect_w = (int)(size * ANDROID_GUI_HIT_WIDTH_PER_CHAR * len) + size * (ANDROID_GUI_HIT_XPAD + 1);
+  int rect_h = (int)(size * 2.0f * ANDROID_GUI_HIT_HEIGHT_SCALE);
+  return (x_local >= rect_x0 && x_local <= rect_x0 + rect_w &&
+          y_local >= rect_y0 && y_local <= rect_y0 + rect_h);
+}
+
+/* Local helper: detect menu item index at window coords; returns >=0 for item, -2 for Back, -1 for none */
+static int hit_test_menu_item_in_viewport(int x_win, int y_win) {
+  if (!game || !game->screen || !pCurrent) return -1;
+  int vx = game->screen->vp_x;
+  int vy = game->screen->vp_y;
+  int vw = game->screen->vp_w;
+  int vh = game->screen->vp_h;
+  int x_local = x_win - vx;
+  int y_local = vh - (y_win - vy);
+  int size = vw / 32;
+  int lineheight = size * 2;
+  int x_start = vw / 6;
+  int y_start = 2 * vh / 3;
+  const float ANDROID_GUI_HIT_Y_OFFSET = 0.10f;
+  const float ANDROID_GUI_HIT_HEIGHT_SCALE = 1.25f;
+  const float ANDROID_GUI_HIT_WIDTH_PER_CHAR = 0.70f;
+  const int   ANDROID_GUI_HIT_XPAD = 3;
+  /* Back first */
+  if (hit_test_back_in_viewport(x_win, y_win)) return -2;
+  if (lineheight <= 0) return -1;
+  for (int i = 0; i < pCurrent->nEntries; ++i) {
+    int item_y_base = y_start - i * lineheight;
+    int rect_x0 = x_start;
+    int rect_y0 = item_y_base - (int)((1.3f + ANDROID_GUI_HIT_Y_OFFSET) * size);
+    Menu* m = (Menu*)*(pCurrent->pEntries + i);
+    const char* txt = m ? m->display.szCaption : "";
+    int len = txt ? (int)strlen(txt) : 0;
+    int rect_w = (int)(size * ANDROID_GUI_HIT_WIDTH_PER_CHAR * len) + size * ANDROID_GUI_HIT_XPAD;
+    int rect_h = (int)(lineheight * ANDROID_GUI_HIT_HEIGHT_SCALE);
+    if (x_local >= rect_x0 && x_local <= rect_x0 + rect_w &&
+        y_local >= rect_y0 && y_local <= rect_y0 + rect_h) {
+      return i;
+    }
+  }
+  return -1;
+}
+
 extern int scr_w, scr_h;
 void update_buttons_layout();
 extern callbacks *current_callback;
@@ -358,14 +422,59 @@ void gltron_on_touch(float x, float y, int action) {
     if (actionMasked == 2) __android_log_print(ANDROID_LOG_INFO, "gltron", "touch->GUI: move %d,%d", ix, iy);
     if (actionMasked == 1) __android_log_print(ANDROID_LOG_INFO, "gltron", "touch->GUI: up %d,%d (click)", ix, iy);
 #endif
-    if (actionMasked == 0 || actionMasked == 2) {
+    // Tap tolerance for BACK: remember DOWN position and whether it started on BACK
+    static int s_gui_down_on_back = 0; static int s_down_x = 0, s_down_y = 0; const int tol = 24;
+    if (actionMasked == 0) {
+      s_down_x = ix; s_down_y = iy;
+      s_gui_down_on_back = hit_test_back_in_viewport(ix, iy);
+      motionGui(ix, iy);
+    } else if (actionMasked == 2) {
       motionGui(ix, iy);
     } else if (actionMasked == 1) {
-      mouseGui(0, 0, ix, iy);
-      // Safety: if highlight is valid, trigger menu action explicitly
-      if (pCurrent && pCurrent->iHighlight >= 0 && pCurrent->iHighlight < pCurrent->nEntries) {
-        menuAction(*(pCurrent->pEntries + pCurrent->iHighlight));
+      if (s_gui_down_on_back) {
+        int dx = ix - s_down_x; if (dx < 0) dx = -dx;
+        int dy = iy - s_down_y; if (dy < 0) dy = -dy;
+        if (dx <= tol && dy <= tol) {
+#ifdef ANDROID
+          __android_log_print(ANDROID_LOG_INFO, "gltron", "touch->GUI: BACK via tap-tolerance");
+#endif
+          requestDisplayApply();
+          if (!pCurrent || pCurrent->parent == NULL) {
+            restoreCallbacks();
+            g_finish_requested = 1;
+          } else {
+            pCurrent = pCurrent->parent;
+            pCurrent->iHighlight = -1;
+            switchCallbacks(&guiCallbacks);
+            requestDisplayApply();
+            applyDisplaySettingsDeferred();
+          }
+          s_gui_down_on_back = 0;
+          return;
+        }
       }
+      // Direct dispatch based on a fresh hit-test at release
+      {
+        int idx = hit_test_menu_item_in_viewport(ix, iy);
+        if (idx == -2) {
+          // BACK
+          requestDisplayApply();
+          if (!pCurrent || pCurrent->parent == NULL) {
+            restoreCallbacks();
+            g_finish_requested = 1;
+          } else {
+            pCurrent = pCurrent->parent;
+            pCurrent->iHighlight = -1;
+            switchCallbacks(&guiCallbacks);
+            requestDisplayApply();
+            applyDisplaySettingsDeferred();
+          }
+        } else if (idx >= 0) {
+          pCurrent->iHighlight = idx;
+          menuAction(*(pCurrent->pEntries + pCurrent->iHighlight));
+        }
+      }
+      s_gui_down_on_back = 0;
     }
     return;
   }
