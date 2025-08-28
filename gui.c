@@ -306,7 +306,8 @@ void displayGui() {
   // Draw menu
 #ifdef ANDROID
   if (shaderProgram) {
-    // Ensure 2D pixel projection is set before text drawing
+    // Re-bind shader and re-apply 2D pixel projection before text drawing
+    useShaderProgram(shaderProgram);
     float wvp = (float)game->screen->vp_w;
     float hvp = (float)game->screen->vp_h;
     GLfloat proj2D[16] = {

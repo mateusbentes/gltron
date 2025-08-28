@@ -147,6 +147,17 @@ void ftxRenderString(fonttex *ftx, char *string, int len) {
     float cw;
     float cx, cy;
 
+    // Derive cell height from atlas texture size to avoid stretched glyphs
+    int texh0 = (ftx->textures && ftx->textures[0]) ? ftx->textures[0]->height : ftx->texwidth; // fallback
+    int cols = (ftx->width > 0) ? (ftx->texwidth / ftx->width) : 1;
+    if (cols <= 0) cols = 1;
+    int cell_h = texh0 / cols; // assuming square grid layout
+    if (cell_h <= 0) cell_h = ftx->width;
+
+    // Spacing/advance and baseline tuning
+    const float advance = (float)ftx->width * 0.95f; // tighten slightly
+    const float vpad = 2.0f; // baseline offset
+
     w = ftx->texwidth / ftx->width;
     cw = (float)ftx->width / (float)ftx->texwidth;
 
@@ -176,17 +187,8 @@ void ftxRenderString(fonttex *ftx, char *string, int len) {
     if (!sp) return;
     useShaderProgram(sp);
 
-    // Build orthographic projection and model matrices for 2D text
-    extern float projectionMatrix[16];
-    GLfloat viewIdentity[16] = {
-        1,0,0,0,
-        0,1,0,0,
-        0,0,1,0,
-        0,0,0,1
-    };
-    setProjectionMatrix(sp, projectionMatrix);
-    setModelMatrix(sp, modelView);
-    setViewMatrix(sp, viewIdentity);
+    // Matrices are already set by caller (gui.c) for 2D pixel-space rendering.
+    // Just ensure color remains white for font glyphs; menu code sets desired color.
     setColor(sp, 1.0f, 1.0f, 1.0f, 1.0f);
 
     // Ensure font atlas is bound to unit 0 before drawing
@@ -226,11 +228,15 @@ void ftxRenderString(fonttex *ftx, char *string, int len) {
         cx = (float)(index % w) / (float)w;
         cy = (float)(index / w) / (float)w;
 
-        // Set up vertex data
-        vertices[0] = i; vertices[1] = 0;
-        vertices[2] = i + 1; vertices[3] = 0;
-        vertices[4] = i + 1; vertices[5] = 1;
-        vertices[6] = i; vertices[7] = 1;
+        // Set up vertex data in pixel units using tuned metrics
+        float px = (float)(i) * advance;
+        float py = vpad;
+        float pw = (float)ftx->width;
+        float ph = (float)cell_h;
+        vertices[0] = px;       vertices[1] = py;
+        vertices[2] = px + pw;  vertices[3] = py;
+        vertices[4] = px + pw;  vertices[5] = py + ph;
+        vertices[6] = px;       vertices[7] = py + ph;
 
         texCoords[0] = cx; texCoords[1] = 1 - cy - cw;
         texCoords[2] = cx + cw; texCoords[3] = 1 - cy - cw;
