@@ -9,6 +9,7 @@
 #ifdef ANDROID
 #include <GLES2/gl2.h>
 #include "shaders.h"
+#include "fonttex.h"
 #else
 #include <GL/gl.h>
 #include <GL/glu.h>
@@ -128,81 +129,31 @@ void drawText(int x, int y, int size, const char *text) {
   if (!text) return;
   glDisable(GL_TEXTURE_2D); // no fixed-function textures in ES2
 
-  static int logged_once = 0;
-  static int logged_attribs = 0;
-
-  // Bind shader and fully set render state for text
+  // Set up the shader program
   GLuint prog = shader_get_basic();
-  if (prog && game && game->screen) {
-    useShaderProgram(prog);
-    // Ortho projection in screen pixels
-    GLfloat left = 0.0f, right = (GLfloat)game->screen->vp_w;
-    GLfloat bottom = 0.0f, top = (GLfloat)game->screen->vp_h;
-    GLfloat znear = 0.0f, zfar = 1.0f;
-    GLfloat proj[16] = {
-      2.0f/(right-left), 0, 0, 0,
-      0, 2.0f/(top-bottom), 0, 0,
-      0, 0, -2.0f/(zfar-znear), 0,
-      -(right+left)/(right-left), -(top+bottom)/(top-bottom), -(zfar+znear)/(zfar-znear), 1
-    };
-    setProjectionMatrix(prog, proj);
-    // View identity
-    GLfloat view[16] = {1,0,0,0,  0,1,0,0,  0,0,1,0,  0,0,0,1};
-    setViewMatrix(prog, view);
-    // Model: translate to (x,y), scale by 'size'
-    GLfloat model[16] = {
-      (GLfloat)size, 0, 0, 0,
-      0, (GLfloat)size, 0, 0,
-      0, 0, 1, 0,
-      (GLfloat)x, (GLfloat)y, 0, 1
-    };
-    setModelMatrix(prog, model);
+  if (!prog) return;
 
-    // Bind font texture if available
-    if (game->screen->texFont) {
-      GLint a_pos = glGetAttribLocation(prog, "position");
-      useShaderProgram(prog);
-      GLint a_tex = glGetAttribLocation(prog, "texCoord");
-      useShaderProgram(prog);
+  useShaderProgram(prog);
 
-      glEnableVertexAttribArray(a_pos);
-      glEnableVertexAttribArray(a_tex);
+  // Set up the model matrix for positioning: translate to (x,y) and scale by 'size'
+  float s = (float)size;
+  GLfloat model[16] = {
+    s, 0, 0, 0,
+    0, s, 0, 0,
+    0, 0, 1, 0,
+    (GLfloat)x, (GLfloat)y, 0, 1
+  };
+  setModelMatrix(prog, model);
 
-      glActiveTexture(GL_TEXTURE0);
-      glBindTexture(GL_TEXTURE_2D, game->screen->texFont);
-      setTexture(prog, 0);
-    }
+  // Bind the font texture (textures will be (re)bound inside ftxRenderString as needed)
+  if (game && game->screen && game->screen->texFont) {
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, game->screen->texFont);
+    setTexture(prog, 0);
   }
 
-  // Force Android fallback: draw simple quads per character so text is visible
-  if (prog) {
-    if (!logged_once) {
-      __android_log_print(ANDROID_LOG_INFO, "gltron", "drawText(FALLBACK): text='%s' size=%d ftx=%p texFont=%u prog=%u",
-                          text, size, ftx, (unsigned) (game && game->screen ? game->screen->texFont : 0), (unsigned)prog);
-      logged_once = 1;
-    }
-    useShaderProgram(prog);
-    glDisable(GL_DEPTH_TEST);
-    glDisable(GL_CULL_FACE);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    // basic white color; menu.c may set color before calling drawText
-    setColor(prog, 1.f, 1.f, 1.f, 1.f);
-    // Draw monospace placeholders for each character so text is visible
-    GLint a_pos = glGetAttribLocation(prog, "position");
-
-    int n = (int)strlen(text);
-    float advance = size * 0.6f;
-    for (int i = 0; i < n; ++i) {
-      float cx = x + advance * i;
-      GLfloat verts[8] = { cx, (GLfloat)y, (GLfloat)(cx+advance), (GLfloat)y,
-                           (GLfloat)(cx+advance), (GLfloat)(y+size), (GLfloat)cx, (GLfloat)(y+size) };
-      glEnableVertexAttribArray(a_pos);
-      glVertexAttribPointer(a_pos, 2, GL_FLOAT, GL_FALSE, 0, verts);
-      glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-      glDisableVertexAttribArray(a_pos);
-    }
-  }
+  // Use the shared atlas renderer which is GLES2-aware under ANDROID
+  ftxRenderString(ftx, (char*)text, strlen(text));
 #endif
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
   polycount += strlen(text);

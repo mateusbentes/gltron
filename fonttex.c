@@ -147,66 +147,35 @@ void ftxRenderString(fonttex *ftx, char *string, int len) {
     float cw;
     float cx, cy;
 
-    // Derive cell height from atlas texture size to avoid stretched glyphs
-    int texh0 = (ftx->textures && ftx->textures[0]) ? ftx->textures[0]->height : ftx->texwidth; // fallback
-    int cols = (ftx->width > 0) ? (ftx->texwidth / ftx->width) : 1;
-    if (cols <= 0) cols = 1;
-    int cell_h = texh0 / cols; // assuming square grid layout
-    if (cell_h <= 0) cell_h = ftx->width;
-
-    // Spacing/advance and baseline tuning
-    const float advance = (float)ftx->width * 0.95f; // tighten slightly
-    const float vpad = 2.0f; // baseline offset
-
     w = ftx->texwidth / ftx->width;
+    if (w <= 0) w = 1;
     cw = (float)ftx->width / (float)ftx->texwidth;
 
-    // Set up orthographic projection for text rendering
-    GLfloat projection[16] = {
-        2.0f/len, 0, 0, 0,
-        0, 2.0f, 0, 0,
-        0, 0, -1, 0,
-        -1, -1, 0, 1
-    };
-
-    // Set up model-view matrix (identity)
-    GLfloat modelView[16] = {
-        1, 0, 0, 0,
-        0, 1, 0, 0,
-        0, 0, 1, 0,
-        0, 0, 0, 1
-    };
-
-    // Set up vertex data
-    GLfloat vertices[8];
-    GLfloat texCoords[8];
-
-    // Enable texture and set up shader (for Android)
 #ifdef ANDROID
     GLuint sp = shader_get_basic();
     if (!sp) return;
     useShaderProgram(sp);
-
-    // Matrices are already set by caller (gui.c) for 2D pixel-space rendering.
-    // Just ensure color remains white for font glyphs; menu code sets desired color.
     setColor(sp, 1.0f, 1.0f, 1.0f, 1.0f);
 
-    // Ensure font atlas is bound to unit 0 before drawing
-    static int logged_once = 0;
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, ftx->texID ? ftx->texID[0] : 0);
+    glBindTexture(GL_TEXTURE_2D, (ftx && ftx->texID) ? ftx->texID[0] : 0);
     setTexture(sp, 0);
-    if (!logged_once) {
-      logged_once = 1;
-    }
 
-    // Attribute locations
     GLint positionLoc = glGetAttribLocation(sp, "position");
     GLint texCoordLoc = glGetAttribLocation(sp, "texCoord");
     if (positionLoc < 0 || texCoordLoc < 0) return;
     glEnableVertexAttribArray(positionLoc);
     glEnableVertexAttribArray(texCoordLoc);
+
+    GLfloat vertices[8];
+    GLfloat texCoords[8];
 #endif
+
+    /* Ensure texture is bound */
+    glActiveTexture(GL_TEXTURE0);
+    if (ftx && ftx->texID) {
+        glBindTexture(GL_TEXTURE_2D, ftx->texID[0]);
+    }
 
     for(i = 0; i < len; i++) {
         /* find out which texture it's in */
@@ -228,28 +197,23 @@ void ftxRenderString(fonttex *ftx, char *string, int len) {
         cx = (float)(index % w) / (float)w;
         cy = (float)(index / w) / (float)w;
 
-        // Set up vertex data in pixel units using tuned metrics
-        float px = (float)(i) * advance;
-        float py = vpad;
-        float pw = (float)ftx->width;
-        float ph = (float)cell_h;
-        vertices[0] = px;       vertices[1] = py;
-        vertices[2] = px + pw;  vertices[3] = py;
-        vertices[4] = px + pw;  vertices[5] = py + ph;
-        vertices[6] = px;       vertices[7] = py + ph;
+#ifdef ANDROID
+        /* Unit quad; caller scales via model matrix */
+        vertices[0] = (float)i;     vertices[1] = 0.0f;
+        vertices[2] = (float)i + 1; vertices[3] = 0.0f;
+        vertices[4] = (float)i + 1; vertices[5] = 1.0f;
+        vertices[6] = (float)i;     vertices[7] = 1.0f;
 
         texCoords[0] = cx; texCoords[1] = 1 - cy - cw;
         texCoords[2] = cx + cw; texCoords[3] = 1 - cy - cw;
         texCoords[4] = cx + cw; texCoords[5] = 1 - cy;
         texCoords[6] = cx; texCoords[7] = 1 - cy;
 
-#ifdef ANDROID
-        // For Android, use vertex attributes
         glVertexAttribPointer(positionLoc, 2, GL_FLOAT, GL_FALSE, 0, vertices);
         glVertexAttribPointer(texCoordLoc, 2, GL_FLOAT, GL_FALSE, 0, texCoords);
         glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 #else
-        // For desktop, use immediate mode
+        // For desktop, use immediate mode with unit quad
         glBegin(GL_QUADS);
         glTexCoord2f(cx, 1 - cy - cw);
         glVertex2f(i, 0);
@@ -264,7 +228,6 @@ void ftxRenderString(fonttex *ftx, char *string, int len) {
     }
 
 #ifdef ANDROID
-    // Disable attributes
     glDisableVertexAttribArray(positionLoc);
     glDisableVertexAttribArray(texCoordLoc);
 #endif
