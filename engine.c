@@ -1,7 +1,10 @@
 #include <math.h>
+#include <string.h>
 #include "gltron.h"
 #include "globals.h"
 #include "shaders.h"
+#include <math.h>
+#define M_PI 3.14159265358979323846
 
 #ifdef ANDROID
 #include <GLES/gl.h>
@@ -559,13 +562,11 @@ void camMove() {
   float upZ = 1.0f;   // In GLTron, Z is up, not Y
 
 #ifdef ANDROID
-  // OpenGL ES 1.0 implementation
+  // OpenGL ES 2.0 implementation
   GLfloat modelViewMatrix[16];
 
   // Initialize the model-view matrix
-  for (int i = 0; i < 16; i++) {
-    modelViewMatrix[i] = 0.0f;
-  }
+  memset(modelViewMatrix, 0, sizeof(modelViewMatrix));
   modelViewMatrix[0] = 1.0f; // Scale X
   modelViewMatrix[5] = 1.0f; // Scale Y
   modelViewMatrix[10] = 1.0f; // Scale Z
@@ -578,9 +579,11 @@ void camMove() {
 
   // Normalize the forward vector
   float length = sqrtf(forward[0] * forward[0] + forward[1] * forward[1] + forward[2] * forward[2]);
-  forward[0] /= length;
-  forward[1] /= length;
-  forward[2] /= length;
+  if (length > 0) {
+    forward[0] /= length;
+    forward[1] /= length;
+    forward[2] /= length;
+  }
 
   // Calculate the right vector
   right[0] = forward[1] * up[2] - forward[2] * up[1];
@@ -589,9 +592,11 @@ void camMove() {
 
   // Normalize the right vector
   length = sqrtf(right[0] * right[0] + right[1] * right[1] + right[2] * right[2]);
-  right[0] /= length;
-  right[1] /= length;
-  right[2] /= length;
+  if (length > 0) {
+    right[0] /= length;
+    right[1] /= length;
+    right[2] /= length;
+  }
 
   // Calculate the up vector
   up[0] = right[1] * forward[2] - right[2] * forward[1];
@@ -613,8 +618,11 @@ void camMove() {
   modelViewMatrix[14] = forward[0] * camX + forward[1] * camY + forward[2] * camZ;
 
   // Apply the model-view matrix via shader uniform (GLES2 path)
-  { GLuint sp = shader_get_basic(); if (!sp) return; useShaderProgram(sp); }
-  { GLuint sp = shader_get_basic(); if (!sp) return; setViewMatrix(sp, (float*)modelViewMatrix); }
+  GLuint sp = shader_get_basic();
+  if (sp) {
+    useShaderProgram(sp);
+    setViewMatrix(sp, (float*)modelViewMatrix);
+  }
 #else
   // Standard OpenGL implementation
   glMatrixMode(GL_MODELVIEW);

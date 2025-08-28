@@ -126,6 +126,16 @@ static GLuint createShaderProgram() {
     u_tex = glGetUniformLocation(shaderProgram, "texture");
     a_pos = glGetAttribLocation(shaderProgram, "position");
     a_texcoord = glGetAttribLocation(shaderProgram, "texCoord");
+
+    // Check if all locations were found
+    if (u_proj == -1 || u_view == -1 || u_model == -1 ||
+        u_color == -1 || u_tex == -1 || a_pos == -1 || a_texcoord == -1) {
+        LOGE("Failed to get shader locations");
+        glUseProgram(0);
+        glDeleteProgram(shaderProgram);
+        return 0;
+    }
+
     glUseProgram(0);
 
     return shaderProgram;

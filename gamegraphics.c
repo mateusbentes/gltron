@@ -5,6 +5,8 @@
 #ifdef ANDROID
 #include <android/log.h>
 #endif
+#include <math.h>
+#define M_PI 3.14159265358979323846
 
 #ifdef ANDROID
 #include <GLES2/gl2.h>
@@ -162,7 +164,16 @@ void drawDebugTex(gDisplay *d) {
 
   // Bind texture
   glActiveTexture(GL_TEXTURE0);
-  glBindTexture(GL_TEXTURE_2D, game->screen->texFloor);
+  if (game && game->screen && game->screen->texFloor > 0) {
+    glBindTexture(GL_TEXTURE_2D, game->screen->texFloor);
+  } else {
+    // Fallback to a default texture if not available
+    GLuint defaultTex;
+    glGenTextures(1, &defaultTex);
+    glBindTexture(GL_TEXTURE_2D, defaultTex);
+    GLfloat defaultColor[] = {1.0f, 0.0f, 0.0f, 1.0f}; // Red color
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_FLOAT, defaultColor);
+  }
 
   // Draw
   glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, 0);
@@ -829,7 +840,6 @@ void drawPlayers(Player *p) {
   useShaderProgram(shaderProgram);
 
   // Set up common shader parameters
-  GLint modelMatrixLoc = glGetUniformLocation(shaderProgram, "modelMatrix");
   GLint colorLoc = glGetUniformLocation(shaderProgram, "color");
 
   glEnable(GL_BLEND);
@@ -848,7 +858,7 @@ void drawPlayers(Player *p) {
           0, 0, 1, 0,
           game->player[i].data->posx, game->player[i].data->posy, 0, 1
         };
-        glUniformMatrix4fv(modelMatrixLoc, 1, GL_FALSE, modelMatrix);
+        setModelMatrix(shaderProgram, modelMatrix);
 
         // Set color
         glUniform4fv(colorLoc, 1, game->player[i].model->color_model);
@@ -936,7 +946,6 @@ void drawGlow(Player *p, gDisplay *d, float dim) {
   useShaderProgram(shaderProgram);
 
   // Set up common shader parameters
-  GLint modelMatrixLoc = glGetUniformLocation(shaderProgram, "modelMatrix");
   GLint colorLoc = glGetUniformLocation(shaderProgram, "color");
 
   // Create model matrix for this player
@@ -946,7 +955,7 @@ void drawGlow(Player *p, gDisplay *d, float dim) {
     0, 0, 1, 0,
     p->data->posx, p->data->posy, 0, 1
   };
-  glUniformMatrix4fv(modelMatrixLoc, 1, GL_FALSE, modelMatrix);
+  setModelMatrix(shaderProgram, modelMatrix);
 
   // Set up glow effect
   glBlendFunc(GL_ONE, GL_ONE);
@@ -1254,31 +1263,19 @@ void drawCam(Player *p, gDisplay *d) {
   if (!shaderProgram) return;
   useShaderProgram(shaderProgram);
 
-  // Set up projection matrix
+  // Set up projection matrix (standard perspective matching desktop near/far)
   GLfloat projectionMatrix[16];
   float aspect = (float)d->vp_w / (float)d->vp_h;
   float fov = game->settings->fov * M_PI / 180.0f;
-  float f = 1.0f / tan(fov / 2.0f);
+  float f = 1.0f / tanf(fov / 2.0f);
+  float n = 3.0f; // near plane
+  float fa = (float)GSIZE; // far plane
 
-  projectionMatrix[0] = f / aspect;
-  projectionMatrix[1] = 0.0f;
-  projectionMatrix[2] = 0.0f;
-  projectionMatrix[3] = 0.0f;
-
-  projectionMatrix[4] = 0.0f;
-  projectionMatrix[5] = f;
-  projectionMatrix[6] = 0.0f;
-  projectionMatrix[7] = 0.0f;
-
-  projectionMatrix[8] = 0.0f;
-  projectionMatrix[9] = 0.0f;
-  projectionMatrix[10] = (GSIZE + 3.0f) / (GSIZE - 3.0f);
-  projectionMatrix[11] = 1.0f;
-
-  projectionMatrix[12] = 0.0f;
-  projectionMatrix[13] = 0.0f;
-  projectionMatrix[14] = -2.0f * 3.0f * GSIZE / (GSIZE - 3.0f);
-  projectionMatrix[15] = 0.0f;
+  // Column-major OpenGL style
+  projectionMatrix[0] = f / aspect; projectionMatrix[4] = 0.0f; projectionMatrix[8]  = 0.0f;                         projectionMatrix[12] = 0.0f;
+  projectionMatrix[1] = 0.0f;        projectionMatrix[5] = f;    projectionMatrix[9]  = 0.0f;                         projectionMatrix[13] = 0.0f;
+  projectionMatrix[2] = 0.0f;        projectionMatrix[6] = 0.0f; projectionMatrix[10] = -(fa + n) / (fa - n);         projectionMatrix[14] = -(2.0f * fa * n) / (fa - n);
+  projectionMatrix[3] = 0.0f;        projectionMatrix[7] = 0.0f; projectionMatrix[11] = -1.0f;                        projectionMatrix[15] = 0.0f;
 
   setProjectionMatrix(shaderProgram, projectionMatrix);
   {
