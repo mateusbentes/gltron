@@ -254,6 +254,56 @@ GLuint shader_get_basic() {
     return g_shader_basic;
 }
 
+void ensureShaderBound() {
+    if (g_shader_basic == 0) {
+        init_shaders_android();
+    }
+    if (g_shader_basic != 0) {
+        GLint currentProgram = 0;
+        glGetIntegerv(GL_CURRENT_PROGRAM, &currentProgram);
+        if (currentProgram != (GLint)g_shader_basic) {
+            glUseProgram(g_shader_basic);
+        }
+    }
+}
+
+void resetMatrices() {
+    if (g_shader_basic == 0) return;
+    
+    GLfloat identity[16] = {
+        1,0,0,0,
+        0,1,0,0,
+        0,0,1,0,
+        0,0,0,1
+    };
+    
+    setModelMatrix(g_shader_basic, identity);
+    setViewMatrix(g_shader_basic, identity);
+}
+
+void setIdentityMatrix(GLuint program, int matrixType) {
+    if (program == 0) return;
+    
+    GLfloat identity[16] = {
+        1,0,0,0,
+        0,1,0,0,
+        0,0,1,0,
+        0,0,0,1
+    };
+    
+    switch(matrixType) {
+        case MATRIX_PROJECTION:
+            setProjectionMatrix(program, identity);
+            break;
+        case MATRIX_VIEW:
+            setViewMatrix(program, identity);
+            break;
+        case MATRIX_MODEL:
+            setModelMatrix(program, identity);
+            break;
+    }
+}
+
 // Function to create a font texture (simplified)
 GLuint createFontTexture() {
     // In a real implementation, you would load a proper font texture here

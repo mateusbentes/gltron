@@ -149,8 +149,15 @@ void drawDebugTex(gDisplay *d) {
 
   // Use shader program
   GLuint shaderProgram = shader_get_basic();
-  if (!shaderProgram) return;
+  if (!shaderProgram) {
+    init_shaders_android();
+    shaderProgram = shader_get_basic();
+    if (!shaderProgram) return;
+  }
   useShaderProgram(shaderProgram);
+  
+  // Set identity model matrix
+  setIdentityMatrix(shaderProgram, MATRIX_MODEL);
 
   // Set up attributes
   GLint positionLoc = glGetAttribLocation(shaderProgram, "position");
@@ -184,7 +191,7 @@ void drawDebugTex(gDisplay *d) {
   glBindBuffer(GL_ARRAY_BUFFER, 0);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
   glDeleteBuffers(1, &vbo);
-  glDeleteBuffers(1, &ibo); /* keep program bound */
+  glDeleteBuffers(1, &ibo);
 #else
   // For desktop OpenGL
   glColor4f(.0, 1.0, .0, 1.0);
@@ -228,8 +235,15 @@ void drawScore(Player *p, gDisplay *d) {
 
   // Use shader program
   GLuint shaderProgram = shader_get_basic();
-  if (!shaderProgram) return;
+  if (!shaderProgram) {
+    init_shaders_android();
+    shaderProgram = shader_get_basic();
+    if (!shaderProgram) return;
+  }
   useShaderProgram(shaderProgram);
+  
+  // Set identity model matrix
+  setIdentityMatrix(shaderProgram, MATRIX_MODEL);
 
   // Set up attributes
   GLint positionLoc = glGetAttribLocation(shaderProgram, "position");
@@ -315,9 +329,12 @@ void drawFloor(gDisplay *d) {
           glBufferData(GL_ELEMENT_ARRAY_BUFFER, ibytes, indices, GL_STATIC_DRAW);
 
           GLuint shaderProgram = shader_get_basic();
-  if (!shaderProgram) return;
           if (shaderProgram != 0) {
             useShaderProgram(shaderProgram);
+            
+            // Set identity model matrix for floor
+            setIdentityMatrix(shaderProgram, MATRIX_MODEL);
+            
             GLint positionLoc = glGetAttribLocation(shaderProgram, "position");
             GLint texCoordLoc = glGetAttribLocation(shaderProgram, "texCoord");
             if (positionLoc >= 0) {
@@ -332,7 +349,7 @@ void drawFloor(gDisplay *d) {
             glDrawElements(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, (void*)0);
             // Clean up attribs
             if (positionLoc >= 0) glDisableVertexAttribArray(positionLoc);
-            if (texCoordLoc >= 0) glDisableVertexAttribArray(texCoordLoc); /* keep program bound */
+            if (texCoordLoc >= 0) glDisableVertexAttribArray(texCoordLoc);
           }
           // Clean up buffers and heap
           glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -396,7 +413,11 @@ void drawFloor(gDisplay *d) {
 
     // Use shader program
     GLuint shaderProgram = shader_get_basic();
-  if (!shaderProgram) return;
+    if (!shaderProgram) {
+      init_shaders_android();
+      shaderProgram = shader_get_basic();
+      if (!shaderProgram) return;
+    }
     useShaderProgram(shaderProgram);
 
     // Set up attributes
@@ -411,7 +432,7 @@ void drawFloor(gDisplay *d) {
     // Clean up
     glDisableVertexAttribArray(positionLoc);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glDeleteBuffers(1, &vbo); /* keep program bound */
+    glDeleteBuffers(1, &vbo);
 #else
     // For desktop OpenGL
     glColor3f(0.0, 0.0, 1.0);
@@ -481,7 +502,11 @@ void drawTraces(Player *p, gDisplay *d, int instance) {
 
     // Use shader program
     GLuint shaderProgram = shader_get_basic();
-  if (!shaderProgram) return;
+    if (!shaderProgram) {
+      init_shaders_android();
+      shaderProgram = shader_get_basic();
+      if (!shaderProgram) return;
+    }
     useShaderProgram(shaderProgram);
 
     // Set up attributes
@@ -496,7 +521,7 @@ void drawTraces(Player *p, gDisplay *d, int instance) {
     // Clean up
     glDisableVertexAttribArray(positionLoc);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glDeleteBuffers(1, &vbo); /* keep program bound */
+    glDeleteBuffers(1, &vbo);
 
     if(game->settings->camType == 1) {
       GLfloat quadVertices[] = {
@@ -525,7 +550,7 @@ void drawTraces(Player *p, gDisplay *d, int instance) {
       // Clean up
       glDisableVertexAttribArray(positionLoc);
       glBindBuffer(GL_ARRAY_BUFFER, 0);
-      glDeleteBuffers(1, &quadVbo); /* keep program bound */
+      glDeleteBuffers(1, &quadVbo);
 
       polycount++;
     }
@@ -593,18 +618,29 @@ void drawCrash(float radius) {
 
   // Use shader program
   GLuint shaderProgram = shader_get_basic();
-  if (!shaderProgram) return;
+  if (!shaderProgram) {
+    init_shaders_android();
+    shaderProgram = shader_get_basic();
+    if (!shaderProgram) return;
+  }
   useShaderProgram(shaderProgram);
+  
+  // Set identity model matrix
+  setIdentityMatrix(shaderProgram, MATRIX_MODEL);
 
   // Set up attributes
   GLint positionLoc = glGetAttribLocation(shaderProgram, "position");
   GLint texCoordLoc = glGetAttribLocation(shaderProgram, "texCoord");
 
-  glEnableVertexAttribArray(positionLoc);
-  glVertexAttribPointer(positionLoc, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), 0);
+  if (positionLoc >= 0) {
+    glEnableVertexAttribArray(positionLoc);
+    glVertexAttribPointer(positionLoc, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), 0);
+  }
 
-  glEnableVertexAttribArray(texCoordLoc);
-  glVertexAttribPointer(texCoordLoc, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (void*)(3 * sizeof(GLfloat)));
+  if (texCoordLoc >= 0) {
+    glEnableVertexAttribArray(texCoordLoc);
+    glVertexAttribPointer(texCoordLoc, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (void*)(3 * sizeof(GLfloat)));
+  }
 
   // Set color with alpha
   GLint colorLoc = glGetUniformLocation(shaderProgram, "color");
@@ -623,7 +659,7 @@ void drawCrash(float radius) {
   glBindBuffer(GL_ARRAY_BUFFER, 0);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
   glDeleteBuffers(1, &vbo);
-  glDeleteBuffers(1, &ibo); /* keep program bound */
+  glDeleteBuffers(1, &ibo);
 #else
   // For desktop OpenGL
   glColor4f(1.0, 1.0, 1.0, (EXP_RADIUS_MAX - radius) / EXP_RADIUS_MAX);
@@ -667,7 +703,11 @@ void drawCycle(Player *p) {
 #ifdef ANDROID
   // For Android, use matrix operations with shaders
   GLuint prog = shader_get_basic();
-  if (!prog) return;
+  if (!prog) {
+    init_shaders_android();
+    prog = shader_get_basic();
+    if (!prog) return;
+  }
   useShaderProgram(prog);
 
   // Build model matrix from identity (no fixed-function in GLES2)
@@ -730,7 +770,7 @@ void drawCycle(Player *p) {
     drawExplosion(cycle, p->data->exp_radius, MODEL_USE_MATERIAL, 0);
   }
 
-  // Clean up /* keep program bound */
+  // Clean up
 #else
   // For desktop OpenGL
   glPushMatrix();
@@ -836,7 +876,11 @@ void drawPlayers(Player *p) {
 #ifdef ANDROID
   // For Android, use vertex buffers for better performance
   GLuint shaderProgram = shader_get_basic();
-  if (!shaderProgram) return;
+  if (!shaderProgram) {
+    init_shaders_android();
+    shaderProgram = shader_get_basic();
+    if (!shaderProgram) return;
+  }
   useShaderProgram(shaderProgram);
 
   // Set up common shader parameters
@@ -901,7 +945,7 @@ void drawPlayers(Player *p) {
     }
   }
 
-  // Clean up /* keep program bound */
+  // Clean up
   if(game->settings->show_alpha != 1) glDisable(GL_BLEND);
 #else
   // For desktop OpenGL
@@ -942,7 +986,11 @@ void drawGlow(Player *p, gDisplay *d, float dim) {
 #ifdef ANDROID
   // For Android, use vertex buffers for better performance
   GLuint shaderProgram = shader_get_basic();
-  if (!shaderProgram) return;
+  if (!shaderProgram) {
+    init_shaders_android();
+    shaderProgram = shader_get_basic();
+    if (!shaderProgram) return;
+  }
   useShaderProgram(shaderProgram);
 
   // Set up common shader parameters
@@ -1019,7 +1067,7 @@ void drawGlow(Player *p, gDisplay *d, float dim) {
   polycount += 8;
 
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-  if(game->settings->show_alpha != 1) glDisable(GL_BLEND); /* keep program bound */
+  if(game->settings->show_alpha != 1) glDisable(GL_BLEND);
 #else
   // For desktop OpenGL
   float mat[4*4];
@@ -1119,18 +1167,29 @@ void drawWalls(gDisplay *d) {
 
   // Use shader program
   GLuint shaderProgram = shader_get_basic();
-  if (!shaderProgram) return;
+  if (!shaderProgram) {
+    init_shaders_android();
+    shaderProgram = shader_get_basic();
+    if (!shaderProgram) return;
+  }
   useShaderProgram(shaderProgram);
+  
+  // Set identity model matrix
+  setIdentityMatrix(shaderProgram, MATRIX_MODEL);
 
   // Set up attributes
   GLint positionLoc = glGetAttribLocation(shaderProgram, "position");
   GLint texCoordLoc = glGetAttribLocation(shaderProgram, "texCoord");
 
-  glEnableVertexAttribArray(positionLoc);
-  glVertexAttribPointer(positionLoc, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), 0);
+  if (positionLoc >= 0) {
+    glEnableVertexAttribArray(positionLoc);
+    glVertexAttribPointer(positionLoc, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), 0);
+  }
 
-  glEnableVertexAttribArray(texCoordLoc);
-  glVertexAttribPointer(texCoordLoc, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (void*)(3 * sizeof(GLfloat)));
+  if (texCoordLoc >= 0) {
+    glEnableVertexAttribArray(texCoordLoc);
+    glVertexAttribPointer(texCoordLoc, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (void*)(3 * sizeof(GLfloat)));
+  }
 
   // Set color with alpha
   GLint colorLoc = glGetUniformLocation(shaderProgram, "color");
@@ -1169,7 +1228,7 @@ void drawWalls(gDisplay *d) {
   glBindBuffer(GL_ARRAY_BUFFER, 0);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
   glDeleteBuffers(1, &vbo);
-  glDeleteBuffers(1, &ibo); /* keep program bound */
+  glDeleteBuffers(1, &ibo);
 
   // Disable culling
   glDisable(GL_CULL_FACE);
@@ -1260,7 +1319,11 @@ void drawCam(Player *p, gDisplay *d) {
     return;
   }
   GLuint shaderProgram = shader_get_basic();
-  if (!shaderProgram) return;
+  if (!shaderProgram) {
+    init_shaders_android();
+    shaderProgram = shader_get_basic();
+    if (!shaderProgram) return;
+  }
   useShaderProgram(shaderProgram);
 
   // Set up projection matrix (standard perspective matching desktop near/far)
@@ -1278,10 +1341,6 @@ void drawCam(Player *p, gDisplay *d) {
   projectionMatrix[3] = 0.0f;        projectionMatrix[7] = 0.0f; projectionMatrix[11] = -1.0f;                        projectionMatrix[15] = 0.0f;
 
   setProjectionMatrix(shaderProgram, projectionMatrix);
-  {
-    GLfloat viewIdentity[16] = {1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1};
-    setViewMatrix(shaderProgram, viewIdentity);
-  }
 
   // Set up view matrix
   GLfloat viewMatrix[16];
@@ -1354,15 +1413,9 @@ void drawCam(Player *p, gDisplay *d) {
 
   // Set view matrix in shader
   setViewMatrix(shaderProgram, viewMatrix);
-
-  // Draw scene; re-apply matrices before sub-draws to ensure state
-  setProjectionMatrix(shaderProgram, projectionMatrix);
-  setViewMatrix(shaderProgram, viewMatrix);
-  if (game->settings->show_wall == 1) {
-    setProjectionMatrix(shaderProgram, projectionMatrix);
-    setViewMatrix(shaderProgram, viewMatrix);
-    drawWalls(d);
-  }
+  
+  // Set identity model matrix as default
+  setIdentityMatrix(shaderProgram, MATRIX_MODEL);
 
   // Draw scene
   drawFloor(d);
@@ -1380,7 +1433,7 @@ void drawCam(Player *p, gDisplay *d) {
       if ((p != &(game->player[i])) && (game->player[i].data->speed > 0))
         drawGlow(&(game->player[i]), d, TRAIL_HEIGHT * 4);
 
-  // Clean up /* keep program bound */
+  // Clean up
   glDisable(GL_FOG);
 #else
   // For desktop OpenGL
@@ -1527,7 +1580,7 @@ void drawAI(gDisplay *d) {
     x += textScale;
   }
 
-  // Clean up /* keep program bound */
+  // Clean up
 #else
   // For desktop OpenGL
   glColor3f(1.0, 1.0, 1.0);
@@ -1709,7 +1762,7 @@ void drawPause(gDisplay *display) {
     }
   }
 
-  // Clean up /* keep program bound */
+  // Clean up
 #else
   // For desktop OpenGL
   glColor3f(1.0, (sin(d) + 1) / 2, (sin(d) + 1) / 2);

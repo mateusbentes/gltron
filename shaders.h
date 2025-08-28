@@ -20,5 +20,16 @@ GLuint createFontTexture();
 // Android-specific shader functions
 void init_shaders_android();
 GLuint shader_get_basic();
+void shutdown_shaders_android();
+
+// Helper functions for better state management
+void ensureShaderBound();
+void resetMatrices();
+void setIdentityMatrix(GLuint program, int matrixType);
+
+// Matrix type constants
+#define MATRIX_PROJECTION 0
+#define MATRIX_VIEW 1
+#define MATRIX_MODEL 2
 
 #endif // SHADERS_H
