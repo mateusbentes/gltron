@@ -97,7 +97,6 @@ void gltron_init(void) {
   }
   // Diagnostics and fallback menu on Android
   if (pMenuList && pMenuList[0]) {
-      pMenuList[0], pMenuList[0]->szName, pMenuList[0]->nEntries;
     // Ensure current menu pointer is set
     pCurrent = pMenuList[0];
   } else {
@@ -321,20 +320,33 @@ void gltron_frame(void) {
 }*/
 
 void gltron_on_touch(float x, float y, int action) {
+  // Normalize to pixel coords and fix Y origin mismatch if needed
+  int ix = (int)(x + 0.5f);
+  int iy = (int)(y + 0.5f);
+  if (ix < 0) ix = 0; if (iy < 0) iy = 0;
+  if (scr_w > 0 && ix >= scr_w) ix = scr_w - 1;
+  if (scr_h > 0 && iy >= scr_h) iy = scr_h - 1;
+
+  // Our UI math (update_buttons_layout/draw_rect) assumes origin at top-left.
+  // On some Android setups touch Y is bottom-left; flip if a build-flag is set.
+#ifndef ANDROID_TOUCH_TOPLEFT
+#define ANDROID_TOUCH_TOPLEFT 1
+#endif
+#if ANDROID_TOUCH_TOPLEFT == 0
+  if (scr_h > 0) iy = scr_h - 1 - iy;
+#endif
+
   // If paused and not game finished, unpause on touch-up
   if (game && (game->pauseflag != 0)) {
-    // AMOTION_EVENT_ACTION_UP == 1 (mask already applied by caller)
     if ((action & 0xFF) == 1 /* ACTION_UP */ && !(game->pauseflag & PAUSE_GAME_FINISHED)) {
       switchCallbacks(&gameCallbacks);
       game->pauseflag = 0;
       return;
     }
   }
-  // Otherwise, route to GUI or handle virtual buttons
-  int ix = (int)x;
-  int iy = (int)y;
-  // Check virtual buttons first
+
   int actionMasked = (action & 0xFF);
+
   // If GUI (menu) is active, route all touches to menu handlers
   if (is_gui_active()) {
     motionGui(ix, iy);
@@ -343,6 +355,7 @@ void gltron_on_touch(float x, float y, int action) {
     }
     return;
   }
+
   // Manage active button states for in-game overlay
   if (actionMasked == 0 /* ACTION_DOWN */ || actionMasked == 2 /* ACTION_MOVE */) {
     active_left = hit_btn(ix, iy, btn_left);
@@ -358,8 +371,21 @@ void gltron_on_touch(float x, float y, int action) {
       if (active_right) keyGame('s', 0, 0);
       return;
     }
+    // Not over overlay buttons: forward to mouse-based swipe/tap logic
+    {
+      int y_bl = game->screen ? (game->screen->h - 1 - iy) : iy;
+      if (actionMasked == 0) {
+        mouseGame(0 /* left button */, 0 /* down */, ix, y_bl);
+      } else {
+        motionGame(ix, y_bl);
+      }
+    }
   } else if (actionMasked == 1 /* ACTION_UP */) {
+    // End overlay states
+    int y_bl = game->screen ? (game->screen->h - 1 - iy) : iy;
     active_left = active_right = active_pause = 0;
+    // Forward to mouse-based tap/swipe finish
+    mouseGame(0 /* left button */, 1 /* up */, ix, y_bl);
   }
   // Otherwise no overlay hit; ignore or add game-world touch handling if desired
 }
