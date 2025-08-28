@@ -30,11 +30,29 @@ static void set_immersive_fullscreen(struct android_app* app) {
   jobject decorView = (*env)->CallObjectMethod(env, window, getDecorView);
   jclass viewClass = (*env)->GetObjectClass(env, decorView);
   jfieldID fid_imm_sticky = (*env)->GetStaticFieldID(env, viewClass, "SYSTEM_UI_FLAG_IMMERSIVE_STICKY", "I");
+  if (!fid_imm_sticky) {
+    LOGE("Failed to get SYSTEM_UI_FLAG_IMMERSIVE_STICKY field ID");
+  }
   jfieldID fid_hide_nav = (*env)->GetStaticFieldID(env, viewClass, "SYSTEM_UI_FLAG_HIDE_NAVIGATION", "I");
+  if (!fid_hide_nav) {
+    LOGE("Failed to get SYSTEM_UI_FLAG_HIDE_NAVIGATION field ID");
+  }
   jfieldID fid_fullscreen = (*env)->GetStaticFieldID(env, viewClass, "SYSTEM_UI_FLAG_FULLSCREEN", "I");
+  if (!fid_fullscreen) {
+    LOGE("Failed to get SYSTEM_UI_FLAG_FULLSCREEN field ID");
+  }
   jfieldID fid_layout_stable = (*env)->GetStaticFieldID(env, viewClass, "SYSTEM_UI_FLAG_LAYOUT_STABLE", "I");
+  if (!fid_layout_stable) {
+    LOGE("Failed to get SYSTEM_UI_FLAG_LAYOUT_STABLE field ID");
+  }
   jfieldID fid_layout_hide_nav = (*env)->GetStaticFieldID(env, viewClass, "SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION", "I");
+  if (!fid_layout_hide_nav) {
+    LOGE("Failed to get SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION field ID");
+  }
   jfieldID fid_layout_fullscreen = (*env)->GetStaticFieldID(env, viewClass, "SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN", "I");
+  if (!fid_layout_fullscreen) {
+    LOGE("Failed to get SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN field ID");
+  }
   jint f_imm = (*env)->GetStaticIntField(env, viewClass, fid_imm_sticky);
   jint f_hide = (*env)->GetStaticIntField(env, viewClass, fid_hide_nav);
   jint f_full = (*env)->GetStaticIntField(env, viewClass, fid_fullscreen);
@@ -44,8 +62,14 @@ static void set_immersive_fullscreen(struct android_app* app) {
   jint flags = f_imm | f_hide | f_full | f_stable | f_lhide | f_lfull;
   // Call Java helper to apply immersive on UI thread
   jclass uiCls = (*env)->FindClass(env, "org/gltron/game/UiHelpers");
+  if (!uiCls) {
+    LOGE("Failed to find UiHelpers class");
+  }
   if (uiCls) {
     jmethodID mid = (*env)->GetStaticMethodID(env, uiCls, "applyImmersive", "(Landroid/app/Activity;Landroid/view/View;I)V");
+    if (!mid) {
+      LOGE("Failed to get applyImmersive method ID");
+    }
     if (mid) {
       (*env)->CallStaticVoidMethod(env, uiCls, mid, activity, decorView, flags);
     } else {
@@ -182,6 +206,8 @@ static void handle_cmd(struct android_app* app, int32_t cmd) {
         } else {
           // Apply immersive fullscreen from UI-thread context after EGL init
           if (game && game->settings && game->settings->fullscreen) {
+            LOGI("Applying immersive fullscreen: game->settings->fullscreen = %d", game->settings->fullscreen);
+
             set_immersive_fullscreen(app);
           }
         }

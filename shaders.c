@@ -98,10 +98,6 @@ static GLuint createShaderProgram() {
     glAttachShader(shaderProgram, vertexShader);
     glAttachShader(shaderProgram, fragmentShader);
 
-    // Optionally bind attribute locations before linking
-    glBindAttribLocation(shaderProgram, 0, "position");
-    glBindAttribLocation(shaderProgram, 1, "texCoord");
-
     glLinkProgram(shaderProgram);
 
     // Check for linking errors

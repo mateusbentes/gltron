@@ -420,6 +420,15 @@ void initGui() {
 }
 
 void initGLGui() {
+#ifdef ANDROID
+  init_shaders_android();
+  GLuint prog = shader_get_basic();
+#endif
+
+#ifdef ANDROID
+  init_shaders_android();
+#endif
+
 #ifndef ANDROID
   glShadeModel(GL_SMOOTH);
 #endif

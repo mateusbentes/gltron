@@ -1,5 +1,10 @@
 #include "gltron.h"
 #include <string.h>
+#include <math.h>
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
 #ifdef ANDROID
 #include <GLES2/gl2.h>
@@ -108,6 +113,7 @@ void drawFPS(gDisplay *d) {
 }
 
 void drawText(int x, int y, int size, const char *text) {
+  
   glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 #ifndef ANDROID
   glEnable(GL_TEXTURE_2D);
@@ -123,6 +129,7 @@ void drawText(int x, int y, int size, const char *text) {
   glDisable(GL_TEXTURE_2D); // no fixed-function textures in ES2
 
   static int logged_once = 0;
+  static int logged_attribs = 0;
 
   // Bind shader and fully set render state for text
   GLuint prog = shader_get_basic();
@@ -153,6 +160,14 @@ void drawText(int x, int y, int size, const char *text) {
 
     // Bind font texture if available
     if (game->screen->texFont) {
+      GLint a_pos = glGetAttribLocation(prog, "position");
+      useShaderProgram(prog);
+      GLint a_tex = glGetAttribLocation(prog, "texCoord");
+      useShaderProgram(prog);
+
+      glEnableVertexAttribArray(a_pos);
+      glEnableVertexAttribArray(a_tex);
+
       glActiveTexture(GL_TEXTURE0);
       glBindTexture(GL_TEXTURE_2D, game->screen->texFont);
       setTexture(prog, 0);
@@ -175,6 +190,7 @@ void drawText(int x, int y, int size, const char *text) {
     setColor(prog, 1.f, 1.f, 1.f, 1.f);
     // Draw monospace placeholders for each character so text is visible
     GLint a_pos = glGetAttribLocation(prog, "position");
+
     int n = (int)strlen(text);
     float advance = size * 0.6f;
     for (int i = 0; i < n; ++i) {
@@ -276,8 +292,8 @@ void colorDisc() {
 }
 
 #ifdef ANDROID
-void initShaderProgram() {
+/*void initShaderProgram() {*/
   // Centralized shader init
-  init_shaders_android();
-}
+  /*init_shaders_android();
+}*/
 #endif

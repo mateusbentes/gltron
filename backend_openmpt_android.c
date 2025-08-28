@@ -169,6 +169,10 @@ int sb_load_music(const char* path) {
   fread(buf,1,sz,f);
   fclose(f);
   mod = openmpt_module_create_from_memory2(buf, sz, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+  if (!mod) {
+    __android_log_print(ANDROID_LOG_ERROR, "gltron", "sb_load_music: openmpt_module_create_from_memory2 failed");
+  }
+
   free(buf);
   free(full);
   return mod != NULL;
@@ -202,7 +206,10 @@ int sb_load_sfx(int id, const char* path) {
 
 void sb_play_sfx(int id) {
   if (id < 0 || id >= SFX_MAX) return;
-  if (!sfx[id].data) return;
+  if (!sfx[id].data) {
+    __android_log_print(ANDROID_LOG_WARN, "gltron", "sb_play_sfx: sfx[%d].data is NULL", id);
+    return;
+  }
   sfx[id].pos = 0; sfx[id].playing = 1;
 }
 

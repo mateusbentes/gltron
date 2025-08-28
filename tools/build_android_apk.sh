@@ -38,6 +38,7 @@ require_cmd() { command -v "$1" >/dev/null 2>&1 || { err "Missing required tool:
 
 # Locate Android build-tools - use version 35.0.1
 BUILD_TOOLS_VERSION="35.0.1"
+ANDROID_SDK_ROOT=/home/mateus/Android/Sdk
 BUILD_TOOLS_DIR="$ANDROID_SDK_ROOT/build-tools/$BUILD_TOOLS_VERSION"
 
 if [[ ! -d "$BUILD_TOOLS_DIR" ]]; then
@@ -132,17 +133,16 @@ fi
 # Compile minimal Java helper (UiHelpers) into classes.dex
 JAVA_SRC_DIR="$ROOT_DIR/tools/java"
 if [[ -d "$JAVA_SRC_DIR" ]]; then
-  echo "Compiling Java helper sources..."
-  mkdir -p "$STAGE_DIR/java-classes"
+
   # Find android.jar (API 29+) for compilation
   ANDROID_JAR=$(python3 - <<'PY'
 import os
 candidates=[
-  '/usr/lib/android-sdk/platforms/android-35/android.jar',
-  '/usr/lib/android-sdk/platforms/android-34/android.jar',
-  '/opt/android-sdk/platforms/android-35/android.jar',
-  os.path.expanduser('~/Android/Sdk/platforms/android-35/android.jar'),
-  os.path.expanduser('~/Android/Sdk/platforms/android-34/android.jar'),
+    '/usr/lib/android-sdk/platforms/android-35/android.jar',
+    '/usr/lib/android-sdk/platforms/android-34/android.jar',
+    '/opt/android-sdk/platforms/android-35/android.jar',
+    os.path.expanduser('~/Android/Sdk/platforms/android-35/android.jar'),
+    os.path.expanduser('~/Android/Sdk/platforms/android-34/android.jar'),
 ]
 for c in candidates:
   if os.path.isfile(c):
@@ -153,99 +153,39 @@ PY
   if [[ -z "$ANDROID_JAR" ]]; then
     echo "Warning: android.jar not found; skipping Java compile"
   else
-    find "$JAVA_SRC_DIR" -name "*.java" > "$STAGE_DIR/java-sources.list"
-    if [[ -s "$STAGE_DIR/java-sources.list" ]]; then
-      javac -source 1.8 -target 1.8 -bootclasspath "$ANDROID_JAR" -classpath "$ANDROID_JAR" -d "$STAGE_DIR/java-classes" @"$STAGE_DIR/java-sources.list"
-      if [[ $? -eq 0 ]]; then
-        echo "Verifying compiled classes contain UiHelpers..."
-        if ! find "$STAGE_DIR/java-classes" -type f -name "UiHelpers.class" | grep -q UiHelpers.class; then
-          echo "ERROR: UiHelpers.class not found after javac; check package/path"
-          exit 1
-        fi
-        echo "Packaging classes into jar for inspection..."
-        (cd "$STAGE_DIR/java-classes" && jar cf "$STAGE_DIR/java-classes.jar" .)
-        if ! jar tf "$STAGE_DIR/java-classes.jar" | grep -q "org/gltron/game/UiHelpers.class"; then
-          echo "ERROR: org/gltron/game/UiHelpers.class missing in jar; check Java package declaration"
-          jar tf "$STAGE_DIR/java-classes.jar" | sed -n '1,200p'
-          exit 1
-        fi
-        echo "Converting Java classes to DEX..."
-        # Locate d8 from Android SDK build-tools if not on PATH
-        find_d8() {
-          local sdk_bt=""
-          if [[ -n "$ANDROID_SDK_ROOT" && -d "$ANDROID_SDK_ROOT/build-tools" ]]; then
-            sdk_bt="$ANDROID_SDK_ROOT/build-tools"
-          elif [[ -n "$ANDROID_HOME" && -d "$ANDROID_HOME/build-tools" ]]; then
-            sdk_bt="$ANDROID_HOME/build-tools"
-          elif [[ -d "$HOME/Android/Sdk/build-tools" ]]; then
-            sdk_bt="$HOME/Android/Sdk/build-tools"
-          fi
-          if [[ -n "$sdk_bt" ]]; then
-            D8_BIN=""
-            while IFS= read -r dir; do
-              if [[ -x "$dir/d8" ]]; then D8_BIN="$dir/d8"; break; fi
-            done < <(ls -1 "$sdk_bt" | sort -Vr | sed "s|^|$sdk_bt/|")
-          fi
-        }
-        D8_BIN=""
-        find_d8
-        if [[ -z "$D8_BIN" ]]; then
-          if command -v d8 >/dev/null 2>&1; then D8_BIN="$(command -v d8)"; fi
-        fi
-        if [[ -n "$D8_BIN" ]]; then
-          echo "Using d8 at $D8_BIN"
-          echo "Packaging classes into jar for d8..."
-          (cd "$STAGE_DIR/java-classes" && jar cf "$STAGE_DIR/java-classes.jar" .)
-          "$D8_BIN" --output "$STAGE_DIR" "$STAGE_DIR/java-classes.jar"
-          # Normalize d8 output to $STAGE_DIR/classes.dex
-          if [[ -f "$STAGE_DIR/classes.dex" ]]; then
-            echo "d8 produced classes.dex at $STAGE_DIR/classes.dex"
-          else
-            # Some d8 versions output into a subdir named 'classes.dex' under classes/
-            if [[ -f "$STAGE_DIR/classes/classes.dex" ]]; then
-              mv -f "$STAGE_DIR/classes/classes.dex" "$STAGE_DIR/classes.dex"
-              echo "d8 output normalized from classes/classes.dex"
-            fi
-          fi
-          if [[ ! -s "$STAGE_DIR/classes.dex" ]]; then
-            echo "ERROR: d8 did not produce a usable classes.dex"
-            exit 1
-          fi
-          DEX_SIZE_BEFORE=$(stat -c%s "$STAGE_DIR/classes.dex" 2>/dev/null || wc -c < "$STAGE_DIR/classes.dex")
-          DEX_SHA_BEFORE=$(sha1sum "$STAGE_DIR/classes.dex" 2>/dev/null | awk '{print $1}')
-          echo "Verifying classes.dex contains UiHelpers..."
-          if ! strings "$STAGE_DIR/classes.dex" | grep -q "org/gltron/game/UiHelpers"; then
-            echo "ERROR: UiHelpers not found in classes.dex; aborting to avoid runtime crash"
-            exit 1
-          fi
-          echo "classes.dex BEFORE packaging: size=$DEX_SIZE_BEFORE sha1=$DEX_SHA_BEFORE"
-        elif command -v dx >/dev/null 2>&1; then
-          echo "Trying dx with jar input..."
-          (cd "$STAGE_DIR/java-classes" && jar cf "$STAGE_DIR/java-classes.jar" .)
-          if dx --dex --output "$STAGE_DIR/classes.dex" "$STAGE_DIR/java-classes.jar"; then
-            echo "dx jar -> classes.dex OK"
-          else
-            echo "dx jar failed; trying dx with class directory..."
-            if dx --dex --output "$STAGE_DIR/classes.dex" "$STAGE_DIR/java-classes/"; then
-              echo "dx dir -> classes.dex OK"
-            else
-              echo "dx dir failed; trying dx with class list..."
-              find "$STAGE_DIR/java-classes" -type f -name "*.class" > "$STAGE_DIR/classlist.txt"
-              if dx --dex --output "$STAGE_DIR/classes.dex" @"$STAGE_DIR/classlist.txt"; then
-                echo "dx list -> classes.dex OK"
-              else
-                echo "ERROR: dx failed to produce classes.dex"
-                exit 1
-              fi
-            fi
-          fi
-        else
-          echo "ERROR: Neither d8 nor dx (Android SDK) found. Install build-tools and/or set ANDROID_SDK_ROOT."
-          exit 1
-        fi
+    echo "Compiling Java sources..."
+    mkdir -p "$STAGE_DIR/classes"
+    echo "Running javac: javac -source 1.8 -target 1.8 -bootclasspath \"$ANDROID_JAR\" -classpath \"$ANDROID_JAR\" -d \"$STAGE_DIR/classes\" \"$JAVA_SRC_DIR/org/gltron/game/UiHelpers.java\""
+    javac -source 1.8 -target 1.8 -bootclasspath "$ANDROID_JAR" -classpath "$ANDROID_JAR" -d "$STAGE_DIR/classes" "$JAVA_SRC_DIR/org/gltron/game/UiHelpers.java"
+    if [[ $? -ne 0 ]]; then
+      echo "ERROR: javac failed to compile Java sources"
+      exit 1
+    fi
+    if [[ ! -d "$STAGE_DIR/classes" ]]; then
+      echo "ERROR: javac did not create $STAGE_DIR/classes directory"
+      exit 1
+    fi
+
+    echo "Converting Java classes to DEX..."
+    # Resolve d8 from the selected build-tools version, then fall back to PATH
+    D8_BIN="$BUILD_TOOLS_DIR/d8"
+    if [[ ! -x "$D8_BIN" ]]; then
+      # Fallback: try unversioned location and PATH
+      if command -v d8 >/dev/null 2>&1; then
+        D8_BIN="$(command -v d8)"
+      elif [[ -x "$ANDROID_SDK_ROOT/build-tools/d8" ]]; then
+        D8_BIN="$ANDROID_SDK_ROOT/build-tools/d8"
       else
-        echo "Warning: javac failed; skipping Java helper"
+        echo "ERROR: d8 not found. Please install Android build-tools and ensure it's in your PATH."
+        exit 1
       fi
+    fi
+
+    # d8 accepts directories of .class files
+    "$D8_BIN" --output "$STAGE_DIR" "$STAGE_DIR/classes/org/gltron/game/UiHelpers.class"
+    if ! strings "$STAGE_DIR/classes.dex" | grep -q "org/gltron/game/UiHelpers"; then
+      echo "ERROR: UiHelpers not found in classes.dex after d8"
+      exit 1
     fi
   fi
 fi
@@ -367,7 +307,13 @@ if [[ -x "$AAPT" ]]; then
     err "Failed to package APK with aapt"
   }
   # Add classes.dex and native libs to the APK in one go
-  (cd "$STAGE_DIR" && "$AAPT" add "$UNALIGNED_APK" "classes.dex" "lib/$ABI/$SO_NAME" "lib/$ABI/libc++_shared.so") || {
+  if [[ -f "$STAGE_DIR/classes.dex" ]]; then
+      echo "classes.dex exists"
+    else
+      echo "ERROR: classes.dex does not exist"
+      exit 1
+    fi
+    (cd "$STAGE_DIR" && "$AAPT" add "$UNALIGNED_APK" "classes.dex" "lib/$ABI/$SO_NAME" "lib/$ABI/libc++_shared.so") || {
     err "Failed to add classes.dex and native libs with aapt"
   }
 elif [[ -x "$AAPT2" ]]; then
