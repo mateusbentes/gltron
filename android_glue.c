@@ -185,10 +185,12 @@ void gltron_init(void) {
     pMenuList[0] = root;
     pCurrent = root;
   }
-#
+
   initGameStructures();
   resetScores();
   initData();
+  // Ensure unpaused when starting a forced game later
+  if (game) game->pauseflag = 0;
 
   // Initialize sound backend and try to load/play music on Android
 #ifdef ANDROID
@@ -487,7 +489,14 @@ void gltron_on_touch(float x, float y, int action) {
           }
         } else if (idx >= 0) {
           pCurrent->iHighlight = idx;
-          menuAction(*(pCurrent->pEntries + pCurrent->iHighlight));
+          // If selecting 'Start Game' from minimal menu, ensure unpaused and force viewport reset
+      if (*(pCurrent->pEntries + pCurrent->iHighlight) && strcmp((*(pCurrent->pEntries + pCurrent->iHighlight))->szCapFormat, "Start") == 0) {
+        if (game) game->pauseflag = 0;
+        // Force a viewport/projection reset safely via public API
+        requestDisplayApply();
+        applyDisplaySettingsDeferred();
+      }
+      menuAction(*(pCurrent->pEntries + pCurrent->iHighlight));
         }
       }
       s_gui_down_on_back = 0;

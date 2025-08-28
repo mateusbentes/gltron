@@ -96,8 +96,10 @@ void mouseGui(int button, int state, int x, int y) {
         __android_log_print(ANDROID_LOG_INFO, "gltron", "mouseGui: BACK at top-level -> restoreCallbacks + request finish");
 #endif
         restoreCallbacks();
+#ifdef ANDROID
         /* Mark for finish in android_main via global flag */
         extern int g_finish_requested; g_finish_requested = 1;
+#endif
       } else {
         pCurrent = pCurrent->parent;
         pCurrent->iHighlight = -1;

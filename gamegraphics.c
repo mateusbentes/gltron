@@ -2,6 +2,9 @@
 #include "geom.h"
 #include <string.h>
 #include <math.h>
+#ifdef ANDROID
+#include <android/log.h>
+#endif
 
 #ifdef ANDROID
 #include <GLES2/gl2.h>
@@ -1226,6 +1229,16 @@ void drawHelp(gDisplay *d) {
 */
 
 void drawCam(Player *p, gDisplay *d) {
+#ifdef ANDROID
+  // One-time log to verify drawCam is called and shader/viewport are valid
+  static int s_logged_cam = 0;
+  if (!s_logged_cam) {
+    GLuint sp = shader_get_basic();
+    int vw = (game && game->screen) ? game->screen->vp_w : -1;
+    int vh = (game && game->screen) ? game->screen->vp_h : -1;
+    s_logged_cam = 1;
+  }
+#endif
   int i;
 
 #ifndef ANDROID
