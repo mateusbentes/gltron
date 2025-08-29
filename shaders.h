@@ -8,6 +8,12 @@
 #include <GL/gl.h>
 #endif
 
+// Matrix type constants
+#define MATRIX_PROJECTION 0
+#define MATRIX_VIEW 1
+#define MATRIX_MODEL 2
+#define MATRIX_NORMAL 3
+
 // Function declarations
 void useShaderProgram(GLuint program);
 void setProjectionMatrix(GLuint program, float* matrix);
@@ -26,6 +32,11 @@ void shutdown_shaders_android();
 void ensureShaderBound();
 void resetMatrices();
 void setIdentityMatrix(GLuint program, int matrixType);
+
+// Lighting functions
+void setAmbientLight(GLuint program, float r, float g, float b);
+void setLightColor(GLuint program, float r, float g, float b);
+void setLightPosition(GLuint program, float x, float y, float z);
 
 // Matrix type constants
 #define MATRIX_PROJECTION 0

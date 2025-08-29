@@ -62,6 +62,19 @@
 #define GL_POSITION 0x1203
 #endif
 
+// Lighting parameters
+#define AMBIENT_LIGHT_R 0.2f
+#define AMBIENT_LIGHT_G 0.2f
+#define AMBIENT_LIGHT_B 0.2f
+
+#define LIGHT_COLOR_R 0.8f
+#define LIGHT_COLOR_G 0.8f
+#define LIGHT_COLOR_B 0.8f
+
+#define LIGHT_POS_X 5.0f
+#define LIGHT_POS_Y 5.0f
+#define LIGHT_POS_Z 10.0f
+
 // Define functions for Android
 #ifdef ANDROID
 void multiplyMatrices(const GLfloat* a, const GLfloat* b, GLfloat* result) {
@@ -774,6 +787,11 @@ void drawCycle(Player *p) {
   // Set the model matrix in the shader
   setModelMatrix(prog, modelMatrix);
 
+  // Enable lighting
+  glEnable(GL_LIGHTING);
+  glEnable(GL_DEPTH_TEST);
+  glDepthMask(GL_TRUE);
+
   if(p->data->exp_radius == 0)
     drawModel(cycle, MODEL_USE_MATERIAL, 0);
   else if(p->data->exp_radius < EXP_RADIUS_MAX) {
@@ -781,6 +799,11 @@ void drawCycle(Player *p) {
     setMaterialAlphas(cycle, alpha);
     drawExplosion(cycle, p->data->exp_radius, MODEL_USE_MATERIAL, 0);
   }
+
+  // Disable lighting
+  glDisable(GL_LIGHTING);
+  glDisable(GL_DEPTH_TEST);
+  glDepthMask(GL_FALSE);
 
   // Clean up
 #else
@@ -827,6 +850,7 @@ void drawCycle(Player *p) {
   /* glTranslatef(-cycle->bbox[0] / 2, 0, .0); */
   /* glTranslatef(-cycle->bbox[0] / 2, -cycle->bbox[1], .0); */
 
+  // Enable lighting
   glEnable(GL_LIGHTING);
   glEnable(GL_DEPTH_TEST);
   glDepthMask(GL_TRUE);
@@ -844,6 +868,7 @@ void drawCycle(Player *p) {
 
   if(game->settings->show_alpha == 0) glDisable(GL_BLEND);
 
+  // Disable lighting
   glDisable(GL_LIGHTING);
   glDisable(GL_DEPTH_TEST);
   glDepthMask(GL_FALSE);
@@ -900,6 +925,9 @@ void drawPlayers(Player *p) {
 
   glEnable(GL_BLEND);
 
+  // Enable lighting
+  glEnable(GL_LIGHTING);
+
   for(i = 0; i < game->players; i++) {
     // Validate model before any use
     if (!game->player[i].model || !game->player[i].model->mesh) {
@@ -922,33 +950,33 @@ void drawPlayers(Player *p) {
         // Create quad vertices
         dir = game->player[i].data->dir;
         GLfloat quadVertices[] = {
-        0, 0, 0,
-        -dirsX[dir] * l, -dirsY[dir] * l, 0,
-        -dirsX[dir] * l, -dirsY[dir] * l, height,
-        0, 0, height
-      };
+          0, 0, 0,
+          -dirsX[dir] * l, -dirsY[dir] * l, 0,
+          -dirsX[dir] * l, -dirsY[dir] * l, height,
+          0, 0, height
+        };
 
-      // Create and bind vertex buffer
-      GLuint vbo;
-      glGenBuffers(1, &vbo);
-      glBindBuffer(GL_ARRAY_BUFFER, vbo);
-      glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), quadVertices, GL_STATIC_DRAW);
+        // Create and bind vertex buffer
+        GLuint vbo;
+        glGenBuffers(1, &vbo);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), quadVertices, GL_STATIC_DRAW);
 
-      // Set up attributes
-      GLint positionLoc = glGetAttribLocation(shaderProgram, "position");
-      glEnableVertexAttribArray(positionLoc);
-      glVertexAttribPointer(positionLoc, 3, GL_FLOAT, GL_FALSE, 0, 0);
+        // Set up attributes
+        GLint positionLoc = glGetAttribLocation(shaderProgram, "position");
+        glEnableVertexAttribArray(positionLoc);
+        glVertexAttribPointer(positionLoc, 3, GL_FLOAT, GL_FALSE, 0, 0);
 
-      // Draw
-      glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        // Draw
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
-      // Clean up
-      glDisableVertexAttribArray(positionLoc);
-      glBindBuffer(GL_ARRAY_BUFFER, 0);
-      glDeleteBuffers(1, &vbo);
+        // Clean up
+        glDisableVertexAttribArray(positionLoc);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glDeleteBuffers(1, &vbo);
 
-      polycount++;
-    }
+        polycount++;
+      }
     }
 
     if(playerVisible(p, &(game->player[i]))) {
@@ -957,12 +985,19 @@ void drawPlayers(Player *p) {
     }
   }
 
+  // Disable lighting
+  glDisable(GL_LIGHTING);
+
   // Clean up
   if(game->settings->show_alpha != 1) glDisable(GL_BLEND);
 #else
   // For desktop OpenGL
   glShadeModel(GL_SMOOTH);
   glEnable(GL_BLEND);
+
+  // Enable lighting
+  glEnable(GL_LIGHTING);
+
   for(i = 0; i < game->players; i++) {
     height = game->player[i].data->trail_height;
     if(height > 0) {
@@ -989,6 +1024,10 @@ void drawPlayers(Player *p) {
         drawCycle(&(game->player[i]));
     }
   }
+
+  // Disable lighting
+  glDisable(GL_LIGHTING);
+
   if(game->settings->show_alpha != 1) glDisable(GL_BLEND);
   glShadeModel(GL_FLAT);
 #endif
@@ -1425,7 +1464,12 @@ void drawCam(Player *p, gDisplay *d) {
 
   // Set view matrix in shader
   setViewMatrix(shaderProgram, viewMatrix);
-  
+
+  // Set up lighting
+  setAmbientLight(shaderProgram, AMBIENT_LIGHT_R, AMBIENT_LIGHT_G, AMBIENT_LIGHT_B);
+  setLightColor(shaderProgram, LIGHT_COLOR_R, LIGHT_COLOR_G, LIGHT_COLOR_B);
+  setLightPosition(shaderProgram, LIGHT_POS_X, LIGHT_POS_Y, LIGHT_POS_Z);
+
   // Set identity model matrix as default
   setIdentityMatrix(shaderProgram, MATRIX_MODEL);
 
@@ -1436,7 +1480,6 @@ void drawCam(Player *p, gDisplay *d) {
 
   for (i = 0; i < game->players; i++)
     drawTraces(&(game->player[i]), d, i);
-
 
   drawPlayers(p);
 
@@ -1456,6 +1499,20 @@ void drawCam(Player *p, gDisplay *d) {
 
   glMatrixMode(GL_MODELVIEW);
   glLoadIdentity();
+
+  // Enable lighting
+  glEnable(GL_LIGHTING);
+  glEnable(GL_LIGHT0);
+
+  // Set up light parameters
+  GLfloat lightPosition[] = {LIGHT_POS_X, LIGHT_POS_Y, LIGHT_POS_Z, 1.0f};
+  GLfloat lightColor[] = {LIGHT_COLOR_R, LIGHT_COLOR_G, LIGHT_COLOR_B, 1.0f};
+  GLfloat ambientLight[] = {AMBIENT_LIGHT_R, AMBIENT_LIGHT_G, AMBIENT_LIGHT_B, 1.0f};
+
+  glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
+  glLightfv(GL_LIGHT0, GL_DIFFUSE, lightColor);
+  glLightfv(GL_LIGHT0, GL_SPECULAR, lightColor);
+  glLightModelfv(GL_LIGHT_MODEL_AMBIENT, ambientLight);
 
   // Camera parameters
   float camDist   = 12.0f; // distance behind the player
