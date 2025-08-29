@@ -288,103 +288,140 @@ void drawFloor(gDisplay *d) {
   if(game->settings->show_floor_texture) {
     glDepthMask(GL_TRUE);
 #ifdef ANDROID
-    // Android GLES2: validate resources first
+    // Android GLES2: Check if texture is available
     if (!game || !game->screen || game->screen->texFloor == 0) {
-      // No texture available; skip textured floor
       glDepthMask(GL_FALSE);
-    } else {
-      glBindTexture(GL_TEXTURE_2D, game->screen->texFloor);
-      // Build geometry on heap to avoid stack overflow
-      l = GSIZE / 4;
-      t = 5;
-      const int quadsPerSide = (l > 0) ? (GSIZE / l) : 0;
-      const int quadCount = quadsPerSide * quadsPerSide;
-      if (l <= 0 || quadsPerSide <= 0 || quadCount <= 0) {
+      return;
+    }
+
+    // Use shader program
+    GLuint shaderProgram = shader_get_basic();
+    if (!shaderProgram) {
+      init_shaders_android();
+      shaderProgram = shader_get_basic();
+      if (!shaderProgram) {
         glDepthMask(GL_FALSE);
-      } else {
-        size_t vertCount = (size_t)quadCount * 4; // 4 vertices per quad
-        size_t idxCount = (size_t)quadCount * 6;  // 6 indices per quad
-        size_t vbytes = vertCount * 4 * sizeof(GLfloat); // 4 floats per vertex (pos.xy, uv.xy)
-        size_t ibytes = idxCount * sizeof(GLuint);
-        GLfloat* vertices = (GLfloat*)malloc(vbytes);
-        GLuint* indices = (GLuint*)malloc(ibytes);
-        if (!vertices || !indices) {
-          free(vertices); free(indices);
-          glDepthMask(GL_FALSE);
-        } else {
-          // Create buffers
-          GLuint vbo=0, ibo=0;
-          glGenBuffers(1, &vbo);
-          glGenBuffers(1, &ibo);
-
-          // Upload vertex data
-          glBindBuffer(GL_ARRAY_BUFFER, vbo);
-          glBufferData(GL_ARRAY_BUFFER, vbytes, vertices, GL_STATIC_DRAW);
-
-          // Convert & upload 16-bit indices for GLES2
-          glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
-          size_t ushortBytes = idxCount * sizeof(GLushort);
-          GLushort *sidx = malloc(ushortBytes);
-          for (size_t z = 0; z < idxCount; ++z) sidx[z] = (GLushort)indices[z];
-          glBufferData(GL_ELEMENT_ARRAY_BUFFER, ushortBytes, sidx, GL_STATIC_DRAW);
-          free(sidx);
-
-          // Use shader & set uniforms/attributes
-          GLuint prog = shader_get_basic();
-          useShaderProgram(prog);
-          setIdentityMatrix(prog, MATRIX_MODEL);
-
-          // Set up normal matrix for lighting
-          GLfloat normalMatrix[16] = {
-            1,0,0,0,
-            0,1,0,0,
-            0,0,1,0,
-            0,0,0,1
-          };
-          setNormalMatrix(prog, normalMatrix);
-
-          GLint posLoc = glGetAttribLocation(prog, "position");
-          GLint uvLoc  = glGetAttribLocation(prog, "texCoord");
-          GLint normalLoc = glGetAttribLocation(prog, "normal");
-
-          if (posLoc>=0) {
-            glEnableVertexAttribArray(posLoc);
-            glVertexAttribPointer(posLoc, 2, GL_FLOAT, GL_FALSE, 4*sizeof(GLfloat), 0);
-          }
-          if (uvLoc>=0) {
-            glEnableVertexAttribArray(uvLoc);
-            glVertexAttribPointer(uvLoc, 2, GL_FLOAT, GL_FALSE, 4*sizeof(GLfloat), (void*)(2*sizeof(GLfloat)));
-          }
-          if (normalLoc>=0) {
-            // Set floor normal (0,0,1)
-            GLfloat normal[3] = {0.0f, 0.0f, 1.0f};
-            glVertexAttrib3fv(normalLoc, normal);
-          }
-
-          // Set lighting parameters
-          setAmbientLight(prog, AMBIENT_LIGHT_R, AMBIENT_LIGHT_G, AMBIENT_LIGHT_B);
-          setLightColor(prog, LIGHT_COLOR_R, LIGHT_COLOR_G, LIGHT_COLOR_B);
-          setLightPosition(prog, LIGHT_POS_X, LIGHT_POS_Y, LIGHT_POS_Z);
-
-          glDrawElements(GL_TRIANGLES, (GLsizei)idxCount, GL_UNSIGNED_SHORT, 0);
-
-          // cleanup
-          if (posLoc>=0) glDisableVertexAttribArray(posLoc);
-          if (uvLoc>=0)  glDisableVertexAttribArray(uvLoc);
-          glBindBuffer(GL_ARRAY_BUFFER, 0);
-          glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-          glDeleteBuffers(1, &vbo);
-          glDeleteBuffers(1, &ibo);
-          free(vertices);
-          free(indices);
-        }
+        return;
       }
     }
+    useShaderProgram(shaderProgram);
+
+    // Set identity model matrix
+    setIdentityMatrix(shaderProgram, MATRIX_MODEL);
+
+    // Set up normal matrix for lighting
+    GLfloat normalMatrix[16] = {
+      1,0,0,0,
+      0,1,0,0,
+      0,0,1,0,
+      0,0,0,1
+    };
+    setNormalMatrix(shaderProgram, normalMatrix);
+
+    // Bind floor texture
+    glEnable(GL_TEXTURE_2D);
+    glBindTexture(GL_TEXTURE_2D, game->screen->texFloor);
+
+    // Set white color for texture
+    GLint colorLoc = glGetUniformLocation(shaderProgram, "color");
+    if (colorLoc >= 0) {
+      glUniform4f(colorLoc, 1.0f, 1.0f, 1.0f, 1.0f);
+    }
+
+    // Same parameters as PC version
+    l = GSIZE / 4;
+    t = 5;
+
+    // Create vertex data for all quads (position + texture coordinates)
+    int quadCount = (GSIZE / l) * (GSIZE / l);
+    GLfloat *vertices = malloc(quadCount * 4 * 4 * sizeof(GLfloat)); // 4 vertices per quad, 4 floats per vertex (x,y,u,v)
+    GLushort *indices = malloc(quadCount * 6 * sizeof(GLushort));    // 6 indices per quad
+
+    if (!vertices || !indices) {
+      free(vertices);
+      free(indices);
+      glDepthMask(GL_FALSE);
+      return;
+    }
+
+    int vertIndex = 0, idxIndex = 0, quadIndex = 0;
+
+    // Generate quads (same logic as PC version)
+    for(j = 0; j < GSIZE; j += l) {
+      for(k = 0; k < GSIZE; k += l) {
+        // Vertex 0: (j, k)
+        vertices[vertIndex++] = j;     vertices[vertIndex++] = k;     vertices[vertIndex++] = 0; vertices[vertIndex++] = 0;
+        // Vertex 1: (j + l, k)
+        vertices[vertIndex++] = j + l; vertices[vertIndex++] = k;     vertices[vertIndex++] = t; vertices[vertIndex++] = 0;
+        // Vertex 2: (j + l, k + l)
+        vertices[vertIndex++] = j + l; vertices[vertIndex++] = k + l; vertices[vertIndex++] = t; vertices[vertIndex++] = t;
+        // Vertex 3: (j, k + l)
+        vertices[vertIndex++] = j;     vertices[vertIndex++] = k + l; vertices[vertIndex++] = 0; vertices[vertIndex++] = t;
+
+        // Indices for two triangles (quad)
+        GLushort baseVertex = quadIndex * 4;
+        indices[idxIndex++] = baseVertex + 0; indices[idxIndex++] = baseVertex + 1; indices[idxIndex++] = baseVertex + 2;
+        indices[idxIndex++] = baseVertex + 0; indices[idxIndex++] = baseVertex + 2; indices[idxIndex++] = baseVertex + 3;
+
+        quadIndex++;
+        polycount++;
+      }
+    }
+
+    // Create and upload vertex buffer
+    GLuint vbo, ebo;
+    glGenBuffers(1, &vbo);
+    glGenBuffers(1, &ebo);
+
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, quadCount * 4 * 4 * sizeof(GLfloat), vertices, GL_STATIC_DRAW);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, quadCount * 6 * sizeof(GLushort), indices, GL_STATIC_DRAW);
+
+    // Set up vertex attributes
+    GLint positionLoc = glGetAttribLocation(shaderProgram, "position");
+    GLint texCoordLoc = glGetAttribLocation(shaderProgram, "texCoord");
+    GLint normalLoc = glGetAttribLocation(shaderProgram, "normal");
+
+    if (positionLoc >= 0) {
+      glEnableVertexAttribArray(positionLoc);
+      glVertexAttribPointer(positionLoc, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (void*)0);
+    }
+
+    if (texCoordLoc >= 0) {
+      glEnableVertexAttribArray(texCoordLoc);
+      glVertexAttribPointer(texCoordLoc, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (void*)(2 * sizeof(GLfloat)));
+    }
+
+    if (normalLoc >= 0) {
+      // Floor normal points up (0,0,1)
+      glVertexAttrib3f(normalLoc, 0.0f, 0.0f, 1.0f);
+    }
+
+    // Set lighting parameters
+    setAmbientLight(shaderProgram, AMBIENT_LIGHT_R, AMBIENT_LIGHT_G, AMBIENT_LIGHT_B);
+    setLightColor(shaderProgram, LIGHT_COLOR_R, LIGHT_COLOR_G, LIGHT_COLOR_B);
+    setLightPosition(shaderProgram, LIGHT_POS_X, LIGHT_POS_Y, LIGHT_POS_Z);
+
+    // Draw the floor
+    glDrawElements(GL_TRIANGLES, quadCount * 6, GL_UNSIGNED_SHORT, 0);
+
+    // Cleanup
+    if (positionLoc >= 0) glDisableVertexAttribArray(positionLoc);
+    if (texCoordLoc >= 0) glDisableVertexAttribArray(texCoordLoc);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    glDeleteBuffers(1, &vbo);
+    glDeleteBuffers(1, &ebo);
+
+    free(vertices);
+    free(indices);
+
 #else
     // For desktop OpenGL
     glEnable(GL_TEXTURE_2D);
     glBindTexture(GL_TEXTURE_2D, game->screen->texFloor);
-    // For desktop OpenGL
     glColor4f(1.0, 1.0, 1.0, 1.0);
     l = GSIZE / 4;
     t = 5;
@@ -409,28 +446,6 @@ void drawFloor(gDisplay *d) {
   } else {
     // lines as floor...
 #ifdef ANDROID
-    // For Android, use vertex buffers for better performance
-    GLfloat vertices[GSIZE * 4 * 2 * 3]; // 4 lines, 2 vertices per line, 3 floats per vertex
-    int vertexCount = 0;
-
-    for(j = 0; j <= GSIZE; j += game->settings->line_spacing) {
-      // Horizontal line
-      vertices[vertexCount++] = 0; vertices[vertexCount++] = j; vertices[vertexCount++] = 0;
-      vertices[vertexCount++] = GSIZE; vertices[vertexCount++] = j; vertices[vertexCount++] = 0;
-
-      // Vertical line
-      vertices[vertexCount++] = j; vertices[vertexCount++] = 0; vertices[vertexCount++] = 0;
-      vertices[vertexCount++] = j; vertices[vertexCount++] = GSIZE; vertices[vertexCount++] = 0;
-
-      polycount += 2;
-    }
-
-    // Create and bind vertex buffer
-    GLuint vbo;
-    glGenBuffers(1, &vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
     // Use shader program
     GLuint shaderProgram = shader_get_basic();
     if (!shaderProgram) {
@@ -440,7 +455,7 @@ void drawFloor(gDisplay *d) {
     }
     useShaderProgram(shaderProgram);
 
-    // Set identity model matrix for floor lines
+    // Set identity model matrix
     setIdentityMatrix(shaderProgram, MATRIX_MODEL);
 
     // Set up normal matrix for lighting
@@ -452,17 +467,46 @@ void drawFloor(gDisplay *d) {
     };
     setNormalMatrix(shaderProgram, normalMatrix);
 
-    // Set up attributes
+    // Count lines first to allocate proper buffer size
+    int lineCount = 0;
+    for(j = 0; j <= GSIZE; j += game->settings->line_spacing) {
+      lineCount += 2; // horizontal + vertical line
+    }
+
+    // Create vertex data for lines (same logic as PC version)
+    GLfloat *vertices = malloc(lineCount * 2 * 3 * sizeof(GLfloat)); // 2 vertices per line, 3 floats per vertex
+    int vertexIndex = 0;
+
+    for(j = 0; j <= GSIZE; j += game->settings->line_spacing) {
+      // Horizontal line (same as PC: glVertex3i(0, j, 0); glVertex3i(GSIZE, j, 0);)
+      vertices[vertexIndex++] = 0;     vertices[vertexIndex++] = j;     vertices[vertexIndex++] = 0;
+      vertices[vertexIndex++] = GSIZE; vertices[vertexIndex++] = j;     vertices[vertexIndex++] = 0;
+
+      // Vertical line (same as PC: glVertex3i(j, 0, 0); glVertex3i(j, GSIZE, 0);)
+      vertices[vertexIndex++] = j;     vertices[vertexIndex++] = 0;     vertices[vertexIndex++] = 0;
+      vertices[vertexIndex++] = j;     vertices[vertexIndex++] = GSIZE; vertices[vertexIndex++] = 0;
+
+      polycount += 2;
+    }
+
+    // Create and upload vertex buffer
+    GLuint vbo;
+    glGenBuffers(1, &vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, lineCount * 2 * 3 * sizeof(GLfloat), vertices, GL_STATIC_DRAW);
+
+    // Set up vertex attributes
     GLint positionLoc = glGetAttribLocation(shaderProgram, "position");
     GLint normalLoc = glGetAttribLocation(shaderProgram, "normal");
 
-    glEnableVertexAttribArray(positionLoc);
-    glVertexAttribPointer(positionLoc, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    if (positionLoc >= 0) {
+      glEnableVertexAttribArray(positionLoc);
+      glVertexAttribPointer(positionLoc, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    }
 
     if (normalLoc >= 0) {
-      // Set line normal (0,0,1)
-      GLfloat normal[3] = {0.0f, 0.0f, 1.0f};
-      glVertexAttrib3fv(normalLoc, normal);
+      // Floor normal points up (0,0,1)
+      glVertexAttrib3f(normalLoc, 0.0f, 0.0f, 1.0f);
     }
 
     // Set lighting parameters
@@ -470,19 +514,23 @@ void drawFloor(gDisplay *d) {
     setLightColor(shaderProgram, LIGHT_COLOR_R, LIGHT_COLOR_G, LIGHT_COLOR_B);
     setLightPosition(shaderProgram, LIGHT_POS_X, LIGHT_POS_Y, LIGHT_POS_Z);
 
-    // Set color (blue)
+    // Set blue color (same as PC: glColor3f(0.0, 0.0, 1.0);)
     GLint colorLoc = glGetUniformLocation(shaderProgram, "color");
-    glUniform4f(colorLoc, 0.0f, 0.0f, 1.0f, 1.0f);
+    if (colorLoc >= 0) {
+      glUniform4f(colorLoc, 0.0f, 0.0f, 1.0f, 1.0f);
+    }
 
-    // Draw
-    glDrawArrays(GL_LINES, 0, vertexCount / 3);
+    // Draw lines
+    glDrawArrays(GL_LINES, 0, lineCount * 2);
 
-    // Clean up
-    glDisableVertexAttribArray(positionLoc);
+    // Cleanup
+    if (positionLoc >= 0) glDisableVertexAttribArray(positionLoc);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glDeleteBuffers(1, &vbo);
+    free(vertices);
+
 #else
-    // For desktop OpenGL
+    // For desktop OpenGL (keep original PC logic)
     glColor3f(0.0, 0.0, 1.0);
     glBegin(GL_LINES);
     for(j = 0; j <= GSIZE; j += game->settings->line_spacing) {
