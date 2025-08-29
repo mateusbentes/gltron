@@ -27,6 +27,7 @@ GLuint createFontTexture();
 // Android-specific shader functions
 void init_shaders_android();
 GLuint shader_get_basic();
+GLuint shader_get_unified();
 void shutdown_shaders_android();
 
 // Helper functions for better state management
@@ -38,5 +39,10 @@ void setIdentityMatrix(GLuint program, int matrixType);
 void setAmbientLight(GLuint program, float r, float g, float b);
 void setLightColor(GLuint program, float r, float g, float b);
 void setLightPosition(GLuint program, float x, float y, float z);
+
+// Render mode functions
+void setRenderMode2D(GLuint program, int is2D);
+void setup2DRendering();
+void setup3DRendering();
 
 #endif // SHADERS_H

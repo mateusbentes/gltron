@@ -428,12 +428,10 @@ void setupDisplay(gDisplay *d) {
     initFonts();
     printf("loading textures...\n");
     initTexture(d);
-#ifdef ANDROID
     // Log texture IDs on Android for diagnostics
     __android_log_print(ANDROID_LOG_INFO, "GLTron", "Android textures: texFloor=%u texWall=%u texCrash=%u texFont=%u",
            (unsigned)game->screen->texFloor, (unsigned)game->screen->texWall,
            (unsigned)game->screen->texCrash, (unsigned)game->screen->texFont);
-#endif
     printf("window created with ID: %d\n", d->win_id);
 #else
     printf("trying to create window\n");
