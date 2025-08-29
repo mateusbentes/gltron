@@ -4,13 +4,19 @@
 #include "shaders.h"
 #include "globals.h"
 #include "gltron.h"
+#include "switchCallbacks.h"
 #include <string.h>
 #include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
 #ifdef ANDROID
 #include <android/log.h>
 #include <android/asset_manager.h>
 #include <sys/stat.h>
 #endif
+
+#include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
 
 // Forward declarations for GUI functions implemented in gui.c
 void displayGui(void);
@@ -31,36 +37,51 @@ typedef struct {
 static android_callbacks current_android_callbacks;
 static android_callbacks last_android_callbacks;
 
-void android_switchCallbacks(android_callbacks *new) {
-  last_android_callbacks = current_android_callbacks;
-  current_android_callbacks = *new;
-  lasttime = getElapsedTime();
-  if (new->init) {
-    new->init();
-  }
-  if (new->initGL) {
-    new->initGL();
-  }
-}
-
-void android_updateCallbacks() {
-  lasttime = getElapsedTime();
-  LOGI("Android callbacks restored");
-}
-
-void android_restoreCallbacks() {
-  if (last_android_callbacks.display == NULL) {
-    LOGE("No last Android callback present");
-    return;
-  }
-  android_switchCallbacks(&last_android_callbacks);
-}
-
-/* extern flag from android_main.c to request Activity.finish() */
 extern int g_finish_requested;
 
+extern int scr_w, scr_h;
+void update_buttons_layout();
+extern callbacks *current_callback;
+
+// base path buffer exposed for file.c
+#ifndef PATH_MAX
+#define PATH_MAX 1024
+#endif
+char s_base_path[PATH_MAX] = "/data/data/org.gltron.game/files"; // default fallback
+
+static int initialized = 0;
+// base path defined above (non-static) and declared in header
+
+#ifdef ANDROID
+
+// Allow host (NativeActivity) to pass in the AAssetManager
+void gltron_set_asset_manager(void* mgr) {
+  g_android_asset_mgr = (AAssetManager*)mgr;
+}
+
+void gltron_set_base_path(const char* base_path) {
+  if (!base_path) return;
+  size_t n = strlen(base_path);
+  if (n >= sizeof(s_base_path)) n = sizeof(s_base_path) - 1;
+  memcpy(s_base_path, base_path, n);
+  s_base_path[n] = '\0';
+}
+
+static void init_settings_android() {
+  // Load settings.txt similar to desktop gltron.c
+  char *path = getFullPath("settings.txt");
+  if (path != NULL) {
+    initMainGameSettings(path); /* reads defaults from ~/.gltronrc */
+    free(path);
+  } else {
+    printf("fatal: could not find settings.txt, exiting...\n");
+    exit(1);
+  }
+}
+
+
 /* Local helper: detect BACK hit in GUI using same viewport math as gui_mouse.c */
-static int hit_test_back_in_viewport(int x_win, int y_win) {
+int hit_test_back_in_viewport(int x_win, int y_win) {
   if (!game || !game->screen) return 0;
   int vx = game->screen->vp_x;
   int vy = game->screen->vp_y;
@@ -84,7 +105,7 @@ static int hit_test_back_in_viewport(int x_win, int y_win) {
 }
 
 /* Local helper: detect menu item index at window coords; returns >=0 for item, -2 for Back, -1 for none */
-static int hit_test_menu_item_in_viewport(int x_win, int y_win) {
+int hit_test_menu_item_in_viewport(int x_win, int y_win) {
   if (!game || !game->screen || !pCurrent) return -1;
   int vx = game->screen->vp_x;
   int vy = game->screen->vp_y;
@@ -120,47 +141,61 @@ static int hit_test_menu_item_in_viewport(int x_win, int y_win) {
   return -1;
 }
 
-extern int scr_w, scr_h;
-void update_buttons_layout();
-extern callbacks *current_callback;
+// Android-specific callback switching implementations
+void android_switchCallbacks(callbacks *new) {
+  __android_log_print(ANDROID_LOG_INFO, "gltron", "Switching callbacks");
 
-// base path buffer exposed for file.c
-#ifndef PATH_MAX
-#define PATH_MAX 1024
-#endif
-char s_base_path[PATH_MAX] = "/data/data/org.gltron.game/files"; // default fallback
+  // Store the last callback
+  last_android_callbacks = current_android_callbacks;
 
-#ifdef ANDROID
+  // Update current callback structure
+  current_android_callbacks.display = new->display;
+  current_android_callbacks.idle = new->idle;
+  current_android_callbacks.keyboard = new->keyboard;
+  current_android_callbacks.special = new->special;
+  current_android_callbacks.init = new->init;
+  current_android_callbacks.initGL = new->initGL;
 
-#include <GLES2/gl2.h>
-#include <GLES2/gl2ext.h>
+  // Update the global pointer for compatibility
+  extern callbacks *last_callback;
+  extern callbacks *current_callback;
+  last_callback = current_callback;
+  current_callback = new;
 
-static int initialized = 0;
-// base path defined above (non-static) and declared in header
+  // Get elapsed time for timing
+  extern int getElapsedTime(void);
+  extern int lasttime;
+  lasttime = getElapsedTime();
 
-// Allow host (NativeActivity) to pass in the AAssetManager
-void gltron_set_asset_manager(void* mgr) {
-  g_android_asset_mgr = (AAssetManager*)mgr;
+  // Initialize the new callbacks
+  if (new->init) {
+    __android_log_print(ANDROID_LOG_INFO, "gltron", "Initializing new callbacks");
+    (new->init)();
+  }
+  if (new->initGL) {
+    __android_log_print(ANDROID_LOG_INFO, "gltron", "Initializing new GL callbacks");
+    (new->initGL)();
+  }
 }
 
-void gltron_set_base_path(const char* base_path) {
-  if (!base_path) return;
-  size_t n = strlen(base_path);
-  if (n >= sizeof(s_base_path)) n = sizeof(s_base_path) - 1;
-  memcpy(s_base_path, base_path, n);
-  s_base_path[n] = '\0';
+void android_updateCallbacks(void) {
+  // Called when the window is recreated on Android
+  // Just update the timing
+  extern int getElapsedTime(void);
+  extern int lasttime;
+  lasttime = getElapsedTime();
+
+  __android_log_print(ANDROID_LOG_INFO, "gltron", "Updating callbacks");
 }
 
-static void init_settings_android() {
-  // Load settings.txt similar to desktop gltron.c
-  char *path = getFullPath("settings.txt");
-  if (path != NULL) {
-    initMainGameSettings(path); /* reads defaults from ~/.gltronrc */
-    free(path);
-  } else {
-    printf("fatal: could not find settings.txt, exiting...\n");
+void android_restoreCallbacks(void) {
+  extern callbacks *last_callback;
+  if (last_callback == 0) {
+    __android_log_print(ANDROID_LOG_ERROR, "gltron", "No last callback present, exiting");
     exit(1);
   }
+  __android_log_print(ANDROID_LOG_INFO, "gltron", "Restoring callbacks");
+  android_switchCallbacks(last_callback);
 }
 
 void gltron_init(void) {
@@ -325,7 +360,7 @@ static int active_left = 0;
 static int active_right = 0;
 static int active_pause = 0;
 
-static int hit_btn(int x, int y, int* btn) {
+int hit_btn(int x, int y, int* btn) {
   return (x >= btn[0] && x <= btn[0]+btn[2] && y >= btn[1] && y <= btn[1]+btn[3]);
 }
 
@@ -387,7 +422,7 @@ static int is_gui_active() {
   return current_callback == &guiCallbacks;
 }
 
-static void draw_android_overlay() {
+void draw_android_overlay() {
   if (!scr_w || !scr_h) return;
   // Always draw a small debug banner at top to prove overlay works
   draw_rect(8, 8, scr_w/3, scr_h/20, 1.f, 1.f, 1.f, 0.15f);

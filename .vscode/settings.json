@@ -53,6 +53,9 @@
         "valarray": "c",
         "variant": "c",
         "version": "c",
-        "stat.h": "c"
+        "stat.h": "c",
+        "shaders.h": "c",
+        "sound_backend.h": "c",
+        "android_glue.h": "c"
     }
 }

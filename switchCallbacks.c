@@ -1,5 +1,7 @@
 #include "gltron.h"
 #include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 callbacks *last_callback = 0;
 callbacks *current_callback = 0;

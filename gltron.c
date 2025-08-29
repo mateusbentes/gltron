@@ -569,7 +569,7 @@ int main( int argc, char *argv[] ) {
     return 0;
 }
 
-callbacks gameCallbacks = { 
+callbacks gameCallbacks = {
   displayGame,
   idleGame,
   keyGame,
@@ -577,9 +577,3 @@ callbacks gameCallbacks = {
   initGame,
   initGLGame
 };
-
-
-
-
-
-
