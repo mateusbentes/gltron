@@ -2,15 +2,21 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#ifdef ANDROID
+#include "switchCallbacks.h"
+#endif
 
 callbacks *last_callback = 0;
 callbacks *current_callback = 0;
 
 void switchCallbacks(callbacks *new) {
+#ifdef ANDROID
+  // On Android, delegate to android_switchCallbacks which has proper initialization tracking
+  android_switchCallbacks(new);
+#else
   last_callback = current_callback;
   current_callback = new;
 
-#ifndef ANDROID
   glutIdleFunc(new->idle);
   glutDisplayFunc(new->display);
   glutKeyboardFunc(new->keyboard);
@@ -31,18 +37,20 @@ void switchCallbacks(callbacks *new) {
     glutMotionFunc(motionPause);
     glutPassiveMotionFunc(motionPause);
   }
-#endif
   lasttime = getElapsedTime();
 
   /* printf("callbacks registred\n"); */
   (new->init)();
   (new->initGL)();
   /* printf("callback init's completed\n"); */
+#endif
 }
   
 void updateCallbacks() {
   /* called when the window is recreated */
-#ifndef ANDROID
+#ifdef ANDROID
+  android_updateCallbacks();
+#else
   glutIdleFunc(current_callback->idle);
   glutDisplayFunc(current_callback->display);
   glutKeyboardFunc(current_callback->keyboard);
@@ -60,19 +68,23 @@ void updateCallbacks() {
     glutMotionFunc(motionPause);
     glutPassiveMotionFunc(motionPause);
   }
-#endif
   lasttime = getElapsedTime();
 
   fprintf(stderr, "restoring callbacks\n");
+#endif
 }
 
 void restoreCallbacks() {
+#ifdef ANDROID
+  android_restoreCallbacks();
+#else
   if (last_callback == 0) {
     fprintf(stderr, "no last callback present, using default callbacks\n");
     switchCallbacks(&guiCallbacks); // Default to gui callbacks if no last callback is present
   } else {
     switchCallbacks(last_callback);
   }
+#endif
 }
 
 void chooseCallback(char *name) {

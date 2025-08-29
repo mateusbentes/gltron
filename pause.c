@@ -56,16 +56,6 @@ void idlePause() {
   if(getElapsedTime() - lasttime < 10) return;
   timediff();
   
-  // On Android, automatically transition to game if not paused
-  // This prevents getting stuck in pause screen
-#ifdef ANDROID
-  if (game && game->pauseflag == 0) {
-    // Not actually paused, go straight to game
-    switchCallbacks(&gameCallbacks);
-    return;
-  }
-#endif
-  
 #ifndef ANDROID
   glutPostRedisplay();
 #endif

@@ -4,6 +4,7 @@
 #ifdef ANDROID
 #include <GLES2/gl2.h>
 #include "shaders.h"
+#include "android_glue.h"
 #else
 #include <GL/gl.h>
 #include <GL/freeglut.h>  // For GLUT functions
@@ -80,6 +81,16 @@ void menuAction(Menu *activated) {
       /* Ensure any pending display changes are applied before starting */
       requestDisplayApply();
       initData();
+#ifdef ANDROID
+      /* Reset game callbacks initialization to force re-setup */
+      reset_game_callbacks_init();
+#endif
+      /* Setup display for the game */
+      if (game && game->screen) {
+        setupDisplay(game->screen);
+      }
+      /* Initialize player viewports */
+      changeDisplay();
       switchCallbacks(&pauseCallbacks);
       /* Apply immediately to avoid wrong size at game start */
       applyDisplaySettingsDeferred();

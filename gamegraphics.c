@@ -335,6 +335,12 @@ void drawFloor(gDisplay *d) {
             // Set identity model matrix for floor
             setIdentityMatrix(shaderProgram, MATRIX_MODEL);
             
+            // Set white color so texture shows properly
+            GLint colorLoc = glGetUniformLocation(shaderProgram, "color");
+            if (colorLoc >= 0) {
+              glUniform4f(colorLoc, 1.0f, 1.0f, 1.0f, 1.0f);
+            }
+            
             GLint positionLoc = glGetAttribLocation(shaderProgram, "position");
             GLint texCoordLoc = glGetAttribLocation(shaderProgram, "texCoord");
             if (positionLoc >= 0) {

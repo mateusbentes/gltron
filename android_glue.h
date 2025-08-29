@@ -22,6 +22,8 @@ extern char s_base_path[PATH_MAX];
 // Optional input hooks
 // gltron_on_key removed: touch-only control on Android
 void gltron_on_touch(float x, float y, int action);
+// Reset game callbacks initialization when starting a new game
+void reset_game_callbacks_init(void);
 
 #ifdef __cplusplus
 }

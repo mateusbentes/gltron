@@ -66,6 +66,12 @@ static int gui_callbacks_initialized = 0;
 static int game_callbacks_initialized = 0;
 static int pause_callbacks_initialized = 0;
 
+// Reset game callbacks initialization when starting a new game
+void reset_game_callbacks_init() {
+  game_callbacks_initialized = 0;
+  pause_callbacks_initialized = 0;
+}
+
 extern int g_finish_requested;
 
 extern int scr_w, scr_h;
@@ -219,11 +225,26 @@ static void init_safe_callbacks(android_callbacks* cb,
 
 // Android-specific callback switching implementations
 void android_switchCallbacks(callbacks *new) {
-  extern callbacks guiCallbacks;
-  if (new == &guiCallbacks && current_callback == &guiCallbacks) {
+  if (!new) {
+    __android_log_print(ANDROID_LOG_ERROR, "gltron", "android_switchCallbacks: NULL callback passed");
     return;
   }
-  if (!new) {
+  
+  extern callbacks guiCallbacks;
+  extern callbacks gameCallbacks;
+  extern callbacks pauseCallbacks;
+  
+  // Log which callback we're switching to
+  const char* callback_name = "unknown";
+  if (new == &guiCallbacks) callback_name = "guiCallbacks";
+  else if (new == &gameCallbacks) callback_name = "gameCallbacks";
+  else if (new == &pauseCallbacks) callback_name = "pauseCallbacks";
+  
+  __android_log_print(ANDROID_LOG_INFO, "gltron", "android_switchCallbacks: switching to %s (%p)", callback_name, new);
+  
+  // Don't switch if already on the same callback
+  if (new == current_callback) {
+    __android_log_print(ANDROID_LOG_INFO, "gltron", "android_switchCallbacks: already on %s, skipping", callback_name);
     return;
   }
 
@@ -254,10 +275,6 @@ void android_switchCallbacks(callbacks *new) {
   int needs_init = 0;
   int needs_initGL = 0;
   
-  extern callbacks guiCallbacks;
-  extern callbacks gameCallbacks;
-  extern callbacks pauseCallbacks;
-  
   if (new == &guiCallbacks) {
     if (!gui_callbacks_initialized) {
       needs_init = 1;
@@ -269,6 +286,11 @@ void android_switchCallbacks(callbacks *new) {
       needs_init = 1;
       needs_initGL = 1;
       game_callbacks_initialized = 1;
+      // Ensure display is set up for game
+      if (game && game->screen) {
+        __android_log_print(ANDROID_LOG_INFO, "gltron", "Setting up display for game");
+        setupDisplay(game->screen);
+      }
     }
   } else if (new == &pauseCallbacks) {
     if (!pause_callbacks_initialized) {
@@ -304,6 +326,8 @@ void android_switchCallbacks(callbacks *new) {
     }
   }
 
+  __android_log_print(ANDROID_LOG_INFO, "gltron", "Callback switching completed successfully");
+  __android_log_print(ANDROID_LOG_INFO, "gltron", "Current callbacks: display=%p, idle=%p, keyboard=%p, special=%p, init=%p, initGL=%p",
     current_android_callbacks.display, current_android_callbacks.idle, current_android_callbacks.keyboard,
     current_android_callbacks.special, current_android_callbacks.init, current_android_callbacks.initGL);
 }
@@ -418,10 +442,7 @@ void gltron_init(void) {
   resetScores();
   initData();
   
-  // Ensure unpaused when starting a forced game later
-  if (game) {
-    game->pauseflag = 0;
-  }
+  // Don't force unpause - let the game start normally
 
   // Initialize sound backend and try to load/play music on Android
 #ifdef ANDROID
@@ -709,14 +730,8 @@ void gltron_on_touch(float x, float y, int action) {
           }
         } else if (idx >= 0) {
           pCurrent->iHighlight = idx;
-          // If selecting 'Start Game' from menu, ensure unpaused and force viewport reset
-          if (*(pCurrent->pEntries + pCurrent->iHighlight) && 
-              (strcmp((*(pCurrent->pEntries + pCurrent->iHighlight))->szName, "xreset") == 0)) {
-            if (game) game->pauseflag = 0;
-            // Force a viewport/projection reset safely via public API
-            requestDisplayApply();
-            applyDisplaySettingsDeferred();
-          }
+          // If selecting 'Start Game' from menu, don't change pause flag here
+          // Let the game start in pause mode as intended
           menuAction(*(pCurrent->pEntries + pCurrent->iHighlight));
         }
       }
