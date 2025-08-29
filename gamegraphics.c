@@ -333,17 +333,20 @@ void drawFloor(gDisplay *d) {
           GLuint prog = shader_get_basic();
           useShaderProgram(prog);
           setIdentityMatrix(prog, MATRIX_MODEL);
-          {
-            GLfloat I[16] = {
+
+          // Set up normal matrix for lighting
+          GLfloat normalMatrix[16] = {
             1,0,0,0,
             0,1,0,0,
             0,0,1,0,
             0,0,0,1
-            };
-          setNormalMatrix(prog, I);
-          }
+          };
+          setNormalMatrix(prog, normalMatrix);
+
           GLint posLoc = glGetAttribLocation(prog, "position");
           GLint uvLoc  = glGetAttribLocation(prog, "texCoord");
+          GLint normalLoc = glGetAttribLocation(prog, "normal");
+
           if (posLoc>=0) {
             glEnableVertexAttribArray(posLoc);
             glVertexAttribPointer(posLoc, 2, GL_FLOAT, GL_FALSE, 4*sizeof(GLfloat), 0);
@@ -352,7 +355,19 @@ void drawFloor(gDisplay *d) {
             glEnableVertexAttribArray(uvLoc);
             glVertexAttribPointer(uvLoc, 2, GL_FLOAT, GL_FALSE, 4*sizeof(GLfloat), (void*)(2*sizeof(GLfloat)));
           }
+          if (normalLoc>=0) {
+            // Set floor normal (0,0,1)
+            GLfloat normal[3] = {0.0f, 0.0f, 1.0f};
+            glVertexAttrib3fv(normalLoc, normal);
+          }
+
+          // Set lighting parameters
+          setAmbientLight(prog, AMBIENT_LIGHT_R, AMBIENT_LIGHT_G, AMBIENT_LIGHT_B);
+          setLightColor(prog, LIGHT_COLOR_R, LIGHT_COLOR_G, LIGHT_COLOR_B);
+          setLightPosition(prog, LIGHT_POS_X, LIGHT_POS_Y, LIGHT_POS_Z);
+
           glDrawElements(GL_TRIANGLES, (GLsizei)idxCount, GL_UNSIGNED_SHORT, 0);
+
           // cleanup
           if (posLoc>=0) glDisableVertexAttribArray(posLoc);
           if (uvLoc>=0)  glDisableVertexAttribArray(uvLoc);
@@ -366,6 +381,7 @@ void drawFloor(gDisplay *d) {
       }
     }
 #else
+    // For desktop OpenGL
     glEnable(GL_TEXTURE_2D);
     glBindTexture(GL_TEXTURE_2D, game->screen->texFloor);
     // For desktop OpenGL
@@ -423,15 +439,40 @@ void drawFloor(gDisplay *d) {
       if (!shaderProgram) return;
     }
     useShaderProgram(shaderProgram);
-    
+
     // Set identity model matrix for floor lines
     setIdentityMatrix(shaderProgram, MATRIX_MODEL);
 
+    // Set up normal matrix for lighting
+    GLfloat normalMatrix[16] = {
+      1,0,0,0,
+      0,1,0,0,
+      0,0,1,0,
+      0,0,0,1
+    };
+    setNormalMatrix(shaderProgram, normalMatrix);
+
     // Set up attributes
     GLint positionLoc = glGetAttribLocation(shaderProgram, "position");
+    GLint normalLoc = glGetAttribLocation(shaderProgram, "normal");
 
     glEnableVertexAttribArray(positionLoc);
     glVertexAttribPointer(positionLoc, 3, GL_FLOAT, GL_FALSE, 0, 0);
+
+    if (normalLoc >= 0) {
+      // Set line normal (0,0,1)
+      GLfloat normal[3] = {0.0f, 0.0f, 1.0f};
+      glVertexAttrib3fv(normalLoc, normal);
+    }
+
+    // Set lighting parameters
+    setAmbientLight(shaderProgram, AMBIENT_LIGHT_R, AMBIENT_LIGHT_G, AMBIENT_LIGHT_B);
+    setLightColor(shaderProgram, LIGHT_COLOR_R, LIGHT_COLOR_G, LIGHT_COLOR_B);
+    setLightPosition(shaderProgram, LIGHT_POS_X, LIGHT_POS_Y, LIGHT_POS_Z);
+
+    // Set color (blue)
+    GLint colorLoc = glGetUniformLocation(shaderProgram, "color");
+    glUniform4f(colorLoc, 0.0f, 0.0f, 1.0f, 1.0f);
 
     // Draw
     glDrawArrays(GL_LINES, 0, vertexCount / 3);

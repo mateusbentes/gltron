@@ -12,44 +12,52 @@ static GLuint g_shader_basic = 0;
 static GLint u_proj = -1;
 static GLint u_view = -1;
 static GLint u_model = -1;
+static GLint u_normal = -1;
 static GLint u_color = -1;
 static GLint u_tex = -1;
+static GLint u_lightPos = -1;
+static GLint u_lightColor = -1;
+static GLint u_ambientLight = -1;
 static GLint a_pos = -1;
 static GLint a_texcoord = -1;
+static GLint a_normal = -1;
 
-// Simple vertex shader source
+// Vertex shader source with proper lighting calculations
 static const char* vertexShaderSource =
     "attribute vec3 position;\n"
     "attribute vec2 texCoord;\n"
-    "attribute vec3 normal;\n" // Add normal attribute
+    "attribute vec3 normal;\n"
     "uniform mat4 projectionMatrix;\n"
     "uniform mat4 modelMatrix;\n"
     "uniform mat4 viewMatrix;\n"
-    "uniform mat4 normalMatrix;\n" // Add normal matrix
+    "uniform mat4 normalMatrix;\n"
     "varying vec2 vTexCoord;\n"
-    "varying vec3 vNormal;\n" // Pass normal to fragment shader
+    "varying vec3 vNormal;\n"
+    "varying vec3 vPosition;\n"
     "void main()\n"
     "{\n"
-    "    gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position, 1.0);\n"
     "    vTexCoord = texCoord;\n"
-    "    vNormal = mat3(normalMatrix) * normal;\n" // Transform normal
+    "    vNormal = mat3(normalMatrix) * normal;\n"
+    "    vPosition = vec3(modelMatrix * vec4(position, 1.0));\n"
+    "    gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position, 1.0);\n"
     "}\n";
 
-// Simple fragment shader source
+// Fragment shader source with proper lighting calculations
 static const char* fragmentShaderSource =
     "precision mediump float;\n"
     "varying vec2 vTexCoord;\n"
-    "varying vec3 vNormal;\n" // Receive normal from vertex shader
+    "varying vec3 vNormal;\n"
+    "varying vec3 vPosition;\n"
     "uniform sampler2D texture;\n"
     "uniform vec4 color;\n"
-    "uniform vec3 lightPosition;\n" // Light position
-    "uniform vec3 lightColor;\n" // Light color
-    "uniform vec3 ambientLight;\n" // Ambient light
+    "uniform vec3 lightPosition;\n"
+    "uniform vec3 lightColor;\n"
+    "uniform vec3 ambientLight;\n"
     "void main()\n"
     "{\n"
     "    vec4 texColor = texture2D(texture, vTexCoord);\n"
     "    vec3 normal = normalize(vNormal);\n"
-    "    vec3 lightDir = normalize(lightPosition);\n"
+    "    vec3 lightDir = normalize(lightPosition - vPosition);\n"
     "    float diffuse = max(dot(normal, lightDir), 0.0);\n"
     "    vec3 lighting = ambientLight + lightColor * diffuse;\n"
     "    gl_FragColor = vec4(color.rgb * texColor.rgb * lighting, color.a * texColor.a);\n"
@@ -82,8 +90,11 @@ static GLuint compileShader(GLenum type, const char* source) {
 }
 
 static GLuint createShaderProgram() {
-    u_proj = u_view = u_model = u_color = u_tex = -1;
-    a_pos = a_texcoord = -1;
+    // Reset cached locations
+    u_proj = u_view = u_model = u_normal = u_color = u_tex = -1;
+    u_lightPos = u_lightColor = u_ambientLight = -1;
+    a_pos = a_texcoord = a_normal = -1;
+
     // Compile shaders
     GLuint vertexShader = compileShader(GL_VERTEX_SHADER, vertexShaderSource);
     if (vertexShader == 0) {
@@ -106,24 +117,15 @@ static GLuint createShaderProgram() {
         glDeleteShader(fragmentShader);
         return 0;
     }
-    // Bind attribute locations for GLES2 before linking
-    glBindAttribLocation(shaderProgram, 0, "position");
-    glBindAttribLocation(shaderProgram, 1, "texCoord");
-    glBindAttribLocation(shaderProgram, 2, "normal");
-    if (shaderProgram == 0) {
-        LOGE("Failed to create shader program");
-        glDeleteShader(vertexShader);
-        glDeleteShader(fragmentShader);
-        return 0;
-    }
-
-    glAttachShader(shaderProgram, vertexShader);
-    glAttachShader(shaderProgram, fragmentShader);
 
     // Bind attribute locations before linking
     glBindAttribLocation(shaderProgram, 0, "position");
     glBindAttribLocation(shaderProgram, 1, "texCoord");
     glBindAttribLocation(shaderProgram, 2, "normal");
+
+    glAttachShader(shaderProgram, vertexShader);
+    glAttachShader(shaderProgram, fragmentShader);
+
     glLinkProgram(shaderProgram);
 
     // Check for linking errors
@@ -145,18 +147,31 @@ static GLuint createShaderProgram() {
 
     // Cache uniform and attribute locations
     glUseProgram(shaderProgram);
+
+    // Get matrix locations
     u_proj = glGetUniformLocation(shaderProgram, "projectionMatrix");
     u_view = glGetUniformLocation(shaderProgram, "viewMatrix");
     u_model = glGetUniformLocation(shaderProgram, "modelMatrix");
+    u_normal = glGetUniformLocation(shaderProgram, "normalMatrix");
+
+    // Get color and texture locations
     u_color = glGetUniformLocation(shaderProgram, "color");
     u_tex = glGetUniformLocation(shaderProgram, "texture");
+
+    // Get lighting locations
+    u_lightPos = glGetUniformLocation(shaderProgram, "lightPosition");
+    u_lightColor = glGetUniformLocation(shaderProgram, "lightColor");
+    u_ambientLight = glGetUniformLocation(shaderProgram, "ambientLight");
+
+    // Get attribute locations
     a_pos = glGetAttribLocation(shaderProgram, "position");
     a_texcoord = glGetAttribLocation(shaderProgram, "texCoord");
-    GLint a_normal = glGetAttribLocation(shaderProgram, "normal");
+    a_normal = glGetAttribLocation(shaderProgram, "normal");
 
     // Check if all locations were found
-    if (u_proj == -1 || u_view == -1 || u_model == -1 ||
-        u_color == -1 || u_tex == -1 || a_pos == -1 || a_texcoord == -1 || a_normal == -1) {
+    if (u_proj == -1 || u_view == -1 || u_model == -1 || u_normal == -1 ||
+        u_color == -1 || u_tex == -1 || u_lightPos == -1 || u_lightColor == -1 ||
+        u_ambientLight == -1 || a_pos == -1 || a_texcoord == -1 || a_normal == -1) {
         LOGE("Failed to get shader locations");
         glUseProgram(0);
         glDeleteProgram(shaderProgram);
@@ -221,6 +236,21 @@ void setViewMatrix(GLuint program, float* matrix) {
     glUniformMatrix4fv(u_view, 1, GL_FALSE, matrix);
 }
 
+void setNormalMatrix(GLuint program, float* matrix) {
+    if (program == 0 || matrix == NULL) {
+        LOGE("Invalid parameters for setNormalMatrix");
+        return;
+    }
+    if (program != g_shader_basic || u_normal == -1) {
+        u_normal = glGetUniformLocation(program, "normalMatrix");
+    }
+    if (u_normal == -1) {
+        LOGE("Failed to get normal matrix location");
+        return;
+    }
+    glUniformMatrix4fv(u_normal, 1, GL_FALSE, matrix);
+}
+
 void setColor(GLuint program, float r, float g, float b, float a) {
     if (program == 0) {
         LOGE("Invalid shader program");
@@ -256,12 +286,14 @@ void setLightPosition(GLuint program, float x, float y, float z) {
         LOGE("Invalid shader program");
         return;
     }
-    GLint loc = glGetUniformLocation(program, "lightPosition");
-    if (loc == -1) {
+    if (program != g_shader_basic || u_lightPos == -1) {
+        u_lightPos = glGetUniformLocation(program, "lightPosition");
+    }
+    if (u_lightPos == -1) {
         LOGE("Failed to get lightPosition location");
         return;
     }
-    glUniform3f(loc, x, y, z);
+    glUniform3f(u_lightPos, x, y, z);
 }
 
 void setLightColor(GLuint program, float r, float g, float b) {
@@ -269,12 +301,14 @@ void setLightColor(GLuint program, float r, float g, float b) {
         LOGE("Invalid shader program");
         return;
     }
-    GLint loc = glGetUniformLocation(program, "lightColor");
-    if (loc == -1) {
+    if (program != g_shader_basic || u_lightColor == -1) {
+        u_lightColor = glGetUniformLocation(program, "lightColor");
+    }
+    if (u_lightColor == -1) {
         LOGE("Failed to get lightColor location");
         return;
     }
-    glUniform3f(loc, r, g, b);
+    glUniform3f(u_lightColor, r, g, b);
 }
 
 void setAmbientLight(GLuint program, float r, float g, float b) {
@@ -282,37 +316,47 @@ void setAmbientLight(GLuint program, float r, float g, float b) {
         LOGE("Invalid shader program");
         return;
     }
-    GLint loc = glGetUniformLocation(program, "ambientLight");
-    if (loc == -1) {
+    if (program != g_shader_basic || u_ambientLight == -1) {
+        u_ambientLight = glGetUniformLocation(program, "ambientLight");
+    }
+    if (u_ambientLight == -1) {
         LOGE("Failed to get ambientLight location");
         return;
     }
-    glUniform3f(loc, r, g, b);
+    glUniform3f(u_ambientLight, r, g, b);
 }
 
 void init_shaders_android() {
     if (g_shader_basic != 0) return;
+
     g_shader_basic = createShaderProgram();
     if (!g_shader_basic) {
         LOGE("init_shaders_android: failed to create basic shader");
-    } else {
-        LOGI("init_shaders_android: basic shader created %u", (unsigned)g_shader_basic);
-        // Bind once and set sampler uniform 'texture' to unit 0
-        glUseProgram(g_shader_basic);
-        GLint texLoc = glGetUniformLocation(g_shader_basic, "texture");
-        if (texLoc != -1) {
-            glUniform1i(texLoc, 0);
-        } else {
-            LOGE("init_shaders_android: sampler uniform 'texture' not found");
-        }
-
-        // Set default lighting values
-        setLightPosition(g_shader_basic, 1.0f, 1.0f, 1.0f);
-        setLightColor(g_shader_basic, 1.0f, 1.0f, 1.0f);
-        setAmbientLight(g_shader_basic, 0.2f, 0.2f, 0.2f);
-
-        glUseProgram(0);
+        return;
     }
+
+    LOGI("init_shaders_android: basic shader created %u", (unsigned)g_shader_basic);
+
+    // Bind once and set sampler uniform 'texture' to unit 0
+    glUseProgram(g_shader_basic);
+
+    // Set default texture unit
+    GLint texLoc = glGetUniformLocation(g_shader_basic, "texture");
+    if (texLoc != -1) {
+        glUniform1i(texLoc, 0);
+    } else {
+        LOGE("init_shaders_android: sampler uniform 'texture' not found");
+    }
+
+    // Set default lighting values
+    setLightPosition(g_shader_basic, 1.0f, 1.0f, 1.0f);
+    setLightColor(g_shader_basic, 1.0f, 1.0f, 1.0f);
+    setAmbientLight(g_shader_basic, 0.2f, 0.2f, 0.2f);
+
+    // Set default color
+    setColor(g_shader_basic, 1.0f, 1.0f, 1.0f, 1.0f);
+
+    glUseProgram(0);
 }
 
 void shutdown_shaders_android() {
@@ -351,19 +395,7 @@ void resetMatrices() {
 
     setModelMatrix(g_shader_basic, identity);
     setViewMatrix(g_shader_basic, identity);
-}
-
-void setNormalMatrix(GLuint program, float* matrix) {
-    if (program == 0 || matrix == NULL) {
-        LOGE("Invalid parameters for setNormalMatrix");
-        return;
-    }
-    GLint loc = glGetUniformLocation(program, "normalMatrix");
-    if (loc == -1) {
-        LOGE("Failed to get normalMatrix location");
-        return;
-    }
-    glUniformMatrix4fv(loc, 1, GL_FALSE, matrix);
+    setNormalMatrix(g_shader_basic, identity);
 }
 
 void setIdentityMatrix(GLuint program, int matrixType) {
