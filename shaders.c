@@ -106,10 +106,24 @@ static GLuint createShaderProgram() {
         glDeleteShader(fragmentShader);
         return 0;
     }
+    // Bind attribute locations for GLES2 before linking
+    glBindAttribLocation(shaderProgram, 0, "position");
+    glBindAttribLocation(shaderProgram, 1, "texCoord");
+    glBindAttribLocation(shaderProgram, 2, "normal");
+    if (shaderProgram == 0) {
+        LOGE("Failed to create shader program");
+        glDeleteShader(vertexShader);
+        glDeleteShader(fragmentShader);
+        return 0;
+    }
 
     glAttachShader(shaderProgram, vertexShader);
     glAttachShader(shaderProgram, fragmentShader);
 
+    // Bind attribute locations before linking
+    glBindAttribLocation(shaderProgram, 0, "position");
+    glBindAttribLocation(shaderProgram, 1, "texCoord");
+    glBindAttribLocation(shaderProgram, 2, "normal");
     glLinkProgram(shaderProgram);
 
     // Check for linking errors

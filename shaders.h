@@ -31,6 +31,8 @@ void shutdown_shaders_android();
 // Helper functions for better state management
 void ensureShaderBound();
 void resetMatrices();
+// Normal matrix uniform (for lighting)
+void setNormalMatrix(GLuint program, float* matrix);
 void setIdentityMatrix(GLuint program, int matrixType);
 
 // Lighting functions

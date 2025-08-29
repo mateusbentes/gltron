@@ -158,7 +158,7 @@ void drawDebugTex(gDisplay *d) {
   GLuint ibo;
   glGenBuffers(1, &ibo);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
   // Use shader program
   GLuint shaderProgram = shader_get_basic();
@@ -312,69 +312,54 @@ void drawFloor(gDisplay *d) {
           free(vertices); free(indices);
           glDepthMask(GL_FALSE);
         } else {
-          int vertexCount = 0;
-          int indexCount = 0;
-          for(j = 0; j < GSIZE; j += l) {
-            for(k = 0; k < GSIZE; k += l) {
-              // Add vertices: (x,y,u,v)
-              vertices[vertexCount++] = (GLfloat)j;     vertices[vertexCount++] = (GLfloat)k;     vertices[vertexCount++] = 0.0f; vertices[vertexCount++] = 0.0f;
-              vertices[vertexCount++] = (GLfloat)(j+l); vertices[vertexCount++] = (GLfloat)k;     vertices[vertexCount++] = (GLfloat)t; vertices[vertexCount++] = 0.0f;
-              vertices[vertexCount++] = (GLfloat)(j+l); vertices[vertexCount++] = (GLfloat)(k+l); vertices[vertexCount++] = (GLfloat)t; vertices[vertexCount++] = (GLfloat)t;
-              vertices[vertexCount++] = (GLfloat)j;     vertices[vertexCount++] = (GLfloat)(k+l); vertices[vertexCount++] = 0.0f; vertices[vertexCount++] = (GLfloat)t;
-              // Base index for this quad
-              GLuint base = (GLuint)(((j / l) * quadsPerSide + (k / l)) * 4);
-              indices[indexCount++] = base + 0;
-              indices[indexCount++] = base + 1;
-              indices[indexCount++] = base + 2;
-              indices[indexCount++] = base + 0;
-              indices[indexCount++] = base + 2;
-              indices[indexCount++] = base + 3;
-            }
-          }
-
           // Create buffers
-          GLuint vbo = 0, ibo = 0;
+          GLuint vbo=0, ibo=0;
           glGenBuffers(1, &vbo);
           glGenBuffers(1, &ibo);
+
+          // Upload vertex data
           glBindBuffer(GL_ARRAY_BUFFER, vbo);
           glBufferData(GL_ARRAY_BUFFER, vbytes, vertices, GL_STATIC_DRAW);
-          glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
-          glBufferData(GL_ELEMENT_ARRAY_BUFFER, ibytes, indices, GL_STATIC_DRAW);
 
-          GLuint shaderProgram = shader_get_basic();
-          if (shaderProgram != 0) {
-            useShaderProgram(shaderProgram);
-            
-            // Set identity model matrix for floor
-            setIdentityMatrix(shaderProgram, MATRIX_MODEL);
-            
-            // Set white color so texture shows properly
-            GLint colorLoc = glGetUniformLocation(shaderProgram, "color");
-            if (colorLoc >= 0) {
-              glUniform4f(colorLoc, 1.0f, 1.0f, 1.0f, 1.0f);
-            }
-            
-            GLint positionLoc = glGetAttribLocation(shaderProgram, "position");
-            GLint texCoordLoc = glGetAttribLocation(shaderProgram, "texCoord");
-            if (positionLoc >= 0) {
-              glEnableVertexAttribArray(positionLoc);
-              glVertexAttribPointer(positionLoc, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (void*)0);
-            }
-            if (texCoordLoc >= 0) {
-              glEnableVertexAttribArray(texCoordLoc);
-              glVertexAttribPointer(texCoordLoc, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (void*)(2 * sizeof(GLfloat)));
-            }
-            // Draw
-            glDrawElements(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, (void*)0);
-            // Clean up attribs
-            if (positionLoc >= 0) glDisableVertexAttribArray(positionLoc);
-            if (texCoordLoc >= 0) glDisableVertexAttribArray(texCoordLoc);
+          // Convert & upload 16-bit indices for GLES2
+          glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+          size_t ushortBytes = idxCount * sizeof(GLushort);
+          GLushort *sidx = malloc(ushortBytes);
+          for (size_t z = 0; z < idxCount; ++z) sidx[z] = (GLushort)indices[z];
+          glBufferData(GL_ELEMENT_ARRAY_BUFFER, ushortBytes, sidx, GL_STATIC_DRAW);
+          free(sidx);
+
+          // Use shader & set uniforms/attributes
+          GLuint prog = shader_get_basic();
+          useShaderProgram(prog);
+          setIdentityMatrix(prog, MATRIX_MODEL);
+          {
+            GLfloat I[16] = {
+            1,0,0,0,
+            0,1,0,0,
+            0,0,1,0,
+            0,0,0,1
+            };
+          setNormalMatrix(prog, I);
           }
-          // Clean up buffers and heap
+          GLint posLoc = glGetAttribLocation(prog, "position");
+          GLint uvLoc  = glGetAttribLocation(prog, "texCoord");
+          if (posLoc>=0) {
+            glEnableVertexAttribArray(posLoc);
+            glVertexAttribPointer(posLoc, 2, GL_FLOAT, GL_FALSE, 4*sizeof(GLfloat), 0);
+          }
+          if (uvLoc>=0) {
+            glEnableVertexAttribArray(uvLoc);
+            glVertexAttribPointer(uvLoc, 2, GL_FLOAT, GL_FALSE, 4*sizeof(GLfloat), (void*)(2*sizeof(GLfloat)));
+          }
+          glDrawElements(GL_TRIANGLES, (GLsizei)idxCount, GL_UNSIGNED_SHORT, 0);
+          // cleanup
+          if (posLoc>=0) glDisableVertexAttribArray(posLoc);
+          if (uvLoc>=0)  glDisableVertexAttribArray(uvLoc);
           glBindBuffer(GL_ARRAY_BUFFER, 0);
           glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-          if (vbo) glDeleteBuffers(1, &vbo);
-          if (ibo) glDeleteBuffers(1, &ibo);
+          glDeleteBuffers(1, &vbo);
+          glDeleteBuffers(1, &ibo);
           free(vertices);
           free(indices);
         }
