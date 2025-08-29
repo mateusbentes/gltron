@@ -24,6 +24,30 @@ void initGui(void);
 void initGLGui(void);
 void idleGui(void);
 
+// Forward declarations for game functions
+void displayGame(void);
+void idleGame(void);
+void keyGame(unsigned char, int, int);
+void specialGame(int, int, int);
+void initGame(void);
+void initGLGame(void);
+
+// External callback structures defined in other files
+extern callbacks guiCallbacks;
+extern callbacks gameCallbacks;
+extern callbacks pauseCallbacks;
+
+// Mouse/motion handlers
+void mouseGame(int button, int state, int x, int y);
+void motionGame(int x, int y);
+void motionGui(int x, int y);
+
+// Display and menu functions
+void requestDisplayApply(void);
+void applyDisplaySettingsDeferred(void);
+void forceViewportResetIfNeededForGame(void);
+void menuAction(Menu *pMenu);
+
 // Android-specific callback management
 typedef struct {
   void (*display)(void);
@@ -36,6 +60,11 @@ typedef struct {
 
 static android_callbacks current_android_callbacks;
 static android_callbacks last_android_callbacks;
+
+// Track which callbacks have been initialized to avoid re-initialization
+static int gui_callbacks_initialized = 0;
+static int game_callbacks_initialized = 0;
+static int pause_callbacks_initialized = 0;
 
 extern int g_finish_requested;
 
@@ -57,28 +86,34 @@ static int initialized = 0;
 // Allow host (NativeActivity) to pass in the AAssetManager
 void gltron_set_asset_manager(void* mgr) {
   g_android_asset_mgr = (AAssetManager*)mgr;
+  __android_log_print(ANDROID_LOG_INFO, "gltron", "Asset manager set to %p", g_android_asset_mgr);
 }
 
 void gltron_set_base_path(const char* base_path) {
-  if (!base_path) return;
+  if (!base_path) {
+    __android_log_print(ANDROID_LOG_WARN, "gltron", "Base path is NULL");
+    return;
+  }
   size_t n = strlen(base_path);
   if (n >= sizeof(s_base_path)) n = sizeof(s_base_path) - 1;
   memcpy(s_base_path, base_path, n);
   s_base_path[n] = '\0';
+  __android_log_print(ANDROID_LOG_INFO, "gltron", "Base path set to '%s'", s_base_path);
 }
 
 static void init_settings_android() {
   // Load settings.txt similar to desktop gltron.c
   char *path = getFullPath("settings.txt");
   if (path != NULL) {
+    __android_log_print(ANDROID_LOG_INFO, "gltron", "Loading settings from %s", path);
     initMainGameSettings(path); /* reads defaults from ~/.gltronrc */
     free(path);
+    __android_log_print(ANDROID_LOG_INFO, "gltron", "Settings loaded successfully");
   } else {
-    printf("fatal: could not find settings.txt, exiting...\n");
+    __android_log_print(ANDROID_LOG_ERROR, "gltron", "fatal: could not find settings.txt, exiting...");
     exit(1);
   }
 }
-
 
 /* Local helper: detect BACK hit in GUI using same viewport math as gui_mouse.c */
 int hit_test_back_in_viewport(int x_win, int y_win) {
@@ -141,9 +176,61 @@ int hit_test_menu_item_in_viewport(int x_win, int y_win) {
   return -1;
 }
 
+// Function to validate callback pointers
+static int validate_callbacks(const android_callbacks* cb) {
+  if (!cb) {
+    __android_log_print(ANDROID_LOG_ERROR, "gltron", "validate_callbacks: NULL callback structure");
+    return 0;
+  }
+  
+  // Check for obviously corrupted pointers
+  if (cb->display && cb->display == (void*)0xdeadbeef) {
+    __android_log_print(ANDROID_LOG_ERROR, "gltron", "validate_callbacks: corrupted display pointer");
+    return 0;
+  }
+  if (cb->idle && cb->idle == (void*)0xdeadbeef) {
+    __android_log_print(ANDROID_LOG_ERROR, "gltron", "validate_callbacks: corrupted idle pointer");
+    return 0;
+  }
+  if (cb->init && cb->init == (void*)0xdeadbeef) {
+    __android_log_print(ANDROID_LOG_ERROR, "gltron", "validate_callbacks: corrupted init pointer");
+    return 0;
+  }
+  if (cb->initGL && cb->initGL == (void*)0xdeadbeef) {
+    __android_log_print(ANDROID_LOG_ERROR, "gltron", "validate_callbacks: corrupted initGL pointer");
+    return 0;
+  }
+  
+  return 1; // callbacks are valid
+}
+
+// Initialize safe callbacks structure
+static void init_safe_callbacks(android_callbacks* cb, 
+                               void (*display)(void), 
+                               void (*idle)(void),
+                               void (*keyboard)(unsigned char, int, int),
+                               void (*special)(int, int, int),
+                               void (*init)(void),
+                               void (*initGL)(void)) {
+  if (!cb) return;
+  
+  memset(cb, 0, sizeof(android_callbacks));
+  cb->display = display;
+  cb->idle = idle;
+  cb->keyboard = keyboard;
+  cb->special = special;
+  cb->init = init;
+  cb->initGL = initGL;
+}
+
 // Android-specific callback switching implementations
 void android_switchCallbacks(callbacks *new) {
-  __android_log_print(ANDROID_LOG_INFO, "gltron", "Switching callbacks");
+  if (!new) {
+    __android_log_print(ANDROID_LOG_ERROR, "gltron", "android_switchCallbacks: NULL callback passed");
+    return;
+  }
+
+  __android_log_print(ANDROID_LOG_INFO, "gltron", "Switching callbacks from %p to %p", current_callback, new);
 
   // Store the last callback
   last_android_callbacks = current_android_callbacks;
@@ -167,15 +254,66 @@ void android_switchCallbacks(callbacks *new) {
   extern int lasttime;
   lasttime = getElapsedTime();
 
-  // Initialize the new callbacks
-  if (new->init) {
-    __android_log_print(ANDROID_LOG_INFO, "gltron", "Initializing new callbacks");
+  // Determine if we need to initialize based on which callback set this is
+  int needs_init = 0;
+  int needs_initGL = 0;
+  
+  extern callbacks guiCallbacks;
+  extern callbacks gameCallbacks;
+  extern callbacks pauseCallbacks;
+  
+  if (new == &guiCallbacks) {
+    if (!gui_callbacks_initialized) {
+      needs_init = 1;
+      needs_initGL = 1;
+      gui_callbacks_initialized = 1;
+    }
+  } else if (new == &gameCallbacks) {
+    if (!game_callbacks_initialized) {
+      needs_init = 1;
+      needs_initGL = 1;
+      game_callbacks_initialized = 1;
+    }
+  } else if (new == &pauseCallbacks) {
+    if (!pause_callbacks_initialized) {
+      needs_init = 1;
+      needs_initGL = 1;
+      pause_callbacks_initialized = 1;
+    }
+  } else {
+    // Unknown callback set, initialize it anyway
+    needs_init = 1;
+    needs_initGL = 1;
+  }
+
+  // Initialize the new callbacks only if needed
+  if (needs_init && new->init && new->init != (void*)0xdeadbeef) {
+    __android_log_print(ANDROID_LOG_INFO, "gltron", "Initializing new callbacks (first time)");
     (new->init)();
   }
-  if (new->initGL) {
-    __android_log_print(ANDROID_LOG_INFO, "gltron", "Initializing new GL callbacks");
+
+  if (needs_initGL && new->initGL && new->initGL != (void*)0xdeadbeef) {
+    __android_log_print(ANDROID_LOG_INFO, "gltron", "Initializing new GL callbacks (first time)");
+    // Clear any pending GL errors before calling initGL
+    while (glGetError() != GL_NO_ERROR) {
+      // Clear error queue
+    }
+    
+    // Call initGL directly without recursive fallback
     (new->initGL)();
+    
+    // Check for errors after initGL
+    GLenum error = glGetError();
+    if (error != GL_NO_ERROR) {
+      __android_log_print(ANDROID_LOG_WARN, "gltron", "GL error after initGL: %d (non-fatal)", error);
+      // Don't fallback recursively, just log the error
+    }
   }
+
+  __android_log_print(ANDROID_LOG_INFO, "gltron", "Callback switching completed successfully");
+  __android_log_print(ANDROID_LOG_INFO, "gltron", "Current callbacks: display=%p, idle=%p, keyboard=%p, special=%p, init=%p, initGL=%p",
+    current_android_callbacks.display, current_android_callbacks.idle, current_android_callbacks.keyboard,
+    current_android_callbacks.special, current_android_callbacks.init, current_android_callbacks.initGL);
 }
 
 void android_updateCallbacks(void) {
@@ -185,27 +323,55 @@ void android_updateCallbacks(void) {
   extern int lasttime;
   lasttime = getElapsedTime();
 
-  __android_log_print(ANDROID_LOG_INFO, "gltron", "Updating callbacks");
+  __android_log_print(ANDROID_LOG_INFO, "gltron", "Updating callbacks, lasttime set to %d", lasttime);
+  __android_log_print(ANDROID_LOG_INFO, "gltron", "Callback update completed successfully");
 }
 
 void android_restoreCallbacks(void) {
   extern callbacks *last_callback;
-  if (last_callback == 0) {
-    __android_log_print(ANDROID_LOG_ERROR, "gltron", "No last callback present, exiting");
-    exit(1);
+  extern callbacks guiCallbacks;
+
+  if (last_callback == 0 || last_callback == (void*)0xdeadbeef) {
+    __android_log_print(ANDROID_LOG_ERROR, "gltron", "Invalid last callback, cannot restore - using GUI fallback");
+    // Fallback to GUI instead of crashing
+    android_switchCallbacks(&guiCallbacks);
+    return;
   }
-  __android_log_print(ANDROID_LOG_INFO, "gltron", "Restoring callbacks");
-  android_switchCallbacks(last_callback);
+
+  if (!validate_callbacks(&last_android_callbacks)) {
+    __android_log_print(ANDROID_LOG_ERROR, "gltron", "Last android callbacks corrupted, using GUI fallback");
+    // Fallback to GUI
+    android_switchCallbacks(&guiCallbacks);
+    return;
+  }
+
+  __android_log_print(ANDROID_LOG_INFO, "gltron", "Restoring callbacks from %p", last_callback);
+
+  // Restore the callbacks from last_android_callbacks
+  current_android_callbacks = last_android_callbacks;
+
+  // Update the global pointer for compatibility
+  extern callbacks *current_callback;
+  current_callback = last_callback;
+
+  // Get elapsed time for timing
+  extern int getElapsedTime(void);
+  extern int lasttime;
+  lasttime = getElapsedTime();
+
+  __android_log_print(ANDROID_LOG_INFO, "gltron", "Callback restoration completed successfully");
 }
 
 void gltron_init(void) {
   if (initialized) return;
   __android_log_print(ANDROID_LOG_INFO, "gltron", "gltron_init: base_path='%s' mgr=%p", s_base_path, g_android_asset_mgr);
   init_settings_android();
+  
   // Ensure touch input is enabled on Android
   if (game && game->settings) {
     game->settings->input_mode = 1; // enable touch/mouse input
   }
+  
   // Load menu.txt similar to desktop gltron.c
   char *path = getFullPath("menu.txt");
   if (path) {
@@ -244,10 +410,12 @@ void gltron_init(void) {
       __android_log_print(ANDROID_LOG_ERROR, "gltron", "Failed to load menu.txt via all fallbacks");
     }
   }
+  
   // Diagnostics and fallback menu on Android
   if (pMenuList && pMenuList[0]) {
     // Ensure current menu pointer is set
     pCurrent = pMenuList[0];
+    __android_log_print(ANDROID_LOG_INFO, "gltron", "menu loaded successfully, pCurrent set to %p", pCurrent);
   } else {
     __android_log_print(ANDROID_LOG_ERROR, "gltron", "menu load failed; creating minimal fallback menu");
     // Create a minimal menu hierarchy with 1 top-level menu and a few entries
@@ -257,23 +425,32 @@ void gltron_init(void) {
     root->nEntries = 2;
     root->pEntries = (Menu**)calloc(root->nEntries, sizeof(Menu*));
     for (int i=0; i<root->nEntries; ++i) root->pEntries[i] = (Menu*)calloc(1, sizeof(Menu));
-    strcpy(root->pEntries[0]->szName, "cGame");
-    strcpy(root->pEntries[0]->szCapFormat, "Start");
+    strcpy(root->pEntries[0]->szName, "xreset");  // Use correct menu code for starting game
+    strcpy(root->pEntries[0]->szCapFormat, "Start Game");
     strcpy(root->pEntries[1]->szName, "pq");
     strcpy(root->pEntries[1]->szCapFormat, "Quit");
     pMenuList = (Menu**)calloc(1, sizeof(Menu*));
     pMenuList[0] = root;
     pCurrent = root;
+    __android_log_print(ANDROID_LOG_INFO, "gltron", "fallback menu created, pCurrent set to %p", pCurrent);
   }
 
+  __android_log_print(ANDROID_LOG_INFO, "gltron", "Initializing game structures");
   initGameStructures();
+  __android_log_print(ANDROID_LOG_INFO, "gltron", "Resetting scores");
   resetScores();
+  __android_log_print(ANDROID_LOG_INFO, "gltron", "Initializing game data");
   initData();
+  
   // Ensure unpaused when starting a forced game later
-  if (game) game->pauseflag = 0;
+  if (game) {
+    game->pauseflag = 0;
+    __android_log_print(ANDROID_LOG_INFO, "gltron", "Game unpaused");
+  }
 
   // Initialize sound backend and try to load/play music on Android
 #ifdef ANDROID
+  __android_log_print(ANDROID_LOG_INFO, "gltron", "Initializing sound backend");
   if (sb_init()) {
     __android_log_print(ANDROID_LOG_INFO, "gltron", "sound: sb_init OK, loading music");
     if (!sb_load_music("gltron.it")) {
@@ -288,31 +465,37 @@ void gltron_init(void) {
 #endif
 
   // Initialize shaders and font system early on Android
+  __android_log_print(ANDROID_LOG_INFO, "gltron", "Initializing shaders");
   init_shaders_android();
+  __android_log_print(ANDROID_LOG_INFO, "gltron", "Initializing fonts");
+  
   // initialize font texture/renderer
   if (ftx == NULL) {
     initFonts();
+    __android_log_print(ANDROID_LOG_INFO, "gltron", "Fonts initialized");
   }
+  
   // Ensure screen struct exists
   if (!game->screen) {
     game->screen = (gDisplay*)malloc(sizeof(gDisplay));
     memset(game->screen, 0, sizeof(gDisplay));
+    __android_log_print(ANDROID_LOG_INFO, "gltron", "Screen struct initialized");
   }
+  
   initialized = 1;
-  // Set up initial Android callbacks
-  android_callbacks gui_callbacks = {
-    .display = displayGui,
-    .idle = idleGui,
-    .keyboard = NULL,
-    .special = NULL,
-    .init = initGui,
-    .initGL = initGLGui
-  };
-  android_switchCallbacks(&gui_callbacks);
+  
+  // Set up initial Android callbacks safely
+  __android_log_print(ANDROID_LOG_INFO, "gltron", "Setting up initial Android callbacks");
+  extern callbacks guiCallbacks;
+  android_switchCallbacks(&guiCallbacks);
+  __android_log_print(ANDROID_LOG_INFO, "gltron", "Initial Android callbacks set up successfully");
+  __android_log_print(ANDROID_LOG_INFO, "gltron", "gltron_init completed successfully");
 }
 
 void gltron_resize(int width, int height) {
   if (!initialized) gltron_init();
+  __android_log_print(ANDROID_LOG_INFO, "gltron", "gltron_resize: resizing to %dx%d", width, height);
+  
   // Update settings and screen dimensions
   game->settings->width = width;
   game->settings->height = height;
@@ -325,9 +508,11 @@ void gltron_resize(int width, int height) {
   scr_w = width;
   scr_h = height;
   update_buttons_layout();
+  
   // Let the game react to display changes
   requestDisplayApply();
   applyDisplaySettingsDeferred();
+  __android_log_print(ANDROID_LOG_INFO, "gltron", "gltron_resize completed successfully");
 }
 
 // Simple Android on-screen controls
@@ -340,22 +525,26 @@ void update_buttons_layout() {
   int margin = scr_w / 40;
   int btnSize = scr_w / 6;
   if (btnSize < 64) btnSize = 64;
+  
   // Left bottom corner
   btn_left[0] = margin;
   btn_left[1] = scr_h - btnSize - margin;
   btn_left[2] = btnSize;
   btn_left[3] = btnSize;
+  
   // Right bottom corner
   btn_right[0] = scr_w - btnSize - margin;
   btn_right[1] = scr_h - btnSize - margin;
   btn_right[2] = btnSize;
   btn_right[3] = btnSize;
+  
   // Pause at top center
   btn_pause[2] = btnSize * 0.8f;
   btn_pause[3] = btnSize * 0.6f;
   btn_pause[0] = (scr_w - btn_pause[2]) / 2;
   btn_pause[1] = margin;
 }
+
 static int active_left = 0;
 static int active_right = 0;
 static int active_pause = 0;
@@ -424,9 +613,12 @@ static int is_gui_active() {
 
 void draw_android_overlay() {
   if (!scr_w || !scr_h) return;
+  
   // Always draw a small debug banner at top to prove overlay works
   draw_rect(8, 8, scr_w/3, scr_h/20, 1.f, 1.f, 1.f, 0.15f);
+  
   if (is_gui_active()) return; // hide controls in menus
+  
   draw_rect(btn_left[0], btn_left[1], btn_left[2], btn_left[3], 1,1,1,0.35f);
   draw_rect(btn_right[0], btn_right[1], btn_right[2], btn_right[3], 1,1,1,0.35f);
   draw_rect(btn_pause[0], btn_pause[1], btn_pause[2], btn_pause[3], 1,1,1,0.30f);
@@ -434,64 +626,32 @@ void draw_android_overlay() {
 
 void gltron_frame(void) {
   if (!initialized) gltron_init();
+  
   // Continuous input while buttons are active
   if (active_left) {
     keyGame('a', 0, 0);
   } else if (active_right) {
     keyGame('s', 0, 0);
   }
-  // Simulate the usual idle/display cycle based on current Android callback
-  if (current_android_callbacks.idle) current_android_callbacks.idle();
+  
+  // Safely call idle callback
+  if (current_android_callbacks.idle && current_android_callbacks.idle != (void*)0xdeadbeef) {
+    current_android_callbacks.idle();
+  }
+  
   // Clear and render
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-#ifdef ANDROID
-  static int logged_cb = 0;
-  if (!logged_cb) {
-    __android_log_print(ANDROID_LOG_INFO, "gltron", "frame: current_android_callbacks=%p display=%p idle=%p", &current_android_callbacks, current_android_callbacks.display, current_android_callbacks.idle);
-    logged_cb = 1;
+  
+  // Safely call display callback
+  if (current_android_callbacks.display && current_android_callbacks.display != (void*)0xdeadbeef) {
+    current_android_callbacks.display();
+  } else {
+    __android_log_print(ANDROID_LOG_WARN, "gltron", "gltron_frame: invalid display callback");
   }
-#endif
-  if (current_android_callbacks.display) current_android_callbacks.display();
+  
   // Overlay controls (hidden in GUI)
   draw_android_overlay();
 }
-
-/*void gltron_on_key(int key, int action) {
-  (void)action; // not used currently
-  // Forward to existing keyboard handler via ASCII mapping
-  switch (key) {
-    case 27: // ESC
-    case ' ':
-    case 'A': case 'D': case 'S':
-    case 'k': case 'K': case 'l': case 'L': case '5': case '6':
-      keyGame((unsigned char)key, 0, 0);
-      break;
-    case 'a':
-      keyGame('a', 0, 0);
-      break;
-    case 'd':
-      keyGame('d', 0, 0);
-      break;
-    case 's':
-      keyGame('s', 0, 0);
-      break;
-    case GLUT_KEY_LEFT:
-      keyGame('a', 0, 0);
-      break;
-    case GLUT_KEY_RIGHT:
-      keyGame('s', 0, 0);
-      break;
-    case GLUT_KEY_UP:
-      keyGame('k', 0, 0);
-      break;
-    case GLUT_KEY_DOWN:
-      keyGame('l', 0, 0);
-      break;
-    default:
-      keyGame((unsigned char)key, 0, 0);
-      break;
-  }
-}*/
 
 void gltron_on_touch(float x, float y, int action) {
   // Normalize to pixel coords and fix Y origin mismatch if needed
@@ -513,15 +673,8 @@ void gltron_on_touch(float x, float y, int action) {
   // If paused and not game finished, unpause on touch-up
   if (game && (game->pauseflag != 0)) {
     if ((action & 0xFF) == 1 /* ACTION_UP */ && !(game->pauseflag & PAUSE_GAME_FINISHED)) {
-      android_callbacks game_callbacks = {
-        .display = drawGame,
-        .idle = idleGame,
-        .keyboard = keyGame,
-        .special = specialGame,
-        .init = initGame,
-        .initGL = initGLGame
-      };
-      android_switchCallbacks(&game_callbacks);
+      extern callbacks gameCallbacks;
+      android_switchCallbacks(&gameCallbacks);
       // Apply display settings after switching to game callbacks
       requestDisplayApply();
       applyDisplaySettingsDeferred();
@@ -564,15 +717,8 @@ void gltron_on_touch(float x, float y, int action) {
           } else {
             pCurrent = pCurrent->parent;
             pCurrent->iHighlight = -1;
-            android_callbacks gui_callbacks = {
-              .display = displayGui,
-              .idle = idleGui,
-              .keyboard = NULL,
-              .special = NULL,
-              .init = initGui,
-              .initGL = initGLGui
-            };
-            android_switchCallbacks(&gui_callbacks);
+            extern callbacks guiCallbacks;
+            android_switchCallbacks(&guiCallbacks);
             requestDisplayApply();
             applyDisplaySettingsDeferred();
           }
@@ -592,22 +738,16 @@ void gltron_on_touch(float x, float y, int action) {
           } else {
             pCurrent = pCurrent->parent;
             pCurrent->iHighlight = -1;
-            android_callbacks gui_callbacks = {
-              .display = displayGui,
-              .idle = idleGui,
-              .keyboard = NULL,
-              .special = NULL,
-              .init = initGui,
-              .initGL = initGLGui
-            };
-            android_switchCallbacks(&gui_callbacks);
+            extern callbacks guiCallbacks;
+            android_switchCallbacks(&guiCallbacks);
             requestDisplayApply();
             applyDisplaySettingsDeferred();
           }
         } else if (idx >= 0) {
           pCurrent->iHighlight = idx;
-          // If selecting 'Start Game' from minimal menu, ensure unpaused and force viewport reset
-          if (*(pCurrent->pEntries + pCurrent->iHighlight) && strcmp((*(pCurrent->pEntries + pCurrent->iHighlight))->szCapFormat, "Start") == 0) {
+          // If selecting 'Start Game' from menu, ensure unpaused and force viewport reset
+          if (*(pCurrent->pEntries + pCurrent->iHighlight) && 
+              (strcmp((*(pCurrent->pEntries + pCurrent->iHighlight))->szName, "xreset") == 0)) {
             if (game) game->pauseflag = 0;
             // Force a viewport/projection reset safely via public API
             requestDisplayApply();

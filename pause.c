@@ -55,6 +55,17 @@ void idlePause() {
 #endif
   if(getElapsedTime() - lasttime < 10) return;
   timediff();
+  
+  // On Android, automatically transition to game if not paused
+  // This prevents getting stuck in pause screen
+#ifdef ANDROID
+  if (game && game->pauseflag == 0) {
+    // Not actually paused, go straight to game
+    switchCallbacks(&gameCallbacks);
+    return;
+  }
+#endif
+  
 #ifndef ANDROID
   glutPostRedisplay();
 #endif
@@ -133,9 +144,14 @@ void specialPause(int key, int x, int y) {
 }
 
 void initPause() {
+  // Reset pause state tracking
+#ifdef ANDROID
+  p_is_down = 0;
+#endif
 }
 
 void initPauseGL() {
+  // Only initialize GL game if not already done
   initGLGame();
 }
 

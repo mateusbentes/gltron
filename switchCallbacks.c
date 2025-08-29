@@ -67,11 +67,12 @@ void updateCallbacks() {
 }
 
 void restoreCallbacks() {
-  if(last_callback == 0) {
-    fprintf(stderr, "no last callback present, exiting\n");
-    exit(1);
+  if (last_callback == 0) {
+    fprintf(stderr, "no last callback present, using default callbacks\n");
+    switchCallbacks(&guiCallbacks); // Default to gui callbacks if no last callback is present
+  } else {
+    switchCallbacks(last_callback);
   }
-  switchCallbacks(last_callback);
 }
 
 void chooseCallback(char *name) {

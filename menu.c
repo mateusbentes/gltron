@@ -142,6 +142,7 @@ void menuAction(Menu *activated) {
       break;
     case 'p':
       changeAction(activated->szName + 4);
+      break;
     case 'c':
       chooseCallback(activated->szName + 3);
       break;
