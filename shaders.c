@@ -280,6 +280,50 @@ void setNormalMatrix(GLuint program, float* matrix) {
         LOGE("Invalid parameters for setNormalMatrix");
         return;
     }
+
+    // Calculate the normal matrix from the model matrix
+    // The normal matrix is the inverse transpose of the upper-left 3x3 of the model matrix
+    float normalMatrix[9] = {
+        matrix[0], matrix[1], matrix[2],  // First row of model matrix
+        matrix[4], matrix[5], matrix[6],  // Second row of model matrix
+        matrix[8], matrix[9], matrix[10]  // Third row of model matrix
+    };
+
+    // Calculate the determinant of the 3x3 matrix
+    float det = normalMatrix[0] * (normalMatrix[4] * normalMatrix[8] - normalMatrix[5] * normalMatrix[7]) -
+                normalMatrix[1] * (normalMatrix[3] * normalMatrix[8] - normalMatrix[5] * normalMatrix[6]) +
+                normalMatrix[2] * (normalMatrix[3] * normalMatrix[7] - normalMatrix[4] * normalMatrix[6]);
+
+    // Calculate the inverse of the 3x3 matrix
+    float invDet = 1.0f / det;
+    float invNormalMatrix[9] = {
+        (normalMatrix[4] * normalMatrix[8] - normalMatrix[5] * normalMatrix[7]) * invDet,
+        -(normalMatrix[1] * normalMatrix[8] - normalMatrix[2] * normalMatrix[7]) * invDet,
+        (normalMatrix[1] * normalMatrix[5] - normalMatrix[2] * normalMatrix[4]) * invDet,
+        -(normalMatrix[3] * normalMatrix[8] - normalMatrix[5] * normalMatrix[6]) * invDet,
+        (normalMatrix[0] * normalMatrix[8] - normalMatrix[2] * normalMatrix[6]) * invDet,
+        -(normalMatrix[0] * normalMatrix[5] - normalMatrix[2] * normalMatrix[3]) * invDet,
+        (normalMatrix[3] * normalMatrix[7] - normalMatrix[4] * normalMatrix[6]) * invDet,
+        -(normalMatrix[0] * normalMatrix[7] - normalMatrix[1] * normalMatrix[6]) * invDet,
+        (normalMatrix[0] * normalMatrix[4] - normalMatrix[1] * normalMatrix[3]) * invDet
+    };
+
+    // Transpose the inverse matrix to get the normal matrix
+    float finalNormalMatrix[9] = {
+        invNormalMatrix[0], invNormalMatrix[3], invNormalMatrix[6],
+        invNormalMatrix[1], invNormalMatrix[4], invNormalMatrix[7],
+        invNormalMatrix[2], invNormalMatrix[5], invNormalMatrix[8]
+    };
+
+    // Convert the 3x3 matrix to a 4x4 matrix for OpenGL
+    float normalMatrix4x4[16] = {
+        finalNormalMatrix[0], finalNormalMatrix[1], finalNormalMatrix[2], 0.0f,
+        finalNormalMatrix[3], finalNormalMatrix[4], finalNormalMatrix[5], 0.0f,
+        finalNormalMatrix[6], finalNormalMatrix[7], finalNormalMatrix[8], 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f
+    };
+
+    // Set the normal matrix in the shader
     if (program != g_shader_unified || u_normal == -1) {
         u_normal = glGetUniformLocation(program, "normalMatrix");
     }
@@ -287,7 +331,7 @@ void setNormalMatrix(GLuint program, float* matrix) {
         LOGE("Failed to get normal matrix location");
         return;
     }
-    glUniformMatrix4fv(u_normal, 1, GL_FALSE, matrix);
+    glUniformMatrix4fv(u_normal, 1, GL_FALSE, normalMatrix4x4);
 }
 
 void setColor(GLuint program, float r, float g, float b, float a) {

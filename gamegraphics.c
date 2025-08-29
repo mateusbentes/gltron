@@ -1419,9 +1419,6 @@ void drawCam(Player *p, gDisplay *d) {
 
   setProjectionMatrix(shaderProgram, projectionMatrix);
 
-  // Set up view matrix
-  GLfloat viewMatrix[16];
-
   // Camera parameters
   float camDist   = 12.0f; // distance behind the player
   float camHeight = 6.0f;  // height above the ground
@@ -1447,27 +1444,37 @@ void drawCam(Player *p, gDisplay *d) {
   // Up vector (Z-up in GLTron)
   float upX = 0.0f, upY = 0.0f, upZ = 1.0f;
 
-  // Create view matrix
+  // Create view matrix using gluLookAt math (adapted for Android shaders)
+  GLfloat viewMatrix[16];
+  
+  // Forward vector (from camera to target, normalized)
   float forward[3] = {lookX - camX, lookY - camY, lookZ - camZ};
-  float length = sqrt(forward[0] * forward[0] + forward[1] * forward[1] + forward[2] * forward[2]);
-  forward[0] /= length;
-  forward[1] /= length;
-  forward[2] /= length;
+  float length = sqrtf(forward[0] * forward[0] + forward[1] * forward[1] + forward[2] * forward[2]);
+  if (length > 0.0f) {
+    forward[0] /= length;
+    forward[1] /= length;
+    forward[2] /= length;
+  }
 
+  // Right vector (cross product of forward and up)
   float right[3];
   right[0] = forward[1] * upZ - forward[2] * upY;
   right[1] = forward[2] * upX - forward[0] * upZ;
   right[2] = forward[0] * upY - forward[1] * upX;
-  length = sqrt(right[0] * right[0] + right[1] * right[1] + right[2] * right[2]);
-  right[0] /= length;
-  right[1] /= length;
-  right[2] /= length;
+  length = sqrtf(right[0] * right[0] + right[1] * right[1] + right[2] * right[2]);
+  if (length > 0.0f) {
+    right[0] /= length;
+    right[1] /= length;
+    right[2] /= length;
+  }
 
+  // Corrected up vector (cross product of right and forward)
   float up[3];
   up[0] = right[1] * forward[2] - right[2] * forward[1];
   up[1] = right[2] * forward[0] - right[0] * forward[2];
   up[2] = right[0] * forward[1] - right[1] * forward[0];
 
+  // Build view matrix (column-major format for OpenGL)
   viewMatrix[0] = right[0];
   viewMatrix[1] = up[0];
   viewMatrix[2] = -forward[0];
@@ -1491,15 +1498,21 @@ void drawCam(Player *p, gDisplay *d) {
   // Set view matrix in shader
   setViewMatrix(shaderProgram, viewMatrix);
 
-  // Set up lighting
+  // Set up lighting (same as PC version)
   setAmbientLight(shaderProgram, AMBIENT_LIGHT_R, AMBIENT_LIGHT_G, AMBIENT_LIGHT_B);
   setLightColor(shaderProgram, LIGHT_COLOR_R, LIGHT_COLOR_G, LIGHT_COLOR_B);
-  setLightPosition(shaderProgram, LIGHT_POS_X, LIGHT_POS_Y, LIGHT_POS_Z);
+  
+  // Use camera position for light (matching PC behavior where light moves with camera)
+  if (p->camera && p->camera->cam) {
+    setLightPosition(shaderProgram, p->camera->cam[0], p->camera->cam[1], p->camera->cam[2]);
+  } else {
+    setLightPosition(shaderProgram, LIGHT_POS_X, LIGHT_POS_Y, LIGHT_POS_Z);
+  }
 
   // Set identity model matrix as default
   setIdentityMatrix(shaderProgram, MATRIX_MODEL);
 
-  // Draw scene
+  // Draw scene (same order as PC)
   drawFloor(d);
   if (game->settings->show_wall == 1)
     drawWalls(d);
@@ -1514,8 +1527,6 @@ void drawCam(Player *p, gDisplay *d) {
       if ((p != &(game->player[i])) && (game->player[i].data->speed > 0))
         drawGlow(&(game->player[i]), d, TRAIL_HEIGHT * 4);
 
-  // Clean up
-  glDisable(GL_FOG);
 #else
   // For desktop OpenGL
   glColor3f(0.0, 1.0, 0.0);
