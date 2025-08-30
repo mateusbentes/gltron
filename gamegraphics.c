@@ -283,266 +283,248 @@ void drawScore(Player *p, gDisplay *d) {
 }
   
 void drawFloor(gDisplay *d) {
-  int j, k, l, t;
+    int j, k, l, t;
 
-  if(game->settings->show_floor_texture) {
-    glDepthMask(GL_TRUE);
+    if(game->settings->show_floor_texture) {
+        // Don't disable depth writes for textured floor
+        glDepthMask(GL_TRUE);
+        
 #ifdef ANDROID
-    // Android GLES2: Check if texture is available
-    if (!game || !game->screen || game->screen->texFloor == 0) {
-      glDepthMask(GL_FALSE);
-      return;
-    }
+        // Android GLES2: Check if texture is available
+        if (!game || !game->screen || game->screen->texFloor == 0) {
+            return;
+        }
 
-    // Use shader program
-    GLuint shaderProgram = shader_get_basic();
-    if (!shaderProgram) {
-      init_shaders_android();
-      shaderProgram = shader_get_basic();
-      if (!shaderProgram) {
-        glDepthMask(GL_FALSE);
-        return;
-      }
-    }
-    useShaderProgram(shaderProgram);
+        // Use shader program
+        GLuint shaderProgram = shader_get_basic();
+        if (!shaderProgram) {
+            init_shaders_android();
+            shaderProgram = shader_get_basic();
+            if (!shaderProgram) return;
+        }
+        useShaderProgram(shaderProgram);
 
-    // Set identity model matrix
-    setIdentityMatrix(shaderProgram, MATRIX_MODEL);
+        // Set identity model matrix
+        setIdentityMatrix(shaderProgram, MATRIX_MODEL);
 
-    // Set up normal matrix for lighting
-    GLfloat normalMatrix[16] = {
-      1,0,0,0,
-      0,1,0,0,
-      0,0,1,0,
-      0,0,0,1
-    };
-    setNormalMatrix(shaderProgram, normalMatrix);
+        // Bind floor texture
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, game->screen->texFloor);
+        
+        // Set texture uniform
+        GLint texLoc = glGetUniformLocation(shaderProgram, "texture0");
+        if (texLoc >= 0) {
+            glUniform1i(texLoc, 0);
+        }
 
-    // Bind floor texture
-    glEnable(GL_TEXTURE_2D);
-    glBindTexture(GL_TEXTURE_2D, game->screen->texFloor);
+        // Set white color for texture
+        GLint colorLoc = glGetUniformLocation(shaderProgram, "color");
+        if (colorLoc >= 0) {
+            glUniform4f(colorLoc, 1.0f, 1.0f, 1.0f, 1.0f);
+        }
 
-    // Set white color for texture
-    GLint colorLoc = glGetUniformLocation(shaderProgram, "color");
-    if (colorLoc >= 0) {
-      glUniform4f(colorLoc, 1.0f, 1.0f, 1.0f, 1.0f);
-    }
+        // Same parameters as PC version
+        l = GSIZE / 4;
+        t = 5;
 
-    // Same parameters as PC version
-    l = GSIZE / 4;
-    t = 5;
+        // Create vertex data for all quads
+        int quadCount = (GSIZE / l) * (GSIZE / l);
+        GLfloat *vertices = malloc(quadCount * 4 * 5 * sizeof(GLfloat)); // 5 floats per vertex (x,y,z,u,v)
+        GLushort *indices = malloc(quadCount * 6 * sizeof(GLushort));
 
-    // Create vertex data for all quads (position + texture coordinates)
-    int quadCount = (GSIZE / l) * (GSIZE / l);
-    GLfloat *vertices = malloc(quadCount * 4 * 4 * sizeof(GLfloat)); // 4 vertices per quad, 4 floats per vertex (x,y,u,v)
-    GLushort *indices = malloc(quadCount * 6 * sizeof(GLushort));    // 6 indices per quad
+        if (!vertices || !indices) {
+            free(vertices);
+            free(indices);
+            return;
+        }
 
-    if (!vertices || !indices) {
-      free(vertices);
-      free(indices);
-      glDepthMask(GL_FALSE);
-      return;
-    }
+        int vertIndex = 0, idxIndex = 0, quadIndex = 0;
 
-    int vertIndex = 0, idxIndex = 0, quadIndex = 0;
+        // Generate quads at z=0 (floor level)
+        for(j = 0; j < GSIZE; j += l) {
+            for(k = 0; k < GSIZE; k += l) {
+                // Vertex 0: (j, k, 0)
+                vertices[vertIndex++] = j;     vertices[vertIndex++] = k;     vertices[vertIndex++] = 0.0f; vertices[vertIndex++] = 0.0f; vertices[vertIndex++] = 0.0f;
+                // Vertex 1: (j + l, k, 0)
+                vertices[vertIndex++] = j + l; vertices[vertIndex++] = k;     vertices[vertIndex++] = 0.0f; vertices[vertIndex++] = t;    vertices[vertIndex++] = 0.0f;
+                // Vertex 2: (j + l, k + l, 0)
+                vertices[vertIndex++] = j + l; vertices[vertIndex++] = k + l; vertices[vertIndex++] = 0.0f; vertices[vertIndex++] = t;    vertices[vertIndex++] = t;
+                // Vertex 3: (j, k + l, 0)
+                vertices[vertIndex++] = j;     vertices[vertIndex++] = k + l; vertices[vertIndex++] = 0.0f; vertices[vertIndex++] = 0.0f; vertices[vertIndex++] = t;
 
-    // Generate quads (same logic as PC version)
-    for(j = 0; j < GSIZE; j += l) {
-      for(k = 0; k < GSIZE; k += l) {
-        // Vertex 0: (j, k)
-        vertices[vertIndex++] = j;     vertices[vertIndex++] = k;     vertices[vertIndex++] = 0; vertices[vertIndex++] = 0;
-        // Vertex 1: (j + l, k)
-        vertices[vertIndex++] = j + l; vertices[vertIndex++] = k;     vertices[vertIndex++] = t; vertices[vertIndex++] = 0;
-        // Vertex 2: (j + l, k + l)
-        vertices[vertIndex++] = j + l; vertices[vertIndex++] = k + l; vertices[vertIndex++] = t; vertices[vertIndex++] = t;
-        // Vertex 3: (j, k + l)
-        vertices[vertIndex++] = j;     vertices[vertIndex++] = k + l; vertices[vertIndex++] = 0; vertices[vertIndex++] = t;
+                // Indices for two triangles (quad)
+                GLushort baseVertex = quadIndex * 4;
+                indices[idxIndex++] = baseVertex + 0; indices[idxIndex++] = baseVertex + 1; indices[idxIndex++] = baseVertex + 2;
+                indices[idxIndex++] = baseVertex + 0; indices[idxIndex++] = baseVertex + 2; indices[idxIndex++] = baseVertex + 3;
 
-        // Indices for two triangles (quad)
-        GLushort baseVertex = quadIndex * 4;
-        indices[idxIndex++] = baseVertex + 0; indices[idxIndex++] = baseVertex + 1; indices[idxIndex++] = baseVertex + 2;
-        indices[idxIndex++] = baseVertex + 0; indices[idxIndex++] = baseVertex + 2; indices[idxIndex++] = baseVertex + 3;
+                quadIndex++;
+                polycount++;
+            }
+        }
 
-        quadIndex++;
-        polycount++;
-      }
-    }
+        // Create and upload buffers
+        GLuint vbo, ebo;
+        glGenBuffers(1, &vbo);
+        glGenBuffers(1, &ebo);
 
-    // Create and upload vertex buffer
-    GLuint vbo, ebo;
-    glGenBuffers(1, &vbo);
-    glGenBuffers(1, &ebo);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glBufferData(GL_ARRAY_BUFFER, quadCount * 4 * 5 * sizeof(GLfloat), vertices, GL_STATIC_DRAW);
 
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, quadCount * 4 * 4 * sizeof(GLfloat), vertices, GL_STATIC_DRAW);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, quadCount * 6 * sizeof(GLushort), indices, GL_STATIC_DRAW);
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, quadCount * 6 * sizeof(GLushort), indices, GL_STATIC_DRAW);
+        // Set up vertex attributes
+        GLint positionLoc = glGetAttribLocation(shaderProgram, "position");
+        GLint texCoordLoc = glGetAttribLocation(shaderProgram, "texCoord");
+        GLint normalLoc = glGetAttribLocation(shaderProgram, "normal");
 
-    // Set up vertex attributes
-    GLint positionLoc = glGetAttribLocation(shaderProgram, "position");
-    GLint texCoordLoc = glGetAttribLocation(shaderProgram, "texCoord");
-    GLint normalLoc = glGetAttribLocation(shaderProgram, "normal");
+        if (positionLoc >= 0) {
+            glEnableVertexAttribArray(positionLoc);
+            glVertexAttribPointer(positionLoc, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (void*)0);
+        }
 
-    if (positionLoc >= 0) {
-      glEnableVertexAttribArray(positionLoc);
-      glVertexAttribPointer(positionLoc, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (void*)0);
-    }
+        if (texCoordLoc >= 0) {
+            glEnableVertexAttribArray(texCoordLoc);
+            glVertexAttribPointer(texCoordLoc, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (void*)(3 * sizeof(GLfloat)));
+        }
 
-    if (texCoordLoc >= 0) {
-      glEnableVertexAttribArray(texCoordLoc);
-      glVertexAttribPointer(texCoordLoc, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (void*)(2 * sizeof(GLfloat)));
-    }
+        if (normalLoc >= 0) {
+            // Floor normal points up (0,0,1)
+            glVertexAttrib3f(normalLoc, 0.0f, 0.0f, 1.0f);
+        }
 
-    if (normalLoc >= 0) {
-      // Floor normal points up (0,0,1)
-      glVertexAttrib3f(normalLoc, 0.0f, 0.0f, 1.0f);
-    }
+        // Set lighting parameters
+        setAmbientLight(shaderProgram, AMBIENT_LIGHT_R, AMBIENT_LIGHT_G, AMBIENT_LIGHT_B);
+        setLightColor(shaderProgram, LIGHT_COLOR_R, LIGHT_COLOR_G, LIGHT_COLOR_B);
+        setLightPosition(shaderProgram, LIGHT_POS_X, LIGHT_POS_Y, LIGHT_POS_Z);
 
-    // Set lighting parameters
-    setAmbientLight(shaderProgram, AMBIENT_LIGHT_R, AMBIENT_LIGHT_G, AMBIENT_LIGHT_B);
-    setLightColor(shaderProgram, LIGHT_COLOR_R, LIGHT_COLOR_G, LIGHT_COLOR_B);
-    setLightPosition(shaderProgram, LIGHT_POS_X, LIGHT_POS_Y, LIGHT_POS_Z);
+        // Draw the floor
+        glDrawElements(GL_TRIANGLES, quadCount * 6, GL_UNSIGNED_SHORT, 0);
 
-    // Draw the floor
-    glDrawElements(GL_TRIANGLES, quadCount * 6, GL_UNSIGNED_SHORT, 0);
+        // Cleanup
+        if (positionLoc >= 0) glDisableVertexAttribArray(positionLoc);
+        if (texCoordLoc >= 0) glDisableVertexAttribArray(texCoordLoc);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+        glDeleteBuffers(1, &vbo);
+        glDeleteBuffers(1, &ebo);
 
-    // Cleanup
-    if (positionLoc >= 0) glDisableVertexAttribArray(positionLoc);
-    if (texCoordLoc >= 0) glDisableVertexAttribArray(texCoordLoc);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-    glDeleteBuffers(1, &vbo);
-    glDeleteBuffers(1, &ebo);
-
-    free(vertices);
-    free(indices);
+        free(vertices);
+        free(indices);
 
 #else
-    // For desktop OpenGL
-    glEnable(GL_TEXTURE_2D);
-    glBindTexture(GL_TEXTURE_2D, game->screen->texFloor);
-    glColor4f(1.0, 1.0, 1.0, 1.0);
-    l = GSIZE / 4;
-    t = 5;
-    for(j = 0; j < GSIZE; j += l)
-      for(k = 0; k < GSIZE; k += l) {
-        glBegin(GL_QUADS);
-        glTexCoord2i(0, 0);
-        glVertex2i(j, k);
-        glTexCoord2i(t, 0);
-        glVertex2i(j + l, k);
-        glTexCoord2i(t, t);
-        glVertex2i(j + l, k + l);
-        glTexCoord2i(0, t);
-        glVertex2i(j, k + l);
+        // Desktop OpenGL
+        glEnable(GL_TEXTURE_2D);
+        glBindTexture(GL_TEXTURE_2D, game->screen->texFloor);
+        glColor4f(1.0, 1.0, 1.0, 1.0);
+        
+        l = GSIZE / 4;
+        t = 5;
+        
+        for(j = 0; j < GSIZE; j += l) {
+            for(k = 0; k < GSIZE; k += l) {
+                glBegin(GL_QUADS);
+                glNormal3f(0.0f, 0.0f, 1.0f);  // Add normal for lighting
+                glTexCoord2i(0, 0); glVertex3i(j, k, 0);        // Added z=0
+                glTexCoord2i(t, 0); glVertex3i(j + l, k, 0);
+                glTexCoord2i(t, t); glVertex3i(j + l, k + l, 0);
+                glTexCoord2i(0, t); glVertex3i(j, k + l, 0);
+                glEnd();
+                polycount++;
+            }
+        }
+        glDisable(GL_TEXTURE_2D);
+#endif
+        
+    } else {
+        // Line floor
+#ifdef ANDROID
+        // Use shader program
+        GLuint shaderProgram = shader_get_basic();
+        if (!shaderProgram) {
+            init_shaders_android();
+            shaderProgram = shader_get_basic();
+            if (!shaderProgram) return;
+        }
+        useShaderProgram(shaderProgram);
+
+        // Set identity model matrix
+        setIdentityMatrix(shaderProgram, MATRIX_MODEL);
+
+        // Count lines first
+        int lineCount = 0;
+        for(j = 0; j <= GSIZE; j += game->settings->line_spacing) {
+            lineCount += 2;
+        }
+
+        // Create vertex data
+        GLfloat *vertices = malloc(lineCount * 2 * 3 * sizeof(GLfloat));
+        int vertexIndex = 0;
+
+        for(j = 0; j <= GSIZE; j += game->settings->line_spacing) {
+            // Horizontal line
+            vertices[vertexIndex++] = 0;     vertices[vertexIndex++] = j;     vertices[vertexIndex++] = 0;
+            vertices[vertexIndex++] = GSIZE; vertices[vertexIndex++] = j;     vertices[vertexIndex++] = 0;
+
+            // Vertical line
+            vertices[vertexIndex++] = j;     vertices[vertexIndex++] = 0;     vertices[vertexIndex++] = 0;
+            vertices[vertexIndex++] = j;     vertices[vertexIndex++] = GSIZE; vertices[vertexIndex++] = 0;
+
+            polycount += 2;
+        }
+
+        // Create buffer
+        GLuint vbo;
+        glGenBuffers(1, &vbo);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glBufferData(GL_ARRAY_BUFFER, lineCount * 2 * 3 * sizeof(GLfloat), vertices, GL_STATIC_DRAW);
+
+        // Set up attributes
+        GLint positionLoc = glGetAttribLocation(shaderProgram, "position");
+        GLint normalLoc = glGetAttribLocation(shaderProgram, "normal");
+
+        if (positionLoc >= 0) {
+            glEnableVertexAttribArray(positionLoc);
+            glVertexAttribPointer(positionLoc, 3, GL_FLOAT, GL_FALSE, 0, 0);
+        }
+
+        if (normalLoc >= 0) {
+            glVertexAttrib3f(normalLoc, 0.0f, 0.0f, 1.0f);
+        }
+
+        // Set lighting and color
+        setAmbientLight(shaderProgram, AMBIENT_LIGHT_R, AMBIENT_LIGHT_G, AMBIENT_LIGHT_B);
+        setLightColor(shaderProgram, LIGHT_COLOR_R, LIGHT_COLOR_G, LIGHT_COLOR_B);
+        setLightPosition(shaderProgram, LIGHT_POS_X, LIGHT_POS_Y, LIGHT_POS_Z);
+
+        GLint colorLoc = glGetUniformLocation(shaderProgram, "color");
+        if (colorLoc >= 0) {
+            glUniform4f(colorLoc, 0.0f, 0.0f, 1.0f, 1.0f); // Blue lines
+        }
+
+        // Draw lines
+        glDrawArrays(GL_LINES, 0, lineCount * 2);
+
+        // Cleanup
+        if (positionLoc >= 0) glDisableVertexAttribArray(positionLoc);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glDeleteBuffers(1, &vbo);
+        free(vertices);
+
+#else
+        // Desktop OpenGL
+        glColor3f(0.0, 0.0, 1.0);
+        glBegin(GL_LINES);
+        for(j = 0; j <= GSIZE; j += game->settings->line_spacing) {
+            glVertex3i(0, j, 0);
+            glVertex3i(GSIZE, j, 0);
+            glVertex3i(j, 0, 0);
+            glVertex3i(j, GSIZE, 0);
+            polycount += 2;
+        }
         glEnd();
-        polycount++;
-      }
 #endif
-
-    glDisable(GL_TEXTURE_2D);
-    glDepthMask(GL_FALSE);
-  } else {
-    // lines as floor...
-#ifdef ANDROID
-    // Use shader program
-    GLuint shaderProgram = shader_get_basic();
-    if (!shaderProgram) {
-      init_shaders_android();
-      shaderProgram = shader_get_basic();
-      if (!shaderProgram) return;
     }
-    useShaderProgram(shaderProgram);
-
-    // Set identity model matrix
-    setIdentityMatrix(shaderProgram, MATRIX_MODEL);
-
-    // Set up normal matrix for lighting
-    GLfloat normalMatrix[16] = {
-      1,0,0,0,
-      0,1,0,0,
-      0,0,1,0,
-      0,0,0,1
-    };
-    setNormalMatrix(shaderProgram, normalMatrix);
-
-    // Count lines first to allocate proper buffer size
-    int lineCount = 0;
-    for(j = 0; j <= GSIZE; j += game->settings->line_spacing) {
-      lineCount += 2; // horizontal + vertical line
-    }
-
-    // Create vertex data for lines (same logic as PC version)
-    GLfloat *vertices = malloc(lineCount * 2 * 3 * sizeof(GLfloat)); // 2 vertices per line, 3 floats per vertex
-    int vertexIndex = 0;
-
-    for(j = 0; j <= GSIZE; j += game->settings->line_spacing) {
-      // Horizontal line (same as PC: glVertex3i(0, j, 0); glVertex3i(GSIZE, j, 0);)
-      vertices[vertexIndex++] = 0;     vertices[vertexIndex++] = j;     vertices[vertexIndex++] = 0;
-      vertices[vertexIndex++] = GSIZE; vertices[vertexIndex++] = j;     vertices[vertexIndex++] = 0;
-
-      // Vertical line (same as PC: glVertex3i(j, 0, 0); glVertex3i(j, GSIZE, 0);)
-      vertices[vertexIndex++] = j;     vertices[vertexIndex++] = 0;     vertices[vertexIndex++] = 0;
-      vertices[vertexIndex++] = j;     vertices[vertexIndex++] = GSIZE; vertices[vertexIndex++] = 0;
-
-      polycount += 2;
-    }
-
-    // Create and upload vertex buffer
-    GLuint vbo;
-    glGenBuffers(1, &vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, lineCount * 2 * 3 * sizeof(GLfloat), vertices, GL_STATIC_DRAW);
-
-    // Set up vertex attributes
-    GLint positionLoc = glGetAttribLocation(shaderProgram, "position");
-    GLint normalLoc = glGetAttribLocation(shaderProgram, "normal");
-
-    if (positionLoc >= 0) {
-      glEnableVertexAttribArray(positionLoc);
-      glVertexAttribPointer(positionLoc, 3, GL_FLOAT, GL_FALSE, 0, 0);
-    }
-
-    if (normalLoc >= 0) {
-      // Floor normal points up (0,0,1)
-      glVertexAttrib3f(normalLoc, 0.0f, 0.0f, 1.0f);
-    }
-
-    // Set lighting parameters
-    setAmbientLight(shaderProgram, AMBIENT_LIGHT_R, AMBIENT_LIGHT_G, AMBIENT_LIGHT_B);
-    setLightColor(shaderProgram, LIGHT_COLOR_R, LIGHT_COLOR_G, LIGHT_COLOR_B);
-    setLightPosition(shaderProgram, LIGHT_POS_X, LIGHT_POS_Y, LIGHT_POS_Z);
-
-    // Set blue color (same as PC: glColor3f(0.0, 0.0, 1.0);)
-    GLint colorLoc = glGetUniformLocation(shaderProgram, "color");
-    if (colorLoc >= 0) {
-      glUniform4f(colorLoc, 0.0f, 0.0f, 1.0f, 1.0f);
-    }
-
-    // Draw lines
-    glDrawArrays(GL_LINES, 0, lineCount * 2);
-
-    // Cleanup
-    if (positionLoc >= 0) glDisableVertexAttribArray(positionLoc);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glDeleteBuffers(1, &vbo);
-    free(vertices);
-
-#else
-    // For desktop OpenGL (keep original PC logic)
-    glColor3f(0.0, 0.0, 1.0);
-    glBegin(GL_LINES);
-    for(j = 0; j <= GSIZE; j += game->settings->line_spacing) {
-      glVertex3i(0, j, 0);
-      glVertex3i(GSIZE, j, 0);
-      glVertex3i(j, 0, 0);
-      glVertex3i(j, GSIZE, 0);
-      polycount += 2;
-    }
-    glEnd();
-#endif
-  }
 }
 
 void drawTraces(Player *p, gDisplay *d, int instance) {
@@ -1422,229 +1404,222 @@ void drawHelp(gDisplay *d) {
 */
 
 void drawCam(Player *p, gDisplay *d) {
+    // Validate input parameters
+    if (!p || !d || !game) {
+        return;
+    }
+    
+    int i;
+    
+    // Camera configuration constants
+    const float CAM_DISTANCE = 12.0f;   // distance behind the player
+    const float CAM_HEIGHT = 6.0f;      // height above the ground
+    const float CAM_LOOKAHEAD = 5.0f;   // look ahead distance
+    const float LOOK_HEIGHT = 0.5f;     // look target height
+    const float NEAR_PLANE = 1.0f;      // Changed from 3.0f to 1.0f
+    const float FAR_PLANE = (float)GSIZE * 2.0f; // Increased far plane
+
 #ifdef ANDROID
-  // One-time log to verify drawCam is called and shader/viewport are valid
-  static int s_logged_cam = 0;
-  if (!s_logged_cam) {
-    GLuint sp = shader_get_basic();
-    int vw = (game && game->screen) ? game->screen->vp_w : -1;
-    int vh = (game && game->screen) ? game->screen->vp_h : -1;
-    s_logged_cam = 1;
-  }
-#endif
-  int i;
+    // Android rendering using shaders
+    if (!p->data) {
+        return;
+    }
+    
+    GLuint shaderProgram = shader_get_basic();
+    if (!shaderProgram) {
+        init_shaders_android();
+        shaderProgram = shader_get_basic();
+        if (!shaderProgram) return;
+    }
+    useShaderProgram(shaderProgram);
 
-#ifndef ANDROID
-  if (d->fog == 1) glEnable(GL_FOG);
-#endif
+    // Enable depth testing
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LEQUAL);
+    glDepthMask(GL_TRUE);
+    
+    // Clear depth buffer
+    glClear(GL_DEPTH_BUFFER_BIT);
 
-#ifdef ANDROID
-  // For Android, use shaders for rendering
-  if (!p || !p->data || !game || !game->screen) {
-    return;
-  }
-  GLuint shaderProgram = shader_get_basic();
-  if (!shaderProgram) {
-    init_shaders_android();
-    shaderProgram = shader_get_basic();
-    if (!shaderProgram) return;
-  }
-  useShaderProgram(shaderProgram);
+    // Set up projection matrix with better near/far planes
+    GLfloat projectionMatrix[16];
+    float aspect = (float)d->vp_w / (float)d->vp_h;
+    float fov = game->settings->fov * M_PI / 180.0f;
+    float f = 1.0f / tanf(fov * 0.5f);
+    float range_inv = 1.0f / (NEAR_PLANE - FAR_PLANE);
 
-  // Set up projection matrix (standard perspective matching desktop near/far)
-  GLfloat projectionMatrix[16];
-  float aspect = (float)d->vp_w / (float)d->vp_h;
-  float fov = game->settings->fov * M_PI / 180.0f;
-  float f = 1.0f / tanf(fov / 2.0f);
-  float n = 3.0f; // near plane
-  float fa = (float)GSIZE; // far plane
+    // Initialize matrix to zero
+    memset(projectionMatrix, 0, sizeof(projectionMatrix));
+    
+    // Column-major OpenGL perspective matrix
+    projectionMatrix[0]  = f / aspect;
+    projectionMatrix[5]  = f;
+    projectionMatrix[10] = (FAR_PLANE + NEAR_PLANE) * range_inv;
+    projectionMatrix[11] = -1.0f;
+    projectionMatrix[14] = 2.0f * FAR_PLANE * NEAR_PLANE * range_inv;
 
-  // Column-major OpenGL style
-  projectionMatrix[0] = f / aspect; projectionMatrix[4] = 0.0f; projectionMatrix[8]  = 0.0f;                         projectionMatrix[12] = 0.0f;
-  projectionMatrix[1] = 0.0f;        projectionMatrix[5] = f;    projectionMatrix[9]  = 0.0f;                         projectionMatrix[13] = 0.0f;
-  projectionMatrix[2] = 0.0f;        projectionMatrix[6] = 0.0f; projectionMatrix[10] = -(fa + n) / (fa - n);         projectionMatrix[14] = -(2.0f * fa * n) / (fa - n);
-  projectionMatrix[3] = 0.0f;        projectionMatrix[7] = 0.0f; projectionMatrix[11] = -1.0f;                        projectionMatrix[15] = 0.0f;
+    setProjectionMatrix(shaderProgram, projectionMatrix);
 
-  setProjectionMatrix(shaderProgram, projectionMatrix);
+    // Calculate camera parameters
+    float playerX = p->data->posx;
+    float playerY = p->data->posy;
+    float dirX = dirsX[p->data->dir];
+    float dirY = dirsY[p->data->dir];
 
-  // Camera parameters
-  float camDist   = 12.0f; // distance behind the player
-  float camHeight = 6.0f;  // height above the ground
+    // Camera position (behind and above player)
+    float camX = playerX - dirX * CAM_DISTANCE;
+    float camY = playerY - dirY * CAM_DISTANCE;
+    float camZ = CAM_HEIGHT;
 
-  // Player position
-  float playerX = p->data->posx;
-  float playerY = p->data->posy;
+    // Look target (ahead of player)
+    float lookX = playerX + dirX * CAM_LOOKAHEAD;
+    float lookY = playerY + dirY * CAM_LOOKAHEAD;
+    float lookZ = LOOK_HEIGHT;
 
-  // Player facing direction vector (unit vector from dirsX/dirsY)
-  float dirX = dirsX[p->data->dir];
-  float dirY = dirsY[p->data->dir];
+    // Create view matrix using look-at
+    GLfloat viewMatrix[16];
+    
+    // Forward vector (from camera to target)
+    float forward[3] = {lookX - camX, lookY - camY, lookZ - camZ};
+    float length = sqrtf(forward[0] * forward[0] + forward[1] * forward[1] + forward[2] * forward[2]);
+    if (length > 0.0f) {
+        forward[0] /= length;
+        forward[1] /= length;
+        forward[2] /= length;
+    }
 
-  // Camera position = player position - direction * distance + height in Z
-  float camX = playerX - dirX * camDist;
-  float camY = playerY - dirY * camDist;
-  float camZ = camHeight;
+    // Up vector (Z-up coordinate system)
+    float up[3] = {0.0f, 0.0f, 1.0f};
 
-  // Look-at target = in front of the player
-  float lookX = playerX + dirX * 5.0f; // 5 units ahead
-  float lookY = playerY + dirY * 5.0f;
-  float lookZ = 0.5f; // just above ground
+    // Right vector (cross product of forward and up)
+    float right[3];
+    right[0] = forward[1] * up[2] - forward[2] * up[1];
+    right[1] = forward[2] * up[0] - forward[0] * up[2];
+    right[2] = forward[0] * up[1] - forward[1] * up[0];
+    length = sqrtf(right[0] * right[0] + right[1] * right[1] + right[2] * right[2]);
+    if (length > 0.0f) {
+        right[0] /= length;
+        right[1] /= length;
+        right[2] /= length;
+    }
 
-  // Up vector (Z-up in GLTron)
-  float upX = 0.0f, upY = 0.0f, upZ = 1.0f;
+    // Corrected up vector (cross product of right and forward)
+    float corrected_up[3];
+    corrected_up[0] = right[1] * forward[2] - right[2] * forward[1];
+    corrected_up[1] = right[2] * forward[0] - right[0] * forward[2];
+    corrected_up[2] = right[0] * forward[1] - right[1] * forward[0];
 
-  // Create view matrix using gluLookAt math (adapted for Android shaders)
-  GLfloat viewMatrix[16];
-  
-  // Forward vector (from camera to target, normalized)
-  float forward[3] = {lookX - camX, lookY - camY, lookZ - camZ};
-  float length = sqrtf(forward[0] * forward[0] + forward[1] * forward[1] + forward[2] * forward[2]);
-  if (length > 0.0f) {
-    forward[0] /= length;
-    forward[1] /= length;
-    forward[2] /= length;
-  }
+    // Build view matrix (column-major)
+    viewMatrix[0]  = right[0];        viewMatrix[4]  = right[1];        viewMatrix[8]  = right[2];        viewMatrix[12] = -(right[0] * camX + right[1] * camY + right[2] * camZ);
+    viewMatrix[1]  = corrected_up[0]; viewMatrix[5]  = corrected_up[1]; viewMatrix[9]  = corrected_up[2]; viewMatrix[13] = -(corrected_up[0] * camX + corrected_up[1] * camY + corrected_up[2] * camZ);
+    viewMatrix[2]  = -forward[0];     viewMatrix[6]  = -forward[1];     viewMatrix[10] = -forward[2];     viewMatrix[14] = forward[0] * camX + forward[1] * camY + forward[2] * camZ;
+    viewMatrix[3]  = 0.0f;            viewMatrix[7]  = 0.0f;            viewMatrix[11] = 0.0f;            viewMatrix[15] = 1.0f;
 
-  // Right vector (cross product of forward and up)
-  float right[3];
-  right[0] = forward[1] * upZ - forward[2] * upY;
-  right[1] = forward[2] * upX - forward[0] * upZ;
-  right[2] = forward[0] * upY - forward[1] * upX;
-  length = sqrtf(right[0] * right[0] + right[1] * right[1] + right[2] * right[2]);
-  if (length > 0.0f) {
-    right[0] /= length;
-    right[1] /= length;
-    right[2] /= length;
-  }
+    setViewMatrix(shaderProgram, viewMatrix);
 
-  // Corrected up vector (cross product of right and forward)
-  float up[3];
-  up[0] = right[1] * forward[2] - right[2] * forward[1];
-  up[1] = right[2] * forward[0] - right[0] * forward[2];
-  up[2] = right[0] * forward[1] - right[1] * forward[0];
-
-  // Build view matrix (column-major format for OpenGL)
-  viewMatrix[0] = right[0];
-  viewMatrix[1] = up[0];
-  viewMatrix[2] = -forward[0];
-  viewMatrix[3] = 0.0f;
-
-  viewMatrix[4] = right[1];
-  viewMatrix[5] = up[1];
-  viewMatrix[6] = -forward[1];
-  viewMatrix[7] = 0.0f;
-
-  viewMatrix[8] = right[2];
-  viewMatrix[9] = up[2];
-  viewMatrix[10] = -forward[2];
-  viewMatrix[11] = 0.0f;
-
-  viewMatrix[12] = -(right[0] * camX + right[1] * camY + right[2] * camZ);
-  viewMatrix[13] = -(up[0] * camX + up[1] * camY + up[2] * camZ);
-  viewMatrix[14] = forward[0] * camX + forward[1] * camY + forward[2] * camZ;
-  viewMatrix[15] = 1.0f;
-
-  // Set view matrix in shader
-  setViewMatrix(shaderProgram, viewMatrix);
-
-  // Set up lighting (same as PC version)
-  setAmbientLight(shaderProgram, AMBIENT_LIGHT_R, AMBIENT_LIGHT_G, AMBIENT_LIGHT_B);
-  setLightColor(shaderProgram, LIGHT_COLOR_R, LIGHT_COLOR_G, LIGHT_COLOR_B);
-  
-  // Use camera position for light (matching PC behavior where light moves with camera)
-  if (p->camera && p->camera->cam) {
-    setLightPosition(shaderProgram, p->camera->cam[0], p->camera->cam[1], p->camera->cam[2]);
-  } else {
+    // Set up lighting
+    setAmbientLight(shaderProgram, AMBIENT_LIGHT_R, AMBIENT_LIGHT_G, AMBIENT_LIGHT_B);
+    setLightColor(shaderProgram, LIGHT_COLOR_R, LIGHT_COLOR_G, LIGHT_COLOR_B);
     setLightPosition(shaderProgram, LIGHT_POS_X, LIGHT_POS_Y, LIGHT_POS_Z);
-  }
 
-  // Set identity model matrix as default
-  setIdentityMatrix(shaderProgram, MATRIX_MODEL);
-
-  // Draw scene (same order as PC)
-  drawFloor(d);
-  if (game->settings->show_wall == 1)
-    drawWalls(d);
-
-  for (i = 0; i < game->players; i++)
-    drawTraces(&(game->player[i]), d, i);
-
-  drawPlayers(p);
-
-  if (game->settings->show_glow == 1)
-    for (i = 0; i < game->players; i++)
-      if ((p != &(game->player[i])) && (game->player[i].data->speed > 0))
-        drawGlow(&(game->player[i]), d, TRAIL_HEIGHT * 4);
+    // Set identity model matrix as default
+    setIdentityMatrix(shaderProgram, MATRIX_MODEL);
 
 #else
-  // For desktop OpenGL
-  glColor3f(0.0, 1.0, 0.0);
-  glMatrixMode(GL_PROJECTION);
-  glLoadIdentity();
-  gluPerspective(game->settings->fov, (float)d->vp_w / (float)d->vp_h, 3.0, GSIZE);
+    // Desktop OpenGL rendering
+    // Enable depth testing
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LEQUAL);
+    glDepthMask(GL_TRUE);
+    
+    // Clear depth buffer
+    glClear(GL_DEPTH_BUFFER_BIT);
+    
+    // Enable fog if requested
+    if (d->fog == 1) {
+        glEnable(GL_FOG);
+    }
 
-  glMatrixMode(GL_MODELVIEW);
-  glLoadIdentity();
+    glColor3f(0.0f, 1.0f, 0.0f);
 
-  // Enable lighting
-  glEnable(GL_LIGHTING);
-  glEnable(GL_LIGHT0);
+    // Set up projection with better near/far planes
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    float aspect = (float)d->vp_w / (float)d->vp_h;
+    gluPerspective(game->settings->fov, aspect, NEAR_PLANE, FAR_PLANE);
 
-  // Set up light parameters
-  GLfloat lightPosition[] = {LIGHT_POS_X, LIGHT_POS_Y, LIGHT_POS_Z, 1.0f};
-  GLfloat lightColor[] = {LIGHT_COLOR_R, LIGHT_COLOR_G, LIGHT_COLOR_B, 1.0f};
-  GLfloat ambientLight[] = {AMBIENT_LIGHT_R, AMBIENT_LIGHT_G, AMBIENT_LIGHT_B, 1.0f};
+    // Set up modelview
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
 
-  glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
-  glLightfv(GL_LIGHT0, GL_DIFFUSE, lightColor);
-  glLightfv(GL_LIGHT0, GL_SPECULAR, lightColor);
-  glLightModelfv(GL_LIGHT_MODEL_AMBIENT, ambientLight);
+    // Enable lighting
+    glEnable(GL_LIGHTING);
+    glEnable(GL_LIGHT0);
 
-  // Camera parameters
-  float camDist   = 12.0f; // distance behind the player
-  float camHeight = 6.0f;  // height above the ground
+    // Set up light parameters
+    GLfloat lightPosition[] = {LIGHT_POS_X, LIGHT_POS_Y, LIGHT_POS_Z, 1.0f};
+    GLfloat lightColor[] = {LIGHT_COLOR_R, LIGHT_COLOR_G, LIGHT_COLOR_B, 1.0f};
+    GLfloat ambientLight[] = {AMBIENT_LIGHT_R, AMBIENT_LIGHT_G, AMBIENT_LIGHT_B, 1.0f};
 
-  // Player position
-  float playerX = p->data->posx;
-  float playerY = p->data->posy;
+    glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
+    glLightfv(GL_LIGHT0, GL_DIFFUSE, lightColor);
+    glLightfv(GL_LIGHT0, GL_SPECULAR, lightColor);
+    glLightModelfv(GL_LIGHT_MODEL_AMBIENT, ambientLight);
 
-  // Player facing direction vector (unit vector from dirsX/dirsY)
-  float dirX = dirsX[p->data->dir];
-  float dirY = dirsY[p->data->dir];
+    // Calculate camera parameters
+    float playerX = p->data->posx;
+    float playerY = p->data->posy;
+    float dirX = dirsX[p->data->dir];
+    float dirY = dirsY[p->data->dir];
 
-  // Camera position = player position - direction * distance + height in Z
-  float camX = playerX - dirX * camDist;
-  float camY = playerY - dirY * camDist;
-  float camZ = camHeight;
+    // Camera position (behind and above player)
+    float camX = playerX - dirX * CAM_DISTANCE;
+    float camY = playerY - dirY * CAM_DISTANCE;
+    float camZ = CAM_HEIGHT;
 
-  // Look-at target = in front of the player
-  float lookX = playerX + dirX * 5.0f; // 5 units ahead
-  float lookY = playerY + dirY * 5.0f;
-  float lookZ = 0.5f; // just above ground
+    // Look target (ahead of player)
+    float lookX = playerX + dirX * CAM_LOOKAHEAD;
+    float lookY = playerY + dirY * CAM_LOOKAHEAD;
+    float lookZ = LOOK_HEIGHT;
 
-  // Up vector (Z-up in GLTron)
-  float upX = 0.0f, upY = 0.0f, upZ = 1.0f;
+    // Set up camera with gluLookAt
+    gluLookAt(camX, camY, camZ,           // camera position
+              lookX, lookY, lookZ,        // look target
+              0.0f, 0.0f, 1.0f);         // up vector (Z-up)
 
-  gluLookAt(camX, camY, camZ, lookX, lookY, lookZ, upX, upY, upZ);
+    // Light position
+    if (p->camera && p->camera->cam) {
+        glLightfv(GL_LIGHT0, GL_POSITION, p->camera->cam);
+    }
+#endif
 
-  // Light moves with camera
-  glLightfv(GL_LIGHT0, GL_POSITION, p->camera->cam);
+    // Draw scene (common for both platforms)
+    drawFloor(d);
+    
+    if (game->settings->show_wall == 1) {
+        drawWalls(d);
+    }
 
-  // Draw scene
-  drawFloor(d);
-  if (game->settings->show_wall == 1)
-    drawWalls(d);
+    for (i = 0; i < game->players; i++) {
+        drawTraces(&(game->player[i]), d, i);
+    }
 
-  for (i = 0; i < game->players; i++)
-    drawTraces(&(game->player[i]), d, i);
+    drawPlayers(p);
 
-  drawPlayers(p);
+    if (game->settings->show_glow == 1) {
+        for (i = 0; i < game->players; i++) {
+            if ((p != &(game->player[i])) && (game->player[i].data->speed > 0)) {
+                drawGlow(&(game->player[i]), d, TRAIL_HEIGHT * 4);
+            }
+        }
+    }
 
-  if (game->settings->show_glow == 1)
-    for (i = 0; i < game->players; i++)
-      if ((p != &(game->player[i])) && (game->player[i].data->speed > 0))
-        drawGlow(&(game->player[i]), d, TRAIL_HEIGHT * 4);
-
-  glDisable(GL_FOG);
+    // Clean up
+#ifdef ANDROID
+    // Android-specific cleanup if needed
+#else
+    glDisable(GL_FOG);
+    glDisable(GL_LIGHTING);
 #endif
 }
 

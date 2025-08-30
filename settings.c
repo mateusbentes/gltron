@@ -8,11 +8,6 @@
 
 #define BUFSIZE 100
 
-#ifdef ANDROID
-// Remove the LOGI macro definition to avoid redefinition
-// #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, "GLTron", __VA_ARGS__)
-#endif
-
 // Forward declaration for Android base path
 #ifdef ANDROID
 extern char s_base_path[1024];
@@ -32,6 +27,7 @@ void initSettingData(char *filename) {
     return;
   }
 #endif
+
   FILE *f = NULL;
   int n = 0, i, count = 0, j;
   char buf[BUFSIZE];
@@ -40,73 +36,107 @@ void initSettingData(char *filename) {
   if (!filename || filename[0] == '\0') {
 #ifdef ANDROID
     LOGI("initSettingData: invalid filename");
+#else
+    printf("initSettingData: invalid filename\n");
 #endif
     return;
   }
 
-  // For Android, use internal storage path
+  // Construct full path (similar logic for both platforms)
+  char fullPath[1024];
 #ifdef ANDROID
   // Ensure base directory exists (store settings.txt directly under s_base_path)
   if (mkdir(s_base_path, 0755) != 0 && errno != EEXIST) {
     LOGI("initSettingData: failed to create base directory '%s': %s", s_base_path, strerror(errno));
     return;
   }
-
-  // Construct full path to settings file directly in base path
-  char fullPath[1024];
   snprintf(fullPath, sizeof(fullPath), "%s/%s", s_base_path, filename);
+#else
+  char *resolved = getFullPath(filename);
+  if (resolved) {
+    strncpy(fullPath, resolved, sizeof(fullPath) - 1);
+    fullPath[sizeof(fullPath) - 1] = '\0';
+    free(resolved);
+  } else {
+    strncpy(fullPath, filename, sizeof(fullPath) - 1);
+    fullPath[sizeof(fullPath) - 1] = '\0';
+  }
+#endif
 
-  // Check if file exists; if not on Android, do not create here unless path is absolute (already ensured)
+  // Check if file exists before attempting to open (unified approach)
   if (access(fullPath, F_OK) != 0) {
+#ifdef ANDROID
     LOGI("initSettingData: settings file doesn't exist; deferring creation to android_glue (Android) or continuing with defaults");
+#else
+    printf("initSettingData: settings file doesn't exist at '%s'; continuing with defaults\n", fullPath);
+#endif
     return;
   }
 
-  const char *openName = fullPath;
-  LOGI("initSettingData: opening settings file at: %s", openName);
+#ifdef ANDROID
+  LOGI("initSettingData: opening settings file at: %s", fullPath);
 #else
-  char *resolved = getFullPath(filename);
-  const char *openName = resolved ? resolved : filename;
+  printf("initSettingData: opening settings file at: %s\n", fullPath);
 #endif
 
-  f = fopen(openName, "r");
+  f = fopen(fullPath, "r");
   if (!f) {
 #ifdef ANDROID
-    LOGI("initSettingData: fopen failed for %s: %s", openName, strerror(errno));
-#endif
-#ifndef ANDROID
-    if (resolved) free(resolved);
+    LOGI("initSettingData: fopen failed for %s: %s", fullPath, strerror(errno));
+#else
+    printf("initSettingData: fopen failed for %s: %s\n", fullPath, strerror(errno));
 #endif
     return; // fall back to defaults
   }
 
+  // Robust parsing with better error handling
   if (!fgets(buf, BUFSIZE, f)) {
     fclose(f);
-#ifndef ANDROID
-    if (resolved) free(resolved);
-#endif
     return;
   }
   if (sscanf(buf, "%d ", &n) != 1 || n < 0 || n > 1024) {
-    fclose(f);
-#ifndef ANDROID
-    if (resolved) free(resolved);
+#ifdef ANDROID
+    LOGI("initSettingData: invalid header format or count: %s", buf);
+#else
+    printf("initSettingData: invalid header format or count: %s\n", buf);
 #endif
+    fclose(f);
     return;
   }
+
   for(i = 0; i < n; i++) {
     if (!fgets(buf, BUFSIZE, f)) break;
     if (sscanf(buf, "%c%d ", &c, &count) != 2 || count < 0 || count > 1024) {
+#ifdef ANDROID
+      LOGI("initSettingData: invalid section format: %s", buf);
+#else
+      printf("initSettingData: invalid section format: %s\n", buf);
+#endif
       continue;
     }
     switch(c) {
     case 'i': /* it's int */
-      free(si); si = NULL; si_count = 0;
+      // Clean up existing allocation
+      if (si) { free(si); si = NULL; }
+      si_count = 0;
+      
       si = malloc(sizeof(struct settings_int) * (size_t)count);
-      if (!si) { fclose(f); return; }
+      if (!si) { 
+#ifdef ANDROID
+        LOGI("initSettingData: failed to allocate memory for integer settings");
+#else
+        printf("initSettingData: failed to allocate memory for integer settings\n");
+#endif
+        fclose(f); 
+        return; 
+      }
       si_count = count;
+      
       for(j = 0; j < count; j++) {
-        if (!fgets(buf, BUFSIZE, f)) { si_count = j; break; }
+        if (!fgets(buf, BUFSIZE, f)) { 
+          si_count = j; 
+          break; 
+        }
         buf[BUFSIZE - 1] = 0;
         // Read a token into name (max 31 chars + NUL)
         if (sscanf(buf, "%31s", (si + j)->name) != 1) {
@@ -115,15 +145,33 @@ void initSettingData(char *filename) {
       }
 #ifdef ANDROID
       LOGI("initSettingData: parsed %d integer settings", si_count);
+#else
+      printf("initSettingData: parsed %d integer settings\n", si_count);
 #endif
       break;
+      
     case 'f': /* float */
-      free(sf); sf = NULL; sf_count = 0;
+      // Clean up existing allocation
+      if (sf) { free(sf); sf = NULL; }
+      sf_count = 0;
+      
       sf = malloc(sizeof(struct settings_float) * (size_t)count);
-      if (!sf) { fclose(f); return; }
+      if (!sf) { 
+#ifdef ANDROID
+        LOGI("initSettingData: failed to allocate memory for float settings");
+#else
+        printf("initSettingData: failed to allocate memory for float settings\n");
+#endif
+        fclose(f); 
+        return; 
+      }
       sf_count = count;
+      
       for(j = 0; j < count; j++) {
-        if (!fgets(buf, BUFSIZE, f)) { sf_count = j; break; }
+        if (!fgets(buf, BUFSIZE, f)) { 
+          sf_count = j; 
+          break; 
+        }
         buf[BUFSIZE - 1] = 0;
         if (sscanf(buf, "%31s", (sf + j)->name) != 1) {
           (sf + j)->name[0] = '\0';
@@ -131,20 +179,26 @@ void initSettingData(char *filename) {
       }
 #ifdef ANDROID
       LOGI("initSettingData: parsed %d float settings", sf_count);
+#else
+      printf("initSettingData: parsed %d float settings\n", sf_count);
 #endif
       break;
+      
     default:
 #ifdef ANDROID
       LOGI("initSettingData: unrecognized type '%c'", c);
+#else
+      printf("initSettingData: unrecognized type '%c'\n", c);
 #endif
-      // ignore unknown sections instead of aborting
+      // Skip unknown sections gracefully
+      for(j = 0; j < count; j++) {
+        if (!fgets(buf, BUFSIZE, f)) break;
+      }
       break;
     }
   }
 
-#ifndef ANDROID
-  if (resolved) free(resolved);
-#endif
+  fclose(f);
 
   if (!game || !game->settings) return;
 
@@ -152,6 +206,14 @@ void initSettingData(char *filename) {
   if (!si || si_count < 28) {
     if (si) free(si);
     si = calloc(28, sizeof(struct settings_int));
+    if (!si) {
+#ifdef ANDROID
+      LOGI("initSettingData: failed to allocate default integer settings");
+#else
+      printf("initSettingData: failed to allocate default integer settings\n");
+#endif
+      return;
+    }
     si_count = 28;
     // Initialize names to match defaults if parsing failed
     const char* names_int[28] = {
@@ -162,16 +224,29 @@ void initSettingData(char *filename) {
       "ai_player4","show_crash_texture","turn_cycle","mouse_warp",
       "sound_driver","input_mode","fullscreen"
     };
-    for (int k = 0; k < 28; ++k) strncpy(si[k].name, names_int[k], sizeof(si[k].name)-1);
+    for (int k = 0; k < 28; ++k) {
+      strncpy(si[k].name, names_int[k], sizeof(si[k].name)-1);
+      si[k].name[sizeof(si[k].name)-1] = '\0';
+    }
   }
+  
   if (!sf || sf_count < 1) {
     if (sf) free(sf);
     sf = calloc(1, sizeof(struct settings_float));
+    if (!sf) {
+#ifdef ANDROID
+      LOGI("initSettingData: failed to allocate default float settings");
+#else
+      printf("initSettingData: failed to allocate default float settings\n");
+#endif
+      return;
+    }
     sf_count = 1;
     strncpy(sf[0].name, "speed", sizeof(sf[0].name)-1);
+    sf[0].name[sizeof(sf[0].name)-1] = '\0';
   }
 
-  // Bind pointers
+  // Bind pointers (same for both platforms)
   si[0].value = &(game->settings->show_help);
   si[1].value = &(game->settings->show_fps);
   si[2].value = &(game->settings->show_wall);
@@ -228,12 +303,16 @@ void initMainGameSettings(char *filename) {
 
   game = &main_game;
   game->settings = (Settings*) malloc(sizeof(Settings));
-  if (!game->settings) return;
+  if (!game->settings) {
+    printf("initMainGameSettings: failed to allocate settings structure\n");
+    return;
+  }
   memset(game->settings, 0, sizeof(Settings));
 
   /* initialize defaults first, then load names/bindings from file */
   game->pauseflag = 0;
 
+  // Set all defaults (same for both platforms)
   game->settings->show_help = 0;
   game->settings->show_fps = 1;
   game->settings->show_wall = 1;
@@ -272,7 +351,6 @@ void initMainGameSettings(char *filename) {
   game->settings->sound_driver = 0;
 
   /* not included in .gltronrc */
-
   game->settings->screenSaver = 0;
   game->settings->windowMode = 0;
   game->settings->content[0] = 0;
@@ -283,102 +361,89 @@ void initMainGameSettings(char *filename) {
   /* now load settings names and bind pointers */
   initSettingData(filename);
 
-  game->settings->show_help = 0;
-  game->settings->show_fps = 1;
-  game->settings->show_wall = 1;
-  game->settings->show_glow = 1;
-  game->settings->show_2d = 0;
-  game->settings->show_alpha = 1;
-  game->settings->show_floor_texture = 1;
-  game->settings->show_crash_texture = 1;
-  game->settings->show_model = 1;
-  game->settings->turn_cycle = 1;
-  game->settings->line_spacing = 20;
-  game->settings->erase_crashed = 0;
-  game->settings->fast_finish = 1;
-  game->settings->fov = 105;
-  game->settings->speed = 4.2;
-  game->settings->width = 640;
-  game->settings->height = 480;
-  game->settings->show_ai_status = 1;
-  game->settings->camType = 0;
-  game->settings->mouse_warp = 0;
-  game->settings->input_mode = 1; /* default to Mouse for menu usability */
+  /* Debug: Print current values after initSettingData */
 #ifdef ANDROID
-  game->settings->fullscreen = 1;
+  LOGI("After initSettingData - show_wall: %d, show_floor_texture: %d", 
+       game->settings->show_wall, game->settings->show_floor_texture);
 #else
-  game->settings->fullscreen = 0;
+  printf("After initSettingData - show_wall: %d, show_floor_texture: %d\n", 
+         game->settings->show_wall, game->settings->show_floor_texture);
 #endif
 
-  game->settings->display_type = 0;
-  game->settings->playSound = 1;
-  game->settings->playMusic = 1;
-
-  game->settings->ai_player1 = 0;
-  game->settings->ai_player2 = 1;
-  game->settings->ai_player3 = 1;
-  game->settings->ai_player4 = 1;
-
-  game->settings->sound_driver = 0;
-
-  /* not included in .gltronrc */
-
-  game->settings->screenSaver = 0;
-  game->settings->windowMode = 0;
-  game->settings->content[0] = 0;
-  game->settings->content[1] = 1;
-  game->settings->content[2] = 2;
-  game->settings->content[3] = 3;
-
-  /* go for .gltronrc (or whatever is defined in RC_NAME) */
-
+  /* go for .gltronrc (or whatever is defined in RC_NAME) to override defaults */
 #ifndef ANDROID
   home = getenv(HOMEVAR);
   if(home == 0) /* evaluate homedir */ {
     fname = malloc(strlen(CURRENT_DIR) + strlen(RC_NAME) + 2);
+    if (!fname) {
+      printf("initMainGameSettings: failed to allocate memory for filename\n");
+      return;
+    }
     sprintf(fname, "%s%c%s", CURRENT_DIR, SEPERATOR, RC_NAME);
   }
   else {
     fname = malloc(strlen(home) + strlen(RC_NAME) + 2);
+    if (!fname) {
+      printf("initMainGameSettings: failed to allocate memory for filename\n");
+      return;
+    }
     sprintf(fname, "%s%c%s", home, SEPERATOR, RC_NAME);
   }
-  f = fopen(fname, "r");
-  if(f == 0) {
+  
+  // Check if file exists before opening (like Android approach)
+  if (access(fname, F_OK) != 0) {
     printf("no %s found - using defaults\n", fname);
     free(fname);
     return; /* no rc exists */
   }
+  
+  f = fopen(fname, "r");
+  if(f == 0) {
+    printf("failed to open %s: %s - using defaults\n", fname, strerror(errno));
+    free(fname);
+    return; /* can't read rc, use defaults */
+  }
+  
+  printf("loading settings from %s\n", fname);
+  
   while(fgets(buf, sizeof(buf), f)) {
     /* process rc-file */
-
     if(strstr(buf, "iset") == buf) {
       /* linear search through settings */
       /* first: integer */
       for(i = 0; i < si_count; i++) {
-	sprintf(expbuf, "iset %s ", si[i].name);
-	if(strstr(buf, expbuf) == buf) {
-	  sscanf(buf + strlen(expbuf), "%d ", si[i].value);
-	  printf("assignment: %s\t%d\n", si[i].name, *(si[i].value));
-	  break;
-	}
+        sprintf(expbuf, "iset %s ", si[i].name);
+        if(strstr(buf, expbuf) == buf) {
+          if (sscanf(buf + strlen(expbuf), "%d ", si[i].value) == 1) {
+            printf("loaded setting: %s = %d\n", si[i].name, *(si[i].value));
+          }
+          break;
+        }
       }
     } else if(strstr(buf, "fset") == buf) {
       for(i = 0; i < sf_count; i++) {
-	sprintf(expbuf, "fset %s ", sf[i].name);
-	if(strstr(buf, expbuf) == buf) {
-	  sscanf(buf + strlen(expbuf), "%f ", sf[i].value);
-	  printf("assignment: %s\t%.2f\n", sf[i].name, *(sf[i].value));
-	  break;
-	}
+        sprintf(expbuf, "fset %s ", sf[i].name);
+        if(strstr(buf, expbuf) == buf) {
+          if (sscanf(buf + strlen(expbuf), "%f ", sf[i].value) == 1) {
+            printf("loaded setting: %s = %.2f\n", sf[i].name, *(sf[i].value));
+          }
+          break;
+        }
       }
     }
   }
   free(fname);
   fclose(f);
+  
+  // Debug: Print floor texture setting after loading
+  printf("Final show_wall: %d, show_floor_texture: %d\n", 
+         game->settings->show_wall, game->settings->show_floor_texture);
+  
 #else
   /* On Android, skip reading rc file to avoid early aborts; defaults + parsed settings are sufficient */
   (void)fname; (void)home; (void)i; (void)buf; (void)expbuf; (void)f;
 #endif
+
 #ifdef ANDROID
   // Always enforce fullscreen on Android at load time (surface applies real size)
   game->settings->fullscreen = 1;
@@ -386,7 +451,7 @@ void initMainGameSettings(char *filename) {
 }
 
 void saveSettings() {
-  char *fname, *home;
+  char *fname;
   int i;
   FILE* f;
 
@@ -399,27 +464,44 @@ void saveSettings() {
 
   // Construct full path to settings file directly under base path
   fname = malloc(strlen(s_base_path) + 1 + strlen(RC_NAME) + 1);
+  if (!fname) {
+    LOGI("saveSettings: failed to allocate memory for filename");
+    return;
+  }
   sprintf(fname, "%s/%s", s_base_path, RC_NAME);
 #else
-  home = getenv(HOMEVAR);
+  char *home = getenv(HOMEVAR);
   if(home == 0) /* evaluate homedir */ {
     fname = malloc(strlen(CURRENT_DIR) + strlen(RC_NAME) + 2);
+    if (!fname) {
+      printf("saveSettings: failed to allocate memory for filename\n");
+      return;
+    }
     sprintf(fname, "%s%c%s", CURRENT_DIR, SEPERATOR, RC_NAME);
   }
   else {
     fname = malloc(strlen(home) + strlen(RC_NAME) + 2);
+    if (!fname) {
+      printf("saveSettings: failed to allocate memory for filename\n");
+      return;
+    }
     sprintf(fname, "%s%c%s", home, SEPERATOR, RC_NAME);
   }
 #endif
 
 #ifdef ANDROID
   LOGI("saveSettings: saving to %s", fname);
+#else
+  printf("saveSettings: saving to %s\n", fname);
 #endif
 
   f = fopen(fname, "w");
   if(f == 0) {
-    printf("can't open %s ", fname);
-    perror("for writing");
+#ifdef ANDROID
+    LOGI("saveSettings: can't open %s for writing: %s", fname, strerror(errno));
+#else
+    printf("saveSettings: can't open %s for writing: %s\n", fname, strerror(errno));
+#endif
     free(fname);
     return; /* can't write rc */
   }
@@ -448,7 +530,7 @@ void saveSettings() {
 #ifdef ANDROID
   LOGI("saveSettings: written settings to %s", fname);
 #else
-  printf("written settings to %s\n", fname);
+  printf("saveSettings: written settings to %s\n", fname);
 #endif
 
   free(fname);
