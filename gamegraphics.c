@@ -1393,208 +1393,208 @@ void drawHelp(gDisplay *d) {
 */
 
 void drawCam(Player *p, gDisplay *d) {
-    // Validate input parameters
-    if (!p || !d || !game || !p->data) {
-        return;
-    }
-    
-    int i;
-    
-    // Camera configuration constants
-    const float CAM_DISTANCE = 12.0f;
-    const float CAM_HEIGHT = 6.0f;
-    const float CAM_LOOKAHEAD = 5.0f;
-    const float LOOK_HEIGHT = 0.5f;
-    const float NEAR_PLANE = 1.0f;
-    const float FAR_PLANE = (float)GSIZE * 2.0f;
-
-#ifdef ANDROID
-    // Android rendering using shaders
-    if (!p->data) {
-        return;
-    }
-    
-    GLuint shaderProgram = shader_get_basic();
-    if (!shaderProgram) {
-        init_shaders_android();
-        shaderProgram = shader_get_basic();
-        if (!shaderProgram) return;
-    }
-    useShaderProgram(shaderProgram);
-
-    // Enable depth testing
-    glEnable(GL_DEPTH_TEST);
-    glDepthFunc(GL_LEQUAL);
-    glClear(GL_DEPTH_BUFFER_BIT);
-
-    // Set up projection matrix
-    GLfloat projectionMatrix[16];
-    float aspect = (float)d->vp_w / (float)d->vp_h;
-    float fov = game->settings->fov * M_PI / 180.0f;
-    float f = 1.0f / tanf(fov * 0.5f);
-    float range_inv = 1.0f / (NEAR_PLANE - FAR_PLANE);
-
-    // Initialize matrix to zero
-    memset(projectionMatrix, 0, sizeof(projectionMatrix));
-    
-    // Column-major OpenGL perspective matrix
-    projectionMatrix[0]  = f / aspect;
-    projectionMatrix[5]  = f;
-    projectionMatrix[10] = (FAR_PLANE + NEAR_PLANE) * range_inv;
-    projectionMatrix[11] = -1.0f;
-    projectionMatrix[14] = 2.0f * FAR_PLANE * NEAR_PLANE * range_inv;
-
-    setProjectionMatrix(shaderProgram, projectionMatrix);
-
-    // Calculate camera parameters
-    float playerX = p->data->posx;
-    float playerY = p->data->posy;
-    float dirX = dirsX[p->data->dir];
-    float dirY = dirsY[p->data->dir];
-
-    // Camera position (behind and above player)
-    float camX = playerX - dirX * CAM_DISTANCE;
-    float camY = playerY - dirY * CAM_DISTANCE;
-    float camZ = CAM_HEIGHT;
-
-    // Look target (ahead of player)
-    float lookX = playerX + dirX * CAM_LOOKAHEAD;
-    float lookY = playerY + dirY * CAM_LOOKAHEAD;
-    float lookZ = LOOK_HEIGHT;
-
-    // Create view matrix
-    GLfloat viewMatrix[16];
-    float forward[3] = {lookX - camX, lookY - camY, lookZ - camZ};
-    float length = sqrtf(forward[0] * forward[0] + forward[1] * forward[1] + forward[2] * forward[2]);
-    if (length > 0.0f) {
-        forward[0] /= length;
-        forward[1] /= length;
-        forward[2] /= length;
-    }
-
-    // Up vector (Z-up coordinate system)
-    float up[3] = {0.0f, 0.0f, 1.0f};
-
-    // Right vector (cross product of forward and up)
-    float right[3];
-    right[0] = forward[1] * up[2] - forward[2] * up[1];
-    right[1] = forward[2] * up[0] - forward[0] * up[2];
-    right[2] = forward[0] * up[1] - forward[1] * up[0];
-    length = sqrtf(right[0] * right[0] + right[1] * right[1] + right[2] * right[2]);
-    if (length > 0.0f) {
-        right[0] /= length;
-        right[1] /= length;
-        right[2] /= length;
-    }
-
-    // Corrected up vector (cross product of right and forward)
-    float corrected_up[3];
-    corrected_up[0] = right[1] * forward[2] - right[2] * forward[1];
-    corrected_up[1] = right[2] * forward[0] - right[0] * forward[2];
-    corrected_up[2] = right[0] * forward[1] - right[1] * forward[0];
-
-    // Build view matrix (column-major)
-    viewMatrix[0]  = right[0];        viewMatrix[4]  = right[1];        viewMatrix[8]  = right[2];        viewMatrix[12] = -(right[0] * camX + right[1] * camY + right[2] * camZ);
-    viewMatrix[1]  = corrected_up[0]; viewMatrix[5]  = corrected_up[1]; viewMatrix[9]  = corrected_up[2]; viewMatrix[13] = -(corrected_up[0] * camX + corrected_up[1] * camY + corrected_up[2] * camZ);
-    viewMatrix[2]  = -forward[0];     viewMatrix[6]  = -forward[1];     viewMatrix[10] = -forward[2];     viewMatrix[14] = forward[0] * camX + forward[1] * camY + forward[2] * camZ;
-    viewMatrix[3]  = 0.0f;            viewMatrix[7]  = 0.0f;            viewMatrix[11] = 0.0f;            viewMatrix[15] = 1.0f;
-
-    setViewMatrix(shaderProgram, viewMatrix);
-
-    // Set up lighting
-    setAmbientLight(shaderProgram, AMBIENT_LIGHT_R, AMBIENT_LIGHT_G, AMBIENT_LIGHT_B);
-    setLightColor(shaderProgram, LIGHT_COLOR_R, LIGHT_COLOR_G, LIGHT_COLOR_B);
-    setLightPosition(shaderProgram, LIGHT_POS_X, LIGHT_POS_Y, LIGHT_POS_Z);
-
-    // Set identity model matrix as default
-    setIdentityMatrix(shaderProgram, MATRIX_MODEL);
-
-#else
-    // Desktop OpenGL rendering
-    // Enable depth testing
-    glEnable(GL_DEPTH_TEST);
-    glDepthFunc(GL_LEQUAL);
-    glClear(GL_DEPTH_BUFFER_BIT);
-    
-    // Enable fog if requested
-    if (d->fog == 1) {
-        glEnable(GL_FOG);
-    }
-
-    glColor3f(0.0f, 1.0f, 0.0f);
-
-    // Set up projection with better near/far planes
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-    float aspect = (float)d->vp_w / (float)d->vp_h;
-    gluPerspective(game->settings->fov, aspect, NEAR_PLANE, FAR_PLANE);
-
-    // Set up modelview
-    glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity();
-
-    // Enable lighting
-    glEnable(GL_LIGHTING);
-    glEnable(GL_LIGHT0);
-
-    // Set up light parameters
-    GLfloat lightPosition[] = {LIGHT_POS_X, LIGHT_POS_Y, LIGHT_POS_Z, 1.0f};
-    GLfloat lightColor[] = {LIGHT_COLOR_R, LIGHT_COLOR_G, LIGHT_COLOR_B, 1.0f};
-    GLfloat ambientLight[] = {AMBIENT_LIGHT_R, AMBIENT_LIGHT_G, AMBIENT_LIGHT_B, 1.0f};
-
-    glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
-    glLightfv(GL_LIGHT0, GL_DIFFUSE, lightColor);
-    glLightfv(GL_LIGHT0, GL_SPECULAR, lightColor);
-    glLightModelfv(GL_LIGHT_MODEL_AMBIENT, ambientLight);
-
-    // Calculate camera parameters
-    float playerX = p->data->posx;
-    float playerY = p->data->posy;
-    float dirX = dirsX[p->data->dir];
-    float dirY = dirsY[p->data->dir];
-
-    // Camera position (behind and above player)
-    float camX = playerX - dirX * CAM_DISTANCE;
-    float camY = playerY - dirY * CAM_DISTANCE;
-    float camZ = CAM_HEIGHT;
-
-    // Look target (ahead of player)
-    float lookX = playerX + dirX * CAM_LOOKAHEAD;
-    float lookY = playerY + dirY * CAM_LOOKAHEAD;
-    float lookZ = LOOK_HEIGHT;
-
-    gluLookAt(camX, camY, camZ, lookX, lookY, lookZ, 0.0f, 0.0f, 1.0f);
-
-    // Light position
-    if (p->camera && p->camera->cam) {
-        glLightfv(GL_LIGHT0, GL_POSITION, p->camera->cam);
-    }
-#endif
-
-    // Draw scene
-    drawFloor(d);
-    
-    if (game->settings->show_wall == 1) {
-        drawWalls(d);
-    }
-
-    for (i = 0; i < game->players; i++) {
-        drawTraces(&(game->player[i]), d, i);
-    }
-
-    drawPlayers(p);
-
-    if (game->settings->show_glow == 1) {
-        for (i = 0; i < game->players; i++) {
-            if ((p != &(game->player[i])) && (game->player[i].data->speed > 0)) {
-                drawGlow(&(game->player[i]), d, TRAIL_HEIGHT * 4);
-            }
-        }
-    }
+  int i;
 
 #ifndef ANDROID
-    glDisable(GL_FOG);
-    glDisable(GL_LIGHTING);
+  if (d->fog == 1) glEnable(GL_FOG);
+#endif
+
+#ifdef ANDROID
+  // For Android, use shaders for rendering
+  if (!p || !p->data || !game || !game->screen) {
+    return;
+  }
+  GLuint shaderProgram = shader_get_basic();
+  if (!shaderProgram) return;
+  useShaderProgram(shaderProgram);
+
+  // Set up projection matrix
+  GLfloat projectionMatrix[16];
+  float aspect = (float)d->vp_w / (float)d->vp_h;
+  float fov = game->settings->fov * M_PI / 180.0f;
+  float f = 1.0f / tan(fov / 2.0f);
+
+  projectionMatrix[0] = f / aspect;
+  projectionMatrix[1] = 0.0f;
+  projectionMatrix[2] = 0.0f;
+  projectionMatrix[3] = 0.0f;
+
+  projectionMatrix[4] = 0.0f;
+  projectionMatrix[5] = f;
+  projectionMatrix[6] = 0.0f;
+  projectionMatrix[7] = 0.0f;
+
+  projectionMatrix[8] = 0.0f;
+  projectionMatrix[9] = 0.0f;
+  projectionMatrix[10] = (GSIZE + 3.0f) / (GSIZE - 3.0f);
+  projectionMatrix[11] = 1.0f;
+
+  projectionMatrix[12] = 0.0f;
+  projectionMatrix[13] = 0.0f;
+  projectionMatrix[14] = -2.0f * 3.0f * GSIZE / (GSIZE - 3.0f);
+  projectionMatrix[15] = 0.0f;
+
+  setProjectionMatrix(shaderProgram, projectionMatrix);
+  {
+    GLfloat viewIdentity[16] = {1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1};
+    setViewMatrix(shaderProgram, viewIdentity);
+  }
+
+  // Set up view matrix
+  GLfloat viewMatrix[16];
+
+  // Camera parameters
+  float camDist   = 12.0f; // distance behind the player
+  float camHeight = 6.0f;  // height above the ground
+
+  // Player position
+  float playerX = p->data->posx;
+  float playerY = p->data->posy;
+
+  // Player facing direction vector (unit vector from dirsX/dirsY)
+  float dirX = dirsX[p->data->dir];
+  float dirY = dirsY[p->data->dir];
+
+  // Camera position = player position - direction * distance + height in Z
+  float camX = playerX - dirX * camDist;
+  float camY = playerY - dirY * camDist;
+  float camZ = camHeight;
+
+  // Look-at target = in front of the player
+  float lookX = playerX + dirX * 5.0f; // 5 units ahead
+  float lookY = playerY + dirY * 5.0f;
+  float lookZ = 0.5f; // just above ground
+
+  // Up vector (Z-up in GLTron)
+  float upX = 0.0f, upY = 0.0f, upZ = 1.0f;
+
+  // Create view matrix
+  float forward[3] = {lookX - camX, lookY - camY, lookZ - camZ};
+  float length = sqrt(forward[0] * forward[0] + forward[1] * forward[1] + forward[2] * forward[2]);
+  forward[0] /= length;
+  forward[1] /= length;
+  forward[2] /= length;
+
+  float right[3];
+  right[0] = forward[1] * upZ - forward[2] * upY;
+  right[1] = forward[2] * upX - forward[0] * upZ;
+  right[2] = forward[0] * upY - forward[1] * upX;
+  length = sqrt(right[0] * right[0] + right[1] * right[1] + right[2] * right[2]);
+  right[0] /= length;
+  right[1] /= length;
+  right[2] /= length;
+
+  float up[3];
+  up[0] = right[1] * forward[2] - right[2] * forward[1];
+  up[1] = right[2] * forward[0] - right[0] * forward[2];
+  up[2] = right[0] * forward[1] - right[1] * forward[0];
+
+  viewMatrix[0] = right[0];
+  viewMatrix[1] = up[0];
+  viewMatrix[2] = -forward[0];
+  viewMatrix[3] = 0.0f;
+
+  viewMatrix[4] = right[1];
+  viewMatrix[5] = up[1];
+  viewMatrix[6] = -forward[1];
+  viewMatrix[7] = 0.0f;
+
+  viewMatrix[8] = right[2];
+  viewMatrix[9] = up[2];
+  viewMatrix[10] = -forward[2];
+  viewMatrix[11] = 0.0f;
+
+  viewMatrix[12] = -(right[0] * camX + right[1] * camY + right[2] * camZ);
+  viewMatrix[13] = -(up[0] * camX + up[1] * camY + up[2] * camZ);
+  viewMatrix[14] = forward[0] * camX + forward[1] * camY + forward[2] * camZ;
+  viewMatrix[15] = 1.0f;
+
+  // Set view matrix in shader
+  setViewMatrix(shaderProgram, viewMatrix);
+
+  // Draw scene; re-apply matrices before sub-draws to ensure state
+  setProjectionMatrix(shaderProgram, projectionMatrix);
+  setViewMatrix(shaderProgram, viewMatrix);
+  if (game->settings->show_wall == 1) {
+    setProjectionMatrix(shaderProgram, projectionMatrix);
+    setViewMatrix(shaderProgram, viewMatrix);
+    drawWalls(d);
+  }
+
+  // Draw scene
+  drawFloor(d);
+  if (game->settings->show_wall == 1)
+    drawWalls(d);
+
+  for (i = 0; i < game->players; i++)
+    drawTraces(&(game->player[i]), d, i);
+
+
+  drawPlayers(p);
+
+  if (game->settings->show_glow == 1)
+    for (i = 0; i < game->players; i++)
+      if ((p != &(game->player[i])) && (game->player[i].data->speed > 0))
+        drawGlow(&(game->player[i]), d, TRAIL_HEIGHT * 4);
+
+  // Clean up /* keep program bound */
+  glDisable(GL_FOG);
+#else
+  // For desktop OpenGL
+  glColor3f(0.0, 1.0, 0.0);
+  glMatrixMode(GL_PROJECTION);
+  glLoadIdentity();
+  gluPerspective(game->settings->fov, (float)d->vp_w / (float)d->vp_h, 3.0, GSIZE);
+
+  glMatrixMode(GL_MODELVIEW);
+  glLoadIdentity();
+
+  // Camera parameters
+  float camDist   = 12.0f; // distance behind the player
+  float camHeight = 6.0f;  // height above the ground
+
+  // Player position
+  float playerX = p->data->posx;
+  float playerY = p->data->posy;
+
+  // Player facing direction vector (unit vector from dirsX/dirsY)
+  float dirX = dirsX[p->data->dir];
+  float dirY = dirsY[p->data->dir];
+
+  // Camera position = player position - direction * distance + height in Z
+  float camX = playerX - dirX * camDist;
+  float camY = playerY - dirY * camDist;
+  float camZ = camHeight;
+
+  // Look-at target = in front of the player
+  float lookX = playerX + dirX * 5.0f; // 5 units ahead
+  float lookY = playerY + dirY * 5.0f;
+  float lookZ = 0.5f; // just above ground
+
+  // Up vector (Z-up in GLTron)
+  float upX = 0.0f, upY = 0.0f, upZ = 1.0f;
+
+  gluLookAt(camX, camY, camZ, lookX, lookY, lookZ, upX, upY, upZ);
+
+  // Light moves with camera
+  glLightfv(GL_LIGHT0, GL_POSITION, p->camera->cam);
+
+  // Draw scene
+  drawFloor(d);
+  if (game->settings->show_wall == 1)
+    drawWalls(d);
+
+  for (i = 0; i < game->players; i++)
+    drawTraces(&(game->player[i]), d, i);
+
+  drawPlayers(p);
+
+  if (game->settings->show_glow == 1)
+    for (i = 0; i < game->players; i++)
+      if ((p != &(game->player[i])) && (game->player[i].data->speed > 0))
+        drawGlow(&(game->player[i]), d, TRAIL_HEIGHT * 4);
+
+  glDisable(GL_FOG);
 #endif
 }
 
