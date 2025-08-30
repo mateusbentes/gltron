@@ -502,6 +502,19 @@ void useShaderProgram(GLuint program) {
     glUseProgram(program);
 }
 
+GLuint createWhiteTexture() {
+    GLuint tex = 0;
+    unsigned char white[4] = {255,255,255,255};
+    glGenTextures(1, &tex);
+    glBindTexture(GL_TEXTURE_2D, tex);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, white);
+    return tex;
+}
+
 void resetMatrices() {
     if (g_shader_unified == 0) return;
 
@@ -545,6 +558,7 @@ void setIdentityMatrix(GLuint program, int matrixType) {
 
 // Improved font texture creation
 GLuint createFontTexture() {
+
     // Create a simple 8x8 bitmap for each ASCII character (32-127)
     // This is still simplified - in practice you'd load a proper font atlas
     

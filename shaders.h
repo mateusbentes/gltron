@@ -23,6 +23,7 @@ void setNormalMatrix(GLuint program, float* matrix);  // Added
 void setColor(GLuint program, float r, float g, float b, float a);
 void setTexture(GLuint program, GLuint textureUnit);
 GLuint createFontTexture();
+GLuint createWhiteTexture();
 
 // Android-specific shader functions
 void init_shaders_android();
