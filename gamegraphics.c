@@ -788,7 +788,7 @@ void drawCrash(float radius) {
 
 void drawCycle(Player *p) {
   float dirangles[] = { 180, 90, 0, 270 , 360, -90 };
-  int time;
+  int time = 0;
   int last_dir;
   float dirangle;
   Mesh *cycle;
@@ -813,6 +813,18 @@ void drawCycle(Player *p) {
     if (!prog) return;
   }
   useShaderProgram(prog);
+
+  // Ensure lighting uniforms are set (simple defaults)
+  setAmbientLight(prog, AMBIENT_LIGHT_R, AMBIENT_LIGHT_G, AMBIENT_LIGHT_B);
+  setLightColor(prog, LIGHT_COLOR_R, LIGHT_COLOR_G, LIGHT_COLOR_B);
+  setLightPosition(prog, LIGHT_POS_X, LIGHT_POS_Y, LIGHT_POS_Z);
+
+  // Bind a white texture so shader's texture sampling yields solid color
+  glActiveTexture(GL_TEXTURE0);
+  static GLuint s_white = 0;
+  if (s_white == 0) s_white = createWhiteTexture();
+  glBindTexture(GL_TEXTURE_2D, s_white);
+  setTexture(prog, 0);
 
   // Build model matrix from identity (no fixed-function in GLES2)
   GLfloat modelMatrix[16] = {
@@ -866,10 +878,16 @@ void drawCycle(Player *p) {
   // Set the model matrix in the shader
   setModelMatrix(prog, modelMatrix);
 
-  // Enable lighting
-  glEnable(GL_LIGHTING);
+  // Depth test for proper mesh rendering
   glEnable(GL_DEPTH_TEST);
   glDepthMask(GL_TRUE);
+
+  // Provide a flat normal if shader uses normal attribute
+  {
+    GLint normalLoc = glGetAttribLocation(prog, "normal");
+    if (normalLoc >= 0) glVertexAttrib3f(normalLoc, 0.0f, 0.0f, 1.0f);
+  }
+
 
   if(p->data->exp_radius == 0)
     drawModel(cycle, MODEL_USE_MATERIAL, 0);
@@ -929,10 +947,16 @@ void drawCycle(Player *p) {
   /* glTranslatef(-cycle->bbox[0] / 2, 0, .0); */
   /* glTranslatef(-cycle->bbox[0] / 2, -cycle->bbox[1], .0); */
 
-  // Enable lighting
-  glEnable(GL_LIGHTING);
+  // Depth test for proper mesh rendering
   glEnable(GL_DEPTH_TEST);
   glDepthMask(GL_TRUE);
+
+  // Provide a flat normal if shader uses normal attribute
+  {
+    GLint normalLoc = glGetAttribLocation(prog, "normal");
+    if (normalLoc >= 0) glVertexAttrib3f(normalLoc, 0.0f, 0.0f, 1.0f);
+  }
+
 
   if(p->data->exp_radius == 0)
     drawModel(cycle, MODEL_USE_MATERIAL, 0);
