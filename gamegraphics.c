@@ -48,6 +48,12 @@ static inline GLuint ensure_basic_shader_bound() {
   if (!prog) {
     init_shaders_android();
     prog = shader_get_basic();
+    if (!prog) {
+#ifdef ANDROID
+      __android_log_print(ANDROID_LOG_ERROR, "GLTron", "Failed to initialize shaders!");
+#endif
+      return 0;
+    }
   }
   if (prog) useShaderProgram(prog);
   return prog;
@@ -198,14 +204,23 @@ void drawDebugTex(gDisplay *d) {
   GLushort indices[] = {0, 1, 2, 0, 2, 3};
 
   // Create and bind vertex buffer
-  GLuint vbo;
+  GLuint vbo = 0;
   glGenBuffers(1, &vbo);
+  if (vbo == 0) {
+    checkGLError("glGenBuffers");
+    return;
+  }
   glBindBuffer(GL_ARRAY_BUFFER, vbo);
   glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
   // Create and bind index buffer
-  GLuint ibo;
+  GLuint ibo = 0;
   glGenBuffers(1, &ibo);
+  if (ibo == 0) {
+    checkGLError("glGenBuffers for ibo");
+    if (vbo != 0) glDeleteBuffers(1, &vbo);
+    return;
+  }
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
@@ -283,8 +298,12 @@ void drawScore(Player *p, gDisplay *d) {
   };
 
   // Create and bind vertex buffer
-  GLuint vbo;
+  GLuint vbo = 0;
   glGenBuffers(1, &vbo);
+  if (vbo == 0) {
+    checkGLError("glGenBuffers");
+    return;
+  }
   glBindBuffer(GL_ARRAY_BUFFER, vbo);
   glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
@@ -367,9 +386,18 @@ void drawFloor(gDisplay *d) {
                 
                 GLushort indices[] = {0, 1, 2, 0, 2, 3};
 
-                GLuint vbo, ebo;
+                GLuint vbo = 0, ebo = 0;
                 glGenBuffers(1, &vbo);
+                if (vbo == 0) {
+                    checkGLError("glGenBuffers for vbo");
+                    continue;
+                }
                 glGenBuffers(1, &ebo);
+                if (ebo == 0) {
+                    checkGLError("glGenBuffers for ebo");
+                    glDeleteBuffers(1, &vbo);
+                    continue;
+                }
 
                 glBindBuffer(GL_ARRAY_BUFFER, vbo);
                 glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
@@ -690,8 +718,12 @@ void drawCrash(float radius) {
     -CRASH_W, 0.0f, CRASH_W, 0.0f, 0.5f
   };
 
-  GLuint vbo;
+  GLuint vbo = 0;
   glGenBuffers(1, &vbo);
+  if (vbo == 0) {
+    checkGLError("glGenBuffers");
+    return;
+  }
   glBindBuffer(GL_ARRAY_BUFFER, vbo);
   glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
@@ -754,25 +786,24 @@ void drawCrash(float radius) {
 
   glEnable(GL_TEXTURE_2D);
   glBindTexture(GL_TEXTURE_2D, game->screen->texWall);
-  setTexture(shaderProgram, 0);
   glBegin(GL_QUADS);
-  glTexCoord2f(t, 0.0); glVertex3f(0.0, 0.0, 0.0);
-  glTexCoord2f(t, 1.0); glVertex3f(0.0, 0.0, WALL_H);
+  glTexCoord2f(0.0, 0.0); glVertex3f(0.0, 0.0, 0.0);
+  glTexCoord2f(0.0, 1.0); glVertex3f(0.0, 0.0, WALL_H);
   glTexCoord2f(0.0, 1.0); glVertex3f(GSIZE, 0.0, WALL_H);
   glTexCoord2f(0.0, 0.0); glVertex3f(GSIZE, 0.0, 0.0);
 
-  glTexCoord2f(t, 1.0); glVertex3f(GSIZE, 0.0, 0.0);
-  glTexCoord2f(t, 0.0); glVertex3f(GSIZE, 0.0, WALL_H);
+  glTexCoord2f(0.0, 1.0); glVertex3f(GSIZE, 0.0, 0.0);
+  glTexCoord2f(1.0, 0.0); glVertex3f(GSIZE, 0.0, WALL_H);
   glTexCoord2f(0.0, 0.0); glVertex3f(GSIZE, GSIZE, WALL_H);
   glTexCoord2f(0.0, 1.0); glVertex3f(GSIZE, GSIZE, 0.0);
 
-  glTexCoord2f(t, 1.0); glVertex3f(GSIZE, GSIZE, 0.0);
-  glTexCoord2f(t, 0.0); glVertex3f(GSIZE, GSIZE, WALL_H);
+  glTexCoord2f(0.0, 1.0); glVertex3f(GSIZE, GSIZE, 0.0);
+  glTexCoord2f(1.0, 0.0); glVertex3f(GSIZE, GSIZE, WALL_H);
   glTexCoord2f(0.0, 0.0); glVertex3f(0.0, GSIZE, WALL_H);
   glTexCoord2f(0.0, 1.0); glVertex3f(0.0, GSIZE, 0.0);
 
-  glTexCoord2f(t, 1.0); glVertex3f(0.0, GSIZE, 0.0);
-  glTexCoord2f(t, 0.0); glVertex3f(0.0, GSIZE, WALL_H);
+  glTexCoord2f(0.0, 1.0); glVertex3f(0.0, GSIZE, 0.0);
+  glTexCoord2f(1.0, 0.0); glVertex3f(0.0, GSIZE, WALL_H);
   glTexCoord2f(0.0, 0.0); glVertex3f(0.0, 0.0, WALL_H);
   glTexCoord2f(0.0, 1.0); glVertex3f(0.0, 0.0, 0.0);
 
@@ -947,16 +978,10 @@ void drawCycle(Player *p) {
   /* glTranslatef(-cycle->bbox[0] / 2, 0, .0); */
   /* glTranslatef(-cycle->bbox[0] / 2, -cycle->bbox[1], .0); */
 
-  // Depth test for proper mesh rendering
+  // Enable lighting
+  glEnable(GL_LIGHTING);
   glEnable(GL_DEPTH_TEST);
   glDepthMask(GL_TRUE);
-
-  // Provide a flat normal if shader uses normal attribute
-  {
-    GLint normalLoc = glGetAttribLocation(prog, "normal");
-    if (normalLoc >= 0) glVertexAttrib3f(normalLoc, 0.0f, 0.0f, 1.0f);
-  }
-
 
   if(p->data->exp_radius == 0)
     drawModel(cycle, MODEL_USE_MATERIAL, 0);
@@ -1278,8 +1303,12 @@ void drawWalls(gDisplay *d) {
   };
 
   // Create and bind vertex buffer
-  GLuint vbo;
+  GLuint vbo = 0;
   glGenBuffers(1, &vbo);
+  if (vbo == 0) {
+    checkGLError("glGenBuffers");
+    return;
+  }
   glBindBuffer(GL_ARRAY_BUFFER, vbo);
   glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
@@ -1330,8 +1359,13 @@ void drawWalls(gDisplay *d) {
     8,9,10, 8,10,11,
     12,13,14, 12,14,15
   };
-  GLuint ibo;
+  GLuint ibo = 0;
   glGenBuffers(1, &ibo);
+  if (ibo == 0) {
+    checkGLError("glGenBuffers for ibo");
+    if (vbo != 0) glDeleteBuffers(1, &vbo);
+    return;
+  }
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
   glDrawElements(GL_TRIANGLES, 24, GL_UNSIGNED_SHORT, 0);
@@ -1361,25 +1395,24 @@ void drawWalls(gDisplay *d) {
 
   glEnable(GL_TEXTURE_2D);
   glBindTexture(GL_TEXTURE_2D, game->screen->texWall);
-  setTexture(shaderProgram, 0);
   glBegin(GL_QUADS);
-  glTexCoord2f(t, 0.0); glVertex3f(0.0, 0.0, 0.0);
-  glTexCoord2f(t, 1.0); glVertex3f(0.0, 0.0, WALL_H);
+  glTexCoord2f(0.0, 0.0); glVertex3f(0.0, 0.0, 0.0);
+  glTexCoord2f(0.0, 1.0); glVertex3f(0.0, 0.0, WALL_H);
   glTexCoord2f(0.0, 1.0); glVertex3f(GSIZE, 0.0, WALL_H);
   glTexCoord2f(0.0, 0.0); glVertex3f(GSIZE, 0.0, 0.0);
 
-  glTexCoord2f(t, 1.0); glVertex3f(GSIZE, 0.0, 0.0);
-  glTexCoord2f(t, 0.0); glVertex3f(GSIZE, 0.0, WALL_H);
+  glTexCoord2f(0.0, 1.0); glVertex3f(GSIZE, 0.0, 0.0);
+  glTexCoord2f(1.0, 0.0); glVertex3f(GSIZE, 0.0, WALL_H);
   glTexCoord2f(0.0, 0.0); glVertex3f(GSIZE, GSIZE, WALL_H);
   glTexCoord2f(0.0, 1.0); glVertex3f(GSIZE, GSIZE, 0.0);
 
-  glTexCoord2f(t, 1.0); glVertex3f(GSIZE, GSIZE, 0.0);
-  glTexCoord2f(t, 0.0); glVertex3f(GSIZE, GSIZE, WALL_H);
+  glTexCoord2f(0.0, 1.0); glVertex3f(GSIZE, GSIZE, 0.0);
+  glTexCoord2f(1.0, 0.0); glVertex3f(GSIZE, GSIZE, WALL_H);
   glTexCoord2f(0.0, 0.0); glVertex3f(0.0, GSIZE, WALL_H);
   glTexCoord2f(0.0, 1.0); glVertex3f(0.0, GSIZE, 0.0);
 
-  glTexCoord2f(t, 1.0); glVertex3f(0.0, GSIZE, 0.0);
-  glTexCoord2f(t, 0.0); glVertex3f(0.0, GSIZE, WALL_H);
+  glTexCoord2f(0.0, 1.0); glVertex3f(0.0, GSIZE, 0.0);
+  glTexCoord2f(1.0, 0.0); glVertex3f(0.0, GSIZE, WALL_H);
   glTexCoord2f(0.0, 0.0); glVertex3f(0.0, 0.0, WALL_H);
   glTexCoord2f(0.0, 1.0); glVertex3f(0.0, 0.0, 0.0);
 
