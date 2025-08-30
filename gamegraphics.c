@@ -16,6 +16,14 @@
 #include <GL/glu.h>
 #endif
 
+#ifndef GL_TEXTURE_WIDTH
+#define GL_TEXTURE_WIDTH 0x1000
+#endif
+
+#ifndef GL_TEXTURE_HEIGHT
+#define GL_TEXTURE_HEIGHT 0x1001
+#endif
+
 // Define LINE_D constant
 #ifndef LINE_D
 #define LINE_D 0.05
@@ -304,8 +312,9 @@ void drawFloor(gDisplay *d) {
         
         // Check if texture is valid
         GLint texWidth, texHeight;
-        glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &texWidth);
-        glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &texHeight);
+        glGetTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_WIDTH, &texWidth);
+        glGetTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_HEIGHT, &texHeight);
+
         
         if (texWidth == 0 || texHeight == 0) {
             // Texture is not valid, fall back to line floor
