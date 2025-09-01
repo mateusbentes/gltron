@@ -1,6 +1,9 @@
 #include <math.h>
 #include <string.h>
 #include "gltron.h"
+// Include the header that declares android_switchCallbacks
+#include "switchCallbacks.h"
+
 #include "globals.h"
 #include "shaders.h"
 #include <math.h>
@@ -484,11 +487,7 @@ void movePlayers() {
 			 data->dir, &x, &y);
 	if (col) {
 #ifdef SOUND
-#ifdef ANDROID
-	  sb_play_sample("game_crash.wav");
-#else
 	  playSampleEffect(crash_sfx);
-#endif
 #endif
 	  /* set endpoint to collision coordinates */
 	  newx = x;
@@ -532,7 +531,7 @@ void movePlayers() {
 	  printf("winner: %d\n", winner);
 #ifdef ANDROID
 	  extern callbacks pauseCallbacks;
-	  android_switchCallbacks(&pauseCallbacks);
+	  android_switchCallbacks(&pauseCallbacks); // Declaration added above
 #else
 	  switchCallbacks(&pauseCallbacks);
 #endif
@@ -593,6 +592,19 @@ void camMove() {
 #ifdef ANDROID
   // OpenGL ES 2.0 implementation
   GLfloat modelViewMatrix[16];
+
+  // Define camera variables for Android (extracted from camera or default values)
+  // Assuming player 0 for simplicity, adjust as needed
+  Camera *activeCam = game->player[0].camera;
+  float camX = activeCam->cam[0];
+  float camY = activeCam->cam[1];
+  float camZ = activeCam->cam[2];
+  float lookX = activeCam->target[0];
+  float lookY = activeCam->target[1];
+  float lookZ = activeCam->target[2];
+  float upX = 0.0f;
+  float upY = 0.0f;
+  float upZ = 1.0f; // Z is up in GLTron
 
   // Initialize the model-view matrix
   memset(modelViewMatrix, 0, sizeof(modelViewMatrix));

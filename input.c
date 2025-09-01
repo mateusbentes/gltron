@@ -1,5 +1,9 @@
-#define KEYBOARD
 #include "gltron.h"
+#ifdef ANDROID
+#include "switchCallbacks.h"
+#endif
+
+#define KEYBOARD
 
 void keyGame(unsigned char k, int x, int y) {
   switch (k) {

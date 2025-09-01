@@ -1,4 +1,7 @@
 #include "gltron.h"
+#ifdef ANDROID
+#include "switchCallbacks.h"
+#endif
 
 static int p_is_down = 0;
 static int p_down_x = 0, p_down_y = 0;

@@ -491,4 +491,10 @@ extern callbacks guiCallbacks;
 /* extern callbacks chooseModelCallbacks; */
 extern callbacks pauseCallbacks;
 
+//dimensions functions
+#ifdef ANDROID
+void ensure2D(GLuint prog, int w, int h);
+void ensure3D(GLuint prog);
+#endif
+
 #endif

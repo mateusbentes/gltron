@@ -5,6 +5,7 @@
 #include <GLES2/gl2.h>
 #include "shaders.h"
 #include "android_glue.h"
+#include "switchCallbacks.h"
 #else
 #include <GL/gl.h>
 #include <GL/freeglut.h>  // For GLUT functions

@@ -5,6 +5,7 @@
 // On Android we don't have GLUT; guard calls and constants
 #define GLUT_LEFT_BUTTON 0
 #define GLUT_UP 1
+#include "switchCallbacks.h"
 #endif
 
 /* Helper to map window coords to menu item index */

@@ -2,10 +2,6 @@
 #include "geom.h"
 #include <string.h>
 #include <math.h>
-#ifdef ANDROID
-#include <android/log.h>
-#endif
-#include <math.h>
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
@@ -17,6 +13,7 @@ void drawGlow(Player *p, gDisplay *d, float dim);
 
 #ifdef ANDROID
 #include <GLES2/gl2.h>
+#include <android/log.h>
 #include "shaders.h"
 #else
 #include <GL/gl.h>
@@ -61,7 +58,7 @@ static inline GLuint ensure_basic_shader_bound() {
   return prog;
 }
 
-static inline void ensure2D(GLuint prog, int w, int h) {
+void ensure2D(GLuint prog, int w, int h) {
   if (!prog) return;
   // 2D mode flag and ortho
   setRenderMode2D(prog, 1);
@@ -77,7 +74,7 @@ static inline void ensure2D(GLuint prog, int w, int h) {
   setModelMatrix(prog, identity);
 }
 
-static inline void ensure3D(GLuint prog) {
+void ensure3D(GLuint prog) {
   if (!prog) return;
   setRenderMode2D(prog, 0);
 }

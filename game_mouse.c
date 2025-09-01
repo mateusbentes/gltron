@@ -5,6 +5,7 @@
 #define GLUT_LEFT_BUTTON 0
 #define GLUT_DOWN 0
 #define GLUT_UP 1
+#include "switchCallbacks.h"
 #endif
 
 static int down_x = -1, down_y = -1;
