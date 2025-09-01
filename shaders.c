@@ -4,6 +4,7 @@
 #include <android/log.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, "GLTron", __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, "GLTron", __VA_ARGS__)
 
@@ -236,7 +237,8 @@ void setRenderMode2D(GLuint program, int is2D) {
         u_is2D = glGetUniformLocation(program, "is2D");
     }
     if (u_is2D == -1) {
-        LOGE("Failed to get is2D location");
+        // Not an error - shader might not support 2D/3D switching
+        LOGI("is2D uniform not found - shader may not support 2D/3D mode switching");
         return;
     }
     glUniform1i(u_is2D, is2D ? 1 : 0);
@@ -252,6 +254,7 @@ void setProjectionMatrix(GLuint program, float* matrix) {
         u_proj = glGetUniformLocation(program, "projectionMatrix");
     }
     if (u_proj == -1) {
+        // This is critical - projection matrix should always exist
         LOGE("Failed to get projection matrix location");
         return;
     }
@@ -267,7 +270,8 @@ void setModelMatrix(GLuint program, float* matrix) {
         u_model = glGetUniformLocation(program, "modelMatrix");
     }
     if (u_model == -1) {
-        LOGE("Failed to get model matrix location");
+        // Model matrix might be optional in some shaders
+        LOGI("Model matrix location not found - may be optional");
         return;
     }
     glUniformMatrix4fv(u_model, 1, GL_FALSE, matrix);
@@ -282,7 +286,8 @@ void setViewMatrix(GLuint program, float* matrix) {
         u_view = glGetUniformLocation(program, "viewMatrix");
     }
     if (u_view == -1) {
-        LOGE("Failed to get view matrix location");
+        // View matrix might be optional in 2D mode
+        LOGI("View matrix location not found - may be optional for 2D");
         return;
     }
     glUniformMatrix4fv(u_view, 1, GL_FALSE, matrix);
@@ -297,16 +302,38 @@ void setNormalMatrix(GLuint program, float* matrix) {
     // Calculate the normal matrix from the model matrix
     // The normal matrix is the inverse transpose of the upper-left 3x3 of the model matrix
     float normalMatrix[9] = {
-        matrix[0], matrix[1], matrix[2],  // First row of model matrix
-        matrix[4], matrix[5], matrix[6],  // Second row of model matrix
-        matrix[8], matrix[9], matrix[10]  // Third row of model matrix
+        matrix[0], matrix[1], matrix[2],   // First row of model matrix
+        matrix[4], matrix[5], matrix[6],   // Second row of model matrix
+        matrix[8], matrix[9], matrix[10]   // Third row of model matrix
     };
 
     // Calculate the determinant of the 3x3 matrix
+    // For a 3x3 matrix stored as [0,1,2,3,4,5,6,7,8], the layout is:
+    // [0 1 2]
+    // [3 4 5]
+    // [6 7 8]
     float det = normalMatrix[0] * (normalMatrix[4] * normalMatrix[8] - normalMatrix[5] * normalMatrix[7]) -
                 normalMatrix[1] * (normalMatrix[3] * normalMatrix[8] - normalMatrix[5] * normalMatrix[6]) +
                 normalMatrix[2] * (normalMatrix[3] * normalMatrix[7] - normalMatrix[4] * normalMatrix[6]);
 
+    // Check for zero determinant to avoid division by zero
+    if (fabs(det) < 0.000001f) {
+        // Matrix is singular, use identity matrix as fallback
+        float identity[16] = {
+            1, 0, 0, 0,
+            0, 1, 0, 0,
+            0, 0, 1, 0,
+            0, 0, 0, 1
+        };
+        if (program != g_shader_unified || u_normal == -1) {
+            u_normal = glGetUniformLocation(program, "normalMatrix");
+        }
+        if (u_normal != -1) {
+            glUniformMatrix4fv(u_normal, 1, GL_FALSE, identity);
+        }
+        return;
+    }
+    
     // Calculate the inverse of the 3x3 matrix
     float invDet = 1.0f / det;
     float invNormalMatrix[9] = {
@@ -341,7 +368,8 @@ void setNormalMatrix(GLuint program, float* matrix) {
         u_normal = glGetUniformLocation(program, "normalMatrix");
     }
     if (u_normal == -1) {
-        LOGE("Failed to get normal matrix location");
+        // Normal matrix is optional for 2D rendering
+        LOGI("Normal matrix location not found - may be optional for 2D");
         return;
     }
     glUniformMatrix4fv(u_normal, 1, GL_FALSE, normalMatrix4x4);
@@ -371,7 +399,8 @@ void setTexture(GLuint program, GLuint textureUnit) {
         u_tex = glGetUniformLocation(program, "texture");
     }
     if (u_tex == -1) {
-        LOGE("Failed to get texture location");
+        // Texture uniform might be optional for solid color rendering
+        LOGI("Texture uniform not found - solid color rendering will be used");
         return;
     }
     glUniform1i(u_tex, (GLint)textureUnit);
@@ -386,7 +415,7 @@ void setLightPosition(GLuint program, float x, float y, float z) {
         u_lightPos = glGetUniformLocation(program, "lightPosition");
     }
     if (u_lightPos == -1) {
-        LOGE("Failed to get lightPosition location");
+        // Lighting uniforms are optional in 2D mode
         return;
     }
     glUniform3f(u_lightPos, x, y, z);
@@ -401,7 +430,7 @@ void setLightColor(GLuint program, float r, float g, float b) {
         u_lightColor = glGetUniformLocation(program, "lightColor");
     }
     if (u_lightColor == -1) {
-        LOGE("Failed to get lightColor location");
+        // Lighting uniforms are optional in 2D mode
         return;
     }
     glUniform3f(u_lightColor, r, g, b);
@@ -416,7 +445,7 @@ void setAmbientLight(GLuint program, float r, float g, float b) {
         u_ambientLight = glGetUniformLocation(program, "ambientLight");
     }
     if (u_ambientLight == -1) {
-        LOGE("Failed to get ambientLight location");
+        // Lighting uniforms are optional in 2D mode
         return;
     }
     glUniform3f(u_ambientLight, r, g, b);
@@ -481,6 +510,8 @@ void ensureShaderBound() {
         if (currentProgram != (GLint)g_shader_unified) {
             glUseProgram(g_shader_unified);
         }
+    } else {
+        LOGE("Failed to ensure shader is bound - shader initialization failed");
     }
 }
 
@@ -489,17 +520,31 @@ void setup2DRendering() {
     ensureShaderBound();
     setRenderMode2D(g_shader_unified, 1);
     
+    // Get viewport dimensions
+    GLint viewport[4];
+    glGetIntegerv(GL_VIEWPORT, viewport);
+    float width = (float)viewport[2];
+    float height = (float)viewport[3];
+    
+    // Fallback to default if viewport query fails
+    if (width <= 0 || height <= 0) {
+        width = 800.0f;
+        height = 600.0f;
+    }
+    
     // Set up orthographic projection for 2D
+    // Maps screen coordinates to NDC: (0,0) at top-left, (width,height) at bottom-right
     GLfloat orthoMatrix[16] = {
-        2.0f/800.0f, 0, 0, 0,  // Assuming 800x600 screen, adjust as needed
-        0, 2.0f/600.0f, 0, 0,
+        2.0f/width, 0, 0, 0,
+        0, -2.0f/height, 0, 0,  // Negative to flip Y axis (top-down)
         0, 0, -1, 0,
-        -1, -1, 0, 1
+        -1, 1, 0, 1
     };
     setProjectionMatrix(g_shader_unified, orthoMatrix);
     
     GLfloat identity[16] = {1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1};
     setModelMatrix(g_shader_unified, identity);
+    setViewMatrix(g_shader_unified, identity);
 }
 
 void setup3DRendering() {
