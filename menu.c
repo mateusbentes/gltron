@@ -82,9 +82,26 @@ void menuAction(Menu *activated) {
       requestDisplayApply();
       initData();
 #ifdef ANDROID
+      __android_log_print(ANDROID_LOG_INFO, "GLTron", "Starting game from menu");
       /* Reset game callbacks initialization to force re-setup */
       reset_game_callbacks_init();
-#endif
+      /* Start game unpaused on Android */
+      game->pauseflag = 0;
+      /* Setup display for the game */
+      if (game && game->screen) {
+        __android_log_print(ANDROID_LOG_INFO, "GLTron", "Setting up display: w=%d h=%d", 
+                           game->screen->w, game->screen->h);
+        setupDisplay(game->screen);
+      }
+      /* Initialize player viewports */
+      changeDisplay();
+      /* Reset timing to avoid huge jumps */
+      extern int lasttime;
+      lasttime = getElapsedTime();
+      /* Go directly to game callbacks on Android, not pause */
+      __android_log_print(ANDROID_LOG_INFO, "GLTron", "Switching to game callbacks");
+      android_switchCallbacks(&gameCallbacks);
+#else
       /* Setup display for the game */
       if (game && game->screen) {
         setupDisplay(game->screen);
@@ -92,6 +109,7 @@ void menuAction(Menu *activated) {
       /* Initialize player viewports */
       changeDisplay();
       switchCallbacks(&pauseCallbacks);
+#endif
       /* Apply immediately to avoid wrong size at game start */
       applyDisplaySettingsDeferred();
       break;

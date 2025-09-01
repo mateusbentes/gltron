@@ -290,7 +290,15 @@ void android_switchCallbacks(callbacks *new) {
       if (game && game->screen) {
         __android_log_print(ANDROID_LOG_INFO, "gltron", "Setting up display for game");
         setupDisplay(game->screen);
+        // Force viewport update for game
+        game->screen->vp_x = 0;
+        game->screen->vp_y = 0;
+        game->screen->vp_w = game->screen->w;
+        game->screen->vp_h = game->screen->h;
       }
+      // Reset timing to avoid huge jumps
+      extern int lasttime;
+      lasttime = getElapsedTime();
     }
   } else if (new == &pauseCallbacks) {
     if (!pause_callbacks_initialized) {
@@ -306,6 +314,7 @@ void android_switchCallbacks(callbacks *new) {
 
   // Initialize the new callbacks only if needed
   if (needs_init && new->init && new->init != (void*)0xdeadbeef) {
+    __android_log_print(ANDROID_LOG_INFO, "gltron", "Calling init() for %s", callback_name);
     (new->init)();
   }
 
@@ -315,13 +324,14 @@ void android_switchCallbacks(callbacks *new) {
       // Clear error queue
     }
     
+    __android_log_print(ANDROID_LOG_INFO, "gltron", "Calling initGL() for %s", callback_name);
     // Call initGL directly without recursive fallback
     (new->initGL)();
     
     // Check for errors after initGL
     GLenum error = glGetError();
     if (error != GL_NO_ERROR) {
-      __android_log_print(ANDROID_LOG_WARN, "gltron", "GL error after initGL: %d (non-fatal)", error);
+      __android_log_print(ANDROID_LOG_WARN, "gltron", "GL error after initGL: 0x%x (non-fatal)", error);
       // Don't fallback recursively, just log the error
     }
   }
@@ -378,9 +388,15 @@ void gltron_init(void) {
 
   init_settings_android();
   
+  // Initialize game structures BEFORE setting up anything else
+  initGameStructures();
+  resetScores();
+  
   // Ensure touch input is enabled on Android
   if (game && game->settings) {
     game->settings->input_mode = 1; // enable touch/mouse input
+    // Also ensure game starts unpaused
+    game->settings->fast_finish = 1; // Enable fast finish for better Android experience
   }
   
   // Load menu.txt similar to desktop gltron.c
@@ -438,11 +454,13 @@ void gltron_init(void) {
     pCurrent = root;
   }
 
-  initGameStructures();
-  resetScores();
+  // Already initialized above, just call initData
   initData();
   
-  // Don't force unpause - let the game start normally
+  // Start the game unpaused on Android
+  if (game) {
+    game->pauseflag = 0;
+  }
 
   // Initialize sound backend and try to load/play music on Android
 #ifdef ANDROID
@@ -459,6 +477,15 @@ void gltron_init(void) {
   init_shaders_android();
   GLenum error = glGetError();
   if (error != GL_NO_ERROR) {
+    __android_log_print(ANDROID_LOG_WARN, "gltron", "GL error after shader init: 0x%x", error);
+  }
+  
+  // Verify shader was created successfully
+  GLuint prog = shader_get_basic();
+  if (!prog) {
+    __android_log_print(ANDROID_LOG_ERROR, "gltron", "Failed to create shader program!");
+  } else {
+    __android_log_print(ANDROID_LOG_INFO, "gltron", "Shader program created successfully: %u", prog);
   }
   
   // initialize font texture/renderer
@@ -612,12 +639,14 @@ void draw_android_overlay() {
 void gltron_frame(void) {
   if (!initialized) gltron_init();
   
-  // Continuous input while buttons are active
-  if (active_left) {
-    keyGame('a', 0, 0);
-  } else if (active_right) {
-    keyGame('s', 0, 0);
+  // Ensure we have valid game state
+  if (!game) {
+    __android_log_print(ANDROID_LOG_ERROR, "gltron", "gltron_frame: game is NULL!");
+    return;
   }
+  
+  // Don't send continuous turn commands - they're handled on button press
+  // This prevents the cycle from turning multiple times per button press
   
   // Safely call idle callback
   if (current_android_callbacks.idle && current_android_callbacks.idle != (void*)0xdeadbeef) {
@@ -626,6 +655,12 @@ void gltron_frame(void) {
   
   // Clear and render
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  
+  // Ensure shader is bound before rendering
+  GLuint prog = shader_get_basic();
+  if (prog) {
+    glUseProgram(prog);
+  }
   
   // Safely call display callback
   if (current_android_callbacks.display && current_android_callbacks.display != (void*)0xdeadbeef) {
@@ -659,6 +694,9 @@ void gltron_on_touch(float x, float y, int action) {
   if (game && (game->pauseflag != 0)) {
     if ((action & 0xFF) == 1 /* ACTION_UP */ && !(game->pauseflag & PAUSE_GAME_FINISHED)) {
       extern callbacks gameCallbacks;
+      // Reset timing to avoid huge time jumps
+      extern int lasttime;
+      lasttime = getElapsedTime();
       android_switchCallbacks(&gameCallbacks);
       // Apply display settings after switching to game callbacks
       requestDisplayApply();
@@ -742,17 +780,28 @@ void gltron_on_touch(float x, float y, int action) {
 
   // Manage active button states for in-game overlay
   if (actionMasked == 0 /* ACTION_DOWN */ || actionMasked == 2 /* ACTION_MOVE */) {
+    int was_left = active_left;
+    int was_right = active_right;
+    
     active_left = hit_btn(ix, iy, btn_left);
     active_right = hit_btn(ix, iy, btn_right);
     active_pause = hit_btn(ix, iy, btn_pause);
+    
     if (active_pause && actionMasked == 0) {
+      __android_log_print(ANDROID_LOG_INFO, "gltron", "Pause button pressed");
       keyGame(' ', 0, 0);
       return;
     }
-    if (active_left || active_right) {
-      // Immediate response on down/move
-      if (active_left) keyGame('a', 0, 0);
-      if (active_right) keyGame('s', 0, 0);
+    
+    // Only send turn commands on initial press, not continuous
+    if (active_left && !was_left) {
+      __android_log_print(ANDROID_LOG_INFO, "gltron", "Left button pressed");
+      keyGame('a', 0, 0);
+      return;
+    }
+    if (active_right && !was_right) {
+      __android_log_print(ANDROID_LOG_INFO, "gltron", "Right button pressed");
+      keyGame('s', 0, 0);
       return;
     }
     // Not over overlay buttons: forward to mouse-based swipe/tap logic

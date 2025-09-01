@@ -104,7 +104,11 @@ void mouseGui(int button, int state, int x, int y) {
         pCurrent = pCurrent->parent;
         pCurrent->iHighlight = -1;
         /* Ensure GUI callbacks are active */
+#ifdef ANDROID
+        android_switchCallbacks(&guiCallbacks);
+#else
         switchCallbacks(&guiCallbacks);
+#endif
         /* Force immediate display apply to avoid stale screen */
         requestDisplayApply();
         applyDisplaySettingsDeferred();

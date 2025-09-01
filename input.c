@@ -4,7 +4,13 @@
 void keyGame(unsigned char k, int x, int y) {
   switch (k) {
   case 'q': exit(0); break;
-  case 27: switchCallbacks(&guiCallbacks); break;
+  case 27: 
+#ifdef ANDROID
+    android_switchCallbacks(&guiCallbacks);
+#else
+    switchCallbacks(&guiCallbacks);
+#endif
+    break;
     /* steering player 0 */
   case 'a': case 'A': turn(game->player[0].data, 3); break;
   case 's': case 'S': turn(game->player[0].data, 1); break;
@@ -16,7 +22,13 @@ void keyGame(unsigned char k, int x, int y) {
   case '6': turn(game->player[2].data, 1); break;
     /* steering player 3 */
     /* cursor keys in specialKey() */
-  case ' ': switchCallbacks(&pauseCallbacks); break;
+  case ' ': 
+#ifdef ANDROID
+    android_switchCallbacks(&pauseCallbacks);
+#else
+    switchCallbacks(&pauseCallbacks);
+#endif
+    break;
     /* case 9: glutIdleFunc(0); break; */
   default: fprintf(stderr, "key %d is not bound\n", k);
   }

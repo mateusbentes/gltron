@@ -119,6 +119,17 @@ void drawGame() {
 void displayGame() {
     /* Ensure viewports match window size at draw time after any display change */
     forceViewportResetIfNeededForGame();
+    
+#ifdef ANDROID
+    // Ensure shader is properly set up for game rendering
+    GLuint prog = shader_get_basic();
+    if (prog) {
+        glUseProgram(prog);
+        // Set up proper 3D projection for game
+        ensure3D(prog);
+    }
+#endif
+    
     drawGame();
     if(game->settings->mouse_warp)
         mouseWarp();
@@ -142,6 +153,7 @@ void initCustomLights() {
 
 void initGLGame() {
 #ifdef ANDROID
+    __android_log_print(ANDROID_LOG_INFO, "GLTron", "initGLGame called");
     // Android-specific OpenGL initialization
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glEnable(GL_DEPTH_TEST);
@@ -154,6 +166,11 @@ void initGLGame() {
 
     // Create shader program
     shaderProgram = shader_get_basic();
+    if (!shaderProgram) {
+        __android_log_print(ANDROID_LOG_ERROR, "GLTron", "Failed to get shader in initGLGame!");
+    } else {
+        __android_log_print(ANDROID_LOG_INFO, "GLTron", "Shader program ready: %u", shaderProgram);
+    }
 #else
     // First create the window if it doesn't exist
     if (glutGetWindow() == 0) {

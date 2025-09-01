@@ -60,7 +60,11 @@ void mouseGame(int button, int state, int x, int y) {
         long up_t = getElapsedTime();
         if (is_tap(x, y, up_t)) {
           /* tap toggles pause */
+#ifdef ANDROID
+          android_switchCallbacks(&pauseCallbacks);
+#else
           switchCallbacks(&pauseCallbacks);
+#endif
         } else {
           handle_swipe(dx, dy);
         }

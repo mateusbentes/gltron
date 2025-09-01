@@ -39,7 +39,15 @@ void mousePause(int button, int state, int x, int y) {
           if(game->pauseflag & PAUSE_GAME_FINISHED)
             initData();
           lasttime = getElapsedTime();
-          switchCallbacks(&gameCallbacks);
+#ifdef ANDROID
+          android_switchCallbacks(&gameCallbacks);
+#else
+      #ifdef ANDROID
+    android_switchCallbacks(&gameCallbacks);
+#else
+    switchCallbacks(&gameCallbacks);
+#endif
+#endif
         }
       }
       p_is_down = 0;
@@ -75,13 +83,21 @@ void displayPause() {
 void keyboardPause(unsigned char key, int x, int y) {
   switch(key) {
   case 27:
+#ifdef ANDROID
+    android_switchCallbacks(&guiCallbacks);
+#else
     switchCallbacks(&guiCallbacks);
+#endif
     break;
   case ' ':
     if(game->pauseflag & PAUSE_GAME_FINISHED)
       initData();
     lasttime = getElapsedTime();
+#ifdef ANDROID
+    android_switchCallbacks(&gameCallbacks);
+#else
     switchCallbacks(&gameCallbacks);
+#endif
     break;
   case 'q':
     exit(1);

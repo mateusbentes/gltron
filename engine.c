@@ -188,7 +188,12 @@ void initData() {
 
     setMaterialAlphas(model->mesh, 1.0);
 
+#ifdef ANDROID
+    // Force chase cam (Mike-cam) for Android for better mobile experience
+    cam->camType = 1;
+#else
     cam->camType = game->settings->camType;
+#endif
     cam->target[0] = data->posx;
     cam->target[1] = data->posy;
     cam->target[2] = 0;
@@ -228,7 +233,12 @@ void initData() {
     *(colmap + i) = 0;
 
   lasttime = getElapsedTime();
+#ifdef ANDROID
+  // Start unpaused on Android for immediate gameplay
   game->pauseflag = 0;
+#else
+  game->pauseflag = 0;
+#endif
 }
 
 
@@ -390,6 +400,10 @@ void idleGame( void ) {
 	loop = 1;
   } else loop = 1;
 
+  // Ensure we don't have huge time jumps on first frame
+  if(getElapsedTime() - lasttime > 1000) {
+    lasttime = getElapsedTime() - 20; // Reset to reasonable delta
+  }
   if(getElapsedTime() - lasttime < 10 && loop == 1) return;
   timediff();
   for(j = 0; j < loop; j++) {
@@ -470,7 +484,11 @@ void movePlayers() {
 			 data->dir, &x, &y);
 	if (col) {
 #ifdef SOUND
+#ifdef ANDROID
+	  sb_play_sample("game_crash.wav");
+#else
 	  playSampleEffect(crash_sfx);
+#endif
 #endif
 	  /* set endpoint to collision coordinates */
 	  newx = x;
@@ -512,7 +530,12 @@ void movePlayers() {
 	    if(game->player[winner].data->speed > 0) break;
 	  game->winner = (winner == game->players) ? -1 : winner;
 	  printf("winner: %d\n", winner);
+#ifdef ANDROID
+	  extern callbacks pauseCallbacks;
+	  android_switchCallbacks(&pauseCallbacks);
+#else
 	  switchCallbacks(&pauseCallbacks);
+#endif
 	  /* screenSaverCheck(0); */
 	  game->pauseflag = PAUSE_GAME_FINISHED;
 	}
@@ -531,6 +554,11 @@ void timediff() {
 }
 
 void camMove() {
+#ifdef ANDROID
+  // On Android, camera movement is handled by chaseCamMove()
+  // This function is only for legacy compatibility
+  return;
+#else
   // Get the active player (assuming player 0 is the main player)
   Data *activePlayer = game->player[0].data;
 
@@ -560,6 +588,7 @@ void camMove() {
   float upX = 0.0f;
   float upY = 0.0f;
   float upZ = 1.0f;   // In GLTron, Z is up, not Y
+#endif
 
 #ifdef ANDROID
   // OpenGL ES 2.0 implementation
