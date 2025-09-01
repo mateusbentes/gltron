@@ -42,6 +42,8 @@ void drawGlow(Player *p, gDisplay *d, float dim);
 #endif
 
 #ifdef ANDROID
+// Helper function to check OpenGL errors
+// Defined in graphics.c, declared in gltron.h as extern
 // Small helpers to keep shader state consistent
 static inline GLuint ensure_basic_shader_bound() {
   GLuint prog = shader_get_basic();
@@ -373,67 +375,104 @@ void drawFloor(gDisplay *d) {
         l = GSIZE / 4;
         t = 5;
         
-        // Simple quad rendering
-        for(j = 0; j < GSIZE; j += l) {
-            for(k = 0; k < GSIZE; k += l) {
-                GLfloat vertices[] = {
-                    // Position (x,y,z)    Texture (u,v)
-                    j,     k,     0.0f,   0.0f, 0.0f,
-                    j + l, k,     0.0f,   t,    0.0f,
-                    j + l, k + l, 0.0f,   t,    t,
-                    j,     k + l, 0.0f,   0.0f, t
-                };
-                
-                GLushort indices[] = {0, 1, 2, 0, 2, 3};
+        // Reusable buffer for floor rendering to avoid repeated creation/deletion
+        static GLuint floor_vbo = 0, floor_ebo = 0;
+        static int floor_initialized = 0;
+        static int floor_quad_count = 0;
+        static int floor_index_count = 0;
 
-                GLuint vbo = 0, ebo = 0;
-                glGenBuffers(1, &vbo);
-                if (vbo == 0) {
-                    checkGLError("glGenBuffers for vbo");
-                    continue;
+        if (!floor_initialized) {
+            floor_quad_count = (GSIZE / l) * (GSIZE / l);
+            GLfloat *vertices = (GLfloat *)malloc(floor_quad_count * 4 * 5 * sizeof(GLfloat));
+            GLushort *indices = (GLushort *)malloc(floor_quad_count * 6 * sizeof(GLushort));
+            int vIndex = 0, iIndex = 0, quadIndex = 0;
+
+            for(j = 0; j < GSIZE; j += l) {
+                for(k = 0; k < GSIZE; k += l) {
+                    // Position (x,y,z) and Texture (u,v) for each vertex of the quad
+                    vertices[vIndex++] = j;       vertices[vIndex++] = k;       vertices[vIndex++] = 0.0f; vertices[vIndex++] = 0.0f; vertices[vIndex++] = 0.0f;
+                    vertices[vIndex++] = j + l;   vertices[vIndex++] = k;       vertices[vIndex++] = 0.0f; vertices[vIndex++] = t;    vertices[vIndex++] = 0.0f;
+                    vertices[vIndex++] = j + l;   vertices[vIndex++] = k + l;   vertices[vIndex++] = 0.0f; vertices[vIndex++] = t;    vertices[vIndex++] = t;
+                    vertices[vIndex++] = j;       vertices[vIndex++] = k + l;   vertices[vIndex++] = 0.0f; vertices[vIndex++] = 0.0f; vertices[vIndex++] = t;
+
+                    // Indices for two triangles per quad
+                    int base = quadIndex * 4;
+                    indices[iIndex++] = base + 0; indices[iIndex++] = base + 1; indices[iIndex++] = base + 2;
+                    indices[iIndex++] = base + 0; indices[iIndex++] = base + 2; indices[iIndex++] = base + 3;
+
+                    quadIndex++;
+                    polycount++;
                 }
-                glGenBuffers(1, &ebo);
-                if (ebo == 0) {
-                    checkGLError("glGenBuffers for ebo");
-                    glDeleteBuffers(1, &vbo);
-                    continue;
-                }
-
-                glBindBuffer(GL_ARRAY_BUFFER, vbo);
-                glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-                glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-
-                GLint posLoc = glGetAttribLocation(shaderProgram, "position");
-                GLint texLoc = glGetAttribLocation(shaderProgram, "texCoord");
-                GLint normalLoc = glGetAttribLocation(shaderProgram, "normal");
-
-                if (posLoc >= 0) {
-                    glEnableVertexAttribArray(posLoc);
-                    glVertexAttribPointer(posLoc, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (void*)0);
-                }
-
-                if (texLoc >= 0) {
-                    glEnableVertexAttribArray(texLoc);
-                    glVertexAttribPointer(texLoc, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (void*)(3 * sizeof(GLfloat)));
-                }
-
-                if (normalLoc >= 0) {
-                    glVertexAttrib3f(normalLoc, 0.0f, 0.0f, 1.0f);
-                }
-
-                glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, 0);
-
-                if (posLoc >= 0) glDisableVertexAttribArray(posLoc);
-                if (texLoc >= 0) glDisableVertexAttribArray(texLoc);
-                
-                glDeleteBuffers(1, &vbo);
-                glDeleteBuffers(1, &ebo);
-                
-                polycount++;
             }
+            floor_index_count = iIndex;
+
+            glGenBuffers(1, &floor_vbo);
+            if (floor_vbo == 0) {
+                checkGLError("glGenBuffers for floor_vbo");
+                free(vertices);
+                free(indices);
+                return;
+            }
+            glBindBuffer(GL_ARRAY_BUFFER, floor_vbo);
+            glBufferData(GL_ARRAY_BUFFER, floor_quad_count * 4 * 5 * sizeof(GLfloat), vertices, GL_STATIC_DRAW);
+
+            glGenBuffers(1, &floor_ebo);
+            if (floor_ebo == 0) {
+                checkGLError("glGenBuffers for floor_ebo");
+                glDeleteBuffers(1, &floor_vbo);
+                free(vertices);
+                free(indices);
+                return;
+            }
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, floor_ebo);
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER, floor_index_count * sizeof(GLushort), indices, GL_STATIC_DRAW);
+
+            glBindBuffer(GL_ARRAY_BUFFER, 0);
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+            free(vertices);
+            free(indices);
+            floor_initialized = 1;
+            LOGI("Floor buffers initialized: vbo=%u, ebo=%u, quads=%d, indices=%d", floor_vbo, floor_ebo, floor_quad_count, floor_index_count);
         }
+
+        // Debug logging for texture and shader state
+        LOGI("Drawing floor with texture ID: %u", game->screen->texFloor);
+
+        // Use pre-created buffers
+        glBindBuffer(GL_ARRAY_BUFFER, floor_vbo);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, floor_ebo);
+
+        GLint posLoc = glGetAttribLocation(shaderProgram, "position");
+        GLint texLoc = glGetAttribLocation(shaderProgram, "texCoord");
+        GLint normalLoc = glGetAttribLocation(shaderProgram, "normal");
+
+        if (posLoc >= 0) {
+            glEnableVertexAttribArray(posLoc);
+            glVertexAttribPointer(posLoc, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (void*)0);
+        } else {
+            LOGE("Position attribute location not found: %d", posLoc);
+        }
+
+        if (texLoc >= 0) {
+            glEnableVertexAttribArray(texLoc);
+            glVertexAttribPointer(texLoc, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (void*)(3 * sizeof(GLfloat)));
+        } else {
+            LOGI("Texture coordinate attribute location not found: %d", texLoc);
+        }
+
+        if (normalLoc >= 0) {
+            glVertexAttrib3f(normalLoc, 0.0f, 0.0f, 1.0f);
+        } else {
+            LOGI("Normal attribute location not found: %d", normalLoc);
+        }
+
+        glDrawElements(GL_TRIANGLES, floor_index_count, GL_UNSIGNED_SHORT, 0);
+
+        if (posLoc >= 0) glDisableVertexAttribArray(posLoc);
+        if (texLoc >= 0) glDisableVertexAttribArray(texLoc);
+
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
 #else
         // Desktop textured floor
@@ -574,53 +613,55 @@ void drawTraces(Player *p, gDisplay *d, int instance) {
     glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
 #ifdef ANDROID
-    // For Android, use vertex buffers with unified shader helpers
-    GLfloat vertices[(data->trail - &(data->trails[0]) + 1) * 2 * 3]; // 2 vertices per line segment, 3 floats per vertex
-    int vertexCount = 0;
+    // For Android, use vertex buffers with unified shader helpers, optimized with single buffer
+    int trailCount = (data->trail - &(data->trails[0]) + 1);
+    int vertexCount = trailCount * 2; // 2 vertices per segment (top and bottom)
+    GLfloat *vertices = (GLfloat *)malloc(vertexCount * 3 * sizeof(GLfloat));
+    int vIndex = 0;
 
     line = &(data->trails[0]);
-    vertices[vertexCount++] = line->sx;
-    vertices[vertexCount++] = line->sy;
-    vertices[vertexCount++] = 0.0f;
-
-    vertices[vertexCount++] = line->sx;
-    vertices[vertexCount++] = line->sy;
-    vertices[vertexCount++] = height;
+    vertices[vIndex++] = line->sx;
+    vertices[vIndex++] = line->sy;
+    vertices[vIndex++] = 0.0f;
+    vertices[vIndex++] = line->sx;
+    vertices[vIndex++] = line->sy;
+    vertices[vIndex++] = height;
 
     while(line != data->trail) {
-      vertices[vertexCount++] = line->ex;
-      vertices[vertexCount++] = line->ey;
-      vertices[vertexCount++] = 0.0f;
-
-      vertices[vertexCount++] = line->ex;
-      vertices[vertexCount++] = line->ey;
-      vertices[vertexCount++] = height;
-
       line++;
+      vertices[vIndex++] = line->ex;
+      vertices[vIndex++] = line->ey;
+      vertices[vIndex++] = 0.0f;
+      vertices[vIndex++] = line->ex;
+      vertices[vIndex++] = line->ey;
+      vertices[vIndex++] = height;
       polycount++;
     }
 
-    vertices[vertexCount++] = line->ex;
-    vertices[vertexCount++] = line->ey;
-    vertices[vertexCount++] = 0.0f;
-
-    vertices[vertexCount++] = line->ex;
-    vertices[vertexCount++] = line->ey;
-    vertices[vertexCount++] = height;
-
-    // Create and bind vertex buffer
-    GLuint vbo;
-    glGenBuffers(1, &vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
     // Use shader program consistently
     GLuint shaderProgram = ensure_basic_shader_bound();
-    if (!shaderProgram) return;
+    if (!shaderProgram) {
+      free(vertices);
+      return;
+    }
     ensure3D(shaderProgram);
 
     // Identity model matrix for floor lines
     setIdentityMatrix(shaderProgram, MATRIX_MODEL);
+
+    // Set color from player material
+    setColor(shaderProgram, p->model->color_alpha[0], p->model->color_alpha[1], p->model->color_alpha[2], p->model->color_alpha[3]);
+
+    // Create and bind vertex buffer
+    GLuint vbo = 0;
+    glGenBuffers(1, &vbo);
+    if (vbo == 0) {
+      checkGLError("glGenBuffers");
+      free(vertices);
+      return;
+    }
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, vertexCount * 3 * sizeof(GLfloat), vertices, GL_STATIC_DRAW);
 
     // Set up attributes
     GLint positionLoc = glGetAttribLocation(shaderProgram, "position");
@@ -629,16 +670,14 @@ void drawTraces(Player *p, gDisplay *d, int instance) {
       glVertexAttribPointer(positionLoc, 3, GL_FLOAT, GL_FALSE, 0, 0);
     }
 
-    // Set color from player material
-    setColor(shaderProgram, p->model->color_alpha[0], p->model->color_alpha[1], p->model->color_alpha[2], p->model->color_alpha[3]);
-
     // Draw
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, vertexCount / 3);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, vertexCount);
 
     // Clean up
     if (positionLoc >= 0) glDisableVertexAttribArray(positionLoc);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glDeleteBuffers(1, &vbo);
+    free(vertices);
 
     if(game->settings->camType == 1) {
       GLfloat quadVertices[] = {
@@ -648,9 +687,13 @@ void drawTraces(Player *p, gDisplay *d, int instance) {
         data->trail->ex - LINE_D, data->trail->ey - LINE_D, 0.0f
       };
 
-      // Create and bind vertex buffer
-      GLuint quadVbo;
+      // Create and bind vertex buffer for quad
+      GLuint quadVbo = 0;
       glGenBuffers(1, &quadVbo);
+      if (quadVbo == 0) {
+        checkGLError("glGenBuffers for quad");
+        return;
+      }
       glBindBuffer(GL_ARRAY_BUFFER, quadVbo);
       glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), quadVertices, GL_STATIC_DRAW);
 
@@ -1275,42 +1318,39 @@ void drawWalls(gDisplay *d) {
   float t = 4;
 
 #ifdef ANDROID
-  // For Android, use vertex buffers for better performance
+  // For Android, use vertex buffers for rendering walls with shaders
   GLfloat vertices[] = {
-    // First quad
+    // First quad (bottom wall)
     0.0f, 0.0f, 0.0f, t, 0.0f,
     0.0f, 0.0f, WALL_H, t, 1.0f,
     GSIZE, 0.0f, WALL_H, 0.0f, 1.0f,
     GSIZE, 0.0f, 0.0f, 0.0f, 0.0f,
 
-    // Second quad
+    // Second quad (right wall)
     GSIZE, 0.0f, 0.0f, t, 1.0f,
     GSIZE, 0.0f, WALL_H, t, 0.0f,
     GSIZE, GSIZE, WALL_H, 0.0f, 0.0f,
     GSIZE, GSIZE, 0.0f, 0.0f, 1.0f,
 
-    // Third quad
+    // Third quad (top wall)
     GSIZE, GSIZE, 0.0f, t, 1.0f,
     GSIZE, GSIZE, WALL_H, t, 0.0f,
     0.0f, GSIZE, WALL_H, 0.0f, 0.0f,
     0.0f, GSIZE, 0.0f, 0.0f, 1.0f,
 
-    // Fourth quad
+    // Fourth quad (left wall)
     0.0f, GSIZE, 0.0f, t, 1.0f,
     0.0f, GSIZE, WALL_H, t, 0.0f,
     0.0f, 0.0f, WALL_H, 0.0f, 0.0f,
     0.0f, 0.0f, 0.0f, 0.0f, 1.0f
   };
 
-  // Create and bind vertex buffer
-  GLuint vbo = 0;
-  glGenBuffers(1, &vbo);
-  if (vbo == 0) {
-    checkGLError("glGenBuffers");
-    return;
-  }
-  glBindBuffer(GL_ARRAY_BUFFER, vbo);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+  GLushort indices[] = {
+    0,1,2, 0,2,3,
+    4,5,6, 4,6,7,
+    8,9,10, 8,10,11,
+    12,13,14, 12,14,15
+  };
 
   // Bind shader program and 3D mode
   GLuint shaderProgram = ensure_basic_shader_bound();
@@ -1319,20 +1359,6 @@ void drawWalls(gDisplay *d) {
 
   // Set identity model matrix
   setIdentityMatrix(shaderProgram, MATRIX_MODEL);
-
-  // Set up attributes
-  GLint positionLoc = glGetAttribLocation(shaderProgram, "position");
-  GLint texCoordLoc = glGetAttribLocation(shaderProgram, "texCoord");
-
-  if (positionLoc >= 0) {
-    glEnableVertexAttribArray(positionLoc);
-    glVertexAttribPointer(positionLoc, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), 0);
-  }
-
-  if (texCoordLoc >= 0) {
-    glEnableVertexAttribArray(texCoordLoc);
-    glVertexAttribPointer(texCoordLoc, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (void*)(3 * sizeof(GLfloat)));
-  }
 
   // Set color with alpha
   setColor(shaderProgram, 1.0f, 1.0f, 1.0f, 1.0f);
@@ -1348,38 +1374,51 @@ void drawWalls(gDisplay *d) {
   // Enable blending
   glEnable(GL_BLEND);
 
-  // Enable culling (disabled for Android debug to ensure visibility)
-  // glEnable(GL_CULL_FACE);
+  // Create and bind vertex buffer
+  GLuint vbo = 0;
+  glGenBuffers(1, &vbo);
+  if (vbo == 0) {
+    checkGLError("glGenBuffers");
+    return;
+  }
+  glBindBuffer(GL_ARRAY_BUFFER, vbo);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
-  // Draw using triangles (6 vertices per quad, 4 quads => 24 indices)
-  // Build an index buffer for 4 quads (0..15 vertices)
-  GLushort indices[] = {
-    0,1,2, 0,2,3,
-    4,5,6, 4,6,7,
-    8,9,10, 8,10,11,
-    12,13,14, 12,14,15
-  };
+  // Create and bind index buffer
   GLuint ibo = 0;
   glGenBuffers(1, &ibo);
   if (ibo == 0) {
     checkGLError("glGenBuffers for ibo");
-    if (vbo != 0) glDeleteBuffers(1, &vbo);
+    glDeleteBuffers(1, &vbo);
     return;
   }
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+
+  // Set up attributes
+  GLint positionLoc = glGetAttribLocation(shaderProgram, "position");
+  GLint texCoordLoc = glGetAttribLocation(shaderProgram, "texCoord");
+
+  if (positionLoc >= 0) {
+    glEnableVertexAttribArray(positionLoc);
+    glVertexAttribPointer(positionLoc, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), 0);
+  }
+
+  if (texCoordLoc >= 0) {
+    glEnableVertexAttribArray(texCoordLoc);
+    glVertexAttribPointer(texCoordLoc, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (void*)(3 * sizeof(GLfloat)));
+  }
+
+  // Draw using triangles (6 vertices per quad, 4 quads => 24 indices)
   glDrawElements(GL_TRIANGLES, 24, GL_UNSIGNED_SHORT, 0);
 
   // Clean up
-  glDisableVertexAttribArray(positionLoc);
-  glDisableVertexAttribArray(texCoordLoc);
+  if (positionLoc >= 0) glDisableVertexAttribArray(positionLoc);
+  if (texCoordLoc >= 0) glDisableVertexAttribArray(texCoordLoc);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
   glDeleteBuffers(1, &vbo);
   glDeleteBuffers(1, &ibo);
-
-  // Disable culling
-  glDisable(GL_CULL_FACE);
 
   // Reset blend function
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -1647,89 +1686,73 @@ void drawAI(gDisplay *d) {
   rasonly(d);
 
 #ifdef ANDROID
-  // For Android, use centralized shader for text rendering
+  // For Android, implement text rendering using font texture and shaders
   GLuint shaderProgram = ensure_basic_shader_bound();
   if (!shaderProgram) return;
   ensure2D(shaderProgram, d->vp_w, d->vp_h);
-  // Color set via setColor below
-
-  // Set up projection matrix
-  GLfloat projectionMatrix[16] = {
-    2.0f / d->vp_w, 0.0f, 0.0f, 0.0f,
-    0.0f, -2.0f / d->vp_h, 0.0f, 0.0f,
-    0.0f, 0.0f, 1.0f, 0.0f,
-    -1.0f, 1.0f, 0.0f, 1.0f
-  };
-  setProjectionMatrix(shaderProgram, projectionMatrix);
-  // Start with identity view
-  {
-    GLfloat viewIdentity[16] = {1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1};
-    setViewMatrix(shaderProgram, viewIdentity);
-  }
 
   // Set color (white)
   setColor(shaderProgram, 1.0f, 1.0f, 1.0f, 1.0f);
 
-  // Create vertices for text rendering (simplified)
-  float textScale = d->vp_w / (2 * strlen(ai));
-  float x = d->vp_w / 4.0f;
-  float y = 10.0f;
+  // Bind font texture
+  glActiveTexture(GL_TEXTURE0);
+  if (game->screen->texFont == 0) {
+    game->screen->texFont = createFontTexture();
+  }
+  glBindTexture(GL_TEXTURE_2D, game->screen->texFont);
+  setTexture(shaderProgram, 0);
 
-  // For each character in the message
-  for (int i = 0; i < strlen(ai); i++) {
-    // Get character
-    char c = ai[i];
+  // Set up attributes
+  GLint positionLoc = glGetAttribLocation(shaderProgram, "position");
+  GLint texCoordLoc = glGetAttribLocation(shaderProgram, "texCoord");
 
-    // Calculate texture coordinates for the character
-    // This is a simplified approach - you would need a proper font texture
-    float texX = (c % 16) / 16.0f;
-    float texY = (c / 16) / 16.0f;
-    float texWidth = 1.0f / 16.0f;
-    float texHeight = 1.0f / 16.0f;
-
-    // Create vertices for the character quad
-    GLfloat vertices[] = {
-      x, y, 0.0f, texX, texY,
-      x + textScale, y, 0.0f, texX + texWidth, texY,
-      x + textScale, y + textScale, 0.0f, texX + texWidth, texY + texHeight,
-      x, y + textScale, 0.0f, texX, texY + texHeight
-    };
-
-    // Create and bind vertex buffer
-    GLuint vbo;
-    glGenBuffers(1, &vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-    // Set up attributes
-    GLint positionLoc = glGetAttribLocation(shaderProgram, "position");
-    GLint texCoordLoc = glGetAttribLocation(shaderProgram, "texCoord");
-
+  if (positionLoc >= 0 && texCoordLoc >= 0) {
     glEnableVertexAttribArray(positionLoc);
-    glVertexAttribPointer(positionLoc, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), 0);
-
     glEnableVertexAttribArray(texCoordLoc);
-    glVertexAttribPointer(texCoordLoc, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (void*)(3 * sizeof(GLfloat)));
 
-    // Bind font texture
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, game->screen->texFont ? game->screen->texFont : (game->screen->texFont = createFontTexture()));
-    setTexture(shaderProgram, 0);
+    // Render each character
+    float x = d->vp_w / 4.0f;
+    float y = 10.0f;
+    float charSize = d->vp_w / (2 * strlen(ai));
+    for (int i = 0; ai[i] != '\0'; i++) {
+      char c = ai[i];
+      if (c < 32 || c > 127) c = 32; // Fallback to space for invalid chars
+      int charIndex = c - 32;
+      float texX = (charIndex % 16) / 16.0f;
+      float texY = (charIndex / 16) / 6.0f;
+      float texW = 1.0f / 16.0f;
+      float texH = 1.0f / 6.0f;
 
-    // Draw
-    glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+      GLfloat vertices[] = {
+        x, y, 0.0f, texX, texY,
+        x + charSize, y, 0.0f, texX + texW, texY,
+        x + charSize, y + charSize, 0.0f, texX + texW, texY + texH,
+        x, y + charSize, 0.0f, texX, texY + texH
+      };
 
-    // Clean up
+      GLuint vbo = 0;
+      glGenBuffers(1, &vbo);
+      if (vbo == 0) {
+        checkGLError("glGenBuffers");
+        continue;
+      }
+      glBindBuffer(GL_ARRAY_BUFFER, vbo);
+      glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+      glVertexAttribPointer(positionLoc, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), 0);
+      glVertexAttribPointer(texCoordLoc, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (void*)(3 * sizeof(GLfloat)));
+
+      glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+
+      glBindBuffer(GL_ARRAY_BUFFER, 0);
+      glDeleteBuffers(1, &vbo);
+
+      x += charSize * 0.6f; // Move to next character position
+    }
+
     glDisableVertexAttribArray(positionLoc);
     glDisableVertexAttribArray(texCoordLoc);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glDeleteBuffers(1, &vbo);
-
-    // Move to next character position
-    x += textScale;
   }
-
-  // Clean up
 #else
   // For desktop OpenGL
   glColor3f(1.0, 1.0, 1.0);

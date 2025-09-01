@@ -193,21 +193,34 @@ static GLuint createUnifiedShaderProgram() {
     a_texcoord = glGetAttribLocation(shaderProgram, "texCoord");
     a_normal = glGetAttribLocation(shaderProgram, "normal");
 
-    // Check if all critical locations were found
-    if (u_proj == -1 || u_color == -1 || u_tex == -1 || u_is2D == -1 ||
-        a_pos == -1 || a_texcoord == -1) {
-        LOGE("Failed to get critical shader locations");
+    // Check if absolutely critical locations were found
+    if (u_proj == -1 || u_color == -1 || a_pos == -1) {
+        LOGE("Failed to get absolutely critical shader locations: proj=%d, color=%d, pos=%d", u_proj, u_color, a_pos);
         glUseProgram(0);
         glDeleteProgram(shaderProgram);
         return 0;
+    }
+
+    // Log warnings for optional critical locations
+    if (u_tex == -1) {
+        LOGI("Texture uniform not found (tex=%d) - texturing may be disabled", u_tex);
+    }
+    if (u_is2D == -1) {
+        LOGI("2D mode uniform not found (is2D=%d) - using 3D mode only", u_is2D);
+    }
+    if (a_texcoord == -1) {
+        LOGI("Texture coordinate attribute not found (texcoord=%d) - texturing may be disabled", a_texcoord);
     }
 
     // Note: u_normal, lighting uniforms, and a_normal can be -1 for 2D-only usage
     // but we'll warn if they're missing
     if (u_view == -1 || u_model == -1 || u_normal == -1 ||
         u_lightPos == -1 || u_lightColor == -1 || u_ambientLight == -1 || a_normal == -1) {
-        LOGI("Some 3D shader locations not found - 3D rendering may not work properly");
+        LOGI("Some 3D shader locations not found - 3D rendering may not work properly: view=%d, model=%d, normal=%d, lightPos=%d, lightColor=%d, ambientLight=%d, normalAttr=%d", u_view, u_model, u_normal, u_lightPos, u_lightColor, u_ambientLight, a_normal);
     }
+
+    // Debug logging for all shader locations
+    LOGI("Shader locations initialized: proj=%d, view=%d, model=%d, normalMat=%d, color=%d, tex=%d, is2D=%d, pos=%d, texcoord=%d", u_proj, u_view, u_model, u_normal, u_color, u_tex, u_is2D, a_pos, a_texcoord);
 
     glUseProgram(0);
     return shaderProgram;
