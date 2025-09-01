@@ -1942,7 +1942,7 @@ void drawCam(Player *p, gDisplay *d) {
   float camX, camY, camZ;
   float lookX, lookY, lookZ;
   
-  if (p->camera && p->camera->type != -1) {
+  if (p->camera && p->camera->camType != -1) {
     // Use actual camera position from player's camera
     camX = p->camera->cam[0];
     camY = p->camera->cam[1];
@@ -2309,9 +2309,15 @@ void drawPause(gDisplay *display) {
   glBindTexture(GL_TEXTURE_2D, game->screen->texFont);
   setTexture(shaderProgram, 0);
 
-  // Helper function to render a text string efficiently
-  auto renderText = [&](const char* text, float startX, float startY, float charSize, 
-                        float r, float g, float b, float a) {
+  // Helper function to render text - we'll inline this code for each text rendering
+  // First, render the main message with animated color
+  {
+    const char* text = message;
+    float startX = display->vp_w / 6.0f;
+    float startY = 20.0f;
+    float charSize = display->vp_w / (6.0f / 4.0f * strlen(message));
+    float animColor = (sin(d) + 1) / 2;
+    float r = 1.0f, g = animColor, b = animColor, a = 1.0f;
     int textLen = strlen(text);
     if (textLen == 0) return;
 
@@ -2428,22 +2434,129 @@ void drawPause(gDisplay *display) {
     
     free(vertices);
     free(indices);
-  };
-
-  // Render main message with animated color
-  float textScale = display->vp_w / (6.0f / 4.0f * strlen(message));
-  float x = display->vp_w / 6.0f;
-  float y = 20.0f;
-  float animColor = (sin(d) + 1) / 2;
-  renderText(message, x, y, textScale, 1.0f, animColor, animColor, 1.0f);
+  }
 
   // Show hint for touch/mouse if needed
   if (game->settings->input_mode != 0) {
     const char* hint = "Tap to resume";
-    float hintScale = display->vp_w / (8.0f * strlen(hint));
     float hintX = display->vp_w / 6.0f;
     float hintY = 20.0f + display->vp_h / 12.0f;
-    renderText(hint, hintX, hintY, hintScale, 1.0f, 1.0f, 1.0f, 1.0f);
+    float hintScale = display->vp_w / (8.0f * strlen(hint));
+    
+    // Inline text rendering for hint
+    int textLen = strlen(hint);
+    if (textLen > 0) {
+      // Set color for hint text
+      setColor(shaderProgram, 1.0f, 1.0f, 1.0f, 1.0f);
+      
+      // Build all vertices for the string
+      int vertexCount = textLen * 4 * 5;  // 4 vertices per char, 5 floats per vertex
+      GLfloat *vertices = (GLfloat *)malloc(vertexCount * sizeof(GLfloat));
+      if (vertices) {
+        int vIndex = 0;
+        float currentX = hintX;
+        
+        for (int i = 0; i < textLen; i++) {
+          char c = hint[i];
+          if (c < 32 || c > 127) c = 32;  // Fallback to space
+          
+          int charIndex = c - 32;
+          float texX = (float)(charIndex % 16) / 16.0f;
+          float texY = (float)(charIndex / 16) / 6.0f;
+          float texW = 1.0f / 16.0f;
+          float texH = 1.0f / 6.0f;
+
+          // Bottom-left
+          vertices[vIndex++] = currentX;
+          vertices[vIndex++] = hintY;
+          vertices[vIndex++] = 0.0f;
+          vertices[vIndex++] = texX;
+          vertices[vIndex++] = texY;
+
+          // Bottom-right
+          vertices[vIndex++] = currentX + hintScale;
+          vertices[vIndex++] = hintY;
+          vertices[vIndex++] = 0.0f;
+          vertices[vIndex++] = texX + texW;
+          vertices[vIndex++] = texY;
+
+          // Top-right
+          vertices[vIndex++] = currentX + hintScale;
+          vertices[vIndex++] = hintY + hintScale;
+          vertices[vIndex++] = 0.0f;
+          vertices[vIndex++] = texX + texW;
+          vertices[vIndex++] = texY + texH;
+
+          // Top-left
+          vertices[vIndex++] = currentX;
+          vertices[vIndex++] = hintY + hintScale;
+          vertices[vIndex++] = 0.0f;
+          vertices[vIndex++] = texX;
+          vertices[vIndex++] = texY + texH;
+
+          currentX += hintScale * 0.8f;  // Advance with slight overlap
+        }
+
+        // Create indices
+        int indexCount = textLen * 6;
+        GLushort *indices = (GLushort *)malloc(indexCount * sizeof(GLushort));
+        if (indices) {
+          for (int i = 0; i < textLen; i++) {
+            int base = i * 4;
+            int idx = i * 6;
+            indices[idx]     = base;
+            indices[idx + 1] = base + 1;
+            indices[idx + 2] = base + 2;
+            indices[idx + 3] = base;
+            indices[idx + 4] = base + 2;
+            indices[idx + 5] = base + 3;
+          }
+
+          // Create buffers
+          GLuint vbo = 0, ibo = 0;
+          glGenBuffers(1, &vbo);
+          glGenBuffers(1, &ibo);
+          
+          if (vbo && ibo) {
+            glBindBuffer(GL_ARRAY_BUFFER, vbo);
+            glBufferData(GL_ARRAY_BUFFER, vertexCount * sizeof(GLfloat), vertices, GL_STATIC_DRAW);
+
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexCount * sizeof(GLushort), indices, GL_STATIC_DRAW);
+
+            // Set up attributes
+            GLint positionLoc = glGetAttribLocation(shaderProgram, "position");
+            GLint texCoordLoc = glGetAttribLocation(shaderProgram, "texCoord");
+
+            if (positionLoc >= 0) {
+              glEnableVertexAttribArray(positionLoc);
+              glVertexAttribPointer(positionLoc, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), 0);
+            }
+
+            if (texCoordLoc >= 0) {
+              glEnableVertexAttribArray(texCoordLoc);
+              glVertexAttribPointer(texCoordLoc, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (void*)(3 * sizeof(GLfloat)));
+            }
+
+            // Draw all characters at once
+            glDrawElements(GL_TRIANGLES, indexCount, GL_UNSIGNED_SHORT, 0);
+
+            // Clean up
+            if (positionLoc >= 0) glDisableVertexAttribArray(positionLoc);
+            if (texCoordLoc >= 0) glDisableVertexAttribArray(texCoordLoc);
+          }
+
+          // Clean up buffers
+          if (vbo) glDeleteBuffers(1, &vbo);
+          if (ibo) glDeleteBuffers(1, &ibo);
+          glBindBuffer(GL_ARRAY_BUFFER, 0);
+          glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+          
+          free(indices);
+        }
+        free(vertices);
+      }
+    }
   }
 #else
   // For desktop OpenGL
