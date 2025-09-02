@@ -248,7 +248,6 @@ void android_switchCallbacks(callbacks *new) {
     return;
   }
 
-
   // Store the last callback
   last_android_callbacks = current_android_callbacks;
 
@@ -741,7 +740,7 @@ void gltron_on_touch(float x, float y, int action) {
             pCurrent = pCurrent->parent;
             pCurrent->iHighlight = -1;
             extern callbacks guiCallbacks;
-  android_switchCallbacks(&guiCallbacks);
+            android_switchCallbacks(&guiCallbacks);
             requestDisplayApply();
             applyDisplaySettingsDeferred();
           }
@@ -762,7 +761,7 @@ void gltron_on_touch(float x, float y, int action) {
             pCurrent = pCurrent->parent;
             pCurrent->iHighlight = -1;
             extern callbacks guiCallbacks;
-  android_switchCallbacks(&guiCallbacks);
+            android_switchCallbacks(&guiCallbacks);
             requestDisplayApply();
             applyDisplaySettingsDeferred();
           }
