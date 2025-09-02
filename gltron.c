@@ -573,7 +573,6 @@ int main( int argc, char *argv[] ) {
 
     setupDisplay(game->screen);
     switchCallbacks(&guiCallbacks);
-    switchCallbacks(&guiCallbacks);
 
 #ifndef ANDROID
     glutMainLoop();

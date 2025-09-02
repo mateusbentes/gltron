@@ -77,11 +77,14 @@ static const char* fragmentShaderSource =
     "        // 2D mode: simple color * texture, no lighting\n"
     "        gl_FragColor = color * texColor;\n"
     "    } else {\n"
-    "        // 3D mode: full lighting calculations\n"
+    "        // 3D mode: full lighting calculations with attenuation\n"
     "        vec3 normal = normalize(vNormal);\n"
     "        vec3 lightDir = normalize(lightPosition - vPosition);\n"
+    "        // Calculate distance for attenuation\n"
+    "        float distance = length(lightPosition - vPosition);\n"
+    "        float attenuation = 1.0 / (1.0 + 0.01 * distance + 0.001 * distance * distance);\n"
     "        float diffuse = max(dot(normal, lightDir), 0.0);\n"
-    "        vec3 lighting = ambientLight + lightColor * diffuse;\n"
+    "        vec3 lighting = ambientLight + lightColor * diffuse * attenuation;\n"
     "        gl_FragColor = vec4(color.rgb * texColor.rgb * lighting, color.a * texColor.a);\n"
     "    }\n"
     "}\n";
@@ -320,10 +323,10 @@ void setNormalMatrix(GLuint program, float* matrix) {
     if (fabs(det) < 0.000001f) {
         // Matrix is singular, use identity matrix as fallback
         float identity[16] = {
-            1, 0, 0, 0,
-            0, 1, 0, 0,
-            0, 0, 1, 0,
-            0, 0, 0, 1
+            1.0f, 0.0f, 0.0f, 0.0f,
+            0.0f, 1.0f, 0.0f, 0.0f,
+            0.0f, 0.0f, 1.0f, 0.0f,
+            0.0f, 0.0f, 0.0f, 1.0f
         };
         if (program != g_shader_unified || u_normal == -1) {
             u_normal = glGetUniformLocation(program, "normalMatrix");
