@@ -688,152 +688,279 @@ void gltron_on_touch(float x, float y, int action) {
 #if ANDROID_TOUCH_TOPLEFT == 0
   if (scr_h > 0) iy = scr_h - 1 - iy;
 #endif
-
+  
   // If paused, unpause on touch-up
-  if (game && (game->pauseflag != 0)) {
-    if ((action & 0xFF) == 1 /* ACTION_UP */) {
+  if (game->pauseflag != 0) {
+    if (action == 1 /* ACTION_UP */) {
+      __android_log_print(ANDROID_LOG_INFO, "gltron", "Unpausing game on touch-up");
+      
+      // Check if game is in a valid state to unpause
+      if (game->running <= 0) {
+        __android_log_print(ANDROID_LOG_INFO, "gltron", "Game is finished, restarting");
+        // If game is finished, restart it
+        initData();
+        game->pauseflag = 0;
+      }
+      
       extern callbacks gameCallbacks;
       // Reset timing to avoid huge time jumps
       extern int lasttime;
       lasttime = getElapsedTime();
+      
+      // Safely switch callbacks
+      android_updateCallbacks();
       android_switchCallbacks(&gameCallbacks);
+      
       // Apply display settings after switching to game callbacks
       requestDisplayApply();
       applyDisplaySettingsDeferred();
-      if (game) game->pauseflag = 0;
+      
+      // Clear pause flag
+      game->pauseflag = 0;
+      
       // Ensure viewport/proj are correct on first frame
       forceViewportResetIfNeededForGame();
       return;
     }
   }
 
-  int actionMasked = (action & 0xFF);
-
   // If GUI (menu) is active, route all touches to menu handlers
   if (is_gui_active()) {
 #ifdef ANDROID
-    if (actionMasked == 0) __android_log_print(ANDROID_LOG_INFO, "gltron", "touch->GUI: down %d,%d", ix, iy);
-    if (actionMasked == 2) __android_log_print(ANDROID_LOG_INFO, "gltron", "touch->GUI: move %d,%d", ix, iy);
-    if (actionMasked == 1) __android_log_print(ANDROID_LOG_INFO, "gltron", "touch->GUI: up %d,%d (click)", ix, iy);
+    if (action == 0) __android_log_print(ANDROID_LOG_INFO, "gltron", "touch->GUI: down %d,%d", ix, iy);
+    if (action == 2) __android_log_print(ANDROID_LOG_INFO, "gltron", "touch->GUI: move %d,%d", ix, iy);
+    if (action == 1) __android_log_print(ANDROID_LOG_INFO, "gltron", "touch->GUI: up %d,%d (click)", ix, iy);
 #endif
     // Tap tolerance for BACK: remember DOWN position and whether it started on BACK
     static int s_gui_down_on_back = 0; static int s_down_x = 0, s_down_y = 0; const int tol = 24;
-    if (actionMasked == 0) {
-      s_down_x = ix; s_down_y = iy;
+    
+    // Handle different touch actions
+    if (action == 0) { // ACTION_DOWN
+      // Store initial touch position
+      s_down_x = ix; 
+      s_down_y = iy;
+      // Check if touch started on BACK button
       s_gui_down_on_back = hit_test_back_in_viewport(ix, iy);
+      // Forward to GUI motion handler
       motionGui(ix, iy);
-    } else if (actionMasked == 2) {
+    } else if (action == 2) { // ACTION_MOVE
+      // Forward to GUI motion handler
       motionGui(ix, iy);
-    } else if (actionMasked == 1) {
+    } else if (action == 1) { // ACTION_UP
+      // Check if we had a tap on the BACK button
       if (s_gui_down_on_back) {
+        // Calculate distance moved from initial touch
         int dx = ix - s_down_x; if (dx < 0) dx = -dx;
         int dy = iy - s_down_y; if (dy < 0) dy = -dy;
+        
+        // If within tolerance, consider it a tap on BACK
         if (dx <= tol && dy <= tol) {
 #ifdef ANDROID
           __android_log_print(ANDROID_LOG_INFO, "gltron", "touch->GUI: BACK via tap-tolerance");
 #endif
+          // Apply any pending display changes
           requestDisplayApply();
+          
+          // Check if we're at the root menu
           if (!pCurrent || pCurrent->parent == NULL) {
-            // Don't exit if we're in the game-finished state
-            if (game && game->pauseflag & PAUSE_GAME_FINISHED) {
-              // Just unpause and continue
+            // Special case: if game is finished, restart instead of exiting
+            if (game && (game->pauseflag & PAUSE_GAME_FINISHED)) {
+              __android_log_print(ANDROID_LOG_INFO, "gltron", "Game finished, restarting on BACK");
+              
+              // Reset game state
+              initData();
               game->pauseflag = 0;
+              
+              // Switch to game callbacks
               extern callbacks gameCallbacks;
+              extern int lasttime;
+              lasttime = getElapsedTime();
               android_switchCallbacks(&gameCallbacks);
+              
+              // Reset back button state
+              s_gui_down_on_back = 0;
               return;
             }
 
-            // Otherwise, proceed with normal exit
+            // At root menu, request app exit
+            __android_log_print(ANDROID_LOG_INFO, "gltron", "At root menu, requesting exit");
             android_restoreCallbacks();
             g_finish_requested = 1;
           } else {
-            pCurrent = pCurrent->parent;
-            pCurrent->iHighlight = -1;
-            extern callbacks guiCallbacks;
-            android_switchCallbacks(&guiCallbacks);
-            requestDisplayApply();
-            applyDisplaySettingsDeferred();
+            // Go up one level in menu hierarchy
+            __android_log_print(ANDROID_LOG_INFO, "gltron", "Going up one level in menu");
+            if (pCurrent && pCurrent->parent) {
+              pCurrent = pCurrent->parent;
+              pCurrent->iHighlight = -1;
+              
+              // Switch to GUI callbacks
+              extern callbacks guiCallbacks;
+              android_switchCallbacks(&guiCallbacks);
+              
+              // Apply display settings
+              requestDisplayApply();
+              applyDisplaySettingsDeferred();
+            }
           }
+          
+          // Reset back button state
           s_gui_down_on_back = 0;
           return;
         }
       }
-      // Direct dispatch based on a fresh hit-test at release
+      
+      // If not a BACK tap, check for menu item taps
       {
+        // Perform hit test at release position
         int idx = hit_test_menu_item_in_viewport(ix, iy);
+        
         if (idx == -2) {
-          // BACK
+          // Hit on BACK button
+          __android_log_print(ANDROID_LOG_INFO, "gltron", "Menu: BACK button hit");
+          
+          // Apply any pending display changes
           requestDisplayApply();
+          
+          // Check if we're at the root menu
           if (!pCurrent || pCurrent->parent == NULL) {
+            // At root menu, request app exit
             android_restoreCallbacks();
             g_finish_requested = 1;
           } else {
-            pCurrent = pCurrent->parent;
-            pCurrent->iHighlight = -1;
-            extern callbacks guiCallbacks;
-            android_switchCallbacks(&guiCallbacks);
-            requestDisplayApply();
-            applyDisplaySettingsDeferred();
+            // Go up one level in menu hierarchy
+            if (pCurrent && pCurrent->parent) {
+              pCurrent = pCurrent->parent;
+              pCurrent->iHighlight = -1;
+              
+              // Switch to GUI callbacks
+              extern callbacks guiCallbacks;
+              android_switchCallbacks(&guiCallbacks);
+              
+              // Apply display settings
+              requestDisplayApply();
+              applyDisplaySettingsDeferred();
+            }
           }
-        } else if (idx >= 0) {
+        } else if (idx >= 0 && pCurrent && idx < pCurrent->nEntries) {
+          // Hit on a menu item
+          __android_log_print(ANDROID_LOG_INFO, "gltron", "Menu: item %d selected", idx);
+          
+          // Highlight the selected item
           pCurrent->iHighlight = idx;
+          
+          // Execute the menu action
           // If selecting 'Start Game' from menu, don't change pause flag here
           // Let the game start in pause mode as intended
-          menuAction(*(pCurrent->pEntries + pCurrent->iHighlight));
+          if (pCurrent->pEntries && *(pCurrent->pEntries + pCurrent->iHighlight)) {
+            menuAction(*(pCurrent->pEntries + pCurrent->iHighlight));
+          }
         }
       }
+      
+      // Reset back button state
       s_gui_down_on_back = 0;
     }
     return;
   }
 
   // Manage active button states for in-game overlay
-  if (actionMasked == 0 /* ACTION_DOWN */ || actionMasked == 2 /* ACTION_MOVE */) {
+  if (action == 0 /* ACTION_DOWN */ || action == 2 /* ACTION_MOVE */) {
+    // Store previous button states
     int was_left = active_left;
     int was_right = active_right;
     
+    // Check which buttons are being touched
     active_left = hit_btn(ix, iy, btn_left);
     active_right = hit_btn(ix, iy, btn_right);
     active_pause = hit_btn(ix, iy, btn_pause);
     
-    if (active_pause && actionMasked == 0) {
+    // Handle pause button press
+    if (active_pause && action == 0) {
       __android_log_print(ANDROID_LOG_INFO, "gltron", "Pause button pressed");
-      keyGame(' ', 0, 0);
+      
+      // Check game state before pausing
+      if (game && game->pauseflag == 0) {
+        // Only pause if game is running
+        keyGame(' ', 0, 0);
+      }
       return;
     }
     
     // Only send turn commands on initial press, not continuous
     if (active_left && !was_left) {
       __android_log_print(ANDROID_LOG_INFO, "gltron", "Left button pressed");
-      // Check if player is still alive before processing turn
-      if (game && game->player[0].data && game->player[0].data->speed > 0) {
-        keyGame('a', 0, 0);
+      
+      // Check if game is in a valid state for turning
+      if (game && game->pauseflag == 0) {
+        // Check if player is still alive before processing turn
+        if (game->player[0].data && game->player[0].data->speed > 0) {
+          // Use a try-catch approach to prevent crashes
+          extern int lasttime;
+          int old_time = lasttime;
+          
+          // Update timing before turn to avoid huge time jumps
+          lasttime = getElapsedTime();
+          
+          // Process the turn
+          keyGame('a', 0, 0);
+          
+          // If something went wrong, restore the old time
+          if (lasttime - old_time > 1000) {
+            lasttime = old_time + 20; // Add a small increment
+          }
+        }
       }
       return;
     }
+    
     if (active_right && !was_right) {
       __android_log_print(ANDROID_LOG_INFO, "gltron", "Right button pressed");
-      // Check if player is still alive before processing turn
-      if (game && game->player[0].data && game->player[0].data->speed > 0) {
-        keyGame('s', 0, 0);
+      
+      // Check if game is in a valid state for turning
+      if (game && game->pauseflag == 0) {
+        // Check if player is still alive before processing turn
+        if (game->player[0].data && game->player[0].data->speed > 0) {
+          // Use a try-catch approach to prevent crashes
+          extern int lasttime;
+          int old_time = lasttime;
+          
+          // Update timing before turn to avoid huge time jumps
+          lasttime = getElapsedTime();
+          
+          // Process the turn
+          keyGame('s', 0, 0);
+          
+          // If something went wrong, restore the old time
+          if (lasttime - old_time > 1000) {
+            lasttime = old_time + 20; // Add a small increment
+          }
+        }
       }
       return;
     }
+    
     // Not over overlay buttons: forward to mouse-based swipe/tap logic
-    {
-      int y_bl = game->screen ? (game->screen->h - 1 - iy) : iy;
-      if (actionMasked == 0) {
-        mouseGame(0 /* left button */, 0 /* down */, ix, y_bl);
-      } else {
-        motionGame(ix, y_bl);
+    if (game && game->screen) {
+      int y_bl = (game->screen->h - 1 - iy);
+      
+      // Only forward if game is in a valid state
+      if (game->pauseflag == 0) {
+        if (action == 0) {
+          mouseGame(0 /* left button */, 0 /* down */, ix, y_bl);
+        } else {
+          motionGame(ix, y_bl);
+        }
       }
     }
-  } else if (actionMasked == 1 /* ACTION_UP */) {
+  } else if (action == 1 /* ACTION_UP */) {
     // End overlay states
-    int y_bl = game->screen ? (game->screen->h - 1 - iy) : iy;
     active_left = active_right = active_pause = 0;
-    // Forward to mouse-based tap/swipe finish
-    mouseGame(0 /* left button */, 1 /* up */, ix, y_bl);
+    
+    // Forward to mouse-based tap/swipe finish only if game is in a valid state
+    if (game && game->screen && game->pauseflag == 0) {
+      int y_bl = (game->screen->h - 1 - iy);
+      mouseGame(0 /* left button */, 1 /* up */, ix, y_bl);
+    }
   }
   // Otherwise no overlay hit; ignore or add game-world touch handling if desired
 }

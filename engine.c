@@ -563,16 +563,27 @@ void movePlayers() {
 	  /* set endpoint to collision coordinates */
 	  newx = x;
 	  newy = y;
+	  
 	  /* update scores; */
-	  if(game->settings->screenSaver != 1)
-	  for(j = 0; j < game->players; j++) {
-	    if(j != i && game->player[j].data->speed > 0)
-	      game->player[j].data->score++;
+	  if(game->settings->screenSaver != 1) {
+	    for(j = 0; j < game->players; j++) {
+	      if(j != i && game->player[j].data && game->player[j].data->speed > 0)
+	        game->player[j].data->score++;
+	    }
 	  }
+	  
 #ifdef ANDROID
 	  /* On Android, we need to be more careful with collision handling */
 	  if (data->speed > 0) { /* Only if we're still alive */
+	    /* Log the collision for debugging */
+	    printf("Player %d collided at position (%f, %f)\n", i, newx, newy);
+	    
+	    /* Set speed to crashed state */
 	    data->speed = SPEED_CRASHED;
+	    
+	    /* Ensure we don't process input during crash animation */
+	    extern int lasttime;
+	    lasttime = getElapsedTime();
 	  }
 #else
 	  data->speed = SPEED_CRASHED;
@@ -602,9 +613,15 @@ void movePlayers() {
       else if (data->speed == SPEED_CRASHED) {
 	data->speed = SPEED_GONE;
 	game->running--;
+	
 	if(game->running <= 1) { /* all dead, find survivor */
-	  for(winner = 0; winner < game->players; winner++)
-	    if(game->player[winner].data->speed > 0) break;
+	  /* Find the winner (if any) */
+	  for(winner = 0; winner < game->players; winner++) {
+	    if(game->player[winner].data && game->player[winner].data->speed > 0) 
+	      break;
+	  }
+	  
+	  /* Set winner index or -1 if no survivors */
 	  game->winner = (winner == game->players) ? -1 : winner;
 	  printf("winner: %d\n", winner);
 	  
@@ -614,9 +631,22 @@ void movePlayers() {
 #ifdef ANDROID
 	  /* On Android, we need to be more careful with callback switching */
 	  extern callbacks pauseCallbacks;
+	  
+	  /* Log the game end for debugging */
+	  printf("Game finished, winner: %d, running: %d\n", game->winner, game->running);
+	  
+	  /* Update timing before switching callbacks */
+	  extern int lasttime;
+	  lasttime = getElapsedTime();
+	  
 	  /* Try to use a safer approach for Android to prevent crashes */
 	  android_updateCallbacks(); /* Update timing to avoid huge jumps */
+	  
+	  /* Switch to pause callbacks */
 	  android_switchCallbacks(&pauseCallbacks);
+	  
+	  /* Double-check that pause flag is still set */
+	  game->pauseflag = PAUSE_GAME_FINISHED;
 #else
 	  switchCallbacks(&pauseCallbacks);
 #endif

@@ -17,91 +17,160 @@ static EGLContext s_context = EGL_NO_CONTEXT;
 static int32_t s_width = 0, s_height = 0;
 
 static void set_immersive_fullscreen(struct android_app* app) {
-  if (!app || !app->activity || !app->activity->clazz) return;
+  // Safely check for valid app and activity
+  if (!app || !app->activity || !app->activity->clazz) {
+    __android_log_print(ANDROID_LOG_ERROR, "gltron", "set_immersive_fullscreen: Invalid app or activity");
+    return;
+  }
+  
+  // Try-catch all JNI operations to prevent crashes
   JNIEnv* env = NULL;
-  (*app->activity->vm)->AttachCurrentThread(app->activity->vm, &env, NULL);
-  if (!env) return;
+  jint result = (*app->activity->vm)->AttachCurrentThread(app->activity->vm, &env, NULL);
+  if (result != JNI_OK || !env) {
+    __android_log_print(ANDROID_LOG_ERROR, "gltron", "set_immersive_fullscreen: Failed to attach thread to JVM");
+    return;
+  }
+  
+  // Use a simpler approach with fewer JNI calls to reduce risk of crashes
   jobject activity = app->activity->clazz;
-  jclass activityClass = (*env)->GetObjectClass(env, activity);
-  jmethodID getWindow = (*env)->GetMethodID(env, activityClass, "getWindow", "()Landroid/view/Window;");
-  jobject window = (*env)->CallObjectMethod(env, activity, getWindow);
-  jclass windowClass = (*env)->GetObjectClass(env, window);
-  jmethodID getDecorView = (*env)->GetMethodID(env, windowClass, "getDecorView", "()Landroid/view/View;");
-  jobject decorView = (*env)->CallObjectMethod(env, window, getDecorView);
-  jclass viewClass = (*env)->GetObjectClass(env, decorView);
-  jfieldID fid_imm_sticky = (*env)->GetStaticFieldID(env, viewClass, "SYSTEM_UI_FLAG_IMMERSIVE_STICKY", "I");
-  if (!fid_imm_sticky) {
-    LOGE("Failed to get SYSTEM_UI_FLAG_IMMERSIVE_STICKY field ID");
+  if (!activity) {
+    __android_log_print(ANDROID_LOG_ERROR, "gltron", "set_immersive_fullscreen: Activity is null");
+    (*app->activity->vm)->DetachCurrentThread(app->activity->vm);
+    return;
   }
-  jfieldID fid_hide_nav = (*env)->GetStaticFieldID(env, viewClass, "SYSTEM_UI_FLAG_HIDE_NAVIGATION", "I");
-  if (!fid_hide_nav) {
-    LOGE("Failed to get SYSTEM_UI_FLAG_HIDE_NAVIGATION field ID");
+  
+  // Define default flag values in case JNI lookups fail
+  jint f_imm = 0x00000800;      // SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+  jint f_hide = 0x00000002;     // SYSTEM_UI_FLAG_HIDE_NAVIGATION
+  jint f_full = 0x00000004;     // SYSTEM_UI_FLAG_FULLSCREEN
+  jint f_stable = 0x00000100;   // SYSTEM_UI_FLAG_LAYOUT_STABLE
+  jint f_lhide = 0x00000200;    // SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+  jint f_lfull = 0x00000400;    // SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+  
+  // Try to get the actual values, but use defaults if anything fails
+  jclass viewClass = NULL;
+  
+  // Clear any pending exceptions before proceeding
+  if ((*env)->ExceptionCheck(env)) {
+    (*env)->ExceptionClear(env);
   }
-  jfieldID fid_fullscreen = (*env)->GetStaticFieldID(env, viewClass, "SYSTEM_UI_FLAG_FULLSCREEN", "I");
-  if (!fid_fullscreen) {
-    LOGE("Failed to get SYSTEM_UI_FLAG_FULLSCREEN field ID");
+  
+  // Find the View class
+  viewClass = (*env)->FindClass(env, "android/view/View");
+  if (!viewClass || (*env)->ExceptionCheck(env)) {
+    __android_log_print(ANDROID_LOG_ERROR, "gltron", "set_immersive_fullscreen: Failed to find View class");
+    (*env)->ExceptionClear(env);
+    // Continue with default values
+  } else {
+    // Try to get each flag, but continue with defaults if any lookup fails
+    jfieldID fid;
+    
+    fid = (*env)->GetStaticFieldID(env, viewClass, "SYSTEM_UI_FLAG_IMMERSIVE_STICKY", "I");
+    if (fid && !(*env)->ExceptionCheck(env)) {
+      f_imm = (*env)->GetStaticIntField(env, viewClass, fid);
+    } else {
+      (*env)->ExceptionClear(env);
+    }
+    
+    fid = (*env)->GetStaticFieldID(env, viewClass, "SYSTEM_UI_FLAG_HIDE_NAVIGATION", "I");
+    if (fid && !(*env)->ExceptionCheck(env)) {
+      f_hide = (*env)->GetStaticIntField(env, viewClass, fid);
+    } else {
+      (*env)->ExceptionClear(env);
+    }
+    
+    fid = (*env)->GetStaticFieldID(env, viewClass, "SYSTEM_UI_FLAG_FULLSCREEN", "I");
+    if (fid && !(*env)->ExceptionCheck(env)) {
+      f_full = (*env)->GetStaticIntField(env, viewClass, fid);
+    } else {
+      (*env)->ExceptionClear(env);
+    }
+    
+    fid = (*env)->GetStaticFieldID(env, viewClass, "SYSTEM_UI_FLAG_LAYOUT_STABLE", "I");
+    if (fid && !(*env)->ExceptionCheck(env)) {
+      f_stable = (*env)->GetStaticIntField(env, viewClass, fid);
+    } else {
+      (*env)->ExceptionClear(env);
+    }
+    
+    fid = (*env)->GetStaticFieldID(env, viewClass, "SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION", "I");
+    if (fid && !(*env)->ExceptionCheck(env)) {
+      f_lhide = (*env)->GetStaticIntField(env, viewClass, fid);
+    } else {
+      (*env)->ExceptionClear(env);
+    }
+    
+    fid = (*env)->GetStaticFieldID(env, viewClass, "SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN", "I");
+    if (fid && !(*env)->ExceptionCheck(env)) {
+      f_lfull = (*env)->GetStaticIntField(env, viewClass, fid);
+    } else {
+      (*env)->ExceptionClear(env);
+    }
   }
-  jfieldID fid_layout_stable = (*env)->GetStaticFieldID(env, viewClass, "SYSTEM_UI_FLAG_LAYOUT_STABLE", "I");
-  if (!fid_layout_stable) {
-    LOGE("Failed to get SYSTEM_UI_FLAG_LAYOUT_STABLE field ID");
-  }
-  jfieldID fid_layout_hide_nav = (*env)->GetStaticFieldID(env, viewClass, "SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION", "I");
-  if (!fid_layout_hide_nav) {
-    LOGE("Failed to get SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION field ID");
-  }
-  jfieldID fid_layout_fullscreen = (*env)->GetStaticFieldID(env, viewClass, "SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN", "I");
-  if (!fid_layout_fullscreen) {
-    LOGE("Failed to get SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN field ID");
-  }
-  jint f_imm = (*env)->GetStaticIntField(env, viewClass, fid_imm_sticky);
-  jint f_hide = (*env)->GetStaticIntField(env, viewClass, fid_hide_nav);
-  jint f_full = (*env)->GetStaticIntField(env, viewClass, fid_fullscreen);
-  jint f_stable = (*env)->GetStaticIntField(env, viewClass, fid_layout_stable);
-  jint f_lhide = (*env)->GetStaticIntField(env, viewClass, fid_layout_hide_nav);
-  jint f_lfull = (*env)->GetStaticIntField(env, viewClass, fid_layout_fullscreen);
+  
+  // Combine all flags
   jint flags = f_imm | f_hide | f_full | f_stable | f_lhide | f_lfull;
-  // Call Java helper to apply immersive on UI thread
-  jclass uiCls = NULL;
-  // Preferred: resolve via the Activity's ClassLoader so app classes are visible on native threads
-  jclass activityCls = (*env)->GetObjectClass(env, activity);
-  jmethodID getClassLoader = (*env)->GetMethodID(env, activityCls, "getClassLoader", "()Ljava/lang/ClassLoader;");
-  if (getClassLoader) {
-    jobject cl = (*env)->CallObjectMethod(env, activity, getClassLoader);
-    if (cl) {
-      jclass loaderCls = (*env)->GetObjectClass(env, cl);
-      jmethodID loadClass = (*env)->GetMethodID(env, loaderCls, "loadClass", "(Ljava/lang/String;)Ljava/lang/Class;");
-      if (loadClass) {
-        jstring name = (*env)->NewStringUTF(env, "org.gltron.game.UiHelpers");
-        jobject clsObj = (*env)->CallObjectMethod(env, cl, loadClass, name);
-        (*env)->DeleteLocalRef(env, name);
-        if (clsObj) {
-          uiCls = (jclass)clsObj;
-        } else {
-          (*env)->ExceptionClear(env);
+  // Try a simpler approach to set the UI flags directly
+  // This avoids the complexity of calling into our Java helper class
+  
+  // First try to get the window and decorView directly
+  jboolean success = JNI_FALSE;
+  
+  if (!(*env)->ExceptionCheck(env)) {
+    jclass activityCls = (*env)->GetObjectClass(env, activity);
+    if (activityCls && !(*env)->ExceptionCheck(env)) {
+      jmethodID getWindow = (*env)->GetMethodID(env, activityCls, "getWindow", "()Landroid/view/Window;");
+      if (getWindow && !(*env)->ExceptionCheck(env)) {
+        jobject window = (*env)->CallObjectMethod(env, activity, getWindow);
+        if (window && !(*env)->ExceptionCheck(env)) {
+          jclass windowClass = (*env)->GetObjectClass(env, window);
+          if (windowClass && !(*env)->ExceptionCheck(env)) {
+            jmethodID getDecorView = (*env)->GetMethodID(env, windowClass, "getDecorView", "()Landroid/view/View;");
+            if (getDecorView && !(*env)->ExceptionCheck(env)) {
+              jobject decorView = (*env)->CallObjectMethod(env, window, getDecorView);
+              if (decorView && !(*env)->ExceptionCheck(env)) {
+                // Now we have the decorView, try to set the system UI visibility directly
+                jclass decorViewClass = (*env)->GetObjectClass(env, decorView);
+                if (decorViewClass && !(*env)->ExceptionCheck(env)) {
+                  jmethodID setSystemUiVisibility = (*env)->GetMethodID(env, decorViewClass, "setSystemUiVisibility", "(I)V");
+                  if (setSystemUiVisibility && !(*env)->ExceptionCheck(env)) {
+                    // Call setSystemUiVisibility directly
+                    (*env)->CallVoidMethod(env, decorView, setSystemUiVisibility, flags);
+                    if (!(*env)->ExceptionCheck(env)) {
+                      success = JNI_TRUE;
+                      __android_log_print(ANDROID_LOG_INFO, "gltron", "Successfully set system UI visibility directly");
+                    } else {
+                      (*env)->ExceptionClear(env);
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
       }
     }
   }
-  // Fallback: system FindClass (may fail on native threads)
-  if (!uiCls) {
-    uiCls = (*env)->FindClass(env, "org/gltron/game/UiHelpers");
-  }
-  if (!uiCls) {
-    LOGE("Failed to resolve UiHelpers via ClassLoader and FindClass");
+  
+  // Clear any pending exceptions
+  if ((*env)->ExceptionCheck(env)) {
     (*env)->ExceptionClear(env);
-  } else {
-    jmethodID mid = (*env)->GetStaticMethodID(env, uiCls, "applyImmersive", "(Landroid/app/Activity;Landroid/view/View;I)V");
-    if (!mid) {
-      LOGE("Failed to get applyImmersive method ID");
+  }
+  
+  // If direct approach failed, log it but don't try to use UiHelpers
+  // since it's causing a crash with ClassNotFoundException
+  if (!success) {
+    __android_log_print(ANDROID_LOG_INFO, "gltron", "Direct UI visibility setting failed");
+    __android_log_print(ANDROID_LOG_INFO, "gltron", "Skipping UiHelpers fallback to avoid ClassNotFoundException");
+    
+    // Don't try to use UiHelpers class as it's causing crashes
+    // Just clear any pending exceptions and continue
+    if ((*env)->ExceptionCheck(env)) {
       (*env)->ExceptionClear(env);
-    } else {
-      (*env)->CallStaticVoidMethod(env, uiCls, mid, activity, decorView, flags);
-      if ((*env)->ExceptionCheck(env)) {
-        LOGE("Exception calling UiHelpers.applyImmersive");
-        (*env)->ExceptionClear(env);
-      }
     }
   }
+  
+  // Always detach the thread when done with JNI
   (*app->activity->vm)->DetachCurrentThread(app->activity->vm);
 }
 
@@ -109,7 +178,7 @@ static int init_egl(ANativeWindow* window, struct android_app* app) {
   s_display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
   eglInitialize(s_display, 0, 0);
   EGLint eglErr = eglGetError();
-  if (eglErr != EGL_SUCCESS) { LOGE("eglInitialize error: 0x%04x", eglErr); }
+  if (eglErr != EGL_SUCCESS) { __android_log_print(ANDROID_LOG_ERROR, "gltron", "eglInitialize error: 0x%04x", eglErr); }
   // Ensure asset manager/base path are set before any resource loads
   // Note: We can only set them here if we have a valid activity (passed via android_main)
 
@@ -124,26 +193,26 @@ static int init_egl(ANativeWindow* window, struct android_app* app) {
   EGLConfig config; EGLint numCfg;
   eglChooseConfig(s_display, cfgAttribs, &config, 1, &numCfg);
   eglErr = eglGetError();
-  if (eglErr != EGL_SUCCESS) { LOGE("eglChooseConfig error: 0x%04x", eglErr); }
+  if (eglErr != EGL_SUCCESS) { __android_log_print(ANDROID_LOG_ERROR, "gltron", "eglChooseConfig error: 0x%04x", eglErr); }
   EGLint format;
   eglGetConfigAttrib(s_display, config, EGL_NATIVE_VISUAL_ID, &format);
   ANativeWindow_setBuffersGeometry(window, 0, 0, format);
 
   s_surface = eglCreateWindowSurface(s_display, config, window, NULL);
   eglErr = eglGetError();
-  if (eglErr != EGL_SUCCESS) { LOGE("eglCreateWindowSurface error: 0x%04x", eglErr); }
+  if (eglErr != EGL_SUCCESS) { __android_log_print(ANDROID_LOG_ERROR, "gltron", "eglCreateWindowSurface error: 0x%04x", eglErr); }
 
   const EGLint ctxAttribs[] = { EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE };
   s_context = eglCreateContext(s_display, config, EGL_NO_CONTEXT, ctxAttribs);
   eglErr = eglGetError();
-  if (eglErr != EGL_SUCCESS) { LOGE("eglCreateContext error: 0x%04x", eglErr); }
+  if (eglErr != EGL_SUCCESS) { __android_log_print(ANDROID_LOG_ERROR, "gltron", "eglCreateContext error: 0x%04x", eglErr); }
   if (s_display == EGL_NO_DISPLAY || s_surface == EGL_NO_SURFACE || s_context == EGL_NO_CONTEXT) {
-    LOGE("EGL create failed");
+    __android_log_print(ANDROID_LOG_ERROR, "gltron", "EGL create failed");
     return 0;
   }
   eglMakeCurrent(s_display, s_surface, s_surface, s_context);
   eglErr = eglGetError();
-  if (eglErr != EGL_SUCCESS) { LOGE("eglMakeCurrent error: 0x%04x", eglErr); }
+  if (eglErr != EGL_SUCCESS) { __android_log_print(ANDROID_LOG_ERROR, "gltron", "eglMakeCurrent error: 0x%04x", eglErr); }
   eglQuerySurface(s_display, s_surface, EGL_WIDTH, &s_width);
   eglQuerySurface(s_display, s_surface, EGL_HEIGHT, &s_height);
 
@@ -152,12 +221,12 @@ static int init_egl(ANativeWindow* window, struct android_app* app) {
   const char* renderer = (const char*)glGetString(GL_RENDERER);
   const char* version  = (const char*)glGetString(GL_VERSION);
   const char* slver    = (const char*)glGetString(GL_SHADING_LANGUAGE_VERSION);
-  LOGI("OpenGL ES context created");
-  LOGI("GL_VENDOR: %s", vendor ? vendor : "(null)");
-  LOGI("GL_RENDERER: %s", renderer ? renderer : "(null)");
-  LOGI("GL_VERSION: %s", version ? version : "(null)");
-  LOGI("GL_SHADING_LANGUAGE_VERSION: %s", slver ? slver : "(null)");
-  LOGI("Using OpenGL ES via EGL (no Vulkan)");
+  __android_log_print(ANDROID_LOG_INFO, "gltron", "OpenGL ES context created");
+  __android_log_print(ANDROID_LOG_INFO, "gltron", "GL_VENDOR: %s", vendor ? vendor : "(null)");
+  __android_log_print(ANDROID_LOG_INFO, "gltron", "GL_RENDERER: %s", renderer ? renderer : "(null)");
+  __android_log_print(ANDROID_LOG_INFO, "gltron", "GL_VERSION: %s", version ? version : "(null)");
+  __android_log_print(ANDROID_LOG_INFO, "gltron", "GL_SHADING_LANGUAGE_VERSION: %s", slver ? slver : "(null)");
+  __android_log_print(ANDROID_LOG_INFO, "gltron", "Using OpenGL ES via EGL (no Vulkan)");
 
   gltron_init();
   // Initialize centralized shaders after GL context is current
@@ -232,7 +301,7 @@ static void finish_activity(struct android_app* app) {
   if (finish) {
     (*env)->CallVoidMethod(env, activity, finish);
   } else {
-    LOGE("Failed to find Activity.finish method");
+    __android_log_print(ANDROID_LOG_ERROR, "gltron", "Failed to find Activity.finish method");
     (*env)->ExceptionClear(env);
   }
   (*app->activity->vm)->DetachCurrentThread(app->activity->vm);
@@ -243,11 +312,11 @@ static void handle_cmd(struct android_app* app, int32_t cmd) {
     case APP_CMD_INIT_WINDOW:
       if (app->window) {
         if (!init_egl(app->window, app)) {
-          LOGE("Failed to init EGL");
+          __android_log_print(ANDROID_LOG_ERROR, "gltron", "Failed to init EGL");
         } else {
           // Apply immersive fullscreen from UI-thread context after EGL init
           if (game && game->settings && game->settings->fullscreen) {
-            LOGI("Applying immersive fullscreen: game->settings->fullscreen = %d", game->settings->fullscreen);
+            __android_log_print(ANDROID_LOG_INFO, "gltron", "Applying immersive fullscreen: game->settings->fullscreen = %d", game->settings->fullscreen);
 
             set_immersive_fullscreen(app);
           }
@@ -306,10 +375,10 @@ void android_main(struct android_app* state) {
       EGLBoolean ok = eglSwapBuffers(s_display, s_surface);
       if (!ok) {
         EGLint e = eglGetError();
-        LOGE("eglSwapBuffers failed: 0x%04x", e);
+        __android_log_print(ANDROID_LOG_ERROR, "gltron", "eglSwapBuffers failed: 0x%04x", e);
       }
       if (g_finish_requested) {
-        LOGI("Finishing activity on BACK at top-level");
+        __android_log_print(ANDROID_LOG_INFO, "gltron", "Finishing activity on BACK at top-level");
         finish_activity(state);
         g_finish_requested = 0;
       }
