@@ -689,9 +689,9 @@ void gltron_on_touch(float x, float y, int action) {
   if (scr_h > 0) iy = scr_h - 1 - iy;
 #endif
 
-  // If paused and not game finished, unpause on touch-up
+  // If paused, unpause on touch-up
   if (game && (game->pauseflag != 0)) {
-    if ((action & 0xFF) == 1 /* ACTION_UP */ && !(game->pauseflag & PAUSE_GAME_FINISHED)) {
+    if ((action & 0xFF) == 1 /* ACTION_UP */) {
       extern callbacks gameCallbacks;
       // Reset timing to avoid huge time jumps
       extern int lasttime;
@@ -734,6 +734,16 @@ void gltron_on_touch(float x, float y, int action) {
 #endif
           requestDisplayApply();
           if (!pCurrent || pCurrent->parent == NULL) {
+            // Don't exit if we're in the game-finished state
+            if (game && game->pauseflag & PAUSE_GAME_FINISHED) {
+              // Just unpause and continue
+              game->pauseflag = 0;
+              extern callbacks gameCallbacks;
+              android_switchCallbacks(&gameCallbacks);
+              return;
+            }
+
+            // Otherwise, proceed with normal exit
             android_restoreCallbacks();
             g_finish_requested = 1;
           } else {
