@@ -36,7 +36,7 @@ void clearCol(int x, int y) {
   }
   offset = x / 8 + y * colwidth;
   mask = 128 >> (x % 8);
-  *(colmap + offset) &= !mask;
+  *(colmap + offset) &= ~mask;
 }
 
 int getCol(int x, int y) {
@@ -529,14 +529,20 @@ void movePlayers() {
 	    if(game->player[winner].data->speed > 0) break;
 	  game->winner = (winner == game->players) ? -1 : winner;
 	  printf("winner: %d\n", winner);
+	  
+	  /* Set pause flag before switching callbacks to ensure proper state */
+	  game->pauseflag = PAUSE_GAME_FINISHED;
+	  
 #ifdef ANDROID
+	  /* On Android, we need to be more careful with callback switching */
 	  extern callbacks pauseCallbacks;
-	  android_switchCallbacks(&pauseCallbacks); // Declaration added above
+	  /* Try to use a safer approach for Android to prevent crashes */
+	  android_updateCallbacks(); /* Update timing to avoid huge jumps */
+	  android_switchCallbacks(&pauseCallbacks);
 #else
 	  switchCallbacks(&pauseCallbacks);
 #endif
 	  /* screenSaverCheck(0); */
-	  game->pauseflag = PAUSE_GAME_FINISHED;
 	}
       }
       if(game->settings->erase_crashed == 1 && data->trail_height > 0)
