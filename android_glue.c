@@ -805,12 +805,18 @@ void gltron_on_touch(float x, float y, int action) {
     // Only send turn commands on initial press, not continuous
     if (active_left && !was_left) {
       __android_log_print(ANDROID_LOG_INFO, "gltron", "Left button pressed");
-      keyGame('a', 0, 0);
+      // Check if player is still alive before processing turn
+      if (game && game->player[0].data && game->player[0].data->speed > 0) {
+        keyGame('a', 0, 0);
+      }
       return;
     }
     if (active_right && !was_right) {
       __android_log_print(ANDROID_LOG_INFO, "gltron", "Right button pressed");
-      keyGame('s', 0, 0);
+      // Check if player is still alive before processing turn
+      if (game && game->player[0].data && game->player[0].data->speed > 0) {
+        keyGame('s', 0, 0);
+      }
       return;
     }
     // Not over overlay buttons: forward to mouse-based swipe/tap logic

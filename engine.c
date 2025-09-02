@@ -51,7 +51,21 @@ int getCol(int x, int y) {
 void turn(Data* data, int direction) {
   line *new;
 
-  if(data->speed > 0) { /* only allow turning when in-game */
+  /* Validate input parameters */
+  if (!data) {
+    printf("turn: data is NULL!\n");
+    return;
+  }
+
+  /* Only allow turning when in-game and speed is positive */
+  if(data->speed > 0) {
+    /* Ensure trail pointer is valid */
+    if (!data->trail) {
+      printf("turn: trail is NULL!\n");
+      return;
+    }
+
+    /* Update trail endpoint to current position */
     data->trail->ex = data->posx;
     data->trail->ey = data->posy;
 
@@ -59,12 +73,17 @@ void turn(Data* data, int direction) {
     data->last_dir = data->dir;
     data->turn_time = getElapsedTime();
 
-    data->dir = (data->dir + direction) % 4;
+    /* Update direction (ensure it's always 0-3) */
+    data->dir = ((data->dir + direction) % 4 + 4) % 4;
 
+    /* Get next trail segment */
     new = (data->trail) + 1;
+    
+    /* Set start point of new segment to end point of current segment */
     new->ex = new->sx = data->trail->ex;
     new->ey = new->sy = data->trail->ey;
 
+    /* Update trail pointer */
     data->trail = new;
   }
 }
@@ -246,22 +265,74 @@ void initData() {
 
 
 int colldetect(float sx, float sy, float ex, float ey, int dir, int *x, int *y) {
+  /* Skip collision detection if environment variable is set */
   if(getenv("TRON_NO_COLL")) return 0;
+  
+  /* Validate output pointers */
+  if (!x || !y) {
+    fprintf(stderr, "colldetect: x or y pointer is NULL!\n");
+    return 0;
+  }
+  
+  /* Validate direction */
+  if (dir < 0 || dir > 3) {
+    fprintf(stderr, "colldetect: invalid direction %d!\n", dir);
+    return 0;
+  }
+  
+  /* Initialize output coordinates */
   *x = (int) sx;
   *y = (int) sy;
-
-  while(*x != (int) ex || *y != (int) ey) {
+  
+  /* Validate start and end positions */
+  if (sx < 0 || sx >= GSIZE || sy < 0 || sy >= GSIZE ||
+      ex < 0 || ex >= GSIZE || ey < 0 || ey >= GSIZE) {
+    fprintf(stderr, "colldetect: position out of bounds: start(%.2f,%.2f) end(%.2f,%.2f)\n", 
+            sx, sy, ex, ey);
+    /* Clamp values to valid range */
+    if (*x < 0) *x = 0;
+    if (*x >= GSIZE) *x = GSIZE - 1;
+    if (*y < 0) *y = 0;
+    if (*y >= GSIZE) *y = GSIZE - 1;
+    return 1; /* Return collision if out of bounds */
+  }
+  
+  /* Check for collision along the path */
+  int max_steps = 2 * GSIZE; /* Prevent infinite loops */
+  int steps = 0;
+  
+  while((*x != (int) ex || *y != (int) ey) && steps < max_steps) {
     *x += dirsX[dir];
     *y += dirsY[dir];
+    steps++;
+    
+    /* Check for collision */
     if(getCol(*x, *y)) {
-      /* check if x/y are in bounds and correct it */
+      /* Ensure x/y are in bounds */
       if(*x < 0) *x = 0;
-      if(*x >= GSIZE) *x = GSIZE -1; 
+      if(*x >= GSIZE) *x = GSIZE - 1; 
       if(*y < 0) *y = 0;
-      if(*y >= GSIZE) *y = GSIZE -1; 
+      if(*y >= GSIZE) *y = GSIZE - 1; 
+      return 1;
+    }
+    
+    /* Check for out of bounds */
+    if(*x < 0 || *x >= GSIZE || *y < 0 || *y >= GSIZE) {
+      /* Clamp to valid range */
+      if(*x < 0) *x = 0;
+      if(*x >= GSIZE) *x = GSIZE - 1; 
+      if(*y < 0) *y = 0;
+      if(*y >= GSIZE) *y = GSIZE - 1; 
       return 1;
     }
   }
+  
+  /* If we reached max steps without finding the end point, report collision */
+  if (steps >= max_steps) {
+    fprintf(stderr, "colldetect: reached max steps without finding end point\n");
+    return 1;
+  }
+  
   return 0;
 }
 
@@ -498,7 +569,14 @@ void movePlayers() {
 	    if(j != i && game->player[j].data->speed > 0)
 	      game->player[j].data->score++;
 	  }
+#ifdef ANDROID
+	  /* On Android, we need to be more careful with collision handling */
+	  if (data->speed > 0) { /* Only if we're still alive */
+	    data->speed = SPEED_CRASHED;
+	  }
+#else
 	  data->speed = SPEED_CRASHED;
+#endif
 	}
 
 	/* now draw marks in the bitfield */
