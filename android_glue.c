@@ -662,7 +662,7 @@ void gltron_frame(void) {
   }
   
   // Safely call display callback
-  if (current_android_callbacks.display && current_android_callbacks.display != (void*)0xdeadbeef) {
+  if (current_android_callbacks.display) {
     current_android_callbacks.display();
   } else {
     __android_log_print(ANDROID_LOG_WARN, "gltron", "gltron_frame: invalid display callback");
