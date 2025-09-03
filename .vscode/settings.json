@@ -58,5 +58,6 @@
         "sound_backend.h": "c",
         "android_glue.h": "c"
     },
-    "refactai.ast": false
+    "refactai.ast": true,
+    "CodeGPT.apiKey": "Groq"
 }
