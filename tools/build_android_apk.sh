@@ -20,24 +20,28 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")"/.. && pwd)"
 OUT_DIR="$ROOT_DIR/build-android"
-STAGE_DIR="$(mktemp -d "${TMPDIR:-/tmp}/gltron-apk.XXXXXX")"
+ABI="${ANDROID_ABI:-arm64-v8a}"
+STAGE_DIR="$ROOT_DIR/tools/staging"
+mkdir -p "$STAGE_DIR"
+mkdir -p "$STAGE_DIR/lib/$ABI"
+rm -rf "$STAGE_DIR"/* 2>/dev/null || true
 # Allow override via environment. Validate later.
 PKG="${ANDROID_APP_ID:-org.gltron.game}"
 APP_NAME="${ANDROID_APP_NAME:-GLTron}"
-ABI="${ANDROID_ABI:-arm64-v8a}"
 MIN_SDK=${ANDROID_MIN_SDK:-29}
 TARGET_SDK=${ANDROID_TARGET_SDK:-35}
 LIB_NAME="${ANDROID_LIB_NAME:-gltron}"
 SO_NAME="lib${LIB_NAME}.so"
 APK_OUT="$OUT_DIR/gltron.apk"
+ALIGNED_APK="$STAGE_DIR/gltron-aligned.apk"
 
 log() { echo "[build_android_apk] $*"; }
 err() { echo "[build_android_apk][error] $*" >&2; exit 1; }
 
 require_cmd() { command -v "$1" >/dev/null 2>&1 || { err "Missing required tool: $1"; }; }
 
-# Locate Android build-tools - use version 35.0.1
-BUILD_TOOLS_VERSION="35.0.1"
+# Locate Android build-tools - use version 36.0.0
+BUILD_TOOLS_VERSION="36.0.0"
 ANDROID_SDK_ROOT=/home/mateus/Android/Sdk
 BUILD_TOOLS_DIR="$ANDROID_SDK_ROOT/build-tools/$BUILD_TOOLS_VERSION"
 
@@ -112,16 +116,6 @@ rsync -a --delete \
   err "Failed to copy assets"
 }
 
-# Copy native libraries and include classes.dex if present
-cp "$OUT_DIR/$SO_NAME" "$STAGE_DIR/lib/$ABI/$SO_NAME" || {
-  err "Failed to copy native library"
-}
-if [[ -f "$STAGE_DIR/classes.dex" ]]; then
-  echo "Including classes.dex in APK"
-else
-  echo "Note: classes.dex not found; APK will run without Java helper"
-fi
-
 # Copy libc++_shared.so to the lib directory (prefer ANDROID_NDK_HOME, fallback to ANDROID_NDK)
 LIBCXX_SRC=""
 if [[ -n "${ANDROID_NDK_HOME:-}" && -d "${ANDROID_NDK_HOME:-}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android" ]]; then
@@ -135,104 +129,12 @@ else
   err "Failed to copy libc++_shared.so (source not found). Ensure ANDROID_NDK_HOME points to a valid NDK."
 fi
 
-# Compile minimal Java helper (UiHelpers) into classes.dex
-JAVA_SRC_DIR="$ROOT_DIR/tools/java"
-if [[ -d "$JAVA_SRC_DIR" ]]; then
-
-  # Find android.jar (API 29+) for compilation
-  ANDROID_JAR=$(python3 - <<'PY'
-import os
-roots=[
-    os.environ.get('ANDROID_SDK_ROOT'),
-    os.environ.get('ANDROID_HOME'),
-    '/usr/lib/android-sdk',
-    '/opt/android-sdk',
-    os.path.expanduser('~/Android/Sdk'),
-]
-cands=[]
-for r in roots:
-    if not r: continue
-    plat=os.path.join(r,'platforms')
-    if os.path.isdir(plat):
-        for name in sorted(os.listdir(plat), reverse=True):
-            jar=os.path.join(plat,name,'android.jar')
-            if os.path.isfile(jar):
-                cands.append(jar)
-for c in cands:
-    print(c)
-    break
-PY
-)
-  if [[ -z "$ANDROID_JAR" ]]; then
-    echo "Warning: android.jar not found; skipping Java compile"
-  else
-    echo "Compiling Java sources..."
-    mkdir -p "$STAGE_DIR/classes"
-    echo "Running javac: javac -source 1.8 -target 1.8 -bootclasspath \"$ANDROID_JAR\" -classpath \"$ANDROID_JAR\" -d \"$STAGE_DIR/classes\" \"$JAVA_SRC_DIR/org/gltron/game/UiHelpers.java\""
-    if ! javac -source 1.8 -target 1.8 -bootclasspath "$ANDROID_JAR" -classpath "$ANDROID_JAR" -d "$STAGE_DIR/classes" "$JAVA_SRC_DIR/org/gltron/game/UiHelpers.java"; then
-      echo "Warning: javac failed; skipping Java helper"
-    else
-      # Locate d8
-      D8_BIN="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}/build-tools"
-      if [[ -d "$D8_BIN" ]]; then
-        D8_BIN=$(ls -d "$D8_BIN"/* 2>/dev/null | sort -V | tail -n1)/d8
-      else
-        D8_BIN=$(command -v d8 || true)
-      fi
-      if [[ -x "$D8_BIN" ]]; then
-        echo "Running d8 to produce classes.dex"
-        "$D8_BIN" --release --min-api 19 --lib "$ANDROID_JAR" --output "$STAGE_DIR" "$STAGE_DIR/classes" || echo "Warning: d8 failed; skipping classes.dex"
-      else
-        echo "Warning: d8 not found; skipping classes.dex"
-      fi
-    fi
-    javac -source 1.8 -target 1.8 -bootclasspath "$ANDROID_JAR" -classpath "$ANDROID_JAR" -d "$STAGE_DIR/classes" "$JAVA_SRC_DIR/org/gltron/game/UiHelpers.java"
-    if [[ $? -ne 0 ]]; then
-      echo "ERROR: javac failed to compile Java sources"
-      exit 1
-    fi
-    if [[ ! -d "$STAGE_DIR/classes" ]]; then
-      echo "ERROR: javac did not create $STAGE_DIR/classes directory"
-      exit 1
-    fi
-
-    echo "Converting Java classes to DEX..."
-    # Resolve d8 from the selected build-tools version, then fall back to PATH
-    D8_BIN="$BUILD_TOOLS_DIR/d8"
-    if [[ ! -x "$D8_BIN" ]]; then
-      # Fallback: try unversioned location and PATH
-      if command -v d8 >/dev/null 2>&1; then
-        D8_BIN="$(command -v d8)"
-      elif [[ -x "$ANDROID_SDK_ROOT/build-tools/d8" ]]; then
-        D8_BIN="$ANDROID_SDK_ROOT/build-tools/d8"
-      else
-        echo "ERROR: d8 not found. Please install Android build-tools and ensure it's in your PATH."
-        exit 1
-      fi
-    fi
-
-    # d8 accepts directories of .class files
-    "$D8_BIN" --output "$STAGE_DIR" "$STAGE_DIR/classes/org/gltron/game/UiHelpers.class"
-    if ! strings "$STAGE_DIR/classes.dex" | grep -q "org/gltron/game/UiHelpers"; then
-      echo "ERROR: UiHelpers not found in classes.dex after d8"
-      exit 1
-    fi
-  fi
-fi
-
-# If an existing prebuilt classes.dex is provided, copy it as fallback
-if [[ -f "$ROOT_DIR/tools/minimal-classes.dex" && ! -f "$STAGE_DIR/classes.dex" ]]; then
-  cp "$ROOT_DIR/tools/minimal-classes.dex" "$STAGE_DIR/classes.dex" || true
-fi
-
-# Validate package name (Java package format): segments of [a-z][a-z0-9_]*, at least 2 segments, no leading/trailing dots
-if [[ ! "$PKG" =~ ^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)+$ ]]; then
-  err "Invalid ANDROID_APP_ID/package: '$PKG'. Use lowercase dotted identifiers like 'org.gltron.game'"
-fi
+# Create manifest subdir and file in staging/manifest/
+MANIFEST_DIR="$STAGE_DIR/manifest"
+mkdir -p "$MANIFEST_DIR"
 
 # Create AndroidManifest.xml using a temporary file
-MANIFEST_TEMP=$(mktemp)
-cat > "$MANIFEST_TEMP" <<EOF
+cat > "$STAGE_DIR/AndroidManifest.xml" <<EOF
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="org.gltron.game"
@@ -261,22 +163,13 @@ cat > "$MANIFEST_TEMP" <<EOF
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
     </application>
 </manifest>
 EOF
 
-# Move the temporary file to the final location
-mv "$MANIFEST_TEMP" "$STAGE_DIR/manifest/AndroidManifest.xml" || {
-  err "Failed to create AndroidManifest.xml"
-}
-
-# Print classes.dex info before APK packaging
-if [[ -f "$STAGE_DIR/classes.dex" ]]; then
-  DEX_SIZE_BEFORE=${DEX_SIZE_BEFORE:-$(stat -c%s "$STAGE_DIR/classes.dex" 2>/dev/null || wc -c < "$STAGE_DIR/classes.dex")}
-  DEX_SHA_BEFORE=${DEX_SHA_BEFORE:-$(sha1sum "$STAGE_DIR/classes.dex" 2>/dev/null | awk '{print $1}')}
-  echo "[build_android_apk] Packing classes.dex: size=$DEX_SIZE_BEFORE sha1=$DEX_SHA_BEFORE"
-else
-  echo "ERROR: classes.dex missing before packaging"
+if [ ! -f "$STAGE_DIR/AndroidManifest.xml" ]; then
+  echo "ERROR: Missing AndroidManifest.xml in STAGE_DIR"
   exit 1
 fi
 
@@ -316,10 +209,16 @@ if [[ -d "$ANDROID_SDK_ROOT/platforms" ]]; then
   fi
 fi
 
+if [ ! -d "$STAGE_DIR/lib/$ABI" ] || [ -z "$(ls -A $STAGE_DIR/lib/$ABI)" ]; then
+  echo "ERROR: No native libraries in lib/$ABI"
+  exit 1
+fi
+
+echo "✅ STAGE_DIR validated successfully"
 # Package resources and manifest
 log "Using package: $PKG"
 log "Min SDK: $MIN_SDK, Target SDK: $TARGET_SDK, ABI: $ABI, LIB: $LIB_NAME"
-log "Manifest: $STAGE_DIR/manifest/AndroidManifest.xml"
+log "Manifest: $STAGE_DIR/AndroidManifest.xml"
 # Ensure temp files are cleaned on exit
 cleanup() { rm -rf "$STAGE_DIR" "$UNALIGNED_APK" "$ALIGNED_APK" 2>/dev/null || true; }
 trap cleanup EXIT
@@ -329,22 +228,12 @@ rm -f "$APK_OUT"
 if [[ -x "$AAPT" ]]; then
   log "Building APK with aapt (preferred for v1+v2 signing)"
   "$AAPT" package -f \
-    -M "$STAGE_DIR/manifest/AndroidManifest.xml" \
+    -M "$STAGE_DIR/AndroidManifest.xml" \
     -S "$STAGE_DIR/res" \
     -A "$STAGE_DIR/assets" \
     -I "$ANDROID_SDK_ROOT/platforms/android-$TARGET_SDK/android.jar" \
     -F "$UNALIGNED_APK" || {
     err "Failed to package APK with aapt"
-  }
-  # Add classes.dex and native libs to the APK in one go
-  if [[ -f "$STAGE_DIR/classes.dex" ]]; then
-      echo "classes.dex exists"
-    else
-      echo "ERROR: classes.dex does not exist"
-      exit 1
-    fi
-    (cd "$STAGE_DIR" && "$AAPT" add "$UNALIGNED_APK" "classes.dex" "lib/$ABI/$SO_NAME" "lib/$ABI/libc++_shared.so") || {
-    err "Failed to add classes.dex and native libs with aapt"
   }
 elif [[ -x "$AAPT2" ]]; then
   log "Building APK with aapt2 (fallback)"
@@ -354,7 +243,7 @@ elif [[ -x "$AAPT2" ]]; then
   }
   COMPILED_RES_FILES=("$STAGE_DIR"/compiled-res/*.flat)
   "$AAPT2" link -o "$UNALIGNED_APK" \
-    --manifest "$STAGE_DIR/manifest/AndroidManifest.xml" \
+    --manifest "$STAGE_DIR/AndroidManifest.xml" \
     -I "$ANDROID_SDK_ROOT/platforms/android-$TARGET_SDK/android.jar" \
     --min-sdk-version "$MIN_SDK" \
     --target-sdk-version "$TARGET_SDK" \
@@ -421,21 +310,6 @@ fi
 if ! echo "$VERIFY_OUT" | grep -q "Verified using v1 scheme (JAR signing): true"; then
   log "Warning: v1 (JAR) signing is false. This is acceptable for minSdk $MIN_SDK (v2 is present)."
 fi
-
-# Verify classes.dex inside APK matches what we built
-TMP_DEX_APK=$(mktemp)
-unzip -p "$APK_OUT" classes.dex > "$TMP_DEX_APK" 2>/dev/null || true
-if [[ -s "$TMP_DEX_APK" ]]; then
-  DEX_SIZE_AFTER=$(stat -c%s "$TMP_DEX_APK" 2>/dev/null || wc -c < "$TMP_DEX_APK")
-  DEX_SHA_AFTER=$(sha1sum "$TMP_DEX_APK" 2>/dev/null | awk '{print $1}')
-  log "APK classes.dex: size=$DEX_SIZE_AFTER sha1=$DEX_SHA_AFTER"
-  if ! strings "$TMP_DEX_APK" | grep -q "org/gltron/game/UiHelpers"; then
-    err "APK classes.dex does not contain UiHelpers; build will likely crash at runtime"
-  fi
-else
-  log "WARNING: No classes.dex found inside APK"
-fi
-rm -f "$TMP_DEX_APK"
 
 log "APK built and signed (v2 verified): $APK_OUT"
 echo "$APK_OUT"
