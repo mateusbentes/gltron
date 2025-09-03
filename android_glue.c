@@ -690,7 +690,7 @@ void gltron_on_touch(float x, float y, int action) {
 #endif
   
   // If paused, unpause on touch-up
-  if (game->pauseflag != 0) {
+  if (game != NULL && game->pauseflag != 0) {
     if (action == 1 /* ACTION_UP */) {
       __android_log_print(ANDROID_LOG_INFO, "gltron", "Unpausing game on touch-up");
       
@@ -957,7 +957,7 @@ void gltron_on_touch(float x, float y, int action) {
     active_left = active_right = active_pause = 0;
     
     // Forward to mouse-based tap/swipe finish only if game is in a valid state
-    if (game && game->screen && game->pauseflag == 0) {
+    if (game != NULL && game->screen != NULL && game->pauseflag == 0) {
       int y_bl = (game->screen->h - 1 - iy);
       mouseGame(0 /* left button */, 1 /* up */, ix, y_bl);
     }
