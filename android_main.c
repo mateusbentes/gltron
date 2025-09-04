@@ -570,8 +570,7 @@ static void handle_cmd(struct android_app* app, int32_t cmd) {
 
         default:
             break;
-        
-  }
+    }
 }
 
 void android_main(struct android_app* state) {
@@ -607,9 +606,7 @@ void android_main(struct android_app* state) {
             }
         }
 
-        
-
-// Only render if EGL is initialized and we have a valid surface
+        // Only render if EGL is initialized and we have a valid surface
         if (s_egl_initialized && s_display != EGL_NO_DISPLAY && s_surface != EGL_NO_SURFACE) {
             // Ensure EGL context is current before rendering
             if (!ensure_egl_context()) {
