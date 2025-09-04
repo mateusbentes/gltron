@@ -160,15 +160,10 @@ static void set_immersive_fullscreen(struct android_app* app) {
 
     (*env)->CallVoidMethod(env, decor_view, set_system_ui_visibility, flags);
     if ((*env)->ExceptionCheck(env)) {
-        __android_log_print(ANDROID_LOG_WARN, "gltron", "Exception during setSystemUiVisibility");
+        __android_log_print(ANDROID_LOG_WARN, "gltron", "JNI exception in setSystemUiVisibility");
         (*env)->ExceptionClear(env);
     } else {
         __android_log_print(ANDROID_LOG_INFO, "gltron", "Immersive mode flags applied: %d", flags);
-    }
-    if (result == 0) {
-        __android_log_print(ANDROID_LOG_INFO, "gltron", "Immersive mode enabled with flags: %d", flags);
-    } else {
-        __android_log_print(ANDROID_LOG_WARN, "gltron", "Call to setSystemUiVisibility failed");
     }
     
     if ((*env)->ExceptionCheck(env)) {
@@ -185,18 +180,20 @@ static void set_immersive_fullscreen(struct android_app* app) {
     (*env)->DeleteLocalRef(env, decor_view);
     (*env)->DeleteLocalRef(env, view_class);
 
-cleanup:
-    if (activity_class) {
-        (*env)->DeleteLocalRef(env, activity_class);
-    }
+
+  cleanup:
+      if (activity_class) {
+          (*env)->DeleteLocalRef(env, activity_class);
+      }
+
 }
 
 // Add GL error checking function
 static void check_gl_error(const char* operation) {
-    GLenum error = glGetError();
-    if (error != GL_NO_ERROR) {
-        __android_log_print(ANDROID_LOG_ERROR, "gltron", "GL error after %s: 0x%04x", operation, error);
-    }
+  GLenum error = glGetError();
+  if (error != GL_NO_ERROR) {
+      __android_log_print(ANDROID_LOG_ERROR, "gltron", "GL error after %s: 0x%04x", operation, error);
+  }
 }
 
 static int init_egl(ANativeWindow* window, struct android_app* app) {
