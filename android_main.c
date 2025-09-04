@@ -10,13 +10,6 @@
 #include "android_glue.h"
 #include "shaders.h"
 
-#define ANATIVEWINDOW_FLAG_IMMERSIVE_STICKY 0x00000800
-#define ANATIVEWINDOW_FLAG_LAYOUT_STABLE 0x00000100
-#define ANATIVEWINDOW_FLAG_LAYOUT_HIDE_NAVIGATION 0x00000200
-#define ANATIVEWINDOW_FLAG_LAYOUT_FULLSCREEN 0x00000400
-#define ANATIVEWINDOW_FLAG_HIDE_NAVIGATION 0x00000002
-#define ANATIVEWINDOW_FLAG_FULLSCREEN 0x00000004
-
 static const int SYSTEM_UI_FLAG_LAYOUT_STABLE = 0x00000100;
 static const int SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION = 0x00000200;
 static const int SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN = 0x00000400;
@@ -31,63 +24,106 @@ static EGLSurface s_surface = EGL_NO_SURFACE;
 static EGLContext s_context = EGL_NO_CONTEXT;
 static int32_t s_width = 0, s_height = 0;
 
-static int get_android_api_level() {
-    char value[PROP_VALUE_MAX] = {0};
-    __system_property_get("ro.build.version.sdk", value);
-    return atoi(value);
-}
-
-static int build_immersive_flags() {
-    int flags = 0;
-    int api_level = get_android_api_level();
-    if (api_level >= 19) {
-        flags |= SYSTEM_UI_FLAG_LAYOUT_STABLE;
-        flags |= SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION;
-        flags |= SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN;
-        flags |= SYSTEM_UI_FLAG_HIDE_NAVIGATION;
-        flags |= SYSTEM_UI_FLAG_FULLSCREEN;
-        flags |= SYSTEM_UI_FLAG_IMMERSIVE;
-    } else {
-        flags |= SYSTEM_UI_FLAG_HIDE_NAVIGATION;
-        flags |= SYSTEM_UI_FLAG_FULLSCREEN;
+// Helper to check for and log any Java exceptions
+void checkException(JNIEnv* env) {
+    if ((*env)->ExceptionCheck(env)) {
+        __android_log_print(ANDROID_LOG_ERROR, "gltron", "Exception thrown in JNI call. Logging stack trace:");
+        (*env)->ExceptionDescribe(env);
+        (*env)->ExceptionClear(env);
     }
-    return flags;
 }
 
 /* Set_immersive_fullscreen */
-static void set_immersive_fullscreen(struct android_app* app) {
-    JNIEnv* env; // Not needed anymore
-    jobject activity = app->activity->clazz;
-    jclass activityCls = NULL;
+static void set_immersive_fullscreen_jni(struct android_app* app) {
+  JNIEnv* env;
+  jobject activity = app->activity->clazz;
 
-    if (!app || !app->window) {
-        __android_log_print(ANDROID_LOG_ERROR, "gltron", "Window is NULL");
-        return;
+  if (!activity) {
+    __android_log_print(ANDROID_LOG_WARN, "gltron", "No activity object found - immersion skipped.");
+    return;
+  }
+
+  // Attach to current thread if necessary
+  JNIEnv* threadEnv;
+  if ((*app->activity->vm)->GetEnv(app->activity->vm, (void**)&threadEnv, JNI_VERSION_1_6) != JNI_OK) {
+    if ((*app->activity->vm)->AttachCurrentThread(app->activity->vm, &threadEnv, NULL) != JNI_OK) {
+      __android_log_print(ANDROID_LOG_WARN, "gltron", "Failed to attach thread for JNI.");
+      return;
     }
+  }
 
-    int flags = build_immersive_flags();
+  jclass activityCls = (*threadEnv)->GetObjectClass(threadEnv, activity);
+  if (!activityCls) {
+    __android_log_print(ANDROID_LOG_WARN, "gltron", "Failed to get Activity class.");
+    goto done;
+  }
 
-    __android_log_print(ANDROID_LOG_INFO, "gltron", "Native: Applying system UI visibility flags: 0x%x", flags);
+  // Call Activity.getWindow():Window
+  jmethodID getWindow = (*threadEnv)->GetMethodID(threadEnv, activityCls, "getWindow", "()Landroid/view/Window;");
+  if (!getWindow) {
+    __android_log_print(ANDROID_LOG_WARN, "gltron", "getWindow not found.");
+    goto done;
+  }
+  jobject window = (*threadEnv)->CallObjectMethod(threadEnv, activity, getWindow);
+  if (!window) {
+    __android_log_print(ANDROID_LOG_WARN, "gltron", "Window is null.");
+    goto done;
+  }
 
-    // Set system UI visibility on native window
-    struct ANativeActivity* nativeActivity = app->activity;
-    if (!app->window) {
-        __android_log_print(ANDROID_LOG_ERROR, "gltron", "nativeActivity->window is NULL");
-        return;
-    }
+  // Call Window.getDecorView():View
+  jclass windowCls = (*threadEnv)->GetObjectClass(threadEnv, window);
+  if (!windowCls) {
+    __android_log_print(ANDROID_LOG_WARN, "gltron", "Window class not found.");
+    goto done;
+  }
 
-    // ANativeWindow doesn't directly support setting visibility
-    ANativeWindow* native_window = app->window;
-    if (!native_window) {
-        __android_log_print(ANDROID_LOG_ERROR, "gltron", "Failed to get native window");
-        return;
-    }
+  jmethodID getDecorView = (*threadEnv)->GetMethodID(threadEnv, windowCls, "getDecorView", "()Landroid/view/View;");
+  if (!getDecorView) {
+    __android_log_print(ANDROID_LOG_WARN, "gltron", "getDecorView not found.");
+    goto done;
+  }
+  jobject decorView = (*threadEnv)->CallObjectMethod(threadEnv, window, getDecorView);
+  if (!decorView) {
+    __android_log_print(ANDROID_LOG_WARN, "gltron", "DecorView is null.");
+    goto done;
+  }
 
-    // Use Android's API via Java (if unavoidable)
-    // However, you still need Java if you rely on Android's visibility flags.
+  // Call View.setSystemUiVisibility(int):int
+  jclass viewCls = (*threadEnv)->GetObjectClass(threadEnv, decorView);
+  if (!viewCls) {
+    __android_log_print(ANDROID_LOG_WARN, "gltron", "View class not found.");
+    goto done;
+  }
 
-    // Alternatively, you could use Android's Native API to set UI flags, but it's not straightforward without Java.
-    // So Java is still required — but only for immersive flags.
+  jmethodID setSystemUiVisibility = (*threadEnv)->GetMethodID(threadEnv, viewCls, "setSystemUiVisibility", "(I)I");
+  if (!setSystemUiVisibility) {
+    __android_log_print(ANDROID_LOG_WARN, "gltron", "setSystemUiVisibility not found.");
+    goto done;
+  }
+
+  int flags = SYSTEM_UI_FLAG_LAYOUT_STABLE
+              | SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+              | SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+              | SYSTEM_UI_FLAG_HIDE_NAVIGATION
+              | SYSTEM_UI_FLAG_FULLSCREEN
+              | SYSTEM_UI_FLAG_IMMERSIVE;
+  
+  int result = (*threadEnv)->CallIntMethod(threadEnv, decorView, setSystemUiVisibility, flags);
+  checkException(threadEnv);
+  __android_log_print(ANDROID_LOG_INFO, "gltron", "JNI Immersive mode applied. Result code: %d", result);
+
+done:
+  // Clean up references
+  if (activityCls) (*threadEnv)->DeleteLocalRef(threadEnv, activityCls);
+  if (window) (*threadEnv)->DeleteLocalRef(threadEnv, window);
+  if (windowCls) (*threadEnv)->DeleteLocalRef(threadEnv, windowCls);
+  if (decorView) (*threadEnv)->DeleteLocalRef(threadEnv, decorView);
+  if (viewCls) (*threadEnv)->DeleteLocalRef(threadEnv, viewCls);
+
+  // Detach if needed
+  if (threadEnv != app->activity->env) {
+    (*app->activity->vm)->DetachCurrentThread(app->activity->vm);
+  }
 }
 
 static int init_egl(ANativeWindow* window, struct android_app* app) {
@@ -226,16 +262,10 @@ static void finish_activity(struct android_app* app) {
 static void handle_cmd(struct android_app* app, int32_t cmd) {
   switch (cmd) {
     case APP_CMD_INIT_WINDOW:
-      if (app->window) {
-        if (!init_egl(app->window, app)) {
-          __android_log_print(ANDROID_LOG_ERROR, "gltron", "Failed to init EGL");
-        } else {
-          // Apply immersive fullscreen from native code
-          if (game && game->settings && game->settings->fullscreen) {
-            __android_log_print(ANDROID_LOG_INFO, "gltron", "Applying immersive fullscreen: game->settings->fullscreen = %d", game->settings->fullscreen);
-
-            set_immersive_fullscreen(app);
-          }
+      if (app->window && app->activity && app->activity->clazz) {
+        if (init_egl(app->window, app)) {
+          // Apply immersive mode via pure JNI
+          set_immersive_fullscreen_jni(app);
         }
       }
       break;

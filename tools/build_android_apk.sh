@@ -94,8 +94,9 @@ if [[ ! -f "$OUT_DIR/$SO_NAME" ]]; then
 fi
 
 # Copy libgltron.so into the staging lib directory
-cp "$OUT_DIR/$SO_NAME" "$STAGE_DIR/lib/$ABI/" || {
-  err "Failed to copy $SO_NAME to $STAGE_DIR/lib/$ABI"
+cp "$OUT_DIR/$SO_NAME" "$STAGE_DIR/lib/$ABI/" && {
+  echo "libgltron.so copied";
+  [ -f "$STAGE_DIR/lib/$ABI/$SO_NAME" ] || err "Failed to copy libgltron.so to staging directory";
 }
 
 # Prepare staging structure (single pass)
