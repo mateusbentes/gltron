@@ -24,6 +24,22 @@ static EGLSurface s_surface = EGL_NO_SURFACE;
 static EGLContext s_context = EGL_NO_CONTEXT;
 static int32_t s_width = 0, s_height = 0;
 
+int get_android_sdk_version(JNIEnv* env, jobject activity) {
+    jclass versionClass = (*env)->FindClass(env, "android/os/Build$VERSION");
+    if (!versionClass) {
+        __android_log_print(ANDROID_LOG_WARN, "gltron", "Failed to get Build$VERSION class.");
+        return 0; // Fallback value
+    }
+
+    jfieldID sdkIntField = (*env)->GetStaticFieldID(env, versionClass, "SDK_INT", "I");
+    if (!sdkIntField) {
+        __android_log_print(ANDROID_LOG_WARN, "gltron", "SDK_INT field not found.");
+        return 0;
+    }
+
+    return (*env)->GetStaticIntField(env, versionClass, sdkIntField);
+}
+
 // Helper to check for and log any Java exceptions
 void checkException(JNIEnv* env) {
     if ((*env)->ExceptionCheck(env)) {
@@ -50,6 +66,14 @@ static void set_immersive_fullscreen_jni(struct android_app* app) {
       __android_log_print(ANDROID_LOG_WARN, "gltron", "Failed to attach thread for JNI.");
       return;
     }
+  }
+
+  int androidSdkVersion = get_android_sdk_version(threadEnv, activity);
+    
+  // Skip if SDK is too old (Immersive mode needs API 19+)
+  if (androidSdkVersion < 19) {
+      __android_log_print(ANDROID_LOG_WARN, "gltron", "Immersive mode not supported on this device (SDK < 19).");
+      return;
   }
 
   jclass activityCls = (*threadEnv)->GetObjectClass(threadEnv, activity);
@@ -101,16 +125,19 @@ static void set_immersive_fullscreen_jni(struct android_app* app) {
     goto done;
   }
 
-  int flags = SYSTEM_UI_FLAG_LAYOUT_STABLE
-              | SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-              | SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-              | SYSTEM_UI_FLAG_HIDE_NAVIGATION
-              | SYSTEM_UI_FLAG_FULLSCREEN
-              | SYSTEM_UI_FLAG_IMMERSIVE;
-  
-  int result = (*threadEnv)->CallIntMethod(threadEnv, decorView, setSystemUiVisibility, flags);
-  checkException(threadEnv);
-  __android_log_print(ANDROID_LOG_INFO, "gltron", "JNI Immersive mode applied. Result code: %d", result);
+  // Proceed only if SDK >= 19
+  if (androidSdkVersion >= 19) {
+    int flags = SYSTEM_UI_FLAG_LAYOUT_STABLE
+                | SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                | SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                | SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                | SYSTEM_UI_FLAG_FULLSCREEN
+                | SYSTEM_UI_FLAG_IMMERSIVE;
+
+    int result = (*threadEnv)->CallIntMethod(threadEnv, decorView, setSystemUiVisibility, flags);
+    checkException(threadEnv);
+    __android_log_print(ANDROID_LOG_INFO, "gltron", "JNI Immersive mode applied. Result code: %d", result);
+  }
 
 done:
   // Clean up references
@@ -261,7 +288,7 @@ static void finish_activity(struct android_app* app) {
 
 static void handle_cmd(struct android_app* app, int32_t cmd) {
   switch (cmd) {
-    case APP_CMD_INIT_WINDOW:
+    case APP_CMD_RESUME:
       if (app->window && app->activity && app->activity->clazz) {
         if (init_egl(app->window, app)) {
           // Apply immersive mode via pure JNI
