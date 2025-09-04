@@ -296,8 +296,6 @@ static int32_t handle_input(struct android_app* app, AInputEvent* event) {
     return 0;
 }
 
-int g_finish_requested = 0;
-
 static void finish_activity(struct android_app* app) {
     if (!app || !app->activity || !app->activity->vm) return;
 

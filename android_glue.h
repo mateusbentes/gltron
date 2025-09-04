@@ -1,5 +1,6 @@
 #pragma once
 #include "gltron.h"
+#include <android/native_activity.h>
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -37,10 +38,12 @@ extern char s_base_path[PATH_MAX];
 
 extern int g_finish_requested;
 extern struct android_app* state;
+extern int g_finish_requested;
 extern int did_first_render;
-extern android_callbacks current_android_callbacks;
-extern android_callbacks last_android_callbacks;
-extern int initialized;
+extern int gui_callbacks_initialized;
+extern int game_callbacks_initialized;
+extern int pause_callbacks_initialized;
+extern void gltron_frame(void);
 
 // Optional input hooks
 // gltron_on_key removed: touch-only control on Android

@@ -52,10 +52,14 @@ android_callbacks current_android_callbacks = {0};
 android_callbacks last_android_callbacks = {0};
 struct android_app* state;
 
-// Track which callbacks have been initialized to avoid re-initialization
-static int gui_callbacks_initialized = 0;
-static int game_callbacks_initialized = 0;
-static int pause_callbacks_initialized = 0;
+struct android_app* state = NULL;
+
+int g_finish_requested = 0;
+int did_first_render = 0;
+
+int gui_callbacks_initialized = 0;
+int game_callbacks_initialized = 0;
+int pause_callbacks_initialized = 0;
 
 // Reset game callbacks initialization when starting a new game
 void reset_game_callbacks_init() {
@@ -74,8 +78,6 @@ extern callbacks *current_callback;
 #define PATH_MAX 1024
 #endif
 char s_base_path[PATH_MAX] = "/data/data/org.gltron.game/files"; // default fallback
-
-int did_first_render = 0;
 
 int initialized = 0;
 // base path defined above (non-static) and declared in header
@@ -240,9 +242,6 @@ void android_switchCallbacks(callbacks *new) {
     __android_log_print(ANDROID_LOG_INFO, "gltron", "android_switchCallbacks: already on %s, skipping", callback_name);
     return;
   }
-
-  // Store the last callback
-  last_android_callbacks = current_android_callbacks;
 
   // Update current callback structure
   current_android_callbacks.display = new->display;
