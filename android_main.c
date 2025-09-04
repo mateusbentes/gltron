@@ -5,8 +5,14 @@
 #include <android_native_app_glue.h>
 #include <EGL/egl.h>
 #include <GLES2/gl2.h>
+#include <sys/system_properties.h>
 #include "android_glue.h"
 #include "shaders.h"
+
+// Define PROP_VALUE_MAX if not already defined
+#ifndef PROP_VALUE_MAX
+#define PROP_VALUE_MAX 92
+#endif
 
 void initGLGui(void);
 
@@ -475,6 +481,28 @@ static void apply_immersive_mode_and_refresh(struct android_app* app) {
     }
 }
 
+// Helper function to ensure EGL context is current
+static int ensure_egl_context() {
+    if (!s_egl_initialized || s_display == EGL_NO_DISPLAY || s_surface == EGL_NO_SURFACE || s_context == EGL_NO_CONTEXT) {
+        return 0;
+    }
+    
+    // Check if the context is already current
+    EGLContext current_context = eglGetCurrentContext();
+    EGLSurface current_draw = eglGetCurrentSurface(EGL_DRAW);
+    EGLSurface current_read = eglGetCurrentSurface(EGL_READ);
+    
+    if (current_context != s_context || current_draw != s_surface || current_read != s_surface) {
+        __android_log_print(ANDROID_LOG_INFO, "gltron", "EGL context not current, restoring");
+        if (!eglMakeCurrent(s_display, s_surface, s_surface, s_context)) {
+            __android_log_print(ANDROID_LOG_ERROR, "gltron", "Failed to make context current: 0x%04x", eglGetError());
+            return 0;
+        }
+    }
+    
+    return 1;
+}
+
 static void handle_cmd(struct android_app* app, int32_t cmd) {
     switch (cmd) {
         case APP_CMD_INIT_WINDOW:
@@ -500,48 +528,48 @@ static void handle_cmd(struct android_app* app, int32_t cmd) {
             break;
             
         case APP_CMD_TERM_WINDOW:
-        __android_log_print(ANDROID_LOG_INFO, "gltron", "APP_CMD_TERM_WINDOW");
-        term_egl();
-        break;
+            __android_log_print(ANDROID_LOG_INFO, "gltron", "APP_CMD_TERM_WINDOW");
+            term_egl();
+            break;
 
-    case APP_CMD_WINDOW_RESIZED:
-        __android_log_print(ANDROID_LOG_INFO, "gltron", "APP_CMD_WINDOW_RESIZED");
-        if (s_display != EGL_NO_DISPLAY && app->window) {
-            eglQuerySurface(s_display, s_surface, EGL_WIDTH, &s_width);
-            eglQuerySurface(s_display, s_surface, EGL_HEIGHT, &s_height);
-            gltron_resize((int)s_width, (int)s_height);
-            glViewport(0, 0, (GLint)s_width, (GLint)s_height);
-            __android_log_print(ANDROID_LOG_INFO, "gltron", "Window resized to %dx%d", s_width, s_height);
-        }
-        break;
+        case APP_CMD_WINDOW_RESIZED:
+            __android_log_print(ANDROID_LOG_INFO, "gltron", "APP_CMD_WINDOW_RESIZED");
+            if (s_display != EGL_NO_DISPLAY && app->window) {
+                eglQuerySurface(s_display, s_surface, EGL_WIDTH, &s_width);
+                eglQuerySurface(s_display, s_surface, EGL_HEIGHT, &s_height);
+                gltron_resize((int)s_width, (int)s_height);
+                glViewport(0, 0, (GLint)s_width, (GLint)s_height);
+                __android_log_print(ANDROID_LOG_INFO, "gltron", "Window resized to %dx%d", s_width, s_height);
+            }
+            break;
 
-    case APP_CMD_GAINED_FOCUS:
-        __android_log_print(ANDROID_LOG_INFO, "gltron", "APP_CMD_GAINED_FOCUS");
-        // Reapply immersive mode when gaining focus
-        if (s_egl_initialized) {
-            apply_immersive_mode_and_refresh(app);
-        }
-        break;
+        case APP_CMD_GAINED_FOCUS:
+            __android_log_print(ANDROID_LOG_INFO, "gltron", "APP_CMD_GAINED_FOCUS");
+            // Reapply immersive mode when gaining focus
+            if (s_egl_initialized) {
+                apply_immersive_mode_and_refresh(app);
+            }
+            break;
         
-    case APP_CMD_CONFIG_CHANGED:
-        __android_log_print(ANDROID_LOG_INFO, "gltron", "APP_CMD_CONFIG_CHANGED");
-        // Handle configuration changes (like orientation changes)
-        if (s_egl_initialized) {
-            // Re-query surface dimensions
-            eglQuerySurface(s_display, s_surface, EGL_WIDTH, &s_width);
-            eglQuerySurface(s_display, s_surface, EGL_HEIGHT, &s_height);
-            
-            // Update viewport and game dimensions
-            glViewport(0, 0, (GLint)s_width, (GLint)s_height);
-            gltron_resize((int)s_width, (int)s_height);
-            
-            // Reapply immersive mode after config change
-            apply_immersive_mode_and_refresh(app);
-        }
-        break;
+        case APP_CMD_CONFIG_CHANGED:
+            __android_log_print(ANDROID_LOG_INFO, "gltron", "APP_CMD_CONFIG_CHANGED");
+            // Handle configuration changes (like orientation changes)
+            if (s_egl_initialized) {
+                // Re-query surface dimensions
+                eglQuerySurface(s_display, s_surface, EGL_WIDTH, &s_width);
+                eglQuerySurface(s_display, s_surface, EGL_HEIGHT, &s_height);
+                
+                // Update viewport and game dimensions
+                glViewport(0, 0, (GLint)s_width, (GLint)s_height);
+                gltron_resize((int)s_width, (int)s_height);
+                
+                // Reapply immersive mode after config change
+                apply_immersive_mode_and_refresh(app);
+            }
+            break;
 
-    default:
-        break;
+        default:
+            break;
         
   }
 }
@@ -579,27 +607,7 @@ void android_main(struct android_app* state) {
             }
         }
 
-        // Helper function to ensure EGL context is current
-static int ensure_egl_context() {
-    if (!s_egl_initialized || s_display == EGL_NO_DISPLAY || s_surface == EGL_NO_SURFACE || s_context == EGL_NO_CONTEXT) {
-        return 0;
-    }
-    
-    // Check if the context is already current
-    EGLContext current_context = eglGetCurrentContext();
-    EGLSurface current_draw = eglGetCurrentSurface(EGL_DRAW);
-    EGLSurface current_read = eglGetCurrentSurface(EGL_READ);
-    
-    if (current_context != s_context || current_draw != s_surface || current_read != s_surface) {
-        __android_log_print(ANDROID_LOG_INFO, "gltron", "EGL context not current, restoring");
-        if (!eglMakeCurrent(s_display, s_surface, s_surface, s_context)) {
-            __android_log_print(ANDROID_LOG_ERROR, "gltron", "Failed to make context current: 0x%04x", eglGetError());
-            return 0;
-        }
-    }
-    
-    return 1;
-}
+        
 
 // Only render if EGL is initialized and we have a valid surface
         if (s_egl_initialized && s_display != EGL_NO_DISPLAY && s_surface != EGL_NO_SURFACE) {
