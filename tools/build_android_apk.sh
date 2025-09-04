@@ -95,18 +95,35 @@ if [[ ! -f "$OUT_DIR/$SO_NAME" ]]; then
   err "Example (CMake): add_library(${LIB_NAME} SHARED ...); target ABI arm64-v8a."
 fi
 
-# Copy libgltron.so into the staging lib directory
-cp "$OUT_DIR/$SO_NAME" "$STAGE_DIR/lib/$ABI/" || {
-  echo "ERROR: cp failed. Check source file: $OUT_DIR/$SO_NAME"
-  exit 1
-}
-echo "libgltron.so copied"
-[ -f "$STAGE_DIR/lib/$ABI/$SO_NAME" ] || {
-  err "File not found at destination: $STAGE_DIR/lib/$ABI/$SO_NAME"
-}
-
 # Prepare staging structure (single pass)
 mkdir -p "$STAGE_DIR"/{manifest,res/values,assets,lib/$ABI}
+
+# Copy libgltron.so into the staging lib directory FIRST
+log "Copying $SO_NAME to staging lib directory"
+cp "$OUT_DIR/$SO_NAME" "$STAGE_DIR/lib/$ABI/" || {
+  err "ERROR: Failed to copy $SO_NAME from $OUT_DIR to $STAGE_DIR/lib/$ABI/"
+}
+log "✅ $SO_NAME copied successfully"
+
+# Verify the copy worked
+if [[ ! -f "$STAGE_DIR/lib/$ABI/$SO_NAME" ]]; then
+  err "File not found at destination: $STAGE_DIR/lib/$ABI/$SO_NAME"
+fi
+
+# Copy libc++_shared.so to the lib directory (prefer ANDROID_NDK_HOME, fallback to ANDROID_NDK)
+LIBCXX_SRC=""
+if [[ -n "${ANDROID_NDK_HOME:-}" && -d "${ANDROID_NDK_HOME:-}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android" ]]; then
+  LIBCXX_SRC="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/libc++_shared.so"
+elif [[ -n "${ANDROID_NDK:-}" && -d "${ANDROID_NDK:-}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android" ]]; then
+  LIBCXX_SRC="$ANDROID_NDK/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/libc++_shared.so"
+fi
+if [[ -n "$LIBCXX_SRC" && -f "$LIBCXX_SRC" ]]; then
+  log "Copying libc++_shared.so"
+  cp "$LIBCXX_SRC" "$STAGE_DIR/lib/$ABI/libc++_shared.so"
+  log "✅ libc++_shared.so copied successfully"
+else
+  log "⚠️  Warning: libc++_shared.so not found or ANDROID_NDK_HOME not set"
+fi
 
 # Copy assets from build-android (explicitly exclude staging and other dot dirs)
 log "Copying assets from $OUT_DIR"
@@ -128,24 +145,7 @@ rsync -a --delete \
   err "Failed to copy assets"
 }
 
-# Copy libc++_shared.so to the lib directory (prefer ANDROID_NDK_HOME, fallback to ANDROID_NDK)
-LIBCXX_SRC=""
-if [[ -n "${ANDROID_NDK_HOME:-}" && -d "${ANDROID_NDK_HOME:-}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android" ]]; then
-  LIBCXX_SRC="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/libc++_shared.so"
-elif [[ -n "${ANDROID_NDK:-}" && -d "${ANDROID_NDK:-}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android" ]]; then
-  LIBCXX_SRC="$ANDROID_NDK/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/libc++_shared.so"
-fi
-if [[ -n "$LIBCXX_SRC" && -f "$LIBCXX_SRC" ]]; then
-  cp "$LIBCXX_SRC" "$STAGE_DIR/lib/$ABI/libc++_shared.so"
-else
-  err "Failed to copy libc++_shared.so (source not found). Ensure ANDROID_NDK_HOME points to a valid NDK."
-fi
-
-# Create manifest subdir and file in staging/manifest/
-MANIFEST_DIR="$STAGE_DIR/manifest"
-mkdir -p "$MANIFEST_DIR"
-
-# Create AndroidManifest.xml using a temporary file
+# Create AndroidManifest.xml
 cat > "$STAGE_DIR/AndroidManifest.xml" <<EOF
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
@@ -162,7 +162,7 @@ cat > "$STAGE_DIR/AndroidManifest.xml" <<EOF
             android:name="android.app.NativeActivity"
             android:label="GLTron"
             android:exported="true"
-            android:launchMode="singleTask">
+            android:launchMode="singleTask"
             android:configChanges="keyboard|keyboardHidden|orientation|screenSize">
             <meta-data android:name="android.app.lib_name" android:value="gltron" />
             <intent-filter>
@@ -175,26 +175,22 @@ cat > "$STAGE_DIR/AndroidManifest.xml" <<EOF
 EOF
 
 if [ ! -f "$STAGE_DIR/AndroidManifest.xml" ]; then
-  echo "ERROR: Missing AndroidManifest.xml in STAGE_DIR"
-  exit 1
+  err "ERROR: Missing AndroidManifest.xml in STAGE_DIR"
 fi
 
-# ------------------------------------------------------------------
-# Stage assets into APK under /assets so AAssetManager can load them
-# ------------------------------------------------------------------
-mkdir -p "$STAGE_DIR/assets"
-# Copy root-level files used by the game
+# Copy additional assets from root directory
+log "Copying additional assets from root directory"
 cp -a "$ROOT_DIR"/menu.txt "$STAGE_DIR/assets/" 2>/dev/null || true
 cp -a "$ROOT_DIR"/settings.txt "$STAGE_DIR/assets/" 2>/dev/null || true
 cp -a "$ROOT_DIR"/xenotron.ftx "$STAGE_DIR/assets/" 2>/dev/null || true
 cp -a "$ROOT_DIR"/tron.mtl "$STAGE_DIR/assets/" 2>/dev/null || true
 cp -a "$ROOT_DIR"/t-u-low.obj "$STAGE_DIR/assets/" 2>/dev/null || true
 cp -a "$ROOT_DIR"/gltron.it "$STAGE_DIR/assets/" 2>/dev/null || true
-# Copy textures, sounds, shaders matching project expectations
 cp -a "$ROOT_DIR"/*.sgi "$STAGE_DIR/assets/" 2>/dev/null || true
 cp -a "$ROOT_DIR"/*.ftx "$STAGE_DIR/assets/" 2>/dev/null || true
 cp -a "$ROOT_DIR"/*.wav "$STAGE_DIR/assets/" 2>/dev/null || true
-# Create strings.xml using a temporary file
+
+# Create strings.xml
 STRINGS_TEMP=$(mktemp)
 cat > "$STRINGS_TEMP" <<EOF
 <resources>
@@ -202,7 +198,6 @@ cat > "$STRINGS_TEMP" <<EOF
 </resources>
 EOF
 
-# Move the temporary file to the final location
 mv "$STRINGS_TEMP" "$STAGE_DIR/res/values/strings.xml" || {
   err "Failed to create strings.xml"
 }
@@ -215,19 +210,27 @@ if [[ -d "$ANDROID_SDK_ROOT/platforms" ]]; then
   fi
 fi
 
+# Final validation of staging directory
+log "Validating staging directory structure..."
 if [ ! -d "$STAGE_DIR/lib/$ABI" ] || [ -z "$(ls -A $STAGE_DIR/lib/$ABI)" ]; then
-  echo "ERROR: No native libraries in lib/$ABI"
-  exit 1
+  err "ERROR: No native libraries in lib/$ABI"
 fi
 
-echo "✅ STAGE_DIR validated successfully"
+# List what's in the lib directory for debugging
+log "Contents of $STAGE_DIR/lib/$ABI/:"
+ls -la "$STAGE_DIR/lib/$ABI/"
+
+log "✅ STAGE_DIR validated successfully"
+
 # Package resources and manifest
 log "Using package: $PKG"
 log "Min SDK: $MIN_SDK, Target SDK: $TARGET_SDK, ABI: $ABI, LIB: $LIB_NAME"
 log "Manifest: $STAGE_DIR/AndroidManifest.xml"
+
 # Ensure temp files are cleaned on exit
-cleanup() { rm -rf "$STAGE_DIR" "$UNALIGNED_APK" "$ALIGNED_APK" 2>/dev/null || true; }
+cleanup() { rm -rf "$UNALIGNED_APK" "$ALIGNED_APK" 2>/dev/null || true; }
 trap cleanup EXIT
+
 UNALIGNED_APK="$(mktemp "${TMPDIR:-/tmp}/gltron-unaligned.XXXXXX.apk")"
 rm -f "$APK_OUT"
 
@@ -241,6 +244,13 @@ if [[ -x "$AAPT" ]]; then
     -F "$UNALIGNED_APK" || {
     err "Failed to package APK with aapt"
   }
+  
+  # Add native libraries to the APK using zip
+  log "Adding native libraries to APK..."
+  (cd "$STAGE_DIR" && zip -qur "$UNALIGNED_APK" lib || {
+    err "Failed to add native libraries to APK"
+  })
+  
 elif [[ -x "$AAPT2" ]]; then
   log "Building APK with aapt2 (fallback)"
   mkdir -p "$STAGE_DIR/compiled-res"
@@ -256,6 +266,9 @@ elif [[ -x "$AAPT2" ]]; then
     "${COMPILED_RES_FILES[@]}" || {
     err "Failed to link resources with aapt2"
   }
+  
+  # Add assets and native libraries to the APK
+  log "Adding assets and native libraries to APK..."
   (cd "$STAGE_DIR" && zip -qur "$UNALIGNED_APK" assets lib || {
     err "Failed to add assets and libs to APK"
   })
@@ -263,10 +276,18 @@ else
   err "Neither aapt nor aapt2 found in $BUILD_TOOLS_DIR"
 fi
 
-# Verify the unaligned APK was created
+# Verify the unaligned APK was created and contains the library
 if [[ ! -f "$UNALIGNED_APK" ]]; then
   err "Failed to create unaligned APK"
 fi
+
+# Debug: Check if the library is in the unaligned APK
+log "Checking contents of unaligned APK..."
+unzip -l "$UNALIGNED_APK" | grep -E "(lib/|\.so)" || {
+  log "⚠️  Warning: No native libraries found in APK!"
+  log "APK contents:"
+  unzip -l "$UNALIGNED_APK"
+}
 
 # Align and sign
 ALIGNED_APK="$(mktemp "${TMPDIR:-/tmp}/gltron-aligned.XXXXXX.apk")"
@@ -316,6 +337,16 @@ fi
 if ! echo "$VERIFY_OUT" | grep -q "Verified using v1 scheme (JAR signing): true"; then
   log "Warning: v1 (JAR) signing is false. This is acceptable for minSdk $MIN_SDK (v2 is present)."
 fi
+
+# Final verification - check if the library is in the final APK
+log "Final verification - checking APK contents..."
+unzip -l "$APK_OUT" | grep -E "(lib/|\.so)" && {
+  log "✅ Native libraries found in final APK!"
+} || {
+  log "❌ ERROR: No native libraries found in final APK!"
+  log "Final APK contents:"
+  unzip -l "$APK_OUT"
+}
 
 log "APK built and signed (v2 verified): $APK_OUT"
 echo "$APK_OUT"
