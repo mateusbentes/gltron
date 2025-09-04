@@ -626,13 +626,22 @@ void draw_android_overlay() {
   if (!scr_w || !scr_h) return;
   
   // Always draw a small debug banner at top to prove overlay works
-  draw_rect(8, 8, scr_w/3, scr_h/20, 1.f, 1.f, 1.f, 0.15f);
+  // Make it more visible to help diagnose black screen issues
+  draw_rect(8, 8, scr_w/3, scr_h/20, 1.f, 1.f, 1.f, 0.25f);
+  
+  // Draw a small indicator in each corner to help diagnose rendering issues
+  // This will be visible even if the main game rendering fails
+  draw_rect(0, 0, 20, 20, 1.0f, 0.0f, 0.0f, 0.5f); // Top-left
+  draw_rect(scr_w-20, 0, 20, 20, 0.0f, 1.0f, 0.0f, 0.5f); // Top-right
+  draw_rect(0, scr_h-20, 20, 20, 0.0f, 0.0f, 1.0f, 0.5f); // Bottom-left
+  draw_rect(scr_w-20, scr_h-20, 20, 20, 1.0f, 1.0f, 0.0f, 0.5f); // Bottom-right
   
   if (is_gui_active()) return; // hide controls in menus
   
-  draw_rect(btn_left[0], btn_left[1], btn_left[2], btn_left[3], 1,1,1,0.35f);
-  draw_rect(btn_right[0], btn_right[1], btn_right[2], btn_right[3], 1,1,1,0.35f);
-  draw_rect(btn_pause[0], btn_pause[1], btn_pause[2], btn_pause[3], 1,1,1,0.30f);
+  // Make controls more visible to help with black screen issues
+  draw_rect(btn_left[0], btn_left[1], btn_left[2], btn_left[3], 1,1,1,0.45f);
+  draw_rect(btn_right[0], btn_right[1], btn_right[2], btn_right[3], 1,1,1,0.45f);
+  draw_rect(btn_pause[0], btn_pause[1], btn_pause[2], btn_pause[3], 1,1,1,0.40f);
 }
 
 void gltron_frame(void) {

@@ -183,6 +183,32 @@ cleanup:
     if (activity_class) {
         (*env)->DeleteLocalRef(env, activity_class);
     }
+    
+    // Signal that we need to refresh the surface after immersive mode change
+    if (s_egl_initialized && s_display != EGL_NO_DISPLAY && s_surface != EGL_NO_SURFACE) {
+        // Force a redraw to prevent black screen after immersive mode change
+        __android_log_print(ANDROID_LOG_INFO, "gltron", "Forcing surface refresh after immersive mode change");
+        
+        // Re-query surface dimensions as they might have changed
+        eglQuerySurface(s_display, s_surface, EGL_WIDTH, &s_width);
+        eglQuerySurface(s_display, s_surface, EGL_HEIGHT, &s_height);
+        
+        // Update viewport to match new dimensions
+        glViewport(0, 0, (GLint)s_width, (GLint)s_height);
+        
+        // Ensure the game knows about the new dimensions
+        if (game && game->screen) {
+            game->screen->vp_w = s_width;
+            game->screen->vp_h = s_height;
+            gltron_resize((int)s_width, (int)s_height);
+        }
+        
+        // Clear the screen to ensure we don't see black
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        
+        // Force a buffer swap to update the display
+        eglSwapBuffers(s_display, s_surface);
+    }
 }
 
 // Add GL error checking function
@@ -319,9 +345,15 @@ static int init_egl(ANativeWindow* window, struct android_app* app) {
     initGLGui();
     check_gl_error("initGLGui");
 
-    // Set a test clear color (not black) to verify rendering
-    glClearColor(0.1f, 0.1f, 0.2f, 1.0f);
+    // Set a more visible test clear color (not black) to verify rendering
+    // Using a distinctive blue color to help diagnose black screen issues
+    glClearColor(0.2f, 0.2f, 0.4f, 1.0f);
     check_gl_error("glClearColor");
+    
+    // Force an initial clear with this color
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    eglSwapBuffers(s_display, s_surface);
+    check_gl_error("Initial clear");
 
     // Initialize GUI mode
     extern callbacks guiCallbacks;
@@ -396,6 +428,53 @@ static void finish_activity(struct android_app* app) {
     }
 }
 
+// Helper function to add a small delay
+static void short_delay(int milliseconds) {
+    struct timespec ts;
+    ts.tv_sec = milliseconds / 1000;
+    ts.tv_nsec = (milliseconds % 1000) * 1000000;
+    nanosleep(&ts, NULL);
+}
+
+// Helper function to safely apply immersive mode and ensure rendering continues properly
+static void apply_immersive_mode_and_refresh(struct android_app* app) {
+    // Apply immersive fullscreen mode
+    set_immersive_fullscreen(app);
+    
+    // Add a small delay to allow the system to process UI changes
+    short_delay(50);
+    
+    // Ensure EGL context is current
+    if (s_egl_initialized && s_display != EGL_NO_DISPLAY && s_surface != EGL_NO_SURFACE && s_context != EGL_NO_CONTEXT) {
+        if (!eglMakeCurrent(s_display, s_surface, s_surface, s_context)) {
+            __android_log_print(ANDROID_LOG_ERROR, "gltron", "Failed to make context current after immersive mode: 0x%04x", eglGetError());
+            return;
+        }
+        
+        // Re-query surface dimensions
+        EGLint width, height;
+        eglQuerySurface(s_display, s_surface, EGL_WIDTH, &width);
+        eglQuerySurface(s_display, s_surface, EGL_HEIGHT, &height);
+        
+        // Update if dimensions changed
+        if (width != s_width || height != s_height) {
+            s_width = width;
+            s_height = height;
+            glViewport(0, 0, (GLint)s_width, (GLint)s_height);
+            gltron_resize((int)s_width, (int)s_height);
+        }
+        
+        // Force a clear and swap to ensure screen isn't black
+        glClearColor(0.1f, 0.1f, 0.2f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        eglSwapBuffers(s_display, s_surface);
+        
+        // Do it twice to ensure both buffers are cleared
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        eglSwapBuffers(s_display, s_surface);
+    }
+}
+
 static void handle_cmd(struct android_app* app, int32_t cmd) {
     switch (cmd) {
         case APP_CMD_INIT_WINDOW:
@@ -403,7 +482,7 @@ static void handle_cmd(struct android_app* app, int32_t cmd) {
             if (app->window && !s_egl_initialized) {
                 if (init_egl(app->window, app)) {
                     // Apply immersive mode after successful EGL init
-                    set_immersive_fullscreen(app);
+                    apply_immersive_mode_and_refresh(app);
                 }
             }
             break;
@@ -412,15 +491,15 @@ static void handle_cmd(struct android_app* app, int32_t cmd) {
             __android_log_print(ANDROID_LOG_INFO, "gltron", "APP_CMD_RESUME");
             if (app->window && !s_egl_initialized) {
                 if (init_egl(app->window, app)) {
-                    set_immersive_fullscreen(app);
+                    apply_immersive_mode_and_refresh(app);
                 }
             } else if (s_egl_initialized) {
                 // Reapply immersive mode on resume
-                set_immersive_fullscreen(app);
-              }
+                apply_immersive_mode_and_refresh(app);
+            }
             break;
-              break;
-    case APP_CMD_TERM_WINDOW:
+            
+        case APP_CMD_TERM_WINDOW:
         __android_log_print(ANDROID_LOG_INFO, "gltron", "APP_CMD_TERM_WINDOW");
         term_egl();
         break;
@@ -440,7 +519,24 @@ static void handle_cmd(struct android_app* app, int32_t cmd) {
         __android_log_print(ANDROID_LOG_INFO, "gltron", "APP_CMD_GAINED_FOCUS");
         // Reapply immersive mode when gaining focus
         if (s_egl_initialized) {
-            set_immersive_fullscreen(app);
+            apply_immersive_mode_and_refresh(app);
+        }
+        break;
+        
+    case APP_CMD_CONFIG_CHANGED:
+        __android_log_print(ANDROID_LOG_INFO, "gltron", "APP_CMD_CONFIG_CHANGED");
+        // Handle configuration changes (like orientation changes)
+        if (s_egl_initialized) {
+            // Re-query surface dimensions
+            eglQuerySurface(s_display, s_surface, EGL_WIDTH, &s_width);
+            eglQuerySurface(s_display, s_surface, EGL_HEIGHT, &s_height);
+            
+            // Update viewport and game dimensions
+            glViewport(0, 0, (GLint)s_width, (GLint)s_height);
+            gltron_resize((int)s_width, (int)s_height);
+            
+            // Reapply immersive mode after config change
+            apply_immersive_mode_and_refresh(app);
         }
         break;
 
@@ -483,8 +579,64 @@ void android_main(struct android_app* state) {
             }
         }
 
-        // Only render if EGL is initialized and we have a valid surface
+        // Helper function to ensure EGL context is current
+static int ensure_egl_context() {
+    if (!s_egl_initialized || s_display == EGL_NO_DISPLAY || s_surface == EGL_NO_SURFACE || s_context == EGL_NO_CONTEXT) {
+        return 0;
+    }
+    
+    // Check if the context is already current
+    EGLContext current_context = eglGetCurrentContext();
+    EGLSurface current_draw = eglGetCurrentSurface(EGL_DRAW);
+    EGLSurface current_read = eglGetCurrentSurface(EGL_READ);
+    
+    if (current_context != s_context || current_draw != s_surface || current_read != s_surface) {
+        __android_log_print(ANDROID_LOG_INFO, "gltron", "EGL context not current, restoring");
+        if (!eglMakeCurrent(s_display, s_surface, s_surface, s_context)) {
+            __android_log_print(ANDROID_LOG_ERROR, "gltron", "Failed to make context current: 0x%04x", eglGetError());
+            return 0;
+        }
+    }
+    
+    return 1;
+}
+
+// Only render if EGL is initialized and we have a valid surface
         if (s_egl_initialized && s_display != EGL_NO_DISPLAY && s_surface != EGL_NO_SURFACE) {
+            // Ensure EGL context is current before rendering
+            if (!ensure_egl_context()) {
+                __android_log_print(ANDROID_LOG_ERROR, "gltron", "Failed to ensure EGL context, skipping frame");
+                continue;
+            }
+            
+            // Check if surface is still valid before rendering
+            EGLint surface_state = EGL_BAD_SURFACE;
+            if (eglQuerySurface(s_display, s_surface, EGL_SURFACE_TYPE, &surface_state)) {
+                // Ensure viewport dimensions are up-to-date
+                EGLint current_width, current_height;
+                eglQuerySurface(s_display, s_surface, EGL_WIDTH, &current_width);
+                eglQuerySurface(s_display, s_surface, EGL_HEIGHT, &current_height);
+                
+                // If dimensions changed, update viewport
+                if (current_width != s_width || current_height != s_height) {
+                    __android_log_print(ANDROID_LOG_INFO, "gltron", "Surface dimensions changed: %dx%d -> %dx%d", 
+                                       s_width, s_height, current_width, current_height);
+                    s_width = current_width;
+                    s_height = current_height;
+                    glViewport(0, 0, (GLint)s_width, (GLint)s_height);
+                    gltron_resize((int)s_width, (int)s_height);
+                }
+            } else {
+                EGLint error = eglGetError();
+                if (error != EGL_SUCCESS) {
+                    __android_log_print(ANDROID_LOG_ERROR, "gltron", "Surface validation failed: 0x%04x", error);
+                    // Try to recover by reinitializing
+                    term_egl();
+                    continue;
+                }
+            }
+            
+            // Clear with a non-black color to help diagnose rendering issues
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
             gltron_frame();
 
@@ -492,8 +644,9 @@ void android_main(struct android_app* state) {
                 EGLint error = eglGetError();
                 __android_log_print(ANDROID_LOG_ERROR, "gltron", "eglSwapBuffers failed: 0x%04x", error);
 
-                if (error == EGL_BAD_SURFACE) {
+                if (error == EGL_BAD_SURFACE || error == EGL_BAD_NATIVE_WINDOW) {
                     // Surface was lost, reinitialize
+                    __android_log_print(ANDROID_LOG_WARN, "gltron", "Surface lost, reinitializing EGL");
                     term_egl();
                     continue;
                 }
