@@ -10,7 +10,7 @@ set -euo pipefail
 #      * libgltron.so (arm64-v8a) — shared library to be loaded by NativeActivity
 #      * libc++_shared.so (arm64-v8a) — shared library to be loaded by libgltron.so
 #      * assets files: *.sgi, *.wav, *.ftx, *.it, settings.txt, menu.txt, tron.mtl
-#  - Package: org.gltron.game, App name: GLTron, minSdk:29, targetSdk:35
+#  - Package: org.gltron.game, App name: GLTron, minSdk:29, targetSdk:36
 #
 # Output:
 #  - build-android/gltron.apk
@@ -29,7 +29,7 @@ rm -rf "$STAGE_DIR"/* 2>/dev/null || true
 PKG="${ANDROID_APP_ID:-org.gltron.game}"
 APP_NAME="${ANDROID_APP_NAME:-GLTron}"
 MIN_SDK=${ANDROID_MIN_SDK:-29}
-TARGET_SDK=${ANDROID_TARGET_SDK:-35}
+TARGET_SDK=${ANDROID_TARGET_SDK:-36}
 LIB_NAME="${ANDROID_LIB_NAME:-gltron}"
 SO_NAME="lib${LIB_NAME}.so"
 APK_OUT="$OUT_DIR/gltron.apk"
@@ -140,30 +140,24 @@ cat > "$STAGE_DIR/AndroidManifest.xml" <<EOF
     package="org.gltron.game"
     android:versionCode="1"
     android:versionName="1.0">
-
-    <uses-sdk android:minSdkVersion="29" android:targetSdkVersion="35" />
-
+    <uses-sdk android:minSdkVersion="29" android:targetSdkVersion="36" />
     <application
         android:label="GLTron"
         android:hasCode="true"
         android:allowBackup="true"
         android:theme="@android:style/Theme.NoTitleBar.Fullscreen">
-
         <activity
             android:name="android.app.NativeActivity"
             android:label="GLTron"
             android:exported="true"
+            android:launchMode="singleTask">
             android:configChanges="keyboard|keyboardHidden|orientation|screenSize">
-            android:launchMode="singleTask" />
-
             <meta-data android:name="android.app.lib_name" android:value="gltron" />
-
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
     </application>
 </manifest>
 EOF
