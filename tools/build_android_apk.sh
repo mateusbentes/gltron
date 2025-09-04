@@ -24,7 +24,9 @@ ABI="${ANDROID_ABI:-arm64-v8a}"
 STAGE_DIR="$ROOT_DIR/tools/staging"
 mkdir -p "$STAGE_DIR"
 rm -rf "$STAGE_DIR"/* 2>/dev/null || true
-mkdir -p "$STAGE_DIR/lib/$ABI"
+mkdir -p "$STAGE_DIR/lib/$ABI" || {
+  err "Failed to create staging directory: $STAGE_DIR/lib/$ABI"
+}
 # Allow override via environment. Validate later.
 PKG="${ANDROID_APP_ID:-org.gltron.game}"
 APP_NAME="${ANDROID_APP_NAME:-GLTron}"
@@ -94,9 +96,13 @@ if [[ ! -f "$OUT_DIR/$SO_NAME" ]]; then
 fi
 
 # Copy libgltron.so into the staging lib directory
-cp "$OUT_DIR/$SO_NAME" "$STAGE_DIR/lib/$ABI/" && {
-  echo "libgltron.so copied";
-  [ -f "$STAGE_DIR/lib/$ABI/$SO_NAME" ] || err "Failed to copy libgltron.so to staging directory";
+cp "$OUT_DIR/$SO_NAME" "$STAGE_DIR/lib/$ABI/" || {
+  echo "ERROR: cp failed. Check source file: $OUT_DIR/$SO_NAME"
+  exit 1
+}
+echo "libgltron.so copied"
+[ -f "$STAGE_DIR/lib/$ABI/$SO_NAME" ] || {
+  err "File not found at destination: $STAGE_DIR/lib/$ABI/$SO_NAME"
 }
 
 # Prepare staging structure (single pass)
