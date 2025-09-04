@@ -459,6 +459,11 @@ void init_shaders_android() {
 
     g_shader_unified = createUnifiedShaderProgram();
     if (!g_shader_unified) {
+        LOGE("Shader program creation failed, game will not render");
+        // Force black screen as fallback
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    }
+    if (!g_shader_unified) {
         LOGE("init_shaders_android: failed to create unified shader");
         return;
     }
