@@ -302,7 +302,16 @@ static int init_egl(ANativeWindow* window, struct android_app* app) {
     gltron_init();
     check_gl_error("gltron_init");
     
+    __android_log_print(ANDROID_LOG_DEBUG, "gltron", "Compiling shaders...");
     init_shaders_android();
+    GLint success;
+    //glGetShaderiv(shader_id, GL_COMPILE_STATUS, &success);
+    //if (!success) {
+        //char infoLog[1024];
+        //glGetShaderInfoLog(shader_id, 1024, NULL, infoLog);
+        //__android_log_print(ANDROID_LOG_FATAL, "gltron", "Shader compile failed: %s", infoLog);
+    //}
+    
     check_gl_error("init_shaders_android");
     
     gltron_resize((int)s_width, (int)s_height);
@@ -311,8 +320,12 @@ static int init_egl(ANativeWindow* window, struct android_app* app) {
     glViewport(0, 0, (GLint)s_width, (GLint)s_height);
     check_gl_error("glViewport");
     
-    setupDisplay(game->screen);
-    check_gl_error("setupDisplay");
+    if (game && game->screen) {
+        setupDisplay(game->screen);
+        check_gl_error("setupDisplay");
+    } else {
+        __android_log_print(ANDROID_LOG_FATAL, "gltron", "setupDisplay: game->screen is NULL");
+    }
     
     initGLGui();
     check_gl_error("initGLGui");
@@ -482,6 +495,7 @@ void android_main(struct android_app* state) {
 
         // Only render if EGL is initialized and we have a valid surface
         if (s_egl_initialized && s_display != EGL_NO_DISPLAY && s_surface != EGL_NO_SURFACE) {
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
             gltron_frame();
             
             if (!eglSwapBuffers(s_display, s_surface)) {
