@@ -23,8 +23,8 @@ OUT_DIR="$ROOT_DIR/build-android"
 ABI="${ANDROID_ABI:-arm64-v8a}"
 STAGE_DIR="$ROOT_DIR/tools/staging"
 mkdir -p "$STAGE_DIR"
-mkdir -p "$STAGE_DIR/lib/$ABI"
 rm -rf "$STAGE_DIR"/* 2>/dev/null || true
+mkdir -p "$STAGE_DIR/lib/$ABI"
 # Allow override via environment. Validate later.
 PKG="${ANDROID_APP_ID:-org.gltron.game}"
 APP_NAME="${ANDROID_APP_NAME:-GLTron}"
@@ -92,6 +92,11 @@ if [[ ! -f "$OUT_DIR/$SO_NAME" ]]; then
   err "Please build your Android shared library and place it at: $OUT_DIR/$SO_NAME"
   err "Example (CMake): add_library(${LIB_NAME} SHARED ...); target ABI arm64-v8a."
 fi
+
+# Copy libgltron.so into the staging lib directory
+cp "$OUT_DIR/$SO_NAME" "$STAGE_DIR/lib/$ABI/" || {
+  err "Failed to copy $SO_NAME to $STAGE_DIR/lib/$ABI"
+}
 
 # Prepare staging structure (single pass)
 mkdir -p "$STAGE_DIR"/{manifest,res/values,assets,lib/$ABI}
