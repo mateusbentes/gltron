@@ -148,7 +148,7 @@ cat > "$STAGE_DIR/AndroidManifest.xml" <<EOF
     <uses-sdk android:minSdkVersion="29" android:targetSdkVersion="36" />
     <application
         android:label="GLTron"
-        android:hasCode="true"
+        android:hasCode="false"
         android:allowBackup="true"
         android:theme="@android:style/Theme.NoTitleBar.Fullscreen">
         <activity
