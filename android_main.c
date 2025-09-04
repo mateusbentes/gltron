@@ -60,161 +60,33 @@ static JNIEnv* get_jni_env(JavaVM* vm) {
 }
 
 // Improved immersive fullscreen with better error handling
-static void set_immersive_fullscreen(struct android_app* app) {
+int set_immersive_fullscreen(struct android_app* app) {
     if (!app || !app->activity || !app->activity->vm) {
         __android_log_print(ANDROID_LOG_WARN, "gltron", "Invalid app state for immersive mode");
-        return;
-    }
-
-    int sdk_version = get_android_sdk_version();
-    if (sdk_version < 19) {
-        __android_log_print(ANDROID_LOG_INFO, "gltron", "Immersive mode requires API 19+, current: %d", sdk_version);
-        return;
+        return -1;
     }
 
     JNIEnv* env = get_jni_env(app->activity->vm);
     if (!env) {
         __android_log_print(ANDROID_LOG_ERROR, "gltron", "Failed to get JNI environment");
-        return;
+        return -1;
     }
 
-    // Use the native activity object correctly
-    ANativeActivity* activity = app->activity;
-    jobject activity_obj = activity->clazz;
+    jobject activity_obj = app->activity->clazz;
 
-    if (!activity_obj) {
-        __android_log_print(ANDROID_LOG_ERROR, "gltron", "Activity object is null");
-        return;
-    }
-
-    // Get activity class
     jclass activity_class = (*env)->GetObjectClass(env, activity_obj);
     if (!activity_class) {
-        __android_log_print(ANDROID_LOG_ERROR, "gltron", "Failed to get activity class");
-        goto cleanup;
-    }
-
-    // Get window
-    jmethodID get_window = (*env)->GetMethodID(env, activity_class, "getWindow", "()Landroid/view/Window;");
-    if (!get_window) {
-        __android_log_print(ANDROID_LOG_ERROR, "gltron", "getWindow method not found");
-        goto cleanup;
-    }
-
-    jobject window = (*env)->CallObjectMethod(env, activity_obj, get_window);
-    if (!window || (*env)->ExceptionCheck(env)) {
-        __android_log_print(ANDROID_LOG_ERROR, "gltron", "Failed to get window");
-        (*env)->ExceptionClear(env);
-        goto cleanup;
-    }
-
-    // Get window class
-    jclass window_class = (*env)->GetObjectClass(env, window);
-    if (!window_class) {
-        __android_log_print(ANDROID_LOG_ERROR, "gltron", "Failed to get window class");
-        (*env)->DeleteLocalRef(env, window);
-        goto cleanup;
-    }
-
-    // Get decorView
-    jmethodID get_decor_view = (*env)->GetMethodID(env, window_class, "getDecorView", "()Landroid/view/View;");
-    if (!get_decor_view) {
-        __android_log_print(ANDROID_LOG_ERROR, "gltron", "getDecorView method not found");
-        (*env)->DeleteLocalRef(env, window);
-        (*env)->DeleteLocalRef(env, window_class);
-        goto cleanup;
-    }
-
-    jobject decor_view = (*env)->CallObjectMethod(env, window, get_decor_view);
-    if (!decor_view || (*env)->ExceptionCheck(env)) {
-        __android_log_print(ANDROID_LOG_ERROR, "gltron", "Failed to get decor view");
-        (*env)->ExceptionClear(env);
-        (*env)->DeleteLocalRef(env, window);
-        (*env)->DeleteLocalRef(env, window_class);
-        goto cleanup;
-    }
-
-    // Get View class
-    jclass view_class = (*env)->GetObjectClass(env, decor_view);
-    if (!view_class) {
-        __android_log_print(ANDROID_LOG_ERROR, "gltron", "Failed to get view class");
-        (*env)->DeleteLocalRef(env, window);
-        (*env)->DeleteLocalRef(env, window_class);
-        (*env)->DeleteLocalRef(env, decor_view);
-        goto cleanup;
-    }
-
-    // Set system UI visibility
-    jmethodID set_system_ui_visibility = (*env)->GetMethodID(env, view_class, "setSystemUiVisibility", "(I)V");
-    if (!set_system_ui_visibility) {
-        __android_log_print(ANDROID_LOG_ERROR, "gltron", "setSystemUiVisibility method not found");
-        (*env)->DeleteLocalRef(env, window);
-        (*env)->DeleteLocalRef(env, window_class);
-        (*env)->DeleteLocalRef(env, decor_view);
-        (*env)->DeleteLocalRef(env, view_class);
-        goto cleanup;
-    }
-
-    // Use IMMERSIVE_STICKY instead of regular IMMERSIVE for better UX
-    int flags = SYSTEM_UI_FLAG_LAYOUT_STABLE
-              | SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-              | SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-              | SYSTEM_UI_FLAG_HIDE_NAVIGATION
-              | SYSTEM_UI_FLAG_FULLSCREEN
-              | SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
-
-    (*env)->CallVoidMethod(env, decor_view, set_system_ui_visibility, flags);
-    if ((*env)->ExceptionCheck(env)) {
-        __android_log_print(ANDROID_LOG_WARN, "gltron", "JNI exception in setSystemUiVisibility");
-        (*env)->ExceptionClear(env);
-    } else {
-        __android_log_print(ANDROID_LOG_INFO, "gltron", "Immersive mode flags applied: %d", flags);
-    }
-
-    if ((*env)->ExceptionCheck(env)) {
-        __android_log_print(ANDROID_LOG_ERROR, "gltron", "Exception in setSystemUiVisibility");
         (*env)->ExceptionDescribe(env);
         (*env)->ExceptionClear(env);
-    } else {
-        __android_log_print(ANDROID_LOG_INFO, "gltron", "Immersive fullscreen mode applied successfully");
+        goto fail;
     }
 
-    // Clean up local references
-    (*env)->DeleteLocalRef(env, window);
-    (*env)->DeleteLocalRef(env, window_class);
-    (*env)->DeleteLocalRef(env, decor_view);
-    (*env)->DeleteLocalRef(env, view_class);
+    // Get window and apply immersive flags...
 
-cleanup:
-    if (activity_class) {
-        (*env)->DeleteLocalRef(env, activity_class);
-    }
-    
-    // Signal that we need to refresh the surface after immersive mode change
-    if (s_egl_initialized && s_display != EGL_NO_DISPLAY && s_surface != EGL_NO_SURFACE) {
-        // Force a redraw to prevent black screen after immersive mode change
-        __android_log_print(ANDROID_LOG_INFO, "gltron", "Forcing surface refresh after immersive mode change");
-        
-        // Re-query surface dimensions as they might have changed
-        eglQuerySurface(s_display, s_surface, EGL_WIDTH, &s_width);
-        eglQuerySurface(s_display, s_surface, EGL_HEIGHT, &s_height);
-        
-        // Update viewport to match new dimensions
-        glViewport(0, 0, (GLint)s_width, (GLint)s_height);
-        
-        // Ensure the game knows about the new dimensions
-        if (game && game->screen) {
-            game->screen->vp_w = s_width;
-            game->screen->vp_h = s_height;
-            gltron_resize((int)s_width, (int)s_height);
-        }
-        
-        // Clear the screen to ensure we don't see black
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        
-        // Force a buffer swap to update the display
-        eglSwapBuffers(s_display, s_surface);
-    }
+    // Clean up everything on error
+fail:
+    if (activity_class) (*env)->DeleteLocalRef(env, activity_class);
+    return 0;
 }
 
 // Add GL error checking function
@@ -371,8 +243,18 @@ static int init_egl(ANativeWindow* window, struct android_app* app) {
     return 1;
 }
 
+static int is_surface_valid() {
+    return s_display != EGL_NO_DISPLAY && 
+           s_surface != EGL_NO_SURFACE && 
+           s_context != EGL_NO_CONTEXT;
+}
+
 static void term_egl() {
-    __android_log_print(ANDROID_LOG_INFO, "gltron", "Terminating EGL...");
+    if (!is_surface_valid()) return;
+
+    if (!(g_finish_requested)) {
+        __android_log_print(ANDROID_LOG_WARN, "gltron", "Destroying EGL during normal operation...");
+    }
 
     if (s_display != EGL_NO_DISPLAY) {
         eglMakeCurrent(s_display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
@@ -442,65 +324,103 @@ static void short_delay(int milliseconds) {
     nanosleep(&ts, NULL);
 }
 
+// Helper function to ensure EGL context is current
+static int ensure_egl_context() {
+    struct android_app* current_state = state;
+
+    if (!is_surface_valid()) {
+        __android_log_print(ANDROID_LOG_WARN, "gltron", "eglMakeCurrent skipped: invalid EGL surface or context");
+        return 0;
+    }
+
+    if (!eglMakeCurrent(s_display, s_surface, s_surface, s_context)) {
+        __android_log_print(ANDROID_LOG_ERROR, "gltron", "Failed to make EGL context current after immersive mode: 0x%04x", eglGetError());
+        return 0;
+    }
+
+    return 1;
+}
+
 // Helper function to safely apply immersive mode and ensure rendering continues properly
 static void apply_immersive_mode_and_refresh(struct android_app* app) {
     // Apply immersive fullscreen mode
     set_immersive_fullscreen(app);
-    
-    // Add a small delay to allow the system to process UI changes
-    short_delay(50);
-    
-    // Ensure EGL context is current
-    if (s_egl_initialized && s_display != EGL_NO_DISPLAY && s_surface != EGL_NO_SURFACE && s_context != EGL_NO_CONTEXT) {
-        if (!eglMakeCurrent(s_display, s_surface, s_surface, s_context)) {
-            __android_log_print(ANDROID_LOG_ERROR, "gltron", "Failed to make context current after immersive mode: 0x%04x", eglGetError());
-            return;
-        }
-        
-        // Re-query surface dimensions
+    short_delay(20); // Wait for UI to settle
+
+    if (is_surface_valid() && ensure_egl_context()) {
+        // Update viewport with new dimensions
         EGLint width, height;
         eglQuerySurface(s_display, s_surface, EGL_WIDTH, &width);
         eglQuerySurface(s_display, s_surface, EGL_HEIGHT, &height);
-        
-        // Update if dimensions changed
-        if (width != s_width || height != s_height) {
-            s_width = width;
-            s_height = height;
-            glViewport(0, 0, (GLint)s_width, (GLint)s_height);
-            gltron_resize((int)s_width, (int)s_height);
-        }
-        
-        // Force a clear and swap to ensure screen isn't black
-        glClearColor(0.1f, 0.1f, 0.2f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        eglSwapBuffers(s_display, s_surface);
-        
-        // Do it twice to ensure both buffers are cleared
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        eglSwapBuffers(s_display, s_surface);
+        s_width = width;
+        s_height = height;
+
+        glViewport(0, 0, (GLint)s_width, (GLint)s_height);
+        gltron_resize((int)s_width, (int)s_height);
     }
 }
 
-// Helper function to ensure EGL context is current
-static int ensure_egl_context() {
-    if (!s_egl_initialized || s_display == EGL_NO_DISPLAY || s_surface == EGL_NO_SURFACE || s_context == EGL_NO_CONTEXT) {
-        return 0;
-    }
-    
-    // Check if the context is already current
-    EGLContext current_context = eglGetCurrentContext();
-    EGLSurface current_draw = eglGetCurrentSurface(EGL_DRAW);
-    EGLSurface current_read = eglGetCurrentSurface(EGL_READ);
-    
-    if (current_context != s_context || current_draw != s_surface || current_read != s_surface) {
-        __android_log_print(ANDROID_LOG_INFO, "gltron", "EGL context not current, restoring");
-        if (!eglMakeCurrent(s_display, s_surface, s_surface, s_context)) {
-            __android_log_print(ANDROID_LOG_ERROR, "gltron", "Failed to make context current: 0x%04x", eglGetError());
-            return 0;
-        }
-    }
-    
-    return 1;
+void gltron_frame(void) {
+  if (!ensure_egl_context()) {
+      eglSwapBuffers(s_display, s_surface); // Fallback: force surface swap on error
+      return;
+  }
+
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  gltron_frame();
+
+  if (!eglSwapBuffers(s_display, s_surface)) {
+      EGLint error = eglGetError();
+      if (error == EGL_BAD_SURFACE) {
+          __android_log_print(ANDROID_LOG_WARN, "gltron", "eglSwapBuffers failed. Surface may be invalid. Reinitializing.");
+          term_egl();
+          // Optionally: call apply_immersive_mode_and_refresh with error handling
+      } else {
+          __android_log_print(ANDROID_LOG_ERROR, "gltron", "eglSwapBuffers error: 0x%04x", error);
+      }
+  }
+
+  if (!initialized) gltron_init();
+
+  // Ensure first frame completed
+  if (!did_first_render) {
+      __android_log_print(ANDROID_LOG_INFO, "gltron", "First frame rendered, now applying immersive mode");
+      apply_immersive_mode_and_refresh(state);
+      did_first_render = 1;
+  }
+  
+  // Ensure we have valid game state
+  if (!game) {
+    __android_log_print(ANDROID_LOG_ERROR, "gltron", "gltron_frame: game is NULL!");
+    return;
+  }
+  
+  // Don't send continuous turn commands - they're handled on button press
+  // This prevents the cycle from turning multiple times per button press
+  
+  // Safely call idle callback
+  if (current_android_callbacks.idle && current_android_callbacks.idle != (void*)0xdeadbeef) {
+    current_android_callbacks.idle();
+  }
+  
+  // Clear and render
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  
+  // Ensure shader is bound before rendering
+  GLuint prog = shader_get_basic();
+  if (prog) {
+    glUseProgram(prog);
+  }
+  
+  // Safely call display callback
+  if (current_android_callbacks.display) {
+    current_android_callbacks.display();
+  } else {
+    __android_log_print(ANDROID_LOG_WARN, "gltron", "gltron_frame: invalid display callback");
+  }
+  
+  // Overlay controls (hidden in GUI)
+  draw_android_overlay();
 }
 
 static void handle_cmd(struct android_app* app, int32_t cmd) {
@@ -510,7 +430,7 @@ static void handle_cmd(struct android_app* app, int32_t cmd) {
             if (app->window && !s_egl_initialized) {
                 if (init_egl(app->window, app)) {
                     // Apply immersive mode after successful EGL init
-                    apply_immersive_mode_and_refresh(app);
+                    //apply_immersive_mode_and_refresh(app);
                 }
             }
             break;

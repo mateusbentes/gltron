@@ -48,18 +48,9 @@ void applyDisplaySettingsDeferred(void);
 void forceViewportResetIfNeededForGame(void);
 void menuAction(Menu *pMenu);
 
-// Android-specific callback management
-typedef struct {
-  void (*display)(void);
-  void (*idle)(void);
-  void (*keyboard)(unsigned char, int, int);
-  void (*special)(int, int, int);
-  void (*init)(void);
-  void (*initGL)(void);
-} android_callbacks;
-
-static android_callbacks current_android_callbacks;
-static android_callbacks last_android_callbacks;
+android_callbacks current_android_callbacks = {0};
+android_callbacks last_android_callbacks = {0};
+struct android_app* state;
 
 // Track which callbacks have been initialized to avoid re-initialization
 static int gui_callbacks_initialized = 0;
@@ -84,7 +75,9 @@ extern callbacks *current_callback;
 #endif
 char s_base_path[PATH_MAX] = "/data/data/org.gltron.game/files"; // default fallback
 
-static int initialized = 0;
+int did_first_render = 0;
+
+int initialized = 0;
 // base path defined above (non-static) and declared in header
 
 #ifdef ANDROID
@@ -642,43 +635,6 @@ void draw_android_overlay() {
   draw_rect(btn_left[0], btn_left[1], btn_left[2], btn_left[3], 1,1,1,0.45f);
   draw_rect(btn_right[0], btn_right[1], btn_right[2], btn_right[3], 1,1,1,0.45f);
   draw_rect(btn_pause[0], btn_pause[1], btn_pause[2], btn_pause[3], 1,1,1,0.40f);
-}
-
-void gltron_frame(void) {
-  if (!initialized) gltron_init();
-  
-  // Ensure we have valid game state
-  if (!game) {
-    __android_log_print(ANDROID_LOG_ERROR, "gltron", "gltron_frame: game is NULL!");
-    return;
-  }
-  
-  // Don't send continuous turn commands - they're handled on button press
-  // This prevents the cycle from turning multiple times per button press
-  
-  // Safely call idle callback
-  if (current_android_callbacks.idle && current_android_callbacks.idle != (void*)0xdeadbeef) {
-    current_android_callbacks.idle();
-  }
-  
-  // Clear and render
-  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-  
-  // Ensure shader is bound before rendering
-  GLuint prog = shader_get_basic();
-  if (prog) {
-    glUseProgram(prog);
-  }
-  
-  // Safely call display callback
-  if (current_android_callbacks.display) {
-    current_android_callbacks.display();
-  } else {
-    __android_log_print(ANDROID_LOG_WARN, "gltron", "gltron_frame: invalid display callback");
-  }
-  
-  // Overlay controls (hidden in GUI)
-  draw_android_overlay();
 }
 
 void gltron_on_touch(float x, float y, int action) {
