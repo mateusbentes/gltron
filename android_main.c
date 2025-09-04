@@ -158,7 +158,13 @@ static void set_immersive_fullscreen(struct android_app* app) {
               | SYSTEM_UI_FLAG_FULLSCREEN
               | SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
 
-    int result = (*env)->CallVoidMethod(env, decor_view, set_system_ui_visibility, flags);
+    (*env)->CallVoidMethod(env, decor_view, set_system_ui_visibility, flags);
+    if ((*env)->ExceptionCheck(env)) {
+        __android_log_print(ANDROID_LOG_WARN, "gltron", "Exception during setSystemUiVisibility");
+        (*env)->ExceptionClear(env);
+    } else {
+        __android_log_print(ANDROID_LOG_INFO, "gltron", "Immersive mode flags applied: %d", flags);
+    }
     if (result == 0) {
         __android_log_print(ANDROID_LOG_INFO, "gltron", "Immersive mode enabled with flags: %d", flags);
     } else {
