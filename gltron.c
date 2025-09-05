@@ -66,46 +66,50 @@ void mouseWarp() {
 
 void drawGame() {
   #ifdef ANDROID
-    { GLuint sp = shader_get_basic(); if (sp) useShaderProgram(sp); }
+    // Ensure shader is bound and set to 3D mode
+    GLuint prog = shader_get_basic();
+    if (prog) {
+      glUseProgram(prog);
+      setup3DRendering();
+    } else {
+      __android_log_print(ANDROID_LOG_ERROR, "GLTron", "No shader program in drawGame!");
+      return;
+    }
   #endif
 
-  GLint i;
-  gDisplay *d;
-  Player *p;
-
   polycount = 0;
-  glClearColor(.0, .0, .0, .0);
+  glClearColor(0.0, 0.0, 0.0, 1.0);
   glDepthMask(GL_TRUE);
-  glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
   // Enable depth test for 3D scene
-#ifdef ANDROID
+  #ifdef ANDROID
   glEnable(GL_DEPTH_TEST);
-#endif
+  #endif
 
-  for(i = 0; i < vp_max[ game->settings->display_type]; i++) {
-    p = &(game->player[ game->settings->content[i] ]);
+  for(GLint i = 0; i < vp_max[game->settings->display_type]; i++) {
+    Player *p = &(game->player[game->settings->content[i]]);
     if(p->display->onScreen == 1) {
-      d = p->display;
+      gDisplay *d = p->display;
       glViewport(d->vp_x, d->vp_y, d->vp_w, d->vp_h);
       drawCam(p, d);
       // Disable depth for UI overlays drawn per-viewport
-#ifdef ANDROID
+      #ifdef ANDROID
       glDisable(GL_DEPTH_TEST);
-#endif
+      #endif
       if(game->settings->show_ai_status)
-	if(p->ai->active == 1)
-	  drawAI(d);
-#ifdef ANDROID
+        if(p->ai->active == 1)
+          drawAI(d);
+      #ifdef ANDROID
       glEnable(GL_DEPTH_TEST);
-#endif
+      #endif
     }
   }
 
   // Disable depth for global 2D overlays
-#ifdef ANDROID
+  #ifdef ANDROID
   glDisable(GL_DEPTH_TEST);
-#endif
+  #endif
   if(game->settings->show_fps)
     drawFPS(game->screen);
 
