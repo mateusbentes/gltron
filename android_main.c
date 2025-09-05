@@ -443,65 +443,60 @@ static void apply_immersive_mode_and_refresh(struct android_app* app) {
 }
 
 void gltron_frame(void) {
-  if (!ensure_egl_context()) {
-      eglSwapBuffers(s_display, s_surface); // Fallback: force surface swap on error
-      return;
-  }
-
-  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-  if (!eglSwapBuffers(s_display, s_surface)) {
-      EGLint error = eglGetError();
-      if (error == EGL_BAD_SURFACE) {
-          __android_log_print(ANDROID_LOG_WARN, "gltron", "eglSwapBuffers failed. Surface may be invalid. Reinitializing.");
-          term_egl();
-          // Optionally: call apply_immersive_mode_and_refresh with error handling
-      } else {
-          __android_log_print(ANDROID_LOG_ERROR, "gltron", "eglSwapBuffers error: 0x%04x", error);
-      }
-  }
-
+  // Check initialization first
   if (!initialized) gltron_init();
 
-  // Ensure first frame completed
-  if (!did_first_render) {
-      __android_log_print(ANDROID_LOG_INFO, "gltron", "First frame rendered, now applying immersive mode");
-      apply_immersive_mode_and_refresh(state);
-      did_first_render = 1;
+  // Ensure EGL context is current
+  if (!ensure_egl_context()) {
+    __android_log_print(ANDROID_LOG_WARN, "gltron", "Skipping frame: EGL context not current");
+    return;
   }
-  
+
   // Ensure we have valid game state
   if (!game) {
     __android_log_print(ANDROID_LOG_ERROR, "gltron", "gltron_frame: game is NULL!");
     return;
   }
-  
-  // Don't send continuous turn commands - they're handled on button press
-  // This prevents the cycle from turning multiple times per button press
-  
-  // Safely call idle callback
+
+  // Safely call idle callback to update animations/state
   if (current_android_callbacks.idle && current_android_callbacks.idle != (void*)0xdeadbeef) {
     current_android_callbacks.idle();
   }
-  
-  // Clear and render
+
+  // Single clear at the beginning
+  glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-  
+  check_gl_error("Initial clear");
+
   // Ensure shader is bound before rendering
   GLuint prog = shader_get_basic();
   if (prog) {
     glUseProgram(prog);
   }
-  
-  // Safely call display callback
+
+  // Call the appropriate display function
   if (current_android_callbacks.display) {
     current_android_callbacks.display();
   } else {
-    __android_log_print(ANDROID_LOG_WARN, "gltron", "gltron_frame: invalid display callback");
+    __android_log_print(ANDROID_LOG_WARN, "gltron", "No display callback set");
   }
-  
-  // Overlay controls (hidden in GUI)
-  draw_android_overlay();
+
+  // Draw overlay if in game mode
+  if (!is_gui_active()) {
+    draw_android_overlay();
+  }
+
+  // Swap buffers
+  if (!eglSwapBuffers(s_display, s_surface)) {
+    EGLint error = eglGetError();
+    __android_log_print(ANDROID_LOG_ERROR, "gltron", "eglSwapBuffers failed: 0x%04x", error);
+    if (error == EGL_BAD_SURFACE || error == EGL_BAD_CONTEXT) {
+      __android_log_print(ANDROID_LOG_WARN, "gltron", "Invalid surface/context - reinitializing");
+      term_egl();
+    }
+  } else {
+    __android_log_print(ANDROID_LOG_DEBUG, "gltron", "Frame swapped successfully");
+  }
 }
 
 static void handle_cmd(struct android_app* app, int32_t cmd) {

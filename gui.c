@@ -138,14 +138,6 @@ void displayGui() {
   glVertexAttribPointer(a_pos_bg, 2, GL_FLOAT, GL_FALSE, 0, bgVerts);
   glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
   glDisableVertexAttribArray(a_pos_bg);
-  // Test red quad
-  setColor(shaderProgram, 1.0f, 0.0f, 0.0f, 1.0f);
-  GLfloat testVerts[8] = { -0.25f, -0.25f, 0.25f, -0.25f, 0.25f, 0.25f, -0.25f, 0.25f };
-  GLint a_pos_test = glGetAttribLocation(shaderProgram, "position");
-  glEnableVertexAttribArray(a_pos_test);
-  glVertexAttribPointer(a_pos_test, 2, GL_FLOAT, GL_FALSE, 0, testVerts);
-  glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-  glDisableVertexAttribArray(a_pos_test);
 
 #else
   // Draw background using immediate mode for non-Android
@@ -238,7 +230,7 @@ void displayGui() {
   // Map bgs.posx,posy [-1,1] to pixel center
   x = (bgs.posx * 0.5f + 0.5f) * vpw;
   y = (bgs.posy * 0.5f + 0.5f) * vph;
-  
+
   GLfloat logoVerts[8] = {
     x - w * 0.5f, y - h * 0.5f,
     x + w * 0.5f, y - h * 0.5f,

@@ -68,6 +68,9 @@ extern int initialized;
 extern void android_restoreCallbacks(void);
 extern void android_switchCallbacks(callbacks* new);
 
+// Is gui active?
+int is_gui_active();
+
 // Touch control state or overlay control (if used)
 // extern int active_left, active_right, active_pause;
 

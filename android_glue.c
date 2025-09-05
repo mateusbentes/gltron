@@ -609,7 +609,7 @@ static void draw_rect(int x, int y, int w, int h, float r, float g, float b, flo
   glDisableVertexAttribArray(positionLoc);
 }
 
-static int is_gui_active() {
+int is_gui_active() {
   extern callbacks guiCallbacks; // declared in other compilation units
   return current_callback == &guiCallbacks;
 }
