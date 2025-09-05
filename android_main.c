@@ -225,7 +225,7 @@ static int init_egl(ANativeWindow* window, struct android_app* app) {
 
     // Set a more visible test clear color (not black) to verify rendering
     // Using a distinctive blue color to help diagnose black screen issues
-    glClearColor(0.2f, 0.2f, 0.4f, 1.0f);
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     check_gl_error("glClearColor");
     
     // Force an initial clear with this color
@@ -365,7 +365,6 @@ void gltron_frame(void) {
   }
 
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-  gltron_frame();
 
   if (!eglSwapBuffers(s_display, s_surface)) {
       EGLint error = eglGetError();

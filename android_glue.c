@@ -617,6 +617,7 @@ static int is_gui_active() {
 void draw_android_overlay() {
   if (!scr_w || !scr_h) return;
   
+#ifdef DEBUG_OVERLAY
   // Always draw a small debug banner at top to prove overlay works
   // Make it more visible to help diagnose black screen issues
   draw_rect(8, 8, scr_w/3, scr_h/20, 1.f, 1.f, 1.f, 0.25f);
@@ -627,8 +628,9 @@ void draw_android_overlay() {
   draw_rect(scr_w-20, 0, 20, 20, 0.0f, 1.0f, 0.0f, 0.5f); // Top-right
   draw_rect(0, scr_h-20, 20, 20, 0.0f, 0.0f, 1.0f, 0.5f); // Bottom-left
   draw_rect(scr_w-20, scr_h-20, 20, 20, 1.0f, 1.0f, 0.0f, 0.5f); // Bottom-right
-  
-  if (is_gui_active()) return; // hide controls in menus
+#endif
+
+  if (is_gui_active()) return;
   
   // Make controls more visible to help with black screen issues
   draw_rect(btn_left[0], btn_left[1], btn_left[2], btn_left[3], 1,1,1,0.45f);
