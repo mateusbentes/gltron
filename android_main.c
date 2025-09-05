@@ -81,9 +81,93 @@ int set_immersive_fullscreen(struct android_app* app) {
         goto fail;
     }
 
-    // Get window and apply immersive flags...
+    // Get Window object
+    jmethodID getWindow = (*env)->GetMethodID(env, activity_class, "getWindow", "()Landroid/view/Window;");
+    if (!getWindow) {
+        (*env)->ExceptionDescribe(env);
+        (*env)->ExceptionClear(env);
+        goto fail;
+    }
 
-    // Clean up everything on error
+    jobject window = (*env)->CallObjectMethod(env, activity_obj, getWindow);
+    if (!window) {
+        (*env)->ExceptionDescribe(env);
+        (*env)->ExceptionClear(env);
+        goto fail;
+    }
+
+    // Get View object from Window
+    jclass window_class = (*env)->GetObjectClass(env, window);
+    jmethodID getDecorView = (*env)->GetMethodID(env, window_class, "getDecorView", "()Landroid/view/View;");
+    if (!getDecorView) {
+        (*env)->ExceptionDescribe(env);
+        (*env)->ExceptionClear(env);
+        (*env)->DeleteLocalRef(env, window);
+        (*env)->DeleteLocalRef(env, window_class);
+        goto fail;
+    }
+
+    jobject decorView = (*env)->CallObjectMethod(env, window, getDecorView);
+    if (!decorView) {
+        (*env)->ExceptionDescribe(env);
+        (*env)->ExceptionClear(env);
+        (*env)->DeleteLocalRef(env, window);
+        (*env)->DeleteLocalRef(env, window_class);
+        goto fail;
+    }
+
+    // Get View class
+    jclass view_class = (*env)->GetObjectClass(env, decorView);
+    if (!view_class) {
+        (*env)->ExceptionDescribe(env);
+        (*env)->ExceptionClear(env);
+        (*env)->DeleteLocalRef(env, decorView);
+        (*env)->DeleteLocalRef(env, window);
+        (*env)->DeleteLocalRef(env, window_class);
+        goto fail;
+    }
+
+    // Call setSystemUiVisibility on the decor view
+    jmethodID setSystemUiVisibility = (*env)->GetMethodID(env, view_class, "setSystemUiVisibility", "(I)V");
+    if (!setSystemUiVisibility) {
+        (*env)->ExceptionDescribe(env);
+        (*env)->ExceptionClear(env);
+        (*env)->DeleteLocalRef(env, view_class);
+        (*env)->DeleteLocalRef(env, decorView);
+        (*env)->DeleteLocalRef(env, window);
+        (*env)->DeleteLocalRef(env, window_class);
+        goto fail;
+    }
+
+    int flags = SYSTEM_UI_FLAG_LAYOUT_STABLE
+              | SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+              | SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+              | SYSTEM_UI_FLAG_HIDE_NAVIGATION
+              | SYSTEM_UI_FLAG_FULLSCREEN
+              | SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
+
+    (*env)->CallVoidMethod(env, decorView, setSystemUiVisibility, flags);
+
+    // Check for exceptions
+    if ((*env)->ExceptionCheck(env)) {
+        (*env)->ExceptionDescribe(env);
+        (*env)->ExceptionClear(env);
+        (*env)->DeleteLocalRef(env, view_class);
+        (*env)->DeleteLocalRef(env, decorView);
+        (*env)->DeleteLocalRef(env, window);
+        (*env)->DeleteLocalRef(env, window_class);
+        goto fail;
+    }
+
+    // Clean up local references
+    (*env)->DeleteLocalRef(env, view_class);
+    (*env)->DeleteLocalRef(env, decorView);
+    (*env)->DeleteLocalRef(env, window);
+    (*env)->DeleteLocalRef(env, window_class);
+
+    __android_log_print(ANDROID_LOG_INFO, "gltron", "Immersive fullscreen applied successfully");
+    return 0;
+
 fail:
     if (activity_class) (*env)->DeleteLocalRef(env, activity_class);
     return 0;
