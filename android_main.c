@@ -50,18 +50,32 @@ static void get_display_metrics(struct android_app* app, int* width, int* height
 
   jclass display_class = (*env)->GetObjectClass(env, display);
   
-  // Get current oriented size (handles rotation automatically)
-  jmethodID getSize = (*env)->GetMethodID(env, display_class, "getSize", "(Landroid/graphics/Point;)V");
+  // Get rotation (0=landscape, 1=portrait90, 2=landscape180, 3=portrait270)
+  jmethodID getRotation = (*env)->GetMethodID(env, display_class, "getRotation", "()I");
+  jint rotation = (*env)->CallIntMethod(env, display, getRotation);
+
+  // Get physical (real) size
+  jmethodID getRealSize = (*env)->GetMethodID(env, display_class, "getRealSize", "(Landroid/graphics/Point;)V");
   jclass point_class = (*env)->FindClass(env, "android/graphics/Point");
   jmethodID point_constructor = (*env)->GetMethodID(env, point_class, "<init>", "()V");
   jobject point = (*env)->NewObject(env, point_class, point_constructor);
 
-  (*env)->CallVoidMethod(env, display, getSize, point);
+  (*env)->CallVoidMethod(env, display, getRealSize, point);
 
   jfieldID x_field = (*env)->GetFieldID(env, point_class, "x", "I");
   jfieldID y_field = (*env)->GetFieldID(env, point_class, "y", "I");
-  *width = (*env)->GetIntField(env, point, x_field);
-  *height = (*env)->GetIntField(env, point, y_field);
+  int physical_width = (*env)->GetIntField(env, point, x_field);   // Longer side (e.g., 1920)
+  int physical_height = (*env)->GetIntField(env, point, y_field);  // Shorter side (e.g., 1200)
+
+  // For tablets, assume landscape default (no swap for rotation 0/2)
+  // Swap only for portrait rotations (1/3)
+  if (rotation == 1 || rotation == 3) {
+    *width = physical_height;  // e.g., 1200
+    *height = physical_width;  // e.g., 1920
+  } else {
+    *width = physical_width;   // e.g., 1920
+    *height = physical_height; // e.g., 1200
+  }
 
   // Cleanup
   (*env)->DeleteLocalRef(env, point);
@@ -72,7 +86,7 @@ static void get_display_metrics(struct android_app* app, int* width, int* height
   (*env)->DeleteLocalRef(env, windowManager_class);
   (*env)->DeleteLocalRef(env, activity_class);
 
-  __android_log_print(ANDROID_LOG_INFO, "gltron", "Detected oriented display size: %dx%d", *width, *height);
+  __android_log_print(ANDROID_LOG_INFO, "gltron", "Detected physical size: %dx%d | Oriented size: %dx%d (rotation: %d)", physical_width, physical_height, *width, *height, rotation);
 }
 
 int get_android_sdk_version() {
@@ -284,10 +298,10 @@ static int init_egl(ANativeWindow* window, struct android_app* app) {
 
   __android_log_print(ANDROID_LOG_INFO, "gltron", "Initializing EGL...");
 
-  // Apply immersive mode early to ensure full-screen metrics
+  // Apply immersive mode early
   apply_immersive_mode_and_refresh(app);
 
-  // Auto-detect oriented display resolution
+  // Auto-detect oriented resolution
   int detected_width = 0, detected_height = 0;
   get_display_metrics(app, &detected_width, &detected_height);
 
@@ -331,7 +345,7 @@ static int init_egl(ANativeWindow* window, struct android_app* app) {
     return 0;
   }
 
-  // Set buffer geometry to detected resolution
+  // Set buffer geometry to detected oriented resolution
   ANativeWindow_setBuffersGeometry(window, detected_width, detected_height, format);
 
   s_surface = eglCreateWindowSurface(s_display, config, window, NULL);
@@ -368,15 +382,13 @@ static int init_egl(ANativeWindow* window, struct android_app* app) {
     return 0;
   }
 
-  // Query actual surface size and log
+  // Query actual surface size
   eglQuerySurface(s_display, s_surface, EGL_WIDTH, &s_width);
   eglQuerySurface(s_display, s_surface, EGL_HEIGHT, &s_height);
 
-  __android_log_print(ANDROID_LOG_INFO, "gltron", "Surface size: %dx%d (detected: %dx%d)", s_width, s_height, detected_width, detected_height);
-
-  // If mismatch, force detected size
+  // If EGL size differs from detected, log and force detected (for tablets)
   if (s_width != detected_width || s_height != detected_height) {
-    __android_log_print(ANDROID_LOG_WARN, "gltron", "Size mismatch - forcing detected %dx%d", detected_width, detected_height);
+    __android_log_print(ANDROID_LOG_WARN, "gltron", "EGL size mismatch (EGL: %dx%d, Detected: %dx%d) - forcing detected size", s_width, s_height, detected_width, detected_height);
     s_width = detected_width;
     s_height = detected_height;
   }
@@ -392,7 +404,7 @@ static int init_egl(ANativeWindow* window, struct android_app* app) {
   __android_log_print(ANDROID_LOG_INFO, "gltron", "GL_RENDERER: %s", renderer ? renderer : "unknown");
   __android_log_print(ANDROID_LOG_INFO, "gltron", "GL_VERSION: %s", version ? version : "unknown");
   __android_log_print(ANDROID_LOG_INFO, "gltron", "GL_SHADING_LANGUAGE_VERSION: %s", sl_version ? sl_version : "unknown");
-  __android_log_print(ANDROID_LOG_INFO, "gltron", "Surface size: %dx%d (detected device size: %dx%d)", s_width, s_height, detected_width, detected_height);
+  __android_log_print(ANDROID_LOG_INFO, "gltron", "Final surface size: %dx%d", s_width, s_height);
 
   // Initialize game components
   __android_log_print(ANDROID_LOG_INFO, "gltron", "Initializing game components...");
@@ -577,15 +589,20 @@ static void handle_cmd(struct android_app* app, int32_t cmd) {
 
         case APP_CMD_CONFIG_CHANGED:
         case APP_CMD_RESUME:
-            apply_immersive_mode_and_refresh(app);  // Reapply immersive first
+            apply_immersive_mode_and_refresh(app);
             int new_width = 0, new_height = 0;
             get_display_metrics(app, &new_width, &new_height);
-            if (new_width != s_width || new_height != s_height) {
-                __android_log_print(ANDROID_LOG_INFO, "gltron", "Resolution change detected, updating to %dx%d", new_width, new_height);
+            // Add tolerance (e.g., ignore small changes like navigation bar adjustments)
+            int delta_w = abs(new_width - s_width);
+            int delta_h = abs(new_height - s_height);
+            if (delta_w > 10 || delta_h > 10) {  // Tolerance of 10 pixels
+                __android_log_print(ANDROID_LOG_INFO, "gltron", "Significant resolution change detected, updating to %dx%d", new_width, new_height);
                 gltron_resize(new_width, new_height);
                 glViewport(0, 0, new_width, new_height);
                 s_width = new_width;
                 s_height = new_height;
+            } else {
+                __android_log_print(ANDROID_LOG_DEBUG, "gltron", "Minor size change ignored (%dx%d -> %dx%d)", s_width, s_height, new_width, new_height);
             }
             break;
             
