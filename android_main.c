@@ -50,11 +50,11 @@ static void get_display_metrics(struct android_app* app, int* width, int* height
 
   jclass display_class = (*env)->GetObjectClass(env, display);
   
-  // Get rotation (0=landscape, 1=portrait90, 2=landscape180, 3=portrait270)
+  // Get rotation
   jmethodID getRotation = (*env)->GetMethodID(env, display_class, "getRotation", "()I");
   jint rotation = (*env)->CallIntMethod(env, display, getRotation);
 
-  // Get physical (real) size
+  // Get physical size
   jmethodID getRealSize = (*env)->GetMethodID(env, display_class, "getRealSize", "(Landroid/graphics/Point;)V");
   jclass point_class = (*env)->FindClass(env, "android/graphics/Point");
   jmethodID point_constructor = (*env)->GetMethodID(env, point_class, "<init>", "()V");
@@ -64,17 +64,19 @@ static void get_display_metrics(struct android_app* app, int* width, int* height
 
   jfieldID x_field = (*env)->GetFieldID(env, point_class, "x", "I");
   jfieldID y_field = (*env)->GetFieldID(env, point_class, "y", "I");
-  int physical_width = (*env)->GetIntField(env, point, x_field);   // Longer side (e.g., 1920)
-  int physical_height = (*env)->GetIntField(env, point, y_field);  // Shorter side (e.g., 1200)
+  int raw_x = (*env)->GetIntField(env, point, x_field);
+  int raw_y = (*env)->GetIntField(env, point, y_field);
 
-  // For tablets, assume landscape default (no swap for rotation 0/2)
-  // Swap only for portrait rotations (1/3)
-  if (rotation == 1 || rotation == 3) {
-    *width = physical_height;  // e.g., 1200
-    *height = physical_width;  // e.g., 1920
+  // Force landscape for rotation 0/2 by making larger dimension width
+  // Force portrait for rotation 1/3 by making smaller dimension width
+  int larger = (raw_x > raw_y) ? raw_x : raw_y;
+  int smaller = (raw_x > raw_y) ? raw_y : raw_x;
+  if (rotation == 0 || rotation == 2) {
+    *width = larger;   // e.g., 1920
+    *height = smaller; // e.g., 1200
   } else {
-    *width = physical_width;   // e.g., 1920
-    *height = physical_height; // e.g., 1200
+    *width = smaller;  // e.g., 1200
+    *height = larger;  // e.g., 1920
   }
 
   // Cleanup
@@ -86,7 +88,7 @@ static void get_display_metrics(struct android_app* app, int* width, int* height
   (*env)->DeleteLocalRef(env, windowManager_class);
   (*env)->DeleteLocalRef(env, activity_class);
 
-  __android_log_print(ANDROID_LOG_INFO, "gltron", "Detected physical size: %dx%d | Oriented size: %dx%d (rotation: %d)", physical_width, physical_height, *width, *height, rotation);
+  __android_log_print(ANDROID_LOG_INFO, "gltron", "Raw size: %dx%d | Oriented size: %dx%d (rotation: %d)", raw_x, raw_y, *width, *height, rotation);
 }
 
 int get_android_sdk_version() {
@@ -576,63 +578,74 @@ void gltron_frame(void) {
 }
 
 static void handle_cmd(struct android_app* app, int32_t cmd) {
-    switch (cmd) {
-        case APP_CMD_INIT_WINDOW:
-            __android_log_print(ANDROID_LOG_INFO, "gltron", "APP_CMD_INIT_WINDOW");
-            if (app->window && !s_egl_initialized) {
-                if (init_egl(app->window, app)) {
-                    // Apply immersive mode after successful EGL init
-                    apply_immersive_mode_and_refresh(app);
-                }
-            }
-            break;
+  int new_width = 0, new_height = 0; // Declare outside switch to avoid redefinition
 
-        case APP_CMD_CONFIG_CHANGED:
-        case APP_CMD_RESUME:
-            apply_immersive_mode_and_refresh(app);
-            int new_width = 0, new_height = 0;
-            get_display_metrics(app, &new_width, &new_height);
-            // Add tolerance (e.g., ignore small changes like navigation bar adjustments)
-            int delta_w = abs(new_width - s_width);
-            int delta_h = abs(new_height - s_height);
-            if (delta_w > 10 || delta_h > 10) {  // Tolerance of 10 pixels
-                __android_log_print(ANDROID_LOG_INFO, "gltron", "Significant resolution change detected, updating to %dx%d", new_width, new_height);
-                gltron_resize(new_width, new_height);
-                glViewport(0, 0, new_width, new_height);
-                s_width = new_width;
-                s_height = new_height;
-            } else {
-                __android_log_print(ANDROID_LOG_DEBUG, "gltron", "Minor size change ignored (%dx%d -> %dx%d)", s_width, s_height, new_width, new_height);
-            }
-            break;
-            
-        case APP_CMD_TERM_WINDOW:
-            __android_log_print(ANDROID_LOG_INFO, "gltron", "APP_CMD_TERM_WINDOW");
-            term_egl();
-            break;
+  switch (cmd) {
+    case APP_CMD_INIT_WINDOW:
+      __android_log_print(ANDROID_LOG_INFO, "gltron", "APP_CMD_INIT_WINDOW");
+      if (app->window && !s_egl_initialized) {
+        if (init_egl(app->window, app)) {
+          // Apply immmersive mode after successful EGL init
+          apply_immersive_mode_and_refresh(app);
+        }
+      }
+      break;
 
-        case APP_CMD_WINDOW_RESIZED:
-            __android_log_print(ANDROID_LOG_INFO, "gltron", "APP_CMD_WINDOW_RESIZED");
-            if (s_display != EGL_NO_DISPLAY && app->window) {
-                eglQuerySurface(s_display, s_surface, EGL_WIDTH, &s_width);
-                eglQuerySurface(s_display, s_surface, EGL_HEIGHT, &s_height);
-                gltron_resize((int)s_width, (int)s_height);
-                glViewport(0, 0, (GLint)s_width, (GLint)s_height);
-                __android_log_print(ANDROID_LOG_INFO, "gltron", "Window resized to %dx%d", s_width, s_height);
-            }
-            break;
+    case APP_CMD_CONFIG_CHANGED:
+      __android_log_print(ANDROID_LOG_INFO, "gltron", "APP_CMD_CONFIG_CHANGED - handling rotation");
+      apply_immersive_mode_and_refresh(app);
+      get_display_metrics(app, &new_width, &new_height);
+      // Always update on config change
+      __android_log_print(ANDROID_LOG_INFO, "gltron", "Updating resolution to %dx%d", new_width, new_height);
+      gltron_resize(new_width, new_height);
+      glViewport(0, 0, new_width, new_height);
+      s_width = new_width;
+      s_height = new_height;
+      // Force EGL reinitialize to handle orientation fully
+      term_egl();
+      init_egl(app->window, app);
+      apply_immersive_mode_and_refresh(app);
+      break;
 
-        case APP_CMD_GAINED_FOCUS:
-            __android_log_print(ANDROID_LOG_INFO, "gltron", "APP_CMD_GAINED_FOCUS");
-            // Reapply immersive mode when gaining focus
-            if (s_egl_initialized) {
-                apply_immersive_mode_and_refresh(app);
-            }
-            break;
+    case APP_CMD_RESUME:
+      __android_log_print(ANDROID_LOG_INFO, "gltron", "APP_CMD_RESUME");
+      apply_immersive_mode_and_refresh(app);
+      get_display_metrics(app, &new_width, &new_height);
+      if (new_width != s_width || new_height != s_height) {
+        __android_log_print(ANDROID_LOG_INFO, "gltron", "Resolution change on resume, updating to %dx%d", new_width, new_height);
+        gltron_resize(new_width, new_height);
+        glViewport(0, 0, new_width, new_height);
+        s_width = new_width;
+        s_height = new_height;
+      }
+      break;
+      
+    case APP_CMD_TERM_WINDOW:
+      __android_log_print(ANDROID_LOG_INFO, "gltron", "APP_CMD_TERM_WINDOW");
+      term_egl();
+      break;
 
-        default:
-            break;
-    }
+    case APP_CMD_WINDOW_RESIZED:
+      __android_log_print(ANDROID_LOG_INFO, "gltron", "APP_CMD_WINDOW_RESIZED");
+      if (s_display != EGL_NO_DISPLAY && app->window) {
+        eglQuerySurface(s_display, s_surface, EGL_WIDTH, &s_width);
+        eglQuerySurface(s_display, s_surface, EGL_HEIGHT, &s_height);
+        gltron_resize((int)s_width, (int)s_height);
+        glViewport(0, 0, (GLint)s_width, (GLint)s_height);
+        __android_log_print(ANDROID_LOG_INFO, "gltron", "Window resized to %dx%d", s_width, s_height);
+      }
+      break;
+
+    case APP_CMD_GAINED_FOCUS:
+      __android_log_print(ANDROID_LOG_INFO, "gltron", "APP_CMD_GAINED_FOCUS");
+      if (s_egl_initialized) {
+        apply_immersive_mode_and_refresh(app);
+      }
+      break;
+
+    default:
+      break;
+  }
 }
 
 void android_main(struct android_app* state) {

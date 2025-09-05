@@ -163,6 +163,7 @@ cat > "$STAGE_DIR/AndroidManifest.xml" <<EOF
             android:label="GLTron"
             android:exported="true"
             android:launchMode="singleTask"
+            android:screenOrientation="fullSensor"
             android:configChanges="keyboard|keyboardHidden|orientation|screenSize">
             <meta-data android:name="android.app.lib_name" android:value="gltron" />
             <intent-filter>
