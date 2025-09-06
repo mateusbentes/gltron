@@ -275,21 +275,30 @@ int ensure_egl_context() {
 
 // Helper function to safely apply immersive mode and ensure rendering continues properly
 void apply_immersive_mode_and_refresh(struct android_app* app) {
-    // Apply immersive fullscreen mode
-    set_immersive_fullscreen(app);
-    short_delay(20); // Wait for UI to settle
+  // Apply immersive fullscreen mode
+  set_immersive_fullscreen(app);
+  short_delay(20); // Wait for UI to settle
 
-    if (is_surface_valid() && ensure_egl_context()) {
-        // Update viewport with new dimensions
-        EGLint width, height;
-        eglQuerySurface(s_display, s_surface, EGL_WIDTH, &width);
-        eglQuerySurface(s_display, s_surface, EGL_HEIGHT, &height);
-        s_width = width;
-        s_height = height;
-
-        glViewport(0, 0, (GLint)s_width, (GLint)s_height);
-        gltron_resize((int)s_width, (int)s_height);
+  if (is_surface_valid() && ensure_egl_context()) {
+    // Update viewport with new dimensions
+    EGLint width, height;
+    eglQuerySurface(s_display, s_surface, EGL_WIDTH, &width);
+    eglQuerySurface(s_display, s_surface, EGL_HEIGHT, &height);
+    if (width != s_width || height != s_height) {
+      __android_log_print(ANDROID_LOG_INFO, "gltron", "Viewport updated after immersive: %dx%d", width, height);
+      s_width = width;
+      s_height = height;
+      glViewport(0, 0, (GLint)s_width, (GLint)s_height);
+      gltron_resize((int)s_width, (int)s_height);
+      // Update game screen dimensions
+      if (game && game->screen) {
+        game->screen->vp_w = s_width;
+        game->screen->vp_h = s_height;
+        game->screen->w = s_width;
+        game->screen->h = s_height;
+      }
     }
+  }
 }
 
 static int init_egl(ANativeWindow* window, struct android_app* app) {
