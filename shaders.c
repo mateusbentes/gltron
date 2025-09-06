@@ -122,23 +122,28 @@ static GLuint createUnifiedShaderProgram() {
     a_pos = a_texcoord = a_normal = -1;
 
     // Compile shaders
+    LOGI("Compiling vertex shader...");
     GLuint vertexShader = compileShader(GL_VERTEX_SHADER, vertexShaderSource);
     if (vertexShader == 0) {
-        LOGE("Failed to compile vertex shader");
+        LOGE("FAILED: Vertex shader compilation");
         return 0;
     }
+    LOGI("Vertex shader compiled successfully: %u", vertexShader);
 
+    LOGI("Compiling fragment shader...");
     GLuint fragmentShader = compileShader(GL_FRAGMENT_SHADER, fragmentShaderSource);
     if (fragmentShader == 0) {
-        LOGE("Failed to compile fragment shader");
+        LOGE("FAILED: Fragment shader compilation");
         glDeleteShader(vertexShader);
         return 0;
     }
+    LOGI("Fragment shader compiled successfully: %u", fragmentShader);
 
     // Create shader program
+    LOGI("Creating shader program...");
     GLuint shaderProgram = glCreateProgram();
     if (shaderProgram == 0) {
-        LOGE("Failed to create shader program");
+        LOGE("FAILED: glCreateProgram returned 0");
         glDeleteShader(vertexShader);
         glDeleteShader(fragmentShader);
         return 0;
@@ -454,21 +459,77 @@ void setAmbientLight(GLuint program, float r, float g, float b) {
     glUniform3f(u_ambientLight, r, g, b);
 }
 
-void init_shaders_android() {
-    if (g_shader_unified != 0) return;
-
-    g_shader_unified = createUnifiedShaderProgram();
-    if (!g_shader_unified) {
-        LOGE("Shader program creation failed, game will not render");
-        // Force black screen as fallback
-        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+// Simple shader for fallback
+static GLuint createFallbackShader() {
+    const char* simpleVertexShader = 
+        "attribute vec2 position;\n"
+        "void main() {\n"
+        "    gl_Position = vec4(position, 0.0, 1.0);\n"
+        "}\n";
+    
+    const char* simpleFragmentShader = 
+        "precision mediump float;\n"
+        "void main() {\n"
+        "    gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);\n" //Red for debugging
+        "}\n";
+    
+    GLuint vertexShader = compileShader(GL_VERTEX_SHADER, simpleVertexShader);
+    if (!vertexShader) return 0;
+    
+    GLuint fragmentShader = compileShader(GL_FRAGMENT_SHADER, simpleFragmentShader);
+    if (!fragmentShader) {
+        glDeleteShader(vertexShader);
+        return 0;
     }
-    if (!g_shader_unified) {
-        LOGE("init_shaders_android: failed to create unified shader");
+    
+    GLuint program = glCreateProgram();
+    glAttachShader(program, vertexShader);
+    glAttachShader(program, fragmentShader);
+    glLinkProgram(program);
+    
+    GLint success;
+    glGetProgramiv(program, GL_LINK_STATUS, &success);
+    if (!success) {
+        glDeleteProgram(program);
+        glDeleteShader(vertexShader);
+        glDeleteShader(fragmentShader);
+        return 0;
+    }
+    
+    glDeleteShader(vertexShader);
+    glDeleteShader(fragmentShader);
+    return program;
+}
+
+void init_shaders_android() {
+    if (g_shader_unified != 0) {
+        LOGI("Shaders already initialized: %u", g_shader_unified);
         return;
     }
 
-    LOGI("init_shaders_android: unified shader created %u", (unsigned)g_shader_unified);
+    LOGI("Creating unified shader program...");
+    g_shader_unified = createUnifiedShaderProgram();
+    
+    if (!g_shader_unified) {
+        LOGE("CRITICAL: Shader program creation failed!");
+        LOGE("Game will show black screen - shader compilation/linking failed");
+        
+        // Tryng base diagnostic
+        GLenum error = glGetError();
+        if (error != GL_NO_ERROR) {
+            LOGE("OpenGL error during shader creation: 0x%x", error);
+        }
+        
+        // Not return - try create a basic shader of fallback
+        g_shader_unified = createFallbackShader();
+        if (!g_shader_unified) {
+            LOGE("FATAL: Even fallback shader failed!");
+            return;
+        }
+        LOGI("Using fallback shader: %u", g_shader_unified);
+    } else {
+        LOGI("Unified shader created successfully: %u", g_shader_unified);
+    }
 
     // Bind once and set defaults
     glUseProgram(g_shader_unified);
