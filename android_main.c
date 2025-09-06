@@ -550,10 +550,15 @@ void gltron_frame(void) {
   GLuint prog = shader_get_basic();
   if (prog) {
     glUseProgram(prog);
+    __android_log_print(ANDROID_LOG_DEBUG, "gltron", "Shader program bound: %u", prog);
+  } else {
+    __android_log_print(ANDROID_LOG_WARN, "gltron", "No basic shader available");
+    return;  // Early return if no shader
   }
 
-  // Call the appropriate display function
+  // Call the appropriate display function (this should be displayGui for GUI)
   if (current_android_callbacks.display) {
+    __android_log_print(ANDROID_LOG_DEBUG, "gltron", "Calling display callback: %p", current_android_callbacks.display);
     current_android_callbacks.display();
   } else {
     __android_log_print(ANDROID_LOG_WARN, "gltron", "No display callback set");
@@ -649,6 +654,7 @@ static void handle_cmd(struct android_app* app, int32_t cmd) {
 }
 
 void android_main(struct android_app* state) {
+    app_dummy();  // This might be needed for some NativeActivity setups, keep if required
     __android_log_print(ANDROID_LOG_INFO, "gltron", "Starting android_main");
 
     state->onAppCmd = handle_cmd;
@@ -657,6 +663,8 @@ void android_main(struct android_app* state) {
     // Set up asset manager and paths
     if (state->activity && state->activity->assetManager) {
         gltron_set_asset_manager((void*)state->activity->assetManager);
+        // Set base path to the app's internal files dir if available
+        // NativeActivity provides internalDataPath
         if (state->activity->internalDataPath) {
             gltron_set_base_path(state->activity->internalDataPath);
         }
@@ -665,109 +673,35 @@ void android_main(struct android_app* state) {
     int events;
     struct android_poll_source* source;
 
-    while (1) {
-        // Poll with timeout to prevent excessive CPU usage
-        int timeout = s_egl_initialized ? 0 : -1;
+  while (1) {
+    // Use ALooper_pollOnce with timeout 0 for non-blocking poll
+    while ((ALooper_pollOnce(0, NULL, &events, (void**)&source)) >= 0) {
+      if (source != NULL) {
+        source->process(state, source);
+      }
 
-        while ((ALooper_pollOnce(timeout, NULL, &events, (void**)&source)) >= 0) {
-            if (source != NULL) {
-                source->process(state, source);
-            }
-
-            if (state->destroyRequested) {
-                __android_log_print(ANDROID_LOG_INFO, "gltron", "Destroy requested, cleaning up...");
-                term_egl();
-                return;
-            }
-        }
-
-        // Only render if EGL is initialized and we have a valid surface
-        if (s_egl_initialized && s_display != EGL_NO_DISPLAY && s_surface != EGL_NO_SURFACE) {
-            // Ensure EGL context is current before rendering
-            if (!ensure_egl_context()) {
-                __android_log_print(ANDROID_LOG_ERROR, "gltron", "Failed to ensure EGL context, skipping frame");
-                continue;
-            }
-            
-            // Check if surface is still valid before rendering
-            EGLint surface_state = EGL_BAD_SURFACE;
-            if (eglQuerySurface(s_display, s_surface, EGL_SURFACE_TYPE, &surface_state)) {
-                // Ensure viewport dimensions are up-to-date
-                EGLint current_width, current_height;
-                eglQuerySurface(s_display, s_surface, EGL_WIDTH, &current_width);
-                eglQuerySurface(s_display, s_surface, EGL_HEIGHT, &current_height);
-                
-                // If dimensions changed, update viewport
-                if (current_width != s_width || current_height != s_height) {
-                    __android_log_print(ANDROID_LOG_INFO, "gltron", "Surface dimensions changed: %dx%d -> %dx%d", 
-                                       s_width, s_height, current_width, current_height);
-                    s_width = current_width;
-                    s_height = current_height;
-                    glViewport(0, 0, (GLint)s_width, (GLint)s_height);
-                    gltron_resize((int)s_width, (int)s_height);
-                }
-            } else {
-                EGLint error = eglGetError();
-                if (error != EGL_SUCCESS) {
-                    __android_log_print(ANDROID_LOG_ERROR, "gltron", "Surface validation failed: 0x%04x", error);
-                    // Try to recover by reinitializing
-                    term_egl();
-                    continue;
-                }
-            }
-            
-            // Safely call idle callback to update animations/state
-            if (current_android_callbacks.idle && current_android_callbacks.idle != (void*)0xdeadbeef) {
-                current_android_callbacks.idle();
-            }
-
-            // Single clear at the beginning
-            glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-            check_gl_error("Initial clear");
-
-            // Ensure shader is bound before rendering
-            GLuint prog = shader_get_basic();
-            if (prog) {
-                glUseProgram(prog);
-            } else {
-                __android_log_print(ANDROID_LOG_WARN, "gltron", "No basic shader available");
-            }
-
-            // Call the appropriate display function
-            if (current_android_callbacks.display) {
-                current_android_callbacks.display();
-            } else {
-                __android_log_print(ANDROID_LOG_WARN, "gltron", "No display callback set");
-            }
-
-            // Draw overlay if in game mode
-            if (!is_gui_active()) {
-                draw_android_overlay();
-            }
-
-            // Swap buffers
-            if (!eglSwapBuffers(s_display, s_surface)) {
-                EGLint error = eglGetError();
-                __android_log_print(ANDROID_LOG_ERROR, "gltron", "eglSwapBuffers failed: 0x%04x", error);
-
-                if (error == EGL_BAD_SURFACE || error == EGL_BAD_NATIVE_WINDOW) {
-                    // Surface was lost, reinitialize
-                    __android_log_print(ANDROID_LOG_WARN, "gltron", "Surface lost, reinitializing EGL");
-                    term_egl();
-                    continue;
-                }
-            } else {
-                __android_log_print(ANDROID_LOG_DEBUG, "gltron", "Frame swapped successfully");
-            }
-
-            if (g_finish_requested) {
-                __android_log_print(ANDROID_LOG_INFO, "gltron", "Finishing activity on BACK");
-                finish_activity(state);
-                g_finish_requested = 0;
-            }
-        }
+      if (state->destroyRequested) {
+        __android_log_print(ANDROID_LOG_INFO, "gltron", "Destroy requested, cleaning up...");
+        term_egl();
+        return;
+      }
     }
+
+    // Render frame if surface is ready
+    if (s_display != EGL_NO_DISPLAY && s_surface != EGL_NO_SURFACE) {
+      gltron_frame();
+      EGLBoolean ok = eglSwapBuffers(s_display, s_surface);
+      if (!ok) {
+        EGLint e = eglGetError();
+        __android_log_print(ANDROID_LOG_ERROR, "gltron", "eglSwapBuffers failed: 0x%04x", e);
+      }
+      if (g_finish_requested) {
+        __android_log_print(ANDROID_LOG_INFO, "gltron", "Finishing activity on BACK at top-level");
+        finish_activity(state);
+        g_finish_requested = 0;
+      }
+    }
+  }
 }
 
 #endif // ANDROID
