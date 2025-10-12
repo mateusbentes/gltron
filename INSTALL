@@ -40,29 +40,21 @@ For full functionality, you may need to install the following additional librari
    - make
    - gcc or clang
 
-5. For Android development (if building for Android):
-   - Android NDK
-   - Android SDK
-   - OpenGL ES libraries
-   - EGL libraries
-   - GLESv2 libraries
-   - Android log library
-
 Installation Commands for Common Linux Distributions:
 
 Debian/Ubuntu:
 % sudo apt-get install libmikmod-dev libvorbis-dev libflac-dev libogg-dev \
   mesa-common-dev libglu1-mesa-dev libx11-dev libxext-dev libxi-dev \
-  libxmu-dev libxt-dev cmake make gcc libopenmpt-dev
+  libxmu-dev libxt-dev cmake make gcc
 
 Fedora/RHEL/CentOS:
 % sudo dnf install mikmod-devel libvorbis-devel flac-devel libogg-devel \
   mesa-libGL-devel mesa-libGLU-devel libX11-devel libXext-devel \
-  libXi-devel libXmu-devel libXt-devel cmake make gcc openmpt-devel
+  libXi-devel libXmu-devel libXt-devel cmake make gcc
 
 Arch Linux:
 % sudo pacman -S mikmod vorbis flac ogg mesa glu libx11 libxext libxi \
-  libxmu libxt cmake make gcc openmpt
+  libxmu libxt cmake make gcc
 
 MacOS (using Homebrew):
 % brew install mikmod vorbis flac ogg mesa glu cmake
@@ -72,8 +64,8 @@ Windows (using vcpkg):
 
 Installation (without sound)
 
-% mkdir build-pc
-% cd build-pc
+% mkdir build
+% cd build
 % cmake -DUSE_SOUND=OFF ..
 % make
 % ./gltron
@@ -82,15 +74,15 @@ Installation (with sound)
 
 Get libmikmod and install it
 
-% mkdir build-pc
-% cd build-pc
+% mkdir build
+% cd build
 % cmake ..
 % make
 % ./gltron
 
 Optionally:
 
-% sudo cmake --build build-pc --target install
+% sudo cmake --build build --target install
 
 will install gltron in GLTRON_INSTALLDIR and gltron.it (if present),
 settings.txt, menu.txt, helvetica.txf in GLTRON_HOME as defined in the
@@ -115,37 +107,3 @@ Start gltron with the -s option if you don't want the sound playing.
 
 These instructions are very brief. I'd be glad if someone could write
 them better.
-
-Android Requirements:
-
-For Android, you need to have the Android NDK and Android SDK installed.
-You also need to have the following libraries installed:
-
-- OpenGL ES
-- EGL
-- GLESv2
-- log
-- android
-
-You can install these libraries using the Android SDK Manager.
-
-Android Installation (NDK cross-compile notes):
-
-Run script in the tools build_openmpt_android_arm64.sh to build the OpenMPT Android library.
-
-% mkdir build-android
-% cd build-android
-% cmake -DANDROID=ON ..
-% make
-% ./gltron
-
-Notes:
-- The Android build produces native libraries/binaries for integration into an Android app. You do not run ./gltron directly on device.
-- The project currently does not include an Android activity or packaging. You can link the produced library/binary into your own Android app project that sets up EGL/GLES context and input.
-- The CMake build defines ANDROID and links against log, android, EGL, and GLESv2.
-
-Optionally:
-
-% cmake --build build-android --target install
-
-will install gltron artifacts to the specified Android staging directory.
