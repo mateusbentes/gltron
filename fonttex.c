@@ -1,12 +1,7 @@
 #include "fonttex.h"
 #include <string.h>
 
-#ifdef ANDROID
-#include <GLES2/gl2.h>
-#include "shaders.h"
-#else
 #include <GL/gl.h>
-#endif
 
 #define FTX_ERR "[fonttex error]: "
 extern char *getFullPath(char*);
@@ -151,26 +146,6 @@ void ftxRenderString(fonttex *ftx, char *string, int len) {
     if (w <= 0) w = 1;
     cw = (float)ftx->width / (float)ftx->texwidth;
 
-#ifdef ANDROID
-    GLuint sp = shader_get_basic();
-    if (!sp) return;
-    useShaderProgram(sp);
-    setColor(sp, 1.0f, 1.0f, 1.0f, 1.0f);
-
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, (ftx && ftx->texID) ? ftx->texID[0] : 0);
-    setTexture(sp, 0);
-
-    GLint positionLoc = glGetAttribLocation(sp, "position");
-    GLint texCoordLoc = glGetAttribLocation(sp, "texCoord");
-    if (positionLoc < 0 || texCoordLoc < 0) return;
-    glEnableVertexAttribArray(positionLoc);
-    glEnableVertexAttribArray(texCoordLoc);
-
-    GLfloat vertices[8];
-    GLfloat texCoords[8];
-#endif
-
     /* Ensure texture is bound */
     glActiveTexture(GL_TEXTURE0);
     if (ftx && ftx->texID) {
@@ -197,22 +172,6 @@ void ftxRenderString(fonttex *ftx, char *string, int len) {
         cx = (float)(index % w) / (float)w;
         cy = (float)(index / w) / (float)w;
 
-#ifdef ANDROID
-        /* Unit quad; caller scales via model matrix */
-        vertices[0] = (float)i;     vertices[1] = 0.0f;
-        vertices[2] = (float)i + 1; vertices[3] = 0.0f;
-        vertices[4] = (float)i + 1; vertices[5] = 1.0f;
-        vertices[6] = (float)i;     vertices[7] = 1.0f;
-
-        texCoords[0] = cx; texCoords[1] = 1 - cy - cw;
-        texCoords[2] = cx + cw; texCoords[3] = 1 - cy - cw;
-        texCoords[4] = cx + cw; texCoords[5] = 1 - cy;
-        texCoords[6] = cx; texCoords[7] = 1 - cy;
-
-        glVertexAttribPointer(positionLoc, 2, GL_FLOAT, GL_FALSE, 0, vertices);
-        glVertexAttribPointer(texCoordLoc, 2, GL_FLOAT, GL_FALSE, 0, texCoords);
-        glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-#else
         // For desktop, use immediate mode with unit quad
         glBegin(GL_QUADS);
         glTexCoord2f(cx, 1 - cy - cw);
@@ -224,11 +183,6 @@ void ftxRenderString(fonttex *ftx, char *string, int len) {
         glTexCoord2f(cx, 1 - cy);
         glVertex2f(i, 1);
         glEnd();
-#endif
     }
 
-#ifdef ANDROID
-    glDisableVertexAttribArray(positionLoc);
-    glDisableVertexAttribArray(texCoordLoc);
-#endif
 }

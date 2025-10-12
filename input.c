@@ -1,7 +1,4 @@
 #include "gltron.h"
-#ifdef ANDROID
-#include "switchCallbacks.h"
-#endif
 
 #define KEYBOARD
 
@@ -26,15 +23,7 @@ void keyGame(unsigned char k, int x, int y) {
   switch (k) {
   case 'q': exit(0); break;
   case 27: 
-#ifdef ANDROID
-    /* Update timing before switching callbacks */
-    extern int getElapsedTime(void);
-    extern int lasttime;
-    lasttime = getElapsedTime();
-    android_switchCallbacks(&guiCallbacks);
-#else
     switchCallbacks(&guiCallbacks);
-#endif
     break;
     /* steering player 0 */
   case 'a': case 'A': 
@@ -74,15 +63,7 @@ void keyGame(unsigned char k, int x, int y) {
     /* steering player 3 */
     /* cursor keys in specialKey() */
   case ' ': 
-#ifdef ANDROID
-    /* Update timing before switching callbacks */
-    extern int getElapsedTime(void);
-    extern int lasttime;
-    lasttime = getElapsedTime();
-    android_switchCallbacks(&pauseCallbacks);
-#else
     switchCallbacks(&pauseCallbacks);
-#endif
     break;
     /* case 9: glutIdleFunc(0); break; */
   default: fprintf(stderr, "key %d is not bound\n", k);
@@ -102,41 +83,6 @@ void specialGame(int key, int x, int y) {
     return;
   }
 
-#ifdef ANDROID
-  // Android-specific key handling
-  switch(key) {
-  case 102: // Android equivalent for F1
-    if (game && game->settings) {
-      defaultDisplay(0);
-    }
-    break;
-  case 103: // Android equivalent for F2
-    if (game && game->settings) {
-      defaultDisplay(1);
-    }
-    break;
-  case 104: // Android equivalent for F3
-    if (game && game->settings) {
-      defaultDisplay(2);
-    }
-    break;
-  case 109: // Android equivalent for F10
-    if (game && game->settings) {
-      game->settings->camType = (game->settings->camType + 1) % CAM_COUNT;
-      for(int i = 0; i < game->players; i++) {
-        if (game->player[i].camera) {
-          game->player[i].camera->camType = game->settings->camType;
-        }
-      }
-    }
-    break;
-  case 114: // Android equivalent for F5
-    if (game && game->settings) {
-      saveSettings();
-    }
-    break;
-  }
-#else
   // Desktop GLUT key handling
   switch(key) {
   case GLUT_KEY_F1:
@@ -170,7 +116,6 @@ void specialGame(int key, int x, int y) {
     }
     break;
   }
-#endif
 }
 
 

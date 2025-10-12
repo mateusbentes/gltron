@@ -1,12 +1,6 @@
 #include "gltron.h"
 #include "gui_mouse.h"
 #include <string.h>
-#ifdef ANDROID
-// On Android we don't have GLUT; guard calls and constants
-#define GLUT_LEFT_BUTTON 0
-#define GLUT_UP 1
-#include "switchCallbacks.h"
-#endif
 
 /* Helper to map window coords to menu item index */
 static int gui_hit_test(int x_win, int y_win) {
@@ -74,9 +68,7 @@ void motionGui(int x, int y) {
   int idx = gui_hit_test(x, y);
   if (idx >= 0) {
     pCurrent->iHighlight = idx;
-#ifndef ANDROID
     glutPostRedisplay();
-#endif
   }
 }
 
@@ -93,30 +85,16 @@ void mouseGui(int button, int state, int x, int y) {
 
       requestDisplayApply();
       if (pCurrent == NULL || pCurrent->parent == NULL) {
-#ifdef ANDROID
-        __android_log_print(ANDROID_LOG_INFO, "gltron", "mouseGui: BACK at top-level -> restoreCallbacks + request finish");
-#endif
         restoreCallbacks();
-#ifdef ANDROID
-        /* Mark for finish in android_main via global flag */
-        extern int g_finish_requested; g_finish_requested = 1;
-#endif
       } else {
         pCurrent = pCurrent->parent;
         pCurrent->iHighlight = -1;
         /* Ensure GUI callbacks are active */
-#ifdef ANDROID
-        android_switchCallbacks(&guiCallbacks);
-#else
-        switchCallbacks(&guiCallbacks);
-#endif
-        /* Force immediate display apply to avoid stale screen */
+        switchCallbacks(&guiCallbacks);        /* Force immediate display apply to avoid stale screen */
         requestDisplayApply();
         applyDisplaySettingsDeferred();
       }
-#ifndef ANDROID
       glutPostRedisplay();
-#endif
     } else if (idx >= 0) {
       pCurrent->iHighlight = idx;
       menuAction(*(pCurrent->pEntries + pCurrent->iHighlight));

@@ -5,17 +5,11 @@
 #include "switchCallbacks.h"
 
 #include "globals.h"
-#include "shaders.h"
 #include <math.h>
 #define M_PI 3.14159265358979323846
 
-#ifdef ANDROID
-#include <GLES/gl.h>
-#include <GLES/glext.h>
-#else
 #include <GL/gl.h>
 #include <GL/glu.h>
-#endif
 
 void setCol(int x, int y) {
   int offset, mask;

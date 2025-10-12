@@ -56,7 +56,9 @@
         "stat.h": "c",
         "shaders.h": "c",
         "sound_backend.h": "c",
-        "android_glue.h": "c"
+        "android_glue.h": "c",
+        "switchcallbacks.h": "c",
+        "cstdio": "c"
     },
     "refactai.ast": true,
     "CodeGPT.apiKey": "Groq"

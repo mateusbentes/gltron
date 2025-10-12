@@ -1,15 +1,8 @@
 #include "gltron.h"
 #include <string.h>
 
-#ifdef ANDROID
-#include <GLES2/gl2.h>
-#include "shaders.h"
-#include "android_glue.h"
-#include "switchCallbacks.h"
-#else
 #include <GL/gl.h>
 #include <GL/freeglut.h>  // For GLUT functions
-#endif
 
 #define MENU_BUFSIZE 100
 
@@ -82,27 +75,6 @@ void menuAction(Menu *activated) {
       /* Ensure any pending display changes are applied before starting */
       requestDisplayApply();
       initData();
-#ifdef ANDROID
-      __android_log_print(ANDROID_LOG_INFO, "GLTron", "Starting game from menu");
-      /* Reset game callbacks initialization to force re-setup */
-      reset_game_callbacks_init();
-      /* Start game unpaused on Android */
-      game->pauseflag = 0;
-      /* Setup display for the game */
-      if (game && game->screen) {
-        __android_log_print(ANDROID_LOG_INFO, "GLTron", "Setting up display: w=%d h=%d", 
-                           game->screen->w, game->screen->h);
-        setupDisplay(game->screen);
-      }
-      /* Initialize player viewports */
-      changeDisplay();
-      /* Reset timing to avoid huge jumps */
-      extern int lasttime;
-      lasttime = getElapsedTime();
-      /* Go directly to game callbacks on Android, not pause */
-      __android_log_print(ANDROID_LOG_INFO, "GLTron", "Switching to game callbacks");
-      android_switchCallbacks(&gameCallbacks);
-#else
       /* Setup display for the game */
       if (game && game->screen) {
         setupDisplay(game->screen);
@@ -110,7 +82,6 @@ void menuAction(Menu *activated) {
       /* Initialize player viewports */
       changeDisplay();
       switchCallbacks(&pauseCallbacks);
-#endif
       /* Apply immediately to avoid wrong size at game start */
       applyDisplaySettingsDeferred();
       break;
@@ -121,9 +92,7 @@ void menuAction(Menu *activated) {
 
       /* ensure our window is current before manipulating it */
       if (game && game->screen && game->screen->win_id > 0) {
-#ifndef ANDROID
         glutSetWindow(game->screen->win_id);
-#endif
       }
 
       /* defer resolution apply to idle to avoid GLUT window state issues */
@@ -368,35 +337,7 @@ void drawMenu(gDisplay *d) {
   int x, y, size, lineheight;
 
   // Setup 2D projection
-#ifdef ANDROID
-  // Android/GLES2: use basic shader with bottom-left origin 2D projection in pixels
-  {
-    GLuint prog = shader_get_basic();
-    if (prog) {
-      useShaderProgram(prog);
-      float wvp = (float)d->vp_w;
-      float hvp = (float)d->vp_h;
-      GLfloat proj2D[16] = {
-        2.0f / wvp, 0.0f,       0.0f, 0.0f,
-        0.0f,       2.0f / hvp, 0.0f, 0.0f,
-        0.0f,       0.0f,       1.0f, 0.0f,
-        -1.0f,     -1.0f,       0.0f, 1.0f
-      };
-      GLfloat I[16] = {
-        1,0,0,0,
-        0,1,0,0,
-        0,0,1,0,
-        0,0,0,1
-      };
-      setProjectionMatrix(prog, (float*)proj2D);
-      setViewMatrix(prog, (float*)I);
-      setModelMatrix(prog, (float*)I);
-      setTexture(prog, 0);
-    }
-  }
-#else
   rasonly(d);
-#endif
 
   x = d->vp_w / 6;
   size = d->vp_w / 32;
@@ -406,72 +347,21 @@ void drawMenu(gDisplay *d) {
 
   // Hard fallback: if no menu loaded, display a simple message
   if (!pMenuList || !pCurrent) {
-#ifdef ANDROID
-    GLuint prog = shader_get_basic();
-    if (prog) {
-      useShaderProgram(prog);
-      setColor(prog, 1.0f, 1.0f, 1.0f, 1.0f);
-    }
-#endif
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-#ifndef ANDROID
     rasonly(d);
-#endif
     drawText(x, y, size, "Menu failed to load");
     return;
   }
 
   /* draw the entries */
   for(i = 0; i < pCurrent->nEntries; i++) {
-#ifdef ANDROID
-    // Android GLES2 path: re-assert full text pipeline state defensively before each drawText
-    {
-      GLuint prog = shader_get_basic();
-      if (prog) {
-        useShaderProgram(prog);
-        // Bottom-left-origin pixel-space projection
-        float wvp = (float)d->vp_w;
-        float hvp = (float)d->vp_h;
-        GLfloat proj2D[16] = {
-          2.0f / wvp, 0.0f,       0.0f, 0.0f,
-          0.0f,       2.0f / hvp, 0.0f, 0.0f,
-          0.0f,       0.0f,       1.0f, 0.0f,
-          -1.0f,     -1.0f,       0.0f, 1.0f
-        };
-        GLfloat I[16] = {
-          1,0,0,0,
-          0,1,0,0,
-          0,0,1,0,
-          0,0,0,1
-        };
-        setProjectionMatrix(prog, (float*)proj2D);
-        setViewMatrix(prog, (float*)I);
-        setModelMatrix(prog, (float*)I);
-        setTexture(prog, 0);
-        if(i == pCurrent->iHighlight) {
-          setColor(prog, pCurrent->display.hlColor[0],
-                   pCurrent->display.hlColor[1],
-                   pCurrent->display.hlColor[2],
-                   pCurrent->display.hlColor[3]);
-        } else {
-          setColor(prog, pCurrent->display.fgColor[0],
-                   pCurrent->display.fgColor[1],
-                   pCurrent->display.fgColor[2],
-                   pCurrent->display.fgColor[3]);
-        }
-      }
-    }
-#else
     // Desktop OpenGL path unchanged
     if(i == pCurrent->iHighlight)
       glColor4fv(pCurrent->display.hlColor);
     else
       glColor4fv(pCurrent->display.fgColor);
-#endif
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-#ifndef ANDROID
     rasonly(d);
-#endif
     drawText(x, y, size,
          ((Menu*)*(pCurrent->pEntries + i))->display.szCaption);
     y -= lineheight;
@@ -482,40 +372,7 @@ void drawMenu(gDisplay *d) {
     const char* back = "Back";
     int bx = d->vp_w - (int)(size * 4);
     int by = (int)(size * 1.2f);
-#ifdef ANDROID
-    {
-      GLuint prog = shader_get_basic();
-      if (prog) {
-        useShaderProgram(prog);
-        // Bottom-left-origin pixel-space projection
-        float wvp = (float)d->vp_w;
-        float hvp = (float)d->vp_h;
-        GLfloat proj2D[16] = {
-          2.0f / wvp, 0.0f,       0.0f, 0.0f,
-          0.0f,       2.0f / hvp, 0.0f, 0.0f,
-          0.0f,       0.0f,       1.0f, 0.0f,
-          -1.0f,     -1.0f,       0.0f, 1.0f
-        };
-        GLfloat I[16] = {
-          1,0,0,0,
-          0,1,0,0,
-          0,0,1,0,
-          0,0,0,1
-        };
-        setProjectionMatrix(prog, (float*)proj2D);
-        setViewMatrix(prog, (float*)I);
-        setModelMatrix(prog, (float*)I);
-        setTexture(prog, 0);
-        setColor(prog, pCurrent->display.fgColor[0],
-                 pCurrent->display.fgColor[1],
-                 pCurrent->display.fgColor[2],
-                 pCurrent->display.fgColor[3]);
-        // Projection already set at top of drawMenu
-      }
-    }
-#else
     glColor4fv(pCurrent->display.fgColor);
-#endif
     drawText(bx, by, size, back);
   }
 }
@@ -537,11 +394,6 @@ Menu** loadMenuFromBuffer(const char* buffer) {
   }
   norm[w] = '\0';
   // Write buffer to a temporary in-memory FILE* when available, else to a temp file
-#ifdef ANDROID
-  // Try fmemopen when available
-  FILE* f = fmemopen((void*)norm, strlen(norm), "rb");
-  if (!f) { free(norm); return 0; }
-#else
   // Portable fallback: write to a temporary file in internal storage
   char tmpPath[512];
   snprintf(tmpPath, sizeof(tmpPath), "/data/local/tmp/gltron_menu_buf_%ld.txt", (long)getpid());
@@ -551,7 +403,6 @@ Menu** loadMenuFromBuffer(const char* buffer) {
   fclose(tf);
   FILE* f = fopen(tmpPath, "rb");
   if (!f) { remove(tmpPath); free(norm); return 0; }
-#endif
 
   char buf[MENU_BUFSIZE];
   Menu* m;

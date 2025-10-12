@@ -6,14 +6,8 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-#ifdef ANDROID
-#include <GLES2/gl2.h>
-#include "shaders.h"
-#include "fonttex.h"
-#else
 #include <GL/gl.h>
 #include <GL/glu.h>
-#endif
 
 // Global shader program for Android is managed centrally via shaders.c
 
@@ -25,30 +19,6 @@ void checkGLError(char *where) {
 
 void rasonly(gDisplay *d) {
   /* do rasterising only (in local display d) */
-#ifdef ANDROID
-  // For Android, use orthographic projection with GLES
-  glViewport(d->vp_x, d->vp_y, d->vp_w, d->vp_h);
-
-  float left = 0.0f;
-  float right = (GLfloat) d->vp_w;
-  float bottom = 0.0f;
-  float top = (GLfloat) d->vp_h;
-  float near = 0.0f;
-  float far = 1.0f;
-
-  float projectionMatrix[16] = {
-    2.0f / (right - left), 0.0f, 0.0f, 0.0f,
-    0.0f, 2.0f / (top - bottom), 0.0f, 0.0f,
-    0.0f, 0.0f, -2.0f / (far - near), 0.0f,
-    -(right + left) / (right - left), -(top + bottom) / (top - bottom), -(far + near) / (far - near), 1.0f
-  };
-
-  GLuint prog = shader_get_basic();
-  if (prog) {
-    useShaderProgram(prog);
-    setProjectionMatrix(prog, projectionMatrix);
-  }
-#else
   // For desktop OpenGL
   glMatrixMode(GL_PROJECTION);
   glLoadIdentity();
@@ -57,7 +27,6 @@ void rasonly(gDisplay *d) {
   glMatrixMode(GL_MODELVIEW);
   glLoadIdentity();
   glViewport(d->vp_x, d->vp_y, d->vp_w, d->vp_h);
-#endif
 }
 
 void drawFPS(gDisplay *d) {
@@ -97,26 +66,16 @@ void drawFPS(gDisplay *d) {
   }
 
   sprintf(tmp, "average FPS: %d", fps_avg);
-#ifdef ANDROID
-  { GLuint sp = shader_get_basic(); if (sp) { useShaderProgram(sp); setColor(sp, 1.0f, 0.4f, 0.2f, 1.0f); } }
-  drawText(d->vp_w - 180, d->vp_h - 20, 10, tmp);
-#else
   glColor4f(1.0, 0.4, 0.2, 1.0);
   drawText(d->vp_w - 180, d->vp_h - 20, 10, tmp);
-#endif
 
   sprintf(tmp, "minimum FPS: %d", fps_min);
-#ifdef ANDROID
   drawText(d->vp_w - 180, d->vp_h - 35, 10, tmp);
-#else
-  drawText(d->vp_w - 180, d->vp_h - 35, 10, tmp);
-#endif
 }
 
 void drawText(int x, int y, int size, const char *text) {
   
   glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-#ifndef ANDROID
   glEnable(GL_TEXTURE_2D);
   glPushMatrix();
   glTranslatef(x, y, 0);
@@ -124,37 +83,6 @@ void drawText(int x, int y, int size, const char *text) {
   ftxRenderString(ftx, text, strlen(text));
   glPopMatrix();
   glDisable(GL_TEXTURE_2D);
-#else
-  // Android: render text at pixel position (x,y) with uniform scale 'size'.
-  if (!text) return;
-  glDisable(GL_TEXTURE_2D); // no fixed-function textures in ES2
-
-  // Set up the shader program
-  GLuint prog = shader_get_basic();
-  if (!prog) return;
-
-  useShaderProgram(prog);
-
-  // Set up the model matrix for positioning: translate to (x,y) and scale by 'size'
-  float s = (float)size;
-  GLfloat model[16] = {
-    s, 0, 0, 0,
-    0, s, 0, 0,
-    0, 0, 1, 0,
-    (GLfloat)x, (GLfloat)y, 0, 1
-  };
-  setModelMatrix(prog, model);
-
-  // Bind the font texture (textures will be (re)bound inside ftxRenderString as needed)
-  if (game && game->screen && game->screen->texFont) {
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, game->screen->texFont);
-    setTexture(prog, 0);
-  }
-
-  // Use the shared atlas renderer which is GLES2-aware under ANDROID
-  ftxRenderString(ftx, (char*)text, strlen(text));
-#endif
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
   polycount += strlen(text);
 }
@@ -191,43 +119,6 @@ int hsv2rgb(float h, float s, float v, float *r, float *g, float *b) {
 void colorDisc() {
   int h;
   float r, g, b;
-#ifdef ANDROID
-  // For Android, use GLES with centralized shader
-  GLuint prog = shader_get_basic();
-  if (!prog) return;
-  useShaderProgram(prog);
-
-  GLfloat vertices[362*3]; // 360 degrees + center point
-  vertices[0] = 0.0f; vertices[1] = 0.0f; vertices[2] = 0.0f; // Center point
-  for(h = 0; h <= 360; h += 10) {
-    int index = (h/10 + 1) * 3;
-    hsv2rgb(h, 1, 1, &r, &g, &b);
-    vertices[index] = cos(h * 2 * M_PI / 360);
-    vertices[index+1] = sin(h * 2 * M_PI / 360);
-    vertices[index+2] = 0.0f;
-  }
-
-  GLint positionLoc = glGetAttribLocation(prog, "position");
-  GLint colorLoc = glGetUniformLocation(prog, "color");
-
-  GLuint vbo;
-  glGenBuffers(1, &vbo);
-  glBindBuffer(GL_ARRAY_BUFFER, vbo);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-  glEnableVertexAttribArray(positionLoc);
-  glVertexAttribPointer(positionLoc, 3, GL_FLOAT, GL_FALSE, 0, 0);
-
-  for(h = 0; h <= 360; h += 10) {
-    hsv2rgb(h, 1, 1, &r, &g, &b);
-    glUniform4f(colorLoc, r, g, b, 1.0f);
-    glDrawArrays(GL_TRIANGLE_FAN, 0, 362/3);
-  }
-
-  glDisableVertexAttribArray(positionLoc);
-  glDeleteBuffers(1, &vbo);
-  /* keep program bound; drawCam controls unbinding */
-#else
   // For desktop OpenGL
   glShadeModel(GL_SMOOTH);
   glBegin(GL_TRIANGLE_FAN);
@@ -239,12 +130,4 @@ void colorDisc() {
     glVertex3f(cos(h * 2 * M_PI / 360), sin(h * 2 * M_PI / 360), 0);
   }
   glEnd();
-#endif
 }
-
-#ifdef ANDROID
-/*void initShaderProgram() {*/
-  // Centralized shader init
-  /*init_shaders_android();
-}*/
-#endif

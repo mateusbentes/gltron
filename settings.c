@@ -9,25 +9,8 @@
 #define BUFSIZE 100
 
 // Forward declaration for Android base path
-#ifdef ANDROID
-extern char s_base_path[1024];
-#endif
 
 void initSettingData(char *filename) {
-#ifdef ANDROID
-  LOGI("initSettingData: begin");
-  // Guard: ensure base path is initialized by android_main before proceeding
-  if (!s_base_path[0]) {
-    LOGI("initSettingData: s_base_path not set yet; deferring to android_glue init path");
-    return;
-  }
-  // If filename is not an absolute path, defer to android_glue path (avoid creating in unknown CWD)
-  if (filename && filename[0] != '/') {
-    LOGI("initSettingData: non-absolute filename '%s' on Android; deferring to android_glue init path", filename);
-    return;
-  }
-#endif
-
   FILE *f = NULL;
   int n = 0, i, count = 0, j;
   char buf[BUFSIZE];
@@ -44,14 +27,6 @@ void initSettingData(char *filename) {
 
   // Construct full path (similar logic for both platforms)
   char fullPath[1024];
-#ifdef ANDROID
-  // Ensure base directory exists (store settings.txt directly under s_base_path)
-  if (mkdir(s_base_path, 0755) != 0 && errno != EEXIST) {
-    LOGI("initSettingData: failed to create base directory '%s': %s", s_base_path, strerror(errno));
-    return;
-  }
-  snprintf(fullPath, sizeof(fullPath), "%s/%s", s_base_path, filename);
-#else
   char *resolved = getFullPath(filename);
   if (resolved) {
     strncpy(fullPath, resolved, sizeof(fullPath) - 1);
@@ -61,15 +36,9 @@ void initSettingData(char *filename) {
     strncpy(fullPath, filename, sizeof(fullPath) - 1);
     fullPath[sizeof(fullPath) - 1] = '\0';
   }
-#endif
-
   // Check if file exists before attempting to open (unified approach)
   if (access(fullPath, F_OK) != 0) {
-#ifdef ANDROID
-    LOGI("initSettingData: settings file doesn't exist; deferring creation to android_glue (Android) or continuing with defaults");
-#else
     printf("initSettingData: settings file doesn't exist at '%s'; continuing with defaults\n", fullPath);
-#endif
     return;
   }
 
@@ -81,11 +50,7 @@ void initSettingData(char *filename) {
 
   f = fopen(fullPath, "r");
   if (!f) {
-#ifdef ANDROID
-    LOGI("initSettingData: fopen failed for %s: %s", fullPath, strerror(errno));
-#else
     printf("initSettingData: fopen failed for %s: %s\n", fullPath, strerror(errno));
-#endif
     return; // fall back to defaults
   }
 
@@ -95,11 +60,7 @@ void initSettingData(char *filename) {
     return;
   }
   if (sscanf(buf, "%d ", &n) != 1 || n < 0 || n > 1024) {
-#ifdef ANDROID
-    LOGI("initSettingData: invalid header format or count: %s", buf);
-#else
     printf("initSettingData: invalid header format or count: %s\n", buf);
-#endif
     fclose(f);
     return;
   }
@@ -107,11 +68,7 @@ void initSettingData(char *filename) {
   for(i = 0; i < n; i++) {
     if (!fgets(buf, BUFSIZE, f)) break;
     if (sscanf(buf, "%c%d ", &c, &count) != 2 || count < 0 || count > 1024) {
-#ifdef ANDROID
-      LOGI("initSettingData: invalid section format: %s", buf);
-#else
       printf("initSettingData: invalid section format: %s\n", buf);
-#endif
       continue;
     }
     switch(c) {
@@ -143,11 +100,7 @@ void initSettingData(char *filename) {
           (si + j)->name[0] = '\0';
         }
       }
-#ifdef ANDROID
-      LOGI("initSettingData: parsed %d integer settings", si_count);
-#else
       printf("initSettingData: parsed %d integer settings\n", si_count);
-#endif
       break;
       
     case 'f': /* float */
@@ -157,11 +110,7 @@ void initSettingData(char *filename) {
       
       sf = malloc(sizeof(struct settings_float) * (size_t)count);
       if (!sf) { 
-#ifdef ANDROID
-        LOGI("initSettingData: failed to allocate memory for float settings");
-#else
         printf("initSettingData: failed to allocate memory for float settings\n");
-#endif
         fclose(f); 
         return; 
       }
@@ -177,19 +126,11 @@ void initSettingData(char *filename) {
           (sf + j)->name[0] = '\0';
         }
       }
-#ifdef ANDROID
-      LOGI("initSettingData: parsed %d float settings", sf_count);
-#else
       printf("initSettingData: parsed %d float settings\n", sf_count);
-#endif
       break;
       
     default:
-#ifdef ANDROID
-      LOGI("initSettingData: unrecognized type '%c'", c);
-#else
       printf("initSettingData: unrecognized type '%c'\n", c);
-#endif
       // Skip unknown sections gracefully
       for(j = 0; j < count; j++) {
         if (!fgets(buf, BUFSIZE, f)) break;
@@ -207,11 +148,7 @@ void initSettingData(char *filename) {
     if (si) free(si);
     si = calloc(28, sizeof(struct settings_int));
     if (!si) {
-#ifdef ANDROID
-      LOGI("initSettingData: failed to allocate default integer settings");
-#else
       printf("initSettingData: failed to allocate default integer settings\n");
-#endif
       return;
     }
     si_count = 28;
@@ -234,11 +171,7 @@ void initSettingData(char *filename) {
     if (sf) free(sf);
     sf = calloc(1, sizeof(struct settings_float));
     if (!sf) {
-#ifdef ANDROID
-      LOGI("initSettingData: failed to allocate default float settings");
-#else
       printf("initSettingData: failed to allocate default float settings\n");
-#endif
       return;
     }
     sf_count = 1;
@@ -362,16 +295,10 @@ void initMainGameSettings(char *filename) {
   initSettingData(filename);
 
   /* Debug: Print current values after initSettingData */
-#ifdef ANDROID
-  LOGI("After initSettingData - show_wall: %d, show_floor_texture: %d", 
-       game->settings->show_wall, game->settings->show_floor_texture);
-#else
   printf("After initSettingData - show_wall: %d, show_floor_texture: %d\n", 
          game->settings->show_wall, game->settings->show_floor_texture);
-#endif
 
   /* go for .gltronrc (or whatever is defined in RC_NAME) to override defaults */
-#ifndef ANDROID
   home = getenv(HOMEVAR);
   if(home == 0) /* evaluate homedir */ {
     fname = malloc(strlen(CURRENT_DIR) + strlen(RC_NAME) + 2);
@@ -439,15 +366,6 @@ void initMainGameSettings(char *filename) {
   printf("Final show_wall: %d, show_floor_texture: %d\n", 
          game->settings->show_wall, game->settings->show_floor_texture);
   
-#else
-  /* On Android, skip reading rc file to avoid early aborts; defaults + parsed settings are sufficient */
-  (void)fname; (void)home; (void)i; (void)buf; (void)expbuf; (void)f;
-#endif
-
-#ifdef ANDROID
-  // Always enforce fullscreen on Android at load time (surface applies real size)
-  game->settings->fullscreen = 1;
-#endif
 }
 
 void saveSettings() {
@@ -455,21 +373,6 @@ void saveSettings() {
   int i;
   FILE* f;
 
-#ifdef ANDROID
-  // For Android, use internal storage base path directly and ensure it exists
-  if (mkdir(s_base_path, 0755) != 0 && errno != EEXIST) {
-    LOGI("saveSettings: failed to create base directory '%s': %s", s_base_path, strerror(errno));
-    return;
-  }
-
-  // Construct full path to settings file directly under base path
-  fname = malloc(strlen(s_base_path) + 1 + strlen(RC_NAME) + 1);
-  if (!fname) {
-    LOGI("saveSettings: failed to allocate memory for filename");
-    return;
-  }
-  sprintf(fname, "%s/%s", s_base_path, RC_NAME);
-#else
   char *home = getenv(HOMEVAR);
   if(home == 0) /* evaluate homedir */ {
     fname = malloc(strlen(CURRENT_DIR) + strlen(RC_NAME) + 2);
@@ -487,21 +390,12 @@ void saveSettings() {
     }
     sprintf(fname, "%s%c%s", home, SEPERATOR, RC_NAME);
   }
-#endif
 
-#ifdef ANDROID
-  LOGI("saveSettings: saving to %s", fname);
-#else
   printf("saveSettings: saving to %s\n", fname);
-#endif
 
   f = fopen(fname, "w");
   if(f == 0) {
-#ifdef ANDROID
-    LOGI("saveSettings: can't open %s for writing: %s", fname, strerror(errno));
-#else
     printf("saveSettings: can't open %s for writing: %s\n", fname, strerror(errno));
-#endif
     free(fname);
     return; /* can't write rc */
   }
@@ -527,12 +421,8 @@ void saveSettings() {
   for(i = 0; i < sf_count; i++)
     fprintf(f, "fset %s %.2f\n", sf[i].name, *(sf[i].value));
 
-#ifdef ANDROID
-  LOGI("saveSettings: written settings to %s", fname);
-#else
   printf("saveSettings: written settings to %s\n", fname);
-#endif
-
+  
   free(fname);
   fclose(f);
   // Note: On Android, fullscreen enforcement happens at load time to avoid

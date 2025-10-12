@@ -1,7 +1,4 @@
 #include "gltron.h"
-#ifdef ANDROID
-#include "switchCallbacks.h"
-#endif
 
 static int p_is_down = 0;
 static int p_down_x = 0, p_down_y = 0;
@@ -22,35 +19,19 @@ void motionPause(int x, int y) {
 
 void mousePause(int button, int state, int x, int y) {
   if (game->settings->input_mode == 0) return; /* keyboard only */
-#ifdef ANDROID
-  if (button == 0) { // GLUT_LEFT_BUTTON
-    if (state == 0) { // GLUT_DOWN
-#else
   if (button == GLUT_LEFT_BUTTON) {
     if (state == GLUT_DOWN) {
-#endif
       p_is_down = 1;
       p_down_x = x; p_down_y = y; p_down_t = getElapsedTime();
-#ifdef ANDROID
-    } else if (state == 1) { // GLUT_UP
-#else
+
     } else if (state == GLUT_UP) {
-#endif
       if (p_is_down) {
         long up_t = getElapsedTime();
         if (p_is_tap(x, y, up_t)) {
           if(game->pauseflag & PAUSE_GAME_FINISHED)
             initData();
           lasttime = getElapsedTime();
-#ifdef ANDROID
-          android_switchCallbacks(&gameCallbacks);
-#else
-      #ifdef ANDROID
-    android_switchCallbacks(&gameCallbacks);
-#else
     switchCallbacks(&gameCallbacks);
-#endif
-#endif
         }
       }
       p_is_down = 0;
@@ -67,9 +48,7 @@ void idlePause() {
   if(getElapsedTime() - lasttime < 10) return;
   timediff();
   
-#ifndef ANDROID
   glutPostRedisplay();
-#endif
 }
 
 void displayPause() {
@@ -86,21 +65,13 @@ void displayPause() {
 void keyboardPause(unsigned char key, int x, int y) {
   switch(key) {
   case 27:
-#ifdef ANDROID
-    android_switchCallbacks(&guiCallbacks);
-#else
     switchCallbacks(&guiCallbacks);
-#endif
     break;
   case ' ':
     if(game->pauseflag & PAUSE_GAME_FINISHED)
       initData();
     lasttime = getElapsedTime();
-#ifdef ANDROID
-    android_switchCallbacks(&gameCallbacks);
-#else
     switchCallbacks(&gameCallbacks);
-#endif
     break;
   case 'q':
     exit(1);
@@ -112,41 +83,21 @@ void specialPause(int key, int x, int y) {
   int i;
 
   switch(key) {
-#ifdef ANDROID
-  case 102: // GLUT_KEY_F1
-#else
   case GLUT_KEY_F1:
-#endif
     defaultDisplay(0);
     break;
-#ifdef ANDROID
-  case 103: // GLUT_KEY_F2
-#else
   case GLUT_KEY_F2:
-#endif
     defaultDisplay(1);
     break;
-#ifdef ANDROID
-  case 104: // GLUT_KEY_F3
-#else
   case GLUT_KEY_F3:
-#endif
     defaultDisplay(2);
     break;
-#ifdef ANDROID
-  case 109: // GLUT_KEY_F10
-#else
   case GLUT_KEY_F10:
-#endif
     game->settings->camType = (game->settings->camType + 1) % CAM_COUNT;
     for(i = 0; i < game->players; i++)
       game->player[i].camera->camType = game->settings->camType;
     break;
-#ifdef ANDROID
-  case 114: // GLUT_KEY_F5
-#else
   case GLUT_KEY_F5:
-#endif
     saveSettings();
     break;
   }
@@ -154,9 +105,6 @@ void specialPause(int key, int x, int y) {
 
 void initPause() {
   // Reset pause state tracking
-#ifdef ANDROID
-  p_is_down = 0;
-#endif
 }
 
 void initPauseGL() {

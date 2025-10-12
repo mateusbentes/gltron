@@ -4,27 +4,15 @@
 */
 
 #include "gltron.h"
-#ifdef ANDROID
-#include "shaders.h"
-#endif
 #include "globals.h"
 #include "model.h"
 #include "fonttex.h"
 #include "menu.h"
 #include "sgi_texture.h"
-#include "shaders.h"
 
-#ifdef ANDROID
-#include <string.h>
-#include <time.h>
-#include <sys/time.h>
-#include <GLES2/gl2.h>
-#include <EGL/egl.h>
-#else
 #include <GL/glut.h>
 #include <GL/gl.h>
 #include <GL/glu.h>
-#endif
 
 // Add this global variable declaration
 float projectionMatrix[16];
@@ -34,12 +22,7 @@ GLuint shaderProgram;
 #endif
 
 int getElapsedTime(void) {
-#ifdef ANDROID
-    // Android implementation using clock_gettime
-    struct timespec now;
-    clock_gettime(CLOCK_MONOTONIC, &now);
-    return (now.tv_sec * 1000) + (now.tv_nsec / 1000000);
-#elif defined(WIN32)
+#ifdef defined(WIN32)
     // Windows implementation using timeGetTime
     return timeGetTime();
 #else
@@ -65,17 +48,6 @@ void mouseWarp() {
 }
 
 void drawGame() {
-  #ifdef ANDROID
-    // Ensure shader is bound and set to 3D mode
-    GLuint prog = shader_get_basic();
-    if (prog) {
-      glUseProgram(prog);
-      setup3DRendering();
-    } else {
-      __android_log_print(ANDROID_LOG_ERROR, "GLTron", "No shader program in drawGame!");
-      return;
-    }
-  #endif
 
   polycount = 0;
   glClearColor(0.0, 0.0, 0.0, 1.0);
@@ -107,9 +79,6 @@ void drawGame() {
   }
 
   // Disable depth for global 2D overlays
-  #ifdef ANDROID
-  glDisable(GL_DEPTH_TEST);
-  #endif
   if(game->settings->show_fps)
     drawFPS(game->screen);
 
@@ -124,26 +93,13 @@ void displayGame() {
     /* Ensure viewports match window size at draw time after any display change */
     forceViewportResetIfNeededForGame();
     
-#ifdef ANDROID
-    // Ensure shader is properly set up for game rendering
-    GLuint prog = shader_get_basic();
-    if (prog) {
-        glUseProgram(prog);
-        // Set up proper 3D projection for game
-        ensure3D(prog);
-    }
-#endif
-    
     drawGame();
     if(game->settings->mouse_warp)
         mouseWarp();
-#ifndef ANDROID
     glutSwapBuffers();
-#endif
 }
 
 void initCustomLights() {
-#ifndef ANDROID
     float col[] = { .77, .77, .77, 1.0 };
     float dif[] =  { 0.4, 0.4, 0.4, 1};
     float amb[] = { 0.25, 0.25, 0.25, 1};
@@ -152,30 +108,9 @@ void initCustomLights() {
     glLightfv(GL_LIGHT0, GL_AMBIENT, amb);
     glLightfv(GL_LIGHT0, GL_SPECULAR, col);
     glLightfv(GL_LIGHT0, GL_DIFFUSE, dif);
-#endif
 }
 
 void initGLGame() {
-#ifdef ANDROID
-    __android_log_print(ANDROID_LOG_INFO, "GLTron", "initGLGame called");
-    // Android-specific OpenGL initialization
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-    glEnable(GL_DEPTH_TEST);
-    glDepthFunc(GL_LEQUAL);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-    // Initialize shaders
-    init_shaders_android();
-
-    // Create shader program
-    shaderProgram = shader_get_basic();
-    if (!shaderProgram) {
-        __android_log_print(ANDROID_LOG_ERROR, "GLTron", "Failed to get shader in initGLGame!");
-    } else {
-        __android_log_print(ANDROID_LOG_INFO, "GLTron", "Shader program ready: %u", shaderProgram);
-    }
-#else
     // First create the window if it doesn't exist
     if (glutGetWindow() == 0) {
         glutInitWindowSize(game->settings->width, game->settings->height);
@@ -206,14 +141,9 @@ void initGLGame() {
 
     glDepthMask(GL_FALSE);
     glDisable(GL_DEPTH_TEST);
-#endif
 }
 
 int initWindow() {
-#ifdef ANDROID
-    // Android-specific window initialization
-    return 1;
-#else
     int win_id;
     glutInitWindowSize(game->settings->width, game->settings->height);
     glutInitWindowPosition(0, 0);
@@ -224,15 +154,12 @@ int initWindow() {
         exit(1);
     }
     return win_id;
-#endif
 }
 
 void shutdownDisplay(gDisplay *d) {
     deleteTextures();
     deleteFonts();
-#ifndef ANDROID
     glutDestroyWindow(d->win_id);
-#endif
     printf("window destroyed\n");
 }
 
@@ -275,38 +202,11 @@ void forceViewportResetIfNeededForGame() {
     // Set the viewport to cover the new window size
     glViewport(0, 0, w, h);
 
-#ifdef ANDROID
-    // For Android, calculate and set the perspective matrix in the shader
-    float aspect = (float)w / (float)h;
-    float fov = game->settings->fov;
-    float near = 0.1f;
-    float far = 1000.0f;
-
-    // Calculate the perspective matrix
-    float top = near * tanf(fov * 3.14159265f / 360.0f);
-    float bottom = -top;
-    float left = bottom * aspect;
-    float right = top * aspect;
-
-    // Create a perspective matrix
-    float matrix[16] = {
-        2.0f * near / (right - left), 0.0f, 0.0f, 0.0f,
-        0.0f, 2.0f * near / (top - bottom), 0.0f, 0.0f,
-        (right + left) / (right - left), (top + bottom) / (top - bottom), -(far + near) / (far - near), -1.0f,
-        0.0f, 0.0f, -2.0f * far * near / (far - near), 0.0f
-    };
-
-    // Set the projection matrix uniform in your shader
-    // This would typically be done in your rendering code
-    // For example:
-    // glUniformMatrix4fv(projectionMatrixLocation, 1, GL_FALSE, matrix);
-#else
     // For non-Android platforms, use standard OpenGL functions
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     gluPerspective(game->settings->fov, (float)w / (float)h, 0.1, 1000.0);
     glMatrixMode(GL_MODELVIEW);
-#endif
 
     // Reinitialize game screen and display
     initGameScreen();
@@ -328,7 +228,6 @@ void applyDisplaySettingsDeferred() {
         game->screen = (gDisplay*) malloc(sizeof(gDisplay));
     }
 
-#ifndef ANDROID
     /* Apply windowed/fullscreen and resolution safely */
     if (game->settings->fullscreen) {
         /* Ensure we are current and then enter fullscreen */
@@ -373,7 +272,6 @@ void applyDisplaySettingsDeferred() {
         changeDisplay();
         updateCallbacks();
     }
-#endif
 
     /* Mark to force viewport/projection reset on next frame and skip one draw */
     g_just_applied_display_change = 1;
@@ -401,60 +299,21 @@ void onReshape(int w, int h) {
     float far = 1000.0f;
 
     // Use appropriate perspective function based on platform
-#ifdef ANDROID
-    // For Android, calculate the perspective matrix
-    float top = near * tanf(fov * 3.14159265f / 360.0f);
-    float bottom = -top;
-    float left = bottom * aspect;
-    float right = top * aspect;
-
-    // Create a perspective matrix for OpenGL ES
-    float matrix[16] = {
-        2.0f * near / (right - left), 0.0f, 0.0f, 0.0f,
-        0.0f, 2.0f * near / (top - bottom), 0.0f, 0.0f,
-        (right + left) / (right - left), (top + bottom) / (top - bottom), -(far + near) / (far - near), -1.0f,
-        0.0f, 0.0f, -2.0f * far * near / (far - near), 0.0f
-    };
-
-    // Copy the matrix to the global projection matrix
-    memcpy(projectionMatrix, matrix, sizeof(matrix));
-
-    // Set the projection matrix in the shader
-    { GLuint sp = shader_get_basic(); if (sp) useShaderProgram(sp); }
-    { GLuint sp = shader_get_basic(); if (sp) setProjectionMatrix(sp, projectionMatrix); }
-#else
     // For non-Android platforms, use standard OpenGL functions
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     gluPerspective(fov, aspect, near, far);
     glMatrixMode(GL_MODELVIEW);
-#endif
 
     // Reinitialize game screen and display
     initGameScreen();
     changeDisplay();
 
     // Force a redisplay
-#ifndef ANDROID
     glutPostRedisplay();
-#endif
 }
 
 void setupDisplay(gDisplay *d) {
-#ifdef ANDROID
-    // Android-specific display initialization
-    printf("Android display setup\n");
-    d->win_id = 1; // Dummy window ID for Android
-    printf("loading fonts...\n");
-    initFonts();
-    printf("loading textures...\n");
-    initTexture(d);
-    // Log texture IDs on Android for diagnostics
-    __android_log_print(ANDROID_LOG_INFO, "GLTron", "Android textures: texFloor=%u texWall=%u texCrash=%u texFont=%u",
-           (unsigned)game->screen->texFloor, (unsigned)game->screen->texWall,
-           (unsigned)game->screen->texCrash, (unsigned)game->screen->texFont);
-    printf("window created with ID: %d\n", d->win_id);
-#else
     printf("trying to create window\n");
 
     // Initialize GLUT window properties
@@ -502,7 +361,6 @@ void setupDisplay(gDisplay *d) {
     glutKeyboardFunc(keyGame);
     glutSpecialFunc(specialGame);
     glutIdleFunc(idleGame);
-#endif
 }
 
 int main( int argc, char *argv[] ) {
@@ -512,9 +370,7 @@ int main( int argc, char *argv[] ) {
     fpsetmask(0);
 #endif
 
-#ifndef ANDROID
     glutInit(&argc, argv);
-#endif
 
     // Print current working directory
     char cwd[1024];
@@ -522,7 +378,6 @@ int main( int argc, char *argv[] ) {
         printf("Current working directory: %s\n", cwd);
     }
 
-#ifndef ANDROID
     path = getFullPath("settings.txt");
     if(path != 0)
         initMainGameSettings(path); /* reads defaults from ~/.gltronrc */
@@ -530,9 +385,6 @@ int main( int argc, char *argv[] ) {
         printf("fatal: could not settings.txt, exiting...\n");
         exit(1);
     }
-#else
-    // On Android, settings are initialized via android_glue.c:init_settings_android
-#endif
 
     parse_args(argc, argv);
 
@@ -578,11 +430,7 @@ int main( int argc, char *argv[] ) {
     setupDisplay(game->screen);
     switchCallbacks(&guiCallbacks);
 
-#ifndef ANDROID
     glutMainLoop();
-#else
-    /* Android: the app's activity should drive the main loop */
-#endif
 
     return 0;
 }

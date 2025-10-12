@@ -32,56 +32,6 @@ endif()
 # OPTION: Architecture checks (OFF by default)
 option(STRICT_ARCH_CHECK "Fail if detected third-party libs do not match expected arch" OFF)
 
-# Manual option, on default use the Android NDK
-option(ANDROID "Build for Android" OFF)
-
-# If to toolchain is active, force ANDROID=ON
-if(CMAKE_SYSTEM_NAME STREQUAL "Android")
-    set(ANDROID ON CACHE BOOL "Build for Android" FORCE)
-endif()
-
-message(STATUS "ANDROID build: ${ANDROID}")
-
-# Platform-specific settings - must be before project() if Android
-if(ANDROID)
-    # Set Android build parameters before including the toolchain
-    set(ANDROID_ABI "arm64-v8a" CACHE STRING "Android ABI to build")
-    set(ANDROID_PLATFORM "29" CACHE STRING "Android API level")
-
-    # Set Android NDK path and include the Android toolchain
-    set(ANDROID_NDK $ENV{ANDROID_NDK})
-    if(NOT EXISTS "${ANDROID_NDK}/build/cmake/android.toolchain.cmake")
-        message(FATAL_ERROR "Android NDK not found at ${ANDROID_NDK}. Please set ANDROID_NDK to your NDK path.")
-    endif()
-
-    include(${ANDROID_NDK}/build/cmake/android.toolchain.cmake)
-
-    # Set the correct path for Android libraries based on ABI and platform
-    if(ANDROID_ABI STREQUAL "arm64-v8a")
-        set(ANDROID_LIB_PATH "${ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/${ANDROID_PLATFORM}")
-    elseif(ANDROID_ABI STREQUAL "armeabi-v7a")
-        set(ANDROID_LIB_PATH "${ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/arm-linux-androideabi/${ANDROID_PLATFORM}")
-    else()
-        message(FATAL_ERROR "Unsupported ANDROID_ABI '${ANDROID_ABI}'. Use arm64-v8a or armeabi-v7a.")
-    endif()
-
-    message(STATUS "Looking for Android libraries in: ${ANDROID_LIB_PATH}")
-
-    # Find Android libraries in the correct path
-    find_library(LOG_LIBRARY log PATHS ${ANDROID_LIB_PATH} NO_DEFAULT_PATH)
-    find_library(ANDROID_LIBRARY android PATHS ${ANDROID_LIB_PATH} NO_DEFAULT_PATH)
-    find_library(EGL_LIBRARY EGL PATHS ${ANDROID_LIB_PATH} NO_DEFAULT_PATH)
-    find_library(GLESv2_LIBRARY GLESv2 PATHS ${ANDROID_LIB_PATH} NO_DEFAULT_PATH)
-    find_library(OPENSLES_LIB OpenSLES PATHS ${ANDROID_LIB_PATH} NO_DEFAULT_PATH)
-
-    # Verify libraries were found
-    foreach(lib LOG_LIBRARY ANDROID_LIBRARY EGL_LIBRARY GLESv2_LIBRARY OPENSLES_LIB)
-        if(NOT ${lib})
-            message(FATAL_ERROR "${lib} not found in ${ANDROID_LIB_PATH}")
-        endif()
-    endforeach()
-endif()
-
 project(gltron)
 
 # Set C++ standard
@@ -92,42 +42,12 @@ cmake_policy(SET CMP0072 NEW)
 
 # Informative output about platform selection
 message(STATUS "Configuring gltron for platform: ${CMAKE_SYSTEM_NAME}")
-if(ANDROID)
-    message(STATUS "Android build detected: target ABI=${ANDROID_ABI}; linking to log/android/EGL/GLESv2")
-else()
-    message(STATUS "Non-Android (desktop) build: using desktop OpenGL and GLUT/GLU if available")
-endif()
 
 # Set OpenGL preference to legacy
 set(OpenGL_GL_PREFERENCE "LEGACY")
 
 # Enable sound by default
 option(USE_SOUND "Enable sound support" ON)
-
-# Prefer prebuilt OpenMPT from android-dependencies if building for Android
-if(ANDROID)
-    set(_OPENMPT_DEFAULT_ABI "arm64-v8a")
-    if(DEFINED ANDROID_ABI AND NOT ANDROID_ABI STREQUAL "")
-        set(_OPENMPT_ABI "${ANDROID_ABI}")
-    else()
-        set(_OPENMPT_ABI "${_OPENMPT_DEFAULT_ABI}")
-    endif()
-    set(_OPENMPT_PREFIX "${CMAKE_SOURCE_DIR}/android-dependencies/${_OPENMPT_ABI}/prefix")
-    set(_OPENMPT_LIB "${_OPENMPT_PREFIX}/lib/libopenmpt.a")
-    set(_OPENMPT_INC "${_OPENMPT_PREFIX}/include")
-    if(EXISTS "${_OPENMPT_LIB}" AND EXISTS "${_OPENMPT_INC}")
-        message(STATUS "Prebuilt OpenMPT detected at: ${_OPENMPT_LIB}")
-        set(OpenMPT_LIBRARIES "${_OPENMPT_LIB}" CACHE FILEPATH "Path to libopenmpt.a")
-        set(OpenMPT_INCLUDE_DIRS "${_OPENMPT_INC}" CACHE PATH "Path to OpenMPT headers")
-        # Also set alternative variable names used later in the file
-        set(OpenMPT_LIBRARY "${_OPENMPT_LIB}" CACHE FILEPATH "Path to libopenmpt.a")
-        set(OpenMPT_INCLUDE_DIR "${_OPENMPT_INC}" CACHE PATH "Path to OpenMPT headers")
-        # Help CMake find these prebuilt deps if any sub-find_package is used
-        set(CMAKE_PREFIX_PATH "${_OPENMPT_PREFIX};${CMAKE_PREFIX_PATH}" CACHE STRING "" FORCE)
-        include_directories(~/gltron/android-dependencies/openmpt/)
-        link_directories(BEFORE "${_OPENMPT_PREFIX}/lib")
-    endif()
-endif()
 
 # Add SOUND macro definition if USE_SOUND is enabled
 if(USE_SOUND)
@@ -161,27 +81,11 @@ set(SOURCES
     globals.c
 )
 
-# Add Android-only sources
-if(ANDROID)
-    list(APPEND SOURCES android_glue.c android_main.c backend_openmpt_android.c)
-else()
-    # Ensure Android-only sources are not part of desktop build
-    set_source_files_properties(android_glue.c android_main.c backend_openmpt_android.c PROPERTIES HEADER_FILE_ONLY TRUE)
-    # Also explicitly remove backend_openmpt_android.c from target on desktop to avoid duplicate symbols
-    get_source_file_property(_is_set backend_openmpt_android.c HEADER_FILE_ONLY)
-endif()
+# Ensure Android-only sources are not part of desktop build
+set_source_files_properties(android_glue.c android_main.c backend_openmpt_android.c PROPERTIES HEADER_FILE_ONLY TRUE)
 
-# Add shader source files only for Android
-if(ANDROID)
-    set(SHADER_SOURCES shaders.c)
-    list(APPEND SOURCES ${SHADER_SOURCES})
-
-    # Ensure shader sources are compiled as C (not C++)
-    set_source_files_properties(${SHADER_SOURCES} PROPERTIES LANGUAGE C)
-else()
-    # Exclude shaders.c from desktop build
-    set_source_files_properties(shaders.c PROPERTIES HEADER_FILE_ONLY TRUE)
-endif()
+# Exclude shaders.c from desktop build
+set_source_files_properties(shaders.c PROPERTIES HEADER_FILE_ONLY TRUE)
 
 # Ensure C sources are compiled as C (not C++)
 set_source_files_properties(${SOURCES} PROPERTIES LANGUAGE C)
@@ -190,224 +94,141 @@ if(USE_SOUND)
 endif()
 
 # Build target: executable on desktop, shared library on Android for NativeActivity
-if(ANDROID)
-    # Build a shared library libgltron.so for Android
-    add_library(gltron SHARED ${SOURCES})
-    # Compile native_app_glue exactly once (needed for app_dummy and glue loop)
-    target_sources(gltron PRIVATE ${ANDROID_NDK}/sources/android/native_app_glue/android_native_app_glue.c)
-else()
-    add_executable(gltron ${SOURCES})
-endif()
+add_executable(gltron ${SOURCES})
 
 # Include directories
 target_include_directories(gltron PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
-# Platform-specific settings after target creation
-if(ANDROID)
-    # Define ANDROID macro for C sources
-    target_compile_definitions(gltron PRIVATE ANDROID)
+# Non-Android (desktop Linux/macOS/Windows)
+set(USE_GUI ON)
 
-    # Ensure shared libs are built; helpful if user passes -DBUILD_SHARED_LIBS
-    set(BUILD_SHARED_LIBS ON CACHE BOOL "Build shared libraries" FORCE)
+# Prefer CMake find modules; fall back to common paths if needed
+# Option to force x86_64 desktop builds (requires a proper cross toolchain)
+option(DESKTOP_FORCE_X86_64 "Require desktop build to target x86_64 (use a cross toolchain on non-x86 hosts)" OFF)
 
-    # Link Android libraries
-    find_library(LOG_LIBRARY log)
-    find_library(ANDROID_LIBRARY android)
-    find_library(EGL_LIBRARY EGL)
-    find_library(GLESv2_LIBRARY GLESv2)
-
-    # Link Android libraries to the target
-    target_link_libraries(gltron PRIVATE
-        ${LOG_LIBRARY}
-        ${ANDROID_LIBRARY}
-        ${EGL_LIBRARY}
-        ${GLESv2_LIBRARY}
-        ${OPENSLES_LIB}
-        c++_shared
-        atomic
-    )
-
-    # Add NDK include paths
-    target_include_directories(gltron PRIVATE
-        ${ANDROID_NDK}/sysroot/usr/include
-        ${ANDROID_NDK}/sysroot/usr/include/${ANDROID_PLATFORM}
-        ${ANDROID_NDK}/sources/android/native_app_glue
-    )
-
-    # Set appropriate compiler flags for Android
-    if(ANDROID_ABI STREQUAL "arm64-v8a")
-        # Use appropriate architecture flags for ARM64
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=armv8-a")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=armv8-a")
-    elseif(ANDROID_ABI STREQUAL "armeabi-v7a")
-        # Use appropriate architecture flags for ARMv7
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=armv7-a -mfpu=vfpv3-d16 -mfloat-abi=softfp")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=armv7-a -mfpu=vfpv3-d16 -mfloat-abi=softfp")
-    endif()
-
-    # Additional Android-specific compiler flags
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99")
-
-    # Sound backend for Android: use OpenMPT
-    if(USE_SOUND)
-        target_compile_definitions(gltron PRIVATE SOUND_BACKEND_OPENMPT)
-        # Prefer prebuilt OpenMPT that ships in repo (static)
-        set(OPENMPT_LIBRARY "${CMAKE_SOURCE_DIR}/android-dependencies/openmpt/bin/libopenmpt.a")
-        # Try both possible header layouts
-        set(OPENMPT_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/android-dependencies/openmpt/libopenmpt")
-        if(NOT EXISTS "${OPENMPT_INCLUDE_DIR}/libopenmpt.h")
-            set(OPENMPT_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/android-dependencies/openmpt/include")
+# Sanitize any stray Android/AArch64-only linker flags for desktop
+if(NOT ANDROID)
+    foreach(flag_var CMAKE_EXE_LINKER_FLAGS CMAKE_SHARED_LINKER_FLAGS CMAKE_MODULE_LINKER_FLAGS)
+        if(DEFINED ${flag_var} AND ${flag_var})
+            string(REPLACE "--fix-cortex-a53-843419" "" ${flag_var} "${${flag_var}}")
+            string(REPLACE "-Wl,--fix-cortex-a53-843419" "" ${flag_var} "${${flag_var}}")
         endif()
-        if(EXISTS "${OPENMPT_LIBRARY}")
-            message(STATUS "Linking static OpenMPT (Android) from: ${OPENMPT_LIBRARY}")
-        else()
-            message(FATAL_ERROR "Expected static OpenMPT library not found at ${OPENMPT_LIBRARY}")
-        endif()
+    endforeach()
+endif()
 
-        # Configure the target with OpenMPT
-        target_include_directories(gltron PRIVATE ${OPENMPT_INCLUDE_DIR})
-        target_link_libraries(gltron PRIVATE ${OPENMPT_LIBRARY} c++_shared atomic)
+# Prefer pkg-config for GL/GLU/GLUT when available; rely on toolchain/pkg-config for correct arch
+find_package(PkgConfig QUIET)
+if(PKG_CONFIG_FOUND)
+    pkg_check_modules(GLUT QUIET glut)
+    pkg_check_modules(OPENGL QUIET gl)
+    pkg_check_modules(GLU QUIET glu)
+endif()
 
-        message(STATUS "Using OpenMPT (static) from: ${OPENMPT_LIBRARY}")
-    endif()
+if(OPENGL_FOUND AND GLU_FOUND)
+    set(OpenGL_FOUND TRUE)
+    set(OpenGL_LIBRARIES ${OPENGL_LDFLAGS} ${GLU_LDFLAGS})
+    set(OpenGL_INCLUDE_DIR ${OPENGL_INCLUDE_DIRS} ${GLU_INCLUDE_DIRS})
+else()
+    find_package(OpenGL QUIET)
+endif()
 
-elseif(NOT ANDROID)
-    # Non-Android (desktop Linux/macOS/Windows)
-    set(USE_GUI ON)
+# GLUT headers and library (no hardcoded arch-specific lib dirs)
+if(GLUT_FOUND)
+    set(GLUT_INCLUDE_DIR ${GLUT_INCLUDE_DIRS})
+    set(GLUT_LIBRARY ${GLUT_LDFLAGS})
+else()
+    find_path(GLUT_INCLUDE_DIR GL/glut.h PATHS /usr/include)
+    find_library(GLUT_LIBRARY NAMES glut freeglut)
+endif()
 
-    # Prefer CMake find modules; fall back to common paths if needed
-    # Option to force x86_64 desktop builds (requires a proper cross toolchain)
-    option(DESKTOP_FORCE_X86_64 "Require desktop build to target x86_64 (use a cross toolchain on non-x86 hosts)" OFF)
+if(GLUT_INCLUDE_DIR)
+    message(STATUS "Found GLUT headers at: ${GLUT_INCLUDE_DIR}")
+    set(GLUT_FOUND TRUE)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -I${GLUT_INCLUDE_DIR}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -I${GLUT_INCLUDE_DIR}")
+else()
+    message(WARNING "Could not find GLUT headers. Game will run without GUI.")
+    set(USE_GUI OFF)
+endif()
 
-    # Sanitize any stray Android/AArch64-only linker flags for desktop
-    if(NOT ANDROID)
-        foreach(flag_var CMAKE_EXE_LINKER_FLAGS CMAKE_SHARED_LINKER_FLAGS CMAKE_MODULE_LINKER_FLAGS)
-            if(DEFINED ${flag_var} AND ${flag_var})
-                string(REPLACE "--fix-cortex-a53-843419" "" ${flag_var} "${${flag_var}}")
-                string(REPLACE "-Wl,--fix-cortex-a53-843419" "" ${flag_var} "${${flag_var}}")
-            endif()
-        endforeach()
-    endif()
-
-    # Prefer pkg-config for GL/GLU/GLUT when available; rely on toolchain/pkg-config for correct arch
-    find_package(PkgConfig QUIET)
-    if(PKG_CONFIG_FOUND)
-        pkg_check_modules(GLUT QUIET glut)
-        pkg_check_modules(OPENGL QUIET gl)
-        pkg_check_modules(GLU QUIET glu)
-    endif()
-
-    if(OPENGL_FOUND AND GLU_FOUND)
-        set(OpenGL_FOUND TRUE)
-        set(OpenGL_LIBRARIES ${OPENGL_LDFLAGS} ${GLU_LDFLAGS})
-        set(OpenGL_INCLUDE_DIR ${OPENGL_INCLUDE_DIRS} ${GLU_INCLUDE_DIRS})
+if(USE_GUI)
+    if(GLUT_FOUND AND OpenGL_FOUND AND GLUT_LIBRARY)
+        target_link_libraries(gltron PRIVATE ${OpenGL_LIBRARIES} ${GLUT_LIBRARY})
     else()
-        find_package(OpenGL QUIET)
-    endif()
-
-    # GLUT headers and library (no hardcoded arch-specific lib dirs)
-    if(GLUT_FOUND)
-        set(GLUT_INCLUDE_DIR ${GLUT_INCLUDE_DIRS})
-        set(GLUT_LIBRARY ${GLUT_LDFLAGS})
-    else()
-        find_path(GLUT_INCLUDE_DIR GL/glut.h PATHS /usr/include)
-        find_library(GLUT_LIBRARY NAMES glut freeglut)
-    endif()
-
-    if(GLUT_INCLUDE_DIR)
-        message(STATUS "Found GLUT headers at: ${GLUT_INCLUDE_DIR}")
-        set(GLUT_FOUND TRUE)
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -I${GLUT_INCLUDE_DIR}")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -I${GLUT_INCLUDE_DIR}")
-    else()
-        message(WARNING "Could not find GLUT headers. Game will run without GUI.")
+        message(WARNING "GUI dependencies not found. Game will run without GUI.")
         set(USE_GUI OFF)
-    endif()
-
-    if(USE_GUI)
-        if(GLUT_FOUND AND OpenGL_FOUND AND GLUT_LIBRARY)
-            target_link_libraries(gltron PRIVATE ${OpenGL_LIBRARIES} ${GLUT_LIBRARY})
-        else()
-            message(WARNING "GUI dependencies not found. Game will run without GUI.")
-            set(USE_GUI OFF)
-        endif()
-    endif()
-
-    # If GUI is disabled, avoid compiling GUI sources that use OpenGL fixed function
-    if(NOT USE_GUI)
-        set_source_files_properties(gui.c gui_mouse.c PROPERTIES HEADER_FILE_ONLY TRUE)
-    endif()
-
-    # Link math library
-    target_link_libraries(gltron PRIVATE m)
-
-    # Sound backend for desktop
-    if(USE_SOUND)
-        # Prefer pkg-config for MikMod on desktop/cross builds
-        find_package(PkgConfig QUIET)
-        if(PKG_CONFIG_FOUND)
-            pkg_check_modules(MIKMOD QUIET mikmod)
-        endif()
-
-        if(MIKMOD_FOUND)
-            set(MikMod_LIBRARIES ${MIKMOD_LDFLAGS})
-            set(MikMod_INCLUDE_DIRS ${MIKMOD_INCLUDE_DIRS})
-        else()
-            # Add the directory containing FindMikMod.cmake to CMAKE_MODULE_PATH
-            list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
-            # Find MikMod using the custom FindMikMod.cmake module
-            find_package(MikMod REQUIRED)
-        endif()
-
-        if(MikMod_FOUND OR MIKMOD_FOUND)
-            if(STRICT_ARCH_CHECK)
-                # Verify MikMod library architecture (optional)
-                execute_process(
-                    COMMAND file ${MikMod_LIBRARIES}
-                    OUTPUT_VARIABLE LIB_ARCH
-                )
-                if(NOT LIB_ARCH MATCHES "x86-64")
-                    message(FATAL_ERROR "MikMod library is not for x86_64 architecture. Found: ${LIB_ARCH}")
-                endif()
-            endif()
-
-            target_link_libraries(gltron PRIVATE ${MikMod_LIBRARIES})
-            target_include_directories(gltron PRIVATE ${MikMod_INCLUDE_DIRS})
-            target_sources(gltron PRIVATE backend_mikmod.c)
-
-            # Link additional libraries for WAV support
-            if(USE_WAV_SUPPORT)
-                find_package(Vorbis QUIET)
-                if(Vorbis_FOUND)
-                    target_link_libraries(gltron PRIVATE ${Vorbis_LIBRARIES})
-                else()
-                    message(WARNING "Could not find Vorbis. WAV file support will be limited.")
-                endif()
-
-                find_package(FLAC QUIET)
-                if(FLAC_FOUND)
-                    target_link_libraries(gltron PRIVATE ${FLAC_LIBRARIES})
-                else()
-                    message(WARNING "Could not find FLAC. WAV file support will be limited.")
-                endif()
-
-                find_package(Ogg QUIET)
-                if(Ogg_FOUND)
-                    target_link_libraries(gltron PRIVATE ${Ogg_LIBRARIES})
-                else()
-                    message(WARNING "Could not find Ogg. WAV file support will be limited.")
-                endif()
-            endif()
-        else()
-            message(FATAL_ERROR "MikMod library not found. Please install libmikmod-dev or provide the path to MikMod.")
-        endif()
     endif()
 endif()
 
-# Note: Additional global MikMod discovery block removed to avoid duplication. Desktop sound is configured above.
+# If GUI is disabled, avoid compiling GUI sources that use OpenGL fixed function
+if(NOT USE_GUI)
+    set_source_files_properties(gui.c gui_mouse.c PROPERTIES HEADER_FILE_ONLY TRUE)
+endif()
 
-# Android OpenMPT configuration is already handled in the main ANDROID block above; duplicate removed.
+# Link math library
+target_link_libraries(gltron PRIVATE m)
+
+# Sound backend for desktop
+if(USE_SOUND)
+    # Prefer pkg-config for MikMod on desktop/cross builds
+    find_package(PkgConfig QUIET)
+    if(PKG_CONFIG_FOUND)
+        pkg_check_modules(MIKMOD QUIET mikmod)
+    endif()
+
+    if(MIKMOD_FOUND)
+        set(MikMod_LIBRARIES ${MIKMOD_LDFLAGS})
+        set(MikMod_INCLUDE_DIRS ${MIKMOD_INCLUDE_DIRS})
+    else()
+        # Add the directory containing FindMikMod.cmake to CMAKE_MODULE_PATH
+        list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
+        # Find MikMod using the custom FindMikMod.cmake module
+        find_package(MikMod REQUIRED)
+    endif()
+
+    if(MikMod_FOUND OR MIKMOD_FOUND)
+        if(STRICT_ARCH_CHECK)
+            # Verify MikMod library architecture (optional)
+            execute_process(
+                COMMAND file ${MikMod_LIBRARIES}
+                OUTPUT_VARIABLE LIB_ARCH
+            )
+            if(NOT LIB_ARCH MATCHES "x86-64")
+                message(FATAL_ERROR "MikMod library is not for x86_64 architecture. Found: ${LIB_ARCH}")
+            endif()
+        endif()
+
+        target_link_libraries(gltron PRIVATE ${MikMod_LIBRARIES})
+        target_include_directories(gltron PRIVATE ${MikMod_INCLUDE_DIRS})
+        target_sources(gltron PRIVATE backend_mikmod.c)
+
+        # Link additional libraries for WAV support
+        if(USE_WAV_SUPPORT)
+            find_package(Vorbis QUIET)
+            if(Vorbis_FOUND)
+                target_link_libraries(gltron PRIVATE ${Vorbis_LIBRARIES})
+            else()
+                message(WARNING "Could not find Vorbis. WAV file support will be limited.")
+            endif()
+
+            find_package(FLAC QUIET)
+            if(FLAC_FOUND)
+                target_link_libraries(gltron PRIVATE ${FLAC_LIBRARIES})
+            else()
+                message(WARNING "Could not find FLAC. WAV file support will be limited.")
+            endif()
+
+            find_package(Ogg QUIET)
+            if(Ogg_FOUND)
+                target_link_libraries(gltron PRIVATE ${Ogg_LIBRARIES})
+            else()
+                message(WARNING "Could not find Ogg. WAV file support will be limited.")
+            endif()
+        endif()
+    else()
+        message(FATAL_ERROR "MikMod library not found. Please install libmikmod-dev or provide the path to MikMod.")
+    endif()
+endif()
 
 # Platform-specific settings
 if(WIN32)
