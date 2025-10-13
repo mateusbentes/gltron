@@ -470,6 +470,9 @@ extern callbacks guiCallbacks;
 /* extern callbacks chooseModelCallbacks; */
 extern callbacks pauseCallbacks;
 
+// Function to get screen resolution
+void getScreenResolution(int *width, int *height);
+
 //dimensions functions
 #ifdef ANDROID
 void ensure2D(GLuint prog, int w, int h);

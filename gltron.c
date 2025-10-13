@@ -3,6 +3,7 @@
   Copyright (C) 1999 by Andreas Umbach <marvin@dataway.ch>
 */
 
+#include <X11/Xlib.h>
 #include "gltron.h"
 #include "globals.h"
 #include "model.h"
@@ -22,7 +23,7 @@ GLuint shaderProgram;
 #endif
 
 int getElapsedTime(void) {
-#ifdef defined(WIN32)
+#ifdef WIN32
     // Windows implementation using timeGetTime
     return timeGetTime();
 #else
@@ -361,6 +362,36 @@ void setupDisplay(gDisplay *d) {
     glutKeyboardFunc(keyGame);
     glutSpecialFunc(specialGame);
     glutIdleFunc(idleGame);
+}
+
+void getScreenResolution(int *width, int *height) {
+#ifdef _WIN32
+    // Windows implementation
+    *width = GetSystemMetrics(SM_CXSCREEN);
+    *height = GetSystemMetrics(SM_CYSCREEN);
+#elif __linux__
+    // Linux implementation using X11
+    Display *disp = XOpenDisplay(NULL);
+    if (disp) {
+        Screen *scr = DefaultScreenOfDisplay(disp);
+        *width = scr->width;
+        *height = scr->height;
+        XCloseDisplay(disp);
+    } else {
+        // Fallback to default if X11 fails
+        *width = 1920;
+        *height = 1080;
+    }
+#elif __APPLE__
+    // macOS implementation using Core Graphics
+    CGDirectDisplayID display = CGMainDisplayID();
+    *width = CGDisplayPixelsWide(display);
+    *height = CGDisplayPixelsHigh(display);
+#else
+    // Default fallback
+    *width = 1920;  // Default width
+    *height = 1080;  // Default height
+#endif
 }
 
 int main( int argc, char *argv[] ) {

@@ -116,6 +116,26 @@ if(NOT ANDROID)
     endforeach()
 endif()
 
+# Find and link X11
+find_package(X11 REQUIRED)
+if(X11_FOUND)
+    target_link_libraries(gltron PRIVATE ${X11_LIBRARIES})
+    target_include_directories(gltron PRIVATE ${X11_INCLUDE_DIR})
+else()
+    message(FATAL_ERROR "X11 development libraries not found. Please install libx11-dev.")
+endif()
+
+# Platform-specific settings
+if(WIN32)
+    target_link_libraries(gltron PRIVATE opengl32 glu32)
+    if(USE_SOUND)
+        target_link_libraries(gltron PRIVATE winmm)
+    endif()
+elseif(APPLE)
+    find_library(COCOA_LIBRARY Cocoa)
+    target_link_libraries(gltron PRIVATE ${COCOA_LIBRARY})
+endif()
+
 # Prefer pkg-config for GL/GLU/GLUT when available; rely on toolchain/pkg-config for correct arch
 find_package(PkgConfig QUIET)
 if(PKG_CONFIG_FOUND)

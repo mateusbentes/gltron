@@ -43,9 +43,9 @@ For full functionality, you may need to install the following additional librari
 Installation Commands for Common Linux Distributions:
 
 Debian/Ubuntu:
-% sudo apt-get install libmikmod-dev libvorbis-dev libflac-dev libogg-dev \
-  mesa-common-dev libglu1-mesa-dev libx11-dev libxext-dev libxi-dev \
-  libxmu-dev libxt-dev cmake make gcc
+% sudo dnf install mikmod-devel libvorbis-devel flac-devel libogg-devel \
+  mesa-libGL-devel mesa-libGLU-devel libX11-devel libXext-devel \
+  libXi-devel libXmu-devel libXt-devel cmake make gcc
 
 Fedora/RHEL/CentOS:
 % sudo dnf install mikmod-devel libvorbis-devel flac-devel libogg-devel \

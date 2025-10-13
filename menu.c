@@ -16,14 +16,26 @@ void changeAction(char *name) {
   printf("changeAction called with: %s\n", name);  // Debug output
 
 #ifdef SOUND
-  if(strstr(name, "audio") == name) {
+  if(strstr(name, "audio") == name || strstr(name, "playMusic") == name) {
     game->settings->playMusic = !game->settings->playMusic;
     if (game->settings->playSound && game->settings->playMusic) {
       playSound();
     } else {
       stopSound();
     }
+
+    // Update menu caption to reflect the new state
+    if (pCurrent) {
+      for (int i = 0; i < pCurrent->nEntries; i++) {
+        Menu* entry = (Menu*)*(pCurrent->pEntries + i);
+        if (strstr(entry->szName, "audio") || strstr(entry->szName, "playMusic")) {
+          sprintf(entry->display.szCaption, entry->szCapFormat, game->settings->playMusic ? "on" : "off");
+          break;
+        }
+      }
+    }
   }
+
   if(strstr(name, "playMusic") == name) {
     game->settings->playMusic = !game->settings->playMusic;
     if (game->settings->playSound && game->settings->playMusic) {
@@ -86,9 +98,16 @@ void menuAction(Menu *activated) {
       applyDisplaySettingsDeferred();
       break;
     case 'v':
+      // Handle resolution change
       sscanf(activated->szName, "%cv%dx%d ", &c, &x, &y);
-      game->settings->width = x;
-      game->settings->height = y;
+
+      // Get current screen resolution
+      int screenWidth, screenHeight;
+      getScreenResolution(&screenWidth, &screenHeight);
+
+      // Use the larger of the requested or screen resolution
+      game->settings->width = (x > screenWidth) ? screenWidth : x;
+      game->settings->height = (y > screenHeight) ? screenHeight : y;
 
       /* ensure our window is current before manipulating it */
       if (game && game->screen && game->screen->win_id > 0) {
@@ -108,7 +127,18 @@ void menuAction(Menu *activated) {
       piValue = getVi(activated->szName + 4);
       if(piValue != 0) {
         const char* name = activated->szName + 4;
-        if (strstr(name, "input_mode") == name) {
+        if (strstr(name, "audio") == name || strstr(name, "playMusic") == name) {
+          // Toggle music on/off
+          game->settings->playMusic = !game->settings->playMusic;
+          if (game->settings->playMusic) {
+            // Ensure music is started when toggling on
+            playSound();
+          } else {
+            stopSound();
+          }
+          sprintf(activated->display.szCaption, activated->szCapFormat, game->settings->playMusic ? "on" : "off");
+          saveSettings();
+        } else if (strstr(name, "input_mode") == name) {
           const char* label = "Keyboard";
           if (*piValue == 1) label = "Mouse";
           else if (*piValue == 2) label = "Touch";
@@ -118,20 +148,19 @@ void menuAction(Menu *activated) {
           int next = cur ? 0 : 1;
           *piValue = next;
           game->settings->fullscreen = next;
+
+          // Ensure window is properly set up before applying fullscreen
+          if (game && game->screen && game->screen->win_id > 0) {
+            glutSetWindow(game->screen->win_id);
+          }
+
+          // Apply fullscreen changes immediately
           requestDisplayApply();
+          applyDisplaySettingsDeferred();
+
           sprintf(activated->display.szCaption, activated->szCapFormat, next ? "on" : "off");
           saveSettings();
           printf("Fullscreen setting toggled to %s (apply deferred).\n", next ? "on" : "off");
-        } else if (strstr(name, "audio") == name || strstr(name, "playMusic") == name) {
-          // Toggle music on/off
-          game->settings->playMusic = !game->settings->playMusic;
-          if (game->settings->playSound && game->settings->playMusic) {
-            playSound();
-          } else {
-            stopSound();
-          }
-          sprintf(activated->display.szCaption, activated->szCapFormat, game->settings->playMusic ? "on" : "off");
-          saveSettings();
         } else if (strstr(name, "playSound") == name) {
           sprintf(activated->display.szCaption, activated->szCapFormat,*piValue ? "on" : "off");
         } else {
@@ -161,7 +190,10 @@ void initMenuCaption(Menu *activated) {
       piValue = getVi(activated->szName + 4);
       if(piValue != 0) {
         const char* name = activated->szName + 4;
-        if (strstr(name, "input_mode") == name) {
+        if (strstr(name, "audio") == name || strstr(name, "playMusic") == name) {
+          // Initialize music caption based on current setting
+          sprintf(activated->display.szCaption, activated->szCapFormat, game->settings->playMusic ? "on" : "off");
+        } else if (strstr(name, "input_mode") == name) {
           const char* label = "Keyboard";
           if (*piValue == 1) label = "Mouse";
           else if (*piValue == 2) label = "Touch";
@@ -175,16 +207,6 @@ void initMenuCaption(Menu *activated) {
           sprintf(activated->display.szCaption, activated->szCapFormat, next ? "on" : "off");
           saveSettings();
           printf("Fullscreen setting toggled to %s (apply deferred).\n", next ? "on" : "off");
-        } else if (strstr(name, "audio") == name || strstr(name, "playMusic") == name) {
-          // Toggle music on/off
-          game->settings->playMusic = !game->settings->playMusic;
-          if (game->settings->playSound && game->settings->playMusic) {
-            playSound();
-          } else {
-            stopSound();
-          }
-          sprintf(activated->display.szCaption, activated->szCapFormat, game->settings->playMusic ? "on" : "off");
-          saveSettings();
         } else if (strstr(name, "playSound") == name) {
           sprintf(activated->display.szCaption, activated->szCapFormat,*piValue ? "on" : "off");
         } else {
