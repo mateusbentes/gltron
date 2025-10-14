@@ -454,20 +454,21 @@ int main( int argc, char *argv[] ) {
     printf("menu loaded\n");
     free(path);
 
-    /* Initialize joystick support */
-    printf("Initializing joystick support...\n");
-    if (initJoystick()) {
-        printf("Joystick initialized successfully\n");
-    } else {
-        printf("No joystick found, continuing with keyboard/mouse\n");
-    }
-
     initGameStructures();
     resetScores();
 
     initData();
 
     setupDisplay(game->screen);
+    
+    /* Initialize joystick support AFTER GLUT window is created */
+    printf("Initializing joystick support...\n");
+    if (initJoystick()) {
+        printf("Joystick initialized successfully\n");
+    } else {
+        printf("No joystick found, continuing with keyboard/mouse\n");
+    }
+    
     switchCallbacks(&guiCallbacks);
 
     glutMainLoop();

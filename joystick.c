@@ -21,12 +21,29 @@ int initJoystick(void) {
     joystick.deadzone = 0.15f;  /* 15% deadzone by default */
     joystick.joystick_id = 0;  /* Use first joystick (index 0) */
     
+    /* Safety check - make sure GLUT is initialized */
+    if (!glutGet(GLUT_INIT_STATE)) {
+        printf("Warning: GLUT not initialized, cannot check for joystick\n");
+        return 0;
+    }
+    
     /* Check if joystick is available using FreeGLUT API */
     /* FreeGLUT uses joystick index, not GLUT_JOYSTICK_1 constant */
-    int num_buttons = glutJoystickGetNumButtons(joystick.joystick_id);
-    int num_axes = glutJoystickGetNumAxes(joystick.joystick_id);
+    int num_buttons = 0;
+    int num_axes = 0;
     
-    if (num_axes > 0 && num_buttons >= 0) {
+    /* Safely check for joystick */
+    glutJoystickFunc(NULL, 0);  /* Clear any existing callback first */
+    
+    num_buttons = glutJoystickGetNumButtons(joystick.joystick_id);
+    if (num_buttons < 0) {
+        printf("No joystick detected at index %d\n", joystick.joystick_id);
+        return 0;
+    }
+    
+    num_axes = glutJoystickGetNumAxes(joystick.joystick_id);
+    
+    if (num_axes > 0 && num_buttons > 0) {
         joystick.connected = 1;
         joystick.num_axes = (num_axes > JOY_AXIS_MAX) ? JOY_AXIS_MAX : num_axes;
         joystick.num_buttons = (num_buttons > JOY_BUTTON_MAX) ? JOY_BUTTON_MAX : num_buttons;
@@ -34,17 +51,20 @@ int initJoystick(void) {
         printf("Joystick detected: %d axes, %d buttons\n", 
                joystick.num_axes, joystick.num_buttons);
         
-        /* Try to get joystick name and detect Steam Deck */
-        /* Note: FreeGLUT doesn't provide joystick name directly, 
-           but we can detect by button/axis count */
-        if (num_axes >= 6 && num_buttons >= 16) {
-            printf("Detected gamepad with full controls - possibly Steam Deck\n");
-            configureSteamDeckControls();
+        /* Try to detect controller type by button/axis count */
+        if (num_axes >= 4 && num_buttons >= 11) {
+            printf("Detected standard gamepad\n");
+            if (num_buttons >= 16) {
+                printf("Full featured controller detected (Xbox/PS/Steam Deck compatible)\n");
+                /* Apply Steam Deck optimizations */
+                joystick.deadzone = 0.20f;  /* Slightly higher deadzone for Steam Deck */
+            }
         }
         
         /* Enable joystick polling */
         glutJoystickFunc(updateJoystick, 20);  /* Poll every 20ms */
         
+        printf("Joystick initialized successfully\n");
         return 1;
     }
     
