@@ -1,5 +1,6 @@
 #include "gltron.h"
 #include <string.h>
+#include "sound.h"
 
 #include <GL/gl.h>
 #include <GL/freeglut.h>  // For GLUT functions
@@ -52,13 +53,31 @@ void changeAction(char *name) {
       stopSound();
     }
   }
+
+  // Use the specific sound functions instead of playSampleEffect directly
   if(strstr(name, "menu_highlight") == name || strstr(name, "highlight") == name) {
-    playSampleEffect(highlight_sfx);
+    playHighlightSound();
   }
   if(strstr(name, "menu_action") == name || strstr(name, "action") == name) {
-    playSampleEffect(action_sfx);
+    playActionSound();
+  }
+  if(strstr(name, "game_crash") == name || strstr(name, "crash") == name) {
+    playCrashSound();
+  }
+  if(strstr(name, "game_lose") == name || strstr(name, "lose") == name) {
+    playLoseSound();
+  }
+  if(strstr(name, "game_win") == name || strstr(name, "win") == name) {
+    playWinSound();
+  }
+  if(strstr(name, "game_engine") == name || strstr(name, "engine") == name) {
+    playEngineSound();
+  }
+  if(strstr(name, "game_start") == name || strstr(name, "start") == name) {
+    playStartSound();
   }
 #endif
+
   if(strstr(name, "resetScores") == name)
     resetScores();
   if(strstr(name, "ai_player") == name) {
@@ -185,7 +204,11 @@ void menuAction(Menu *activated) {
     case 'c':
       chooseCallback(activated->szName + 3);
       break;
-    default: printf("got action for menu %s\n", activated->szName); break;
+    default:
+      printf("got action for menu %s\n", activated->szName);
+      // Play action sound for any menu action
+      playActionSound();
+      break;
     }
   }
 }
@@ -234,10 +257,15 @@ void getNextLine(char *buf, int bufsize, FILE* f) {
 	fgets(buf, bufsize, f));
 }
 
+void initSoundMenuItems(Menu *menu) {
+  // This function would be called during menu initialization
+  // to ensure all sound-related menu items are properly set up
+  // with the correct captions and actions
+}
+
 Menu* loadMenu(FILE* f, char* buf, Menu* parent, int level) {
   Menu* m;
   int i;
-
 
   if(level > 4) {
     printf("recursing level > 4 - aborting\n");
@@ -254,7 +282,6 @@ Menu* loadMenu(FILE* f, char* buf, Menu* parent, int level) {
   sprintf(m->szName, "%s", buf);
   if(*(m->szName + strlen(m->szName) - 1) == '\n')
     *(m->szName + strlen(m->szName) - 1) = 0;
-  
 
   getNextLine(buf, MENU_BUFSIZE, f);
   buf[31] = 0; /* enforce menu caption limit; */
@@ -267,7 +294,12 @@ Menu* loadMenu(FILE* f, char* buf, Menu* parent, int level) {
     }
 
   initMenuCaption(m);
-	
+
+  // Initialize sound-related menu items
+  if (strstr(m->szName, "sound") || strstr(m->szName, "audio")) {
+    initSoundMenuItems(m);
+  }
+
   /* printf("menu '%s': %d entries\n", m->szName, m->nEntries); */
   if(m->nEntries > 0) {
     m->pEntries = malloc(sizeof(Menu*) * m->nEntries);
