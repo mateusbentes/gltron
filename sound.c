@@ -207,12 +207,15 @@ int loadSampleEffect(char* name, SAMPLE** sfx_out) {
                 if (s) {
                     // Set sample properties
                     s->volume = 64;  // Maximum volume (0-64)
-                    s->speed = 0;    // Normal speed
+                    if (s->speed == 0) {
+                        // If speed is 0, set a default frequency
+                        s->speed = 8363;  // Default MOD frequency for C-4 note
+                    }
                     s->panning = PAN_CENTER;  // Center panning
                     
                     *sfx_out = s;
-                    printf("  ✓ Loaded: %s (length=%ld, flags=%d)\n", 
-                           full, (long)s->length, s->flags);
+                    printf("  ✓ Loaded: %s (length=%ld, speed=%ld, bits=%d)\n", 
+                           full, (long)s->length, (long)s->speed, s->flags & SF_16BITS ? 16 : 8);
                     return 0;
                 }
                 printf("  ✗ MikMod failed: %s\n", MikMod_strerror(MikMod_errno));
@@ -241,9 +244,17 @@ int playSampleEffect(SAMPLE* sfx) {
         int voice = Sample_Play(sfx, 0, 0);
         
         if (voice >= 0) {
-            // Optionally set voice volume
-            Voice_SetVolume(voice, 256);  // Max volume
+            // Set voice properties to ensure it plays
+            Voice_SetVolume(voice, 256);  // Max volume (0-256)
+            Voice_SetPanning(voice, PAN_CENTER);
+            Voice_SetFrequency(voice, sfx->speed > 0 ? sfx->speed : 8363); // Default frequency if 0
+            
+            // Force the voice to start
+            Voice_Play(voice, sfx, 0);
+            
             return 0;
+        } else {
+            printf("Warning: Could not allocate voice for sample\n");
         }
     }
     return 1;
@@ -331,44 +342,54 @@ void soundIdle(void) {
     }
 }
 
+/* Use system audio player as a workaround for MikMod's poor WAV support */
+static void playSystemWav(const char* wavfile) {
+#ifdef __linux__
+    char cmd[256];
+    /* Use paplay (PulseAudio) which is more reliable than aplay */
+    snprintf(cmd, sizeof(cmd), "paplay %s 2>/dev/null &", wavfile);
+    system(cmd);
+#endif
+}
+
 void playCrashSound(void) {
     if (game->settings->playSound) {
-        playSampleEffect(crash_sfx);
+        playSystemWav("game_crash.wav");
     }
 }
 
 void playLoseSound(void) {
     if (game->settings->playSound) {
-        playSampleEffect(lose_sfx);
+        playSystemWav("game_lose.wav");
     }
 }
 
 void playWinSound(void) {
     if (game->settings->playSound) {
-        playSampleEffect(win_sfx);
+        playSystemWav("game_win.wav");
     }
 }
 
 void playHighlightSound(void) {
     if (game->settings->playSound) {
-        playSampleEffect(highlight_sfx);
+        playSystemWav("menu_highlight.wav");
     }
 }
 
 void playEngineSound(void) {
     if (game->settings->playSound) {
-        playSampleEffect(engine_sfx);
+        playSystemWav("game_engine.wav");
     }
 }
 
 void playStartSound(void) {
     if (game->settings->playSound) {
-        playSampleEffect(start_sfx);
+        playSystemWav("game_start.wav");
     }
 }
 
 void playActionSound(void) {
     if (game->settings->playSound) {
-        playSampleEffect(action_sfx);
+        playSystemWav("menu_action.wav");
     }
 }
