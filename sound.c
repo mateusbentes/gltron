@@ -47,36 +47,32 @@ static int loadMusicModule(void) {
 int initSound(void) {
     printf("=== Initializing sound system ===\n");
     
-    // Set sound mode and frequency
-    md_mode = DMODE_SOFT_MUSIC | DMODE_SOFT_SNDFX | DMODE_16BITS | DMODE_STEREO;
-    md_mixfreq = 44100;
-    md_volume = 96;     // Set volume (0-128)
-    md_musicvolume = 96;
-    md_sndfxvolume = 128;  // Max volume for sound effects
-    md_pansep = 128;    // Full stereo separation
-    
-    // IMPORTANT: Reserve voice channels for sound effects
-    md_reverb = 0;      // No reverb
-    // Note: Voice allocation is handled automatically by MikMod
-    printf("MikMod configuration: mixfreq=%d, mode=%d\n", md_mixfreq, md_mode);
-
-    // Register appropriate drivers based on platform
+    // Register appropriate drivers based on platform FIRST
 #ifdef WIN32
     MikMod_RegisterDriver(&drv_win);
 #else
     MikMod_RegisterAllDrivers();
 #endif
 
-    printf("MikMod driver info: %s\n", MikMod_InfoDriver());
-
-    // Set sound device from game settings
-    md_device = game->settings->sound_driver;
-    printf("Using sound device: %d\n", md_device);
-
     // Register all sound file loaders
     MikMod_RegisterAllLoaders();
+    
+    // Set sound mode and frequency BEFORE MikMod_Init
+    md_mode = DMODE_SOFT_MUSIC | DMODE_SOFT_SNDFX | DMODE_16BITS | DMODE_STEREO;
+    md_mixfreq = 44100;
+    md_volume = 96;     // Set volume (0-128)
+    md_musicvolume = 96;
+    md_sndfxvolume = 128;  // Max volume for sound effects
+    md_pansep = 128;    // Full stereo separation
+    md_reverb = 0;      // No reverb
+    
+    // Set sound device from game settings
+    md_device = game->settings->sound_driver;
+    
+    printf("MikMod configuration: mixfreq=%d, mode=0x%x, device=%d\n", 
+           md_mixfreq, md_mode, md_device);
 
-    // Initialize MikMod
+    // Initialize MikMod FIRST
     if (MikMod_Init("")) {
         printf("ERROR: Could not initialize sound: %s\n", MikMod_strerror(MikMod_errno));
         printf("Sound system will be disabled.\n");
@@ -86,12 +82,12 @@ int initSound(void) {
     
     printf("MikMod initialized successfully.\n");
     
-    // Reserve voices for music and sound effects
-    // MikMod_SetNumVoices sets the number of music and sfx voices
-    if (MikMod_SetNumVoices(-1, 16) != 0) {
-        printf("Warning: Could not set voice allocation\n");
+    // NOW set voice allocation AFTER MikMod_Init
+    if (MikMod_SetNumVoices(64, 64) != 0) {
+        printf("Warning: Could not set voice allocation: %s\n", MikMod_strerror(MikMod_errno));
+        // Don't fail, just continue with default voices
     } else {
-        printf("Reserved 16 voices for sound effects\n");
+        printf("Reserved 64 music + 64 sfx voices\n");
     }
     
     // Enable sound output
@@ -235,8 +231,8 @@ int playSampleEffect(SAMPLE* sfx) {
         return 1;
     }
     if (game->settings->playSound) {
-        printf("DEBUG: Attempting to play sample (ptr=%p, length=%ld)\n", 
-               (void*)sfx, sfx ? (long)sfx->length : 0);
+        printf("DEBUG: Playing sample (ptr=%p, length=%ld, loopstart=%ld, loopend=%ld)\n", 
+               (void*)sfx, (long)sfx->length, (long)sfx->loopstart, (long)sfx->loopend);
         
         // Make sure MikMod is still active
         if (!MikMod_Active()) {
@@ -244,23 +240,28 @@ int playSampleEffect(SAMPLE* sfx) {
             MikMod_EnableOutput();
         }
         
-        // Play the sample: Sample_Play(sample, start_position, flags)
-        // Use 0 for flags to play normally
+        // Update MikMod to process any pending operations
+        MikMod_Update();
+        
+        // Play the sample with most basic call
         int voice = Sample_Play(sfx, 0, 0);
         
         if (voice >= 0) {
             printf("DEBUG: Sample playing on voice %d\n", voice);
-            
-            // Set voice properties
-            Voice_SetVolume(voice, 256);  // 0-256 for voice volume
-            Voice_SetPanning(voice, PAN_CENTER);
-            Voice_SetFrequency(voice, sfx->speed);
-            
+            // Don't set additional properties for now, just let it play
             return 0;
         } else {
-            printf("DEBUG: Sample_Play failed, returned %d\n", voice);
-            printf("DEBUG: MikMod error: %s\n", MikMod_strerror(MikMod_errno));
-            printf("DEBUG: MikMod_Active=%d\n", MikMod_Active());
+            printf("DEBUG: Sample_Play failed, voice=%d\n", voice);
+            printf("DEBUG: MikMod errno=%d, error: %s\n", 
+                   MikMod_errno, MikMod_strerror(MikMod_errno));
+            printf("DEBUG: MikMod_Active=%d, Player_Active=%d\n", 
+                   MikMod_Active(), Player_Active());
+            
+            // Try to get more info
+            if (sfx) {
+                printf("DEBUG: Sample details - flags=%d, volume=%d, panning=%d, speed=%ld\n",
+                       sfx->flags, sfx->volume, sfx->panning, (long)sfx->speed);
+            }
         }
     } else {
         printf("DEBUG: Sound is disabled in settings\n");
