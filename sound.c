@@ -2,6 +2,7 @@
 #include "globals.h"
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>  // for free() used with getFullPath
 
 // Original MikMod implementation (desktop)
 #include <mikmod.h>
@@ -44,6 +45,8 @@ static int loadMusicModule(void) {
 
 // Initialize sound system
 int initSound(void) {
+    printf("=== Initializing sound system ===\n");
+    
     // Set sound mode and frequency
     md_mode |= DMODE_SOFT_MUSIC | DMODE_SOFT_SNDFX;
     md_mixfreq = 44100;
@@ -55,43 +58,73 @@ int initSound(void) {
     MikMod_RegisterAllDrivers();
 #endif
 
-    printf("%s\n", MikMod_InfoDriver());
+    printf("MikMod driver info: %s\n", MikMod_InfoDriver());
 
     // Set sound device from game settings
     md_device = game->settings->sound_driver;
+    printf("Using sound device: %d\n", md_device);
 
     // Register all sound file loaders
     MikMod_RegisterAllLoaders();
 
     // Initialize MikMod
     if (MikMod_Init("")) {
-        printf("Could not initialize sound: %s\n", MikMod_strerror(MikMod_errno));
+        printf("ERROR: Could not initialize sound: %s\n", MikMod_strerror(MikMod_errno));
+        printf("Sound system will be disabled.\n");
+        game->settings->playSound = 0;
         return 1;
     }
+    
+    printf("MikMod initialized successfully.\n");
 
     // Load sound effects if sound is enabled
-    if (game->settings->playSound) {
+    if (game->settings->playSound && !sound_effects_loaded) {
+        printf("Loading sound effects...\n");
+        
         if (loadSampleEffect("game_crash", &crash_sfx)) {
             printf("Warning: Could not load crash sample\n");
+        } else {
+            printf("Loaded: game_crash.wav\n");
         }
+        
         if (loadSampleEffect("game_lose", &lose_sfx)) {
             printf("Warning: Could not load lose sample\n");
+        } else {
+            printf("Loaded: game_lose.wav\n");
         }
+        
         if (loadSampleEffect("game_win", &win_sfx)) {
             printf("Warning: Could not load win sample\n");
+        } else {
+            printf("Loaded: game_win.wav\n");
         }
+        
         if (loadSampleEffect("menu_highlight", &highlight_sfx)) {
             printf("Warning: Could not load highlight sample\n");
+        } else {
+            printf("Loaded: menu_highlight.wav\n");
         }
+        
         if (loadSampleEffect("game_engine", &engine_sfx)) {
             printf("Warning: Could not load engine sample\n");
+        } else {
+            printf("Loaded: game_engine.wav\n");
         }
+        
         if (loadSampleEffect("game_start", &start_sfx)) {
             printf("Warning: Could not load start sample\n");
+        } else {
+            printf("Loaded: game_start.wav\n");
         }
+        
         if (loadSampleEffect("menu_action", &action_sfx)) {
             printf("Warning: Could not load action sample\n");
+        } else {
+            printf("Loaded: menu_action.wav\n");
         }
+        
+        sound_effects_loaded = 1;
+        printf("Sound effects loading complete.\n");
     }
 
     // Try to load music and auto-play if enabled
@@ -106,6 +139,31 @@ int initSound(void) {
 
 // Load a sample (SFX) from file
 int loadSampleEffect(char* name, SAMPLE** sfx_out) {
+    *sfx_out = NULL;
+    
+    // First, check if 'name' is already a full path (contains '/' or ends with .wav)
+    if (strchr(name, '/') != NULL || strstr(name, ".wav") != NULL) {
+        // It's already a full path, try to load directly
+        printf("  Trying full path: %s\n", name);
+        
+        // Check if file exists first
+        FILE* test = fopen(name, "rb");
+        if (test) {
+            fclose(test);
+            SAMPLE* s = Sample_Load(name);
+            if (s) {
+                *sfx_out = s;
+                printf("  ✓ Loaded: %s\n", name);
+                return 0;
+            }
+            printf("  ✗ MikMod failed to load %s: %s\n", name, MikMod_strerror(MikMod_errno));
+        } else {
+            printf("  ✗ File not found: %s\n", name);
+        }
+        return 1;
+    }
+    
+    // Otherwise, search for the file in standard paths
     const char* paths[] = {
         "./",
         "/usr/share/games/gltron/",
@@ -115,20 +173,27 @@ int loadSampleEffect(char* name, SAMPLE** sfx_out) {
     // Prefer wav for SFX; allow a few other common sample formats
     const char* exts[] = {".wav", ".aiff", ".aif", ".au", NULL};
     char full[512];
-    *sfx_out = NULL;
+    
     for (int i=0; paths[i]; ++i) {
         for (int e=0; exts[e]; ++e) {
             snprintf(full, sizeof(full), "%s%s%s", paths[i], name, exts[e]);
-            printf("Attempting to load sample from: %s\n", full);
-            SAMPLE* s = Sample_Load(full);
-            if (s) {
-                *sfx_out = s;
-                printf("Successfully loaded sample: %s\n", full);
-                return 0;
+            
+            // Check if file exists first
+            FILE* test = fopen(full, "rb");
+            if (test) {
+                fclose(test);
+                printf("  Found file: %s\n", full);
+                SAMPLE* s = Sample_Load(full);
+                if (s) {
+                    *sfx_out = s;
+                    printf("  ✓ Loaded: %s\n", full);
+                    return 0;
+                }
+                printf("  ✗ MikMod failed: %s\n", MikMod_strerror(MikMod_errno));
             }
         }
     }
-    printf("Could not load sample %s: %s\n", name, MikMod_strerror(MikMod_errno));
+    printf("  ✗ Could not find %s in any search path\n", name);
     return 1;
 }
 
@@ -146,7 +211,7 @@ int playSampleEffect(SAMPLE* sfx) {
     return 1;
 }
 
-// Load a sound module
+// Load a sound module (music only - sound effects are loaded in initSound)
 int loadSound(char *name) {
     // Desktop implementation
     if (sound_module) {
@@ -160,62 +225,7 @@ int loadSound(char *name) {
         return 1;
     }
 
-    // Load sound effects if not already loaded
-    if (!sound_effects_loaded) {
-        char *path;
-
-        // Load crash sound effect
-        path = getFullPath("game_crash.wav");
-        if (path) {
-            loadSampleEffect(path, &crash_sfx);
-            free(path);
-        }
-
-        // Load lose sound effect
-        path = getFullPath("game_lose.wav");
-        if (path) {
-            loadSampleEffect(path, &lose_sfx);
-            free(path);
-        }
-
-        // Load win sound effect
-        path = getFullPath("game_win.wav");
-        if (path) {
-            loadSampleEffect(path, &win_sfx);
-            free(path);
-        }
-
-        // Load highlight sound effect
-        path = getFullPath("menu_highlight.wav");
-        if (path) {
-            loadSampleEffect(path, &highlight_sfx);
-            free(path);
-        }
-
-        // Load engine sound effect
-        path = getFullPath("game_engine.wav");
-        if (path) {
-            loadSampleEffect(path, &engine_sfx);
-            free(path);
-        }
-
-        // Load start sound effect
-        path = getFullPath("game_start.wav");
-        if (path) {
-            loadSampleEffect(path, &start_sfx);
-            free(path);
-        }
-
-        // Load action sound effect
-        path = getFullPath("menu_action.wav");
-        if (path) {
-            loadSampleEffect(path, &action_sfx);
-            free(path);
-        }
-
-        sound_effects_loaded = 1;
-    }
-
+    // Sound effects are now loaded in initSound() only
     return 0;
 }
 
@@ -255,17 +265,22 @@ void deleteSound(void) {
         Player_Stop();
 
     // Free the main sound module
-    if (sound_module)
+    if (sound_module) {
         Player_Free(sound_module);
+        sound_module = NULL;
+    }
 
     // Free sound effects
-    if (crash_sfx) Sample_Free(crash_sfx);
-    if (lose_sfx) Sample_Free(lose_sfx);
-    if (win_sfx) Sample_Free(win_sfx);
-    if (highlight_sfx) Sample_Free(highlight_sfx);
-    if (engine_sfx) Sample_Free(engine_sfx);
-    if (start_sfx) Sample_Free(start_sfx);
-    if (action_sfx) Sample_Free(action_sfx);
+    if (crash_sfx) { Sample_Free(crash_sfx); crash_sfx = NULL; }
+    if (lose_sfx) { Sample_Free(lose_sfx); lose_sfx = NULL; }
+    if (win_sfx) { Sample_Free(win_sfx); win_sfx = NULL; }
+    if (highlight_sfx) { Sample_Free(highlight_sfx); highlight_sfx = NULL; }
+    if (engine_sfx) { Sample_Free(engine_sfx); engine_sfx = NULL; }
+    if (start_sfx) { Sample_Free(start_sfx); start_sfx = NULL; }
+    if (action_sfx) { Sample_Free(action_sfx); action_sfx = NULL; }
+
+    // Reset the loaded flag
+    sound_effects_loaded = 0;
 
     // Exit MikMod
     MikMod_Exit();

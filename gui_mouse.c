@@ -1,6 +1,9 @@
 #include "gltron.h"
 #include "gui_mouse.h"
 #include <string.h>
+#ifdef SOUND
+#include "sound.h"
+#endif
 
 /* Helper to map window coords to menu item index */
 static int gui_hit_test(int x_win, int y_win) {
@@ -67,7 +70,13 @@ void motionGui(int x, int y) {
   if (game->settings->input_mode == 0) return; /* keyboard only */
   int idx = gui_hit_test(x, y);
   if (idx >= 0) {
+    int oldHighlight = pCurrent->iHighlight;
     pCurrent->iHighlight = idx;
+    if (oldHighlight != idx) {
+#ifdef SOUND
+      playHighlightSound();
+#endif
+    }
     glutPostRedisplay();
   }
 }

@@ -101,8 +101,13 @@ void menuAction(Menu *activated) {
     pCurrent->iHighlight = 0;
   } else {
     switch(activated->szName[1]) { /* second char */
-    case 'q': saveSettings(); exit(0); break;
+    case 'q': 
+      playActionSound();
+      saveSettings();
+      exit(0);
+      break;
     case 'r':
+      playActionSound();
       /* Ensure any pending display changes are applied before starting */
       requestDisplayApply();
       initData();

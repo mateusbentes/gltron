@@ -3,6 +3,9 @@
 #include "gltron.h"
 // Include the header that declares android_switchCallbacks
 #include "switchCallbacks.h"
+#ifdef SOUND
+#include "sound.h"
+#endif
 
 #include "globals.h"
 #include <math.h>
@@ -254,6 +257,11 @@ void initData() {
   game->pauseflag = 0;
 #else
   game->pauseflag = 0;
+#endif
+
+#ifdef SOUND
+  /* Play start sound when game begins */
+  playStartSound();
 #endif
 }
 
@@ -618,6 +626,25 @@ void movePlayers() {
 	  /* Set winner index or -1 if no survivors */
 	  game->winner = (winner == game->players) ? -1 : winner;
 	  printf("winner: %d\n", winner);
+	  
+#ifdef SOUND
+	  /* Play win/lose sounds based on game outcome */
+	  if(game->winner != -1) {
+	    /* Someone won - play win sound for winner, lose for others */
+	    for(int p = 0; p < game->players; p++) {
+	      if(p == game->winner) {
+	        if(game->player[p].ai->active != 1) /* Human player won */
+	          playWinSound();
+	      } else {
+	        if(game->player[p].ai->active != 1) /* Human player lost */
+	          playLoseSound();
+	      }
+	    }
+	  } else {
+	    /* Everyone crashed - play lose sound */
+	    playLoseSound();
+	  }
+#endif
 	  
 	  /* Set pause flag before switching callbacks to ensure proper state */
 	  game->pauseflag = PAUSE_GAME_FINISHED;

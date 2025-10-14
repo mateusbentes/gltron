@@ -9,6 +9,9 @@
 #include "sgi_texture.h"
 #include "gltron.h"
 #include "gui_mouse.h"
+#ifdef SOUND
+#include "sound.h"
+#endif
 
 #include <GL/gl.h>
 #include <GL/glu.h>
@@ -206,11 +209,17 @@ void  specialGui(int key, int x, int y) {
   switch(key) {
   case GLUT_KEY_DOWN:
     pCurrent->iHighlight = (pCurrent->iHighlight + 1) % pCurrent->nEntries;
+#ifdef SOUND
+    playHighlightSound();
+#endif
     break;
   case GLUT_KEY_UP:
     pCurrent->iHighlight = (pCurrent->iHighlight - 1) % pCurrent->nEntries;
     if(pCurrent->iHighlight < 0)
       pCurrent->iHighlight = pCurrent->nEntries - 1;
+#ifdef SOUND
+    playHighlightSound();
+#endif
     break;
   }
 }
