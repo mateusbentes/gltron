@@ -13,8 +13,8 @@
 
 1
 
-# Root Menu - Game / Audio / Video / Quit
-4
+# Root Menu - Game / Multiplayer / Audio / Video / Quit
+5
 Root
 Root
 
@@ -79,6 +79,31 @@ Player 4 - %s
 # 0
 # xc_chooseModel
 # Choose Model (not implemented)
+
+# Multiplayer Submenu
+5
+xsub
+Multiplayer
+
+0
+xc_mp_create
+Create Lobby
+
+0
+xc_mp_join
+Join Lobby
+
+0
+xc_mp_refresh
+Refresh Lobbies
+
+0
+xc_mp_leave
+Leave Lobby
+
+0
+xc_mp_start
+Start Multiplayer Game
 
 # Audio Submenu (1 entry)
 1

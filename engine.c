@@ -83,6 +83,21 @@ void turn(Data* data, int direction) {
 
     /* Update trail pointer */
     data->trail = new;
+    
+#ifdef USE_STEAMWORKS
+    /* Send turn to other players in multiplayer */
+    extern int isMultiplayer(void);
+    extern void steam_send_player_turn(int player, int direction);
+    if (isMultiplayer()) {
+      /* Find which player this is */
+      for (int i = 0; i < game->players; i++) {
+        if (game->player[i].data == data) {
+          steam_send_player_turn(i, direction);
+          break;
+        }
+      }
+    }
+#endif
   }
 }
 
@@ -473,6 +488,30 @@ void idleGame( void ) {
     processJoystickGame();
   }
 
+#ifdef USE_STEAMWORKS
+  /* Update multiplayer */
+  extern void updateMultiplayer(void);
+  extern int isMultiplayer(void);
+  updateMultiplayer();
+  
+  /* Send position updates in multiplayer */
+  if (isMultiplayer()) {
+    extern void steam_send_player_update(int player, float x, float y, int dir, float speed);
+    static int update_counter = 0;
+    update_counter++;
+    if (update_counter % 3 == 0) {  /* Send updates every 3 frames */
+      for (i = 0; i < game->players; i++) {
+        if (game->player[i].ai->active != 2) {  /* Not a remote player */
+          Data *d = game->player[i].data;
+          if (d && d->speed > 0) {
+            steam_send_player_update(i, d->posx, d->posy, d->dir, d->speed);
+          }
+        }
+      }
+    }
+  }
+#endif
+
   if(game->settings->fast_finish == 1) {
     loop = FAST_FINISH;
     for(i = 0; i < game->players; i++)
@@ -571,6 +610,15 @@ void movePlayers() {
 	  /* set endpoint to collision coordinates */
 	  newx = x;
 	  newy = y;
+	  
+#ifdef USE_STEAMWORKS
+	  /* Send crash event in multiplayer */
+	  extern int isMultiplayer(void);
+	  extern void steam_send_player_crash(int player);
+	  if (isMultiplayer()) {
+	    steam_send_player_crash(i);
+	  }
+#endif
 	  
 	  /* update scores; */
 	  if(game->settings->screenSaver != 1) {

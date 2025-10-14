@@ -469,6 +469,12 @@ int main( int argc, char *argv[] ) {
         printf("No joystick found, continuing with keyboard/mouse\n");
     }
     
+#ifdef USE_STEAMWORKS
+    /* Initialize Steam multiplayer */
+    extern void initMultiplayer(void);
+    initMultiplayer();
+#endif
+    
     switchCallbacks(&guiCallbacks);
 
     glutMainLoop();

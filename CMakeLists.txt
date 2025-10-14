@@ -49,9 +49,42 @@ set(OpenGL_GL_PREFERENCE "LEGACY")
 # Enable sound by default
 option(USE_SOUND "Enable sound support" ON)
 
+# Enable Steamworks multiplayer
+option(USE_STEAMWORKS "Enable Steam multiplayer support" OFF)
+
 # Add SOUND macro definition if USE_SOUND is enabled
 if(USE_SOUND)
     add_definitions(-DSOUND)
+endif()
+
+# Add Steamworks support if enabled
+if(USE_STEAMWORKS)
+    add_definitions(-DUSE_STEAMWORKS)
+    
+    # Set Steamworks SDK path
+    set(STEAMWORKS_SDK_PATH "${CMAKE_CURRENT_SOURCE_DIR}/steamworks/sdk")
+    
+    # Include Steamworks headers
+    include_directories(${STEAMWORKS_SDK_PATH}/public)
+    
+    # Find Steamworks library
+    if(WIN32)
+        if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+            set(STEAMWORKS_LIB "${STEAMWORKS_SDK_PATH}/redistributable_bin/win64/steam_api64.lib")
+        else()
+            set(STEAMWORKS_LIB "${STEAMWORKS_SDK_PATH}/redistributable_bin/steam_api.lib")
+        endif()
+    elseif(APPLE)
+        set(STEAMWORKS_LIB "${STEAMWORKS_SDK_PATH}/redistributable_bin/osx/libsteam_api.dylib")
+    else()
+        if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+            set(STEAMWORKS_LIB "${STEAMWORKS_SDK_PATH}/redistributable_bin/linux64/libsteam_api.so")
+        else()
+            set(STEAMWORKS_LIB "${STEAMWORKS_SDK_PATH}/redistributable_bin/linux32/libsteam_api.so")
+        endif()
+    endif()
+    
+    message(STATUS "Steamworks library: ${STEAMWORKS_LIB}")
 endif()
 
 # Set source files (C)
@@ -68,6 +101,7 @@ set(SOURCES
     graphics.c
     joystick.c
     joystick_steamdeck.c
+    multiplayer_menu.c
     gamegraphics.c
     input.c
     settings.c
@@ -82,6 +116,17 @@ set(SOURCES
     geom.c
     globals.c
 )
+
+# Add Steamworks C++ source files if enabled
+if(USE_STEAMWORKS)
+    set(STEAM_SOURCES
+        steam_multiplayer.cpp
+        steam_lobby.cpp
+        steam_network.cpp
+        steam_interface.cpp
+    )
+    list(APPEND SOURCES ${STEAM_SOURCES})
+endif()
 
 # Ensure Android-only sources are not part of desktop build
 set_source_files_properties(android_glue.c android_main.c backend_openmpt_android.c PROPERTIES HEADER_FILE_ONLY TRUE)
@@ -337,6 +382,29 @@ if(USE_SOUND)
         menu_action.wav
         DESTINATION ${GLTRON_HOME}
     )
+endif()
+
+# Link Steamworks if enabled
+if(USE_STEAMWORKS)
+    target_link_libraries(gltron PRIVATE ${STEAMWORKS_LIB})
+    # Copy Steam API library to output directory
+    if(WIN32)
+        if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+            configure_file(${STEAMWORKS_SDK_PATH}/redistributable_bin/win64/steam_api64.dll 
+                          ${CMAKE_CURRENT_BINARY_DIR}/steam_api64.dll COPYONLY)
+        else()
+            configure_file(${STEAMWORKS_SDK_PATH}/redistributable_bin/steam_api.dll 
+                          ${CMAKE_CURRENT_BINARY_DIR}/steam_api.dll COPYONLY)
+        endif()
+    elseif(NOT APPLE)
+        if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+            configure_file(${STEAMWORKS_SDK_PATH}/redistributable_bin/linux64/libsteam_api.so 
+                          ${CMAKE_CURRENT_BINARY_DIR}/libsteam_api.so COPYONLY)
+        else()
+            configure_file(${STEAMWORKS_SDK_PATH}/redistributable_bin/linux32/libsteam_api.so 
+                          ${CMAKE_CURRENT_BINARY_DIR}/libsteam_api.so COPYONLY)
+        endif()
+    endif()
 endif()
 
 # Platform-specific settings (end)

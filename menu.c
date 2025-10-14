@@ -11,6 +11,38 @@ Menu *pCurrent;
 
 // Forward declarations
 static void getNextLine(char *buf, int bufsize, FILE* f);
+
+// Multiplayer functions
+extern void initMultiplayer(void);
+extern void createLobby(void);
+extern void joinLobby(uint64_t lobby_id);
+extern void leaveLobby(void);
+extern void refreshLobbies(void);
+extern void startMultiplayerGame(void);
+extern const char* getMultiplayerStatus(void);
+
+static void handleMultiplayerAction(const char* action) {
+  if (strcmp(action, "create") == 0) {
+    initMultiplayer();
+    createLobby();
+    playActionSound();
+  } else if (strcmp(action, "join") == 0) {
+    initMultiplayer();
+    refreshLobbies();
+    /* TODO: Show lobby list and let user select */
+    playActionSound();
+  } else if (strcmp(action, "refresh") == 0) {
+    initMultiplayer();
+    refreshLobbies();
+    playActionSound();
+  } else if (strcmp(action, "leave") == 0) {
+    leaveLobby();
+    playActionSound();
+  } else if (strcmp(action, "start") == 0) {
+    startMultiplayerGame();
+    playActionSound();
+  }
+}
 static Menu* loadMenu(FILE* f, char* buf, Menu* parent, int level);
 
 void changeAction(char *name) {
@@ -104,6 +136,10 @@ void menuAction(Menu *activated) {
     case 'q': 
       playActionSound();
       saveSettings();
+#ifdef USE_STEAMWORKS
+      extern void shutdownMultiplayer(void);
+      shutdownMultiplayer();
+#endif
       exit(0);
       break;
     case 'r':
@@ -214,7 +250,12 @@ void menuAction(Menu *activated) {
       changeAction(activated->szName + 4);
       break;
     case 'c':
-      chooseCallback(activated->szName + 3);
+      /* Check for multiplayer commands */
+      if (strstr(activated->szName, "xc_mp_") == activated->szName) {
+        handleMultiplayerAction(activated->szName + 6);  /* Skip "xc_mp_" */
+      } else {
+        chooseCallback(activated->szName + 3);
+      }
       break;
     default:
       printf("got action for menu %s\n", activated->szName);
