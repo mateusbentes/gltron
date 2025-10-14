@@ -226,45 +226,25 @@ int loadSampleEffect(char* name, SAMPLE** sfx_out) {
 // Play a sample (SFX)
 int playSampleEffect(SAMPLE* sfx) {
     if (!sfx) {
-        if (game->settings->playSound)
-            printf("Warning: SFX not loaded for this event (NULL sample)\n");
         return 1;
     }
     if (game->settings->playSound) {
-        printf("DEBUG: Playing sample (ptr=%p, length=%ld, loopstart=%ld, loopend=%ld)\n", 
-               (void*)sfx, (long)sfx->length, (long)sfx->loopstart, (long)sfx->loopend);
-        
         // Make sure MikMod is still active
         if (!MikMod_Active()) {
-            printf("DEBUG: MikMod is not active! Enabling output...\n");
             MikMod_EnableOutput();
         }
         
         // Update MikMod to process any pending operations
         MikMod_Update();
         
-        // Play the sample with most basic call
+        // Play the sample
         int voice = Sample_Play(sfx, 0, 0);
         
         if (voice >= 0) {
-            printf("DEBUG: Sample playing on voice %d\n", voice);
-            // Don't set additional properties for now, just let it play
+            // Optionally set voice volume
+            Voice_SetVolume(voice, 256);  // Max volume
             return 0;
-        } else {
-            printf("DEBUG: Sample_Play failed, voice=%d\n", voice);
-            printf("DEBUG: MikMod errno=%d, error: %s\n", 
-                   MikMod_errno, MikMod_strerror(MikMod_errno));
-            printf("DEBUG: MikMod_Active=%d, Player_Active=%d\n", 
-                   MikMod_Active(), Player_Active());
-            
-            // Try to get more info
-            if (sfx) {
-                printf("DEBUG: Sample details - flags=%d, volume=%d, panning=%d, speed=%ld\n",
-                       sfx->flags, sfx->volume, sfx->panning, (long)sfx->speed);
-            }
         }
-    } else {
-        printf("DEBUG: Sound is disabled in settings\n");
     }
     return 1;
 }
@@ -346,67 +326,48 @@ void deleteSound(void) {
 
 // Update sound system
 void soundIdle(void) {
-    static int update_count = 0;
     if (Player_Active()) {
         MikMod_Update();
-        // Print debug every 100 updates to avoid spam
-        if (++update_count % 100 == 0) {
-            printf("DEBUG: soundIdle update #%d (music active)\n", update_count);
-        }
     }
 }
 
 void playCrashSound(void) {
-    printf("DEBUG: playCrashSound called (playSound=%d, sfx=%p)\n", 
-           game->settings->playSound, (void*)crash_sfx);
     if (game->settings->playSound) {
         playSampleEffect(crash_sfx);
     }
 }
 
 void playLoseSound(void) {
-    printf("DEBUG: playLoseSound called (playSound=%d, sfx=%p)\n", 
-           game->settings->playSound, (void*)lose_sfx);
     if (game->settings->playSound) {
         playSampleEffect(lose_sfx);
     }
 }
 
 void playWinSound(void) {
-    printf("DEBUG: playWinSound called (playSound=%d, sfx=%p)\n", 
-           game->settings->playSound, (void*)win_sfx);
     if (game->settings->playSound) {
         playSampleEffect(win_sfx);
     }
 }
 
 void playHighlightSound(void) {
-    printf("DEBUG: playHighlightSound called (playSound=%d, sfx=%p)\n", 
-           game->settings->playSound, (void*)highlight_sfx);
     if (game->settings->playSound) {
         playSampleEffect(highlight_sfx);
     }
 }
 
 void playEngineSound(void) {
-    printf("DEBUG: playEngineSound called (playSound=%d, sfx=%p)\n", 
-           game->settings->playSound, (void*)engine_sfx);
     if (game->settings->playSound) {
         playSampleEffect(engine_sfx);
     }
 }
 
 void playStartSound(void) {
-    printf("DEBUG: playStartSound called (playSound=%d, sfx=%p)\n", 
-           game->settings->playSound, (void*)start_sfx);
     if (game->settings->playSound) {
         playSampleEffect(start_sfx);
     }
 }
 
 void playActionSound(void) {
-    printf("DEBUG: playActionSound called (playSound=%d, sfx=%p)\n", 
-           game->settings->playSound, (void*)action_sfx);
     if (game->settings->playSound) {
         playSampleEffect(action_sfx);
     }
