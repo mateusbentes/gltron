@@ -1,4 +1,5 @@
 #include "gltron.h"
+#include "joystick.h"
 
 static int p_is_down = 0;
 static int p_down_x = 0, p_down_y = 0;
@@ -45,6 +46,12 @@ void idlePause() {
 #ifdef SOUND
   soundIdle();
 #endif
+
+  /* Process joystick input during pause */
+  if (game->settings->joystick_enabled) {
+    processJoystickPause();
+  }
+
   if(getElapsedTime() - lasttime < 10) return;
   timediff();
   

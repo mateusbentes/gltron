@@ -6,6 +6,7 @@
 #ifdef SOUND
 #include "sound.h"
 #endif
+#include "joystick.h"
 
 #include "globals.h"
 #include <math.h>
@@ -466,6 +467,11 @@ void idleGame( void ) {
 #ifdef SOUND
   soundIdle();
 #endif
+
+  /* Process joystick input */
+  if (game->settings->joystick_enabled) {
+    processJoystickGame();
+  }
 
   if(game->settings->fast_finish == 1) {
     loop = FAST_FINISH;

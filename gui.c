@@ -12,6 +12,7 @@
 #ifdef SOUND
 #include "sound.h"
 #endif
+#include "joystick.h"
 
 #include <GL/gl.h>
 #include <GL/glu.h>
@@ -160,6 +161,11 @@ void idleGui() {
 #ifdef SOUND
   soundIdle();
 #endif
+
+  /* Process joystick input for menu navigation */
+  if (game->settings->joystick_enabled) {
+    processJoystickMenu();
+  }
 
   now = getElapsedTime();
   delta = now - bgs.lt;

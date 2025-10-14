@@ -174,10 +174,17 @@ void menuAction(Menu *activated) {
           sprintf(activated->display.szCaption, activated->szCapFormat, game->settings->playMusic ? "on" : "off");
           saveSettings();
         } else if (strstr(name, "input_mode") == name) {
+          /* Cycle through input modes */
+          (*piValue)++;
+          if (*piValue > 3) *piValue = 0;  /* Wrap around to keyboard */
+          game->settings->input_mode = *piValue;
+          
           const char* label = "Keyboard";
           if (*piValue == 1) label = "Mouse";
           else if (*piValue == 2) label = "Touch";
+          else if (*piValue == 3) label = "Joystick";
           sprintf(activated->display.szCaption, activated->szCapFormat, label);
+          saveSettings();
         } else if (strstr(name, "fullscreen") == name) {
           int cur = *piValue;
           int next = cur ? 0 : 1;
@@ -236,10 +243,17 @@ void initMenuCaption(Menu *activated) {
           // Initialize music caption based on current setting (don't toggle!)
           sprintf(activated->display.szCaption, activated->szCapFormat, game->settings->playMusic ? "on" : "off");
         } else if (strstr(name, "input_mode") == name) {
+          /* Cycle through input modes */
+          (*piValue)++;
+          if (*piValue > 3) *piValue = 0;  /* Wrap around to keyboard */
+          game->settings->input_mode = *piValue;
+          
           const char* label = "Keyboard";
           if (*piValue == 1) label = "Mouse";
           else if (*piValue == 2) label = "Touch";
+          else if (*piValue == 3) label = "Joystick";
           sprintf(activated->display.szCaption, activated->szCapFormat, label);
+          saveSettings();
         } else if (strstr(name, "fullscreen") == name) {
           // Initialize fullscreen caption based on current setting (don't toggle!)
           sprintf(activated->display.szCaption, activated->szCapFormat, game->settings->fullscreen ? "on" : "off");

@@ -10,6 +10,7 @@
 #include "fonttex.h"
 #include "menu.h"
 #include "sgi_texture.h"
+#include "joystick.h"
 
 #include <GL/glut.h>
 #include <GL/gl.h>
@@ -452,6 +453,14 @@ int main( int argc, char *argv[] ) {
     }
     printf("menu loaded\n");
     free(path);
+
+    /* Initialize joystick support */
+    printf("Initializing joystick support...\n");
+    if (initJoystick()) {
+        printf("Joystick initialized successfully\n");
+    } else {
+        printf("No joystick found, continuing with keyboard/mouse\n");
+    }
 
     initGameStructures();
     resetScores();

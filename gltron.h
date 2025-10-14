@@ -247,8 +247,12 @@ typedef struct Settings {
 
   int sound_driver;
 
-  /* new: input method: 0=Keyboard,1=Mouse,2=Touch */
+  /* new: input method: 0=Keyboard,1=Mouse,2=Touch,3=Joystick */
   int input_mode;
+  
+  /* Joystick settings */
+  float joystick_deadzone;
+  int joystick_enabled;
 
   /* fullscreen toggle */
   int fullscreen;

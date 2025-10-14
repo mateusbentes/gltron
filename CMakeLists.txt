@@ -66,6 +66,8 @@ set(SOURCES
     engine.c
     gltron.c
     graphics.c
+    joystick.c
+    joystick_steamdeck.c
     gamegraphics.c
     input.c
     settings.c

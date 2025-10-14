@@ -267,6 +267,8 @@ void initMainGameSettings(char *filename) {
   game->settings->camType = 0;
   game->settings->mouse_warp = 0;
   game->settings->input_mode = 1; /* default to Mouse for menu usability */
+  game->settings->joystick_deadzone = 0.15f; /* 15% deadzone */
+  game->settings->joystick_enabled = 1; /* Enable joystick by default */
 #ifdef ANDROID
   game->settings->fullscreen = 1;
 #else
