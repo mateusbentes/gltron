@@ -40,6 +40,10 @@ For full functionality, you may need to install the following additional librari
    - make
    - gcc or clang
 
+5. For Steamworks support:
+   - Download Steamworks SDK from https://partner.steamgames.com/dashboard
+   - Rename the downloaded folder to "steamworks"
+
 Installation Commands for Common Linux Distributions:
 
 Debian/Ubuntu:

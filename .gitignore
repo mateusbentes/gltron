@@ -13,6 +13,8 @@ depcomp
 install-sh
 missing
 .qodo
+steamworks
+steamworks/
 build
 build/
 
