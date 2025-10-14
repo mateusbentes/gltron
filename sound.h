@@ -32,4 +32,13 @@ int stopSound(void);
 int loadSampleEffect(char *name, SAMPLE** sfx);
 int playSampleEffect(SAMPLE* sfx);
 
+// Add these functions to play specific sound effects
+void playCrashSound(void);
+void playLoseSound(void);
+void playWinSound(void);
+void playHighlightSound(void);
+void playEngineSound(void);
+void playStartSound(void);
+void playActionSound(void);
+
 #endif
