@@ -19,9 +19,10 @@ int initJoystick(void) {
     memset(&prev_joystick, 0, sizeof(JoystickState));
     
     joystick.deadzone = 0.15f;  /* 15% deadzone by default */
-    joystick.joystick_id = GLUT_JOYSTICK_1;  /* Use first joystick */
+    joystick.joystick_id = 0;  /* Use first joystick (index 0) */
     
     /* Check if joystick is available using FreeGLUT API */
+    /* FreeGLUT uses joystick index, not GLUT_JOYSTICK_1 constant */
     int num_buttons = glutJoystickGetNumButtons(joystick.joystick_id);
     int num_axes = glutJoystickGetNumAxes(joystick.joystick_id);
     
@@ -51,7 +52,7 @@ int initJoystick(void) {
     return 0;
 }
 
-/* Update joystick state - called by GLUT */
+/* Update joystick state - called by GLUT callback */
 void updateJoystick(unsigned int buttonMask, int x, int y, int z) {
     if (!joystick.connected) return;
     
@@ -63,14 +64,23 @@ void updateJoystick(unsigned int buttonMask, int x, int y, int z) {
         joystick.buttons[i] = (buttonMask & (1 << i)) ? 1 : 0;
     }
     
-    /* Update axes - GLUT provides x, y, z */
-    /* Map to standard gamepad layout */
+    /* Update axes - GLUT provides x, y, z in range -1000 to 1000 */
+    /* Map to standard gamepad layout with -1.0 to 1.0 range */
     if (joystick.num_axes >= 2) {
         joystick.axes[JOY_AXIS_LEFT_X] = x / 1000.0f;
         joystick.axes[JOY_AXIS_LEFT_Y] = y / 1000.0f;
     }
     if (joystick.num_axes >= 3) {
         joystick.axes[JOY_AXIS_RIGHT_X] = z / 1000.0f;
+    }
+    
+    /* Note: FreeGLUT only provides 3 axes (x, y, z) through the callback
+       For more axes, we'd need to use a different API like SDL or read /dev/input directly */
+    if (joystick.num_axes >= 4) {
+        /* Use z axis for right stick X, and simulate others */
+        joystick.axes[JOY_AXIS_RIGHT_Y] = 0.0f;  /* Not available in GLUT */
+        joystick.axes[JOY_AXIS_L2] = 0.0f;       /* Not available in GLUT */
+        joystick.axes[JOY_AXIS_R2] = 0.0f;       /* Not available in GLUT */
     }
     
     /* Apply deadzone */

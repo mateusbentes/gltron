@@ -52,7 +52,7 @@ extern JoystickState joystick;
 
 /* Function prototypes */
 int initJoystick(void);
-void updateJoystick(void);
+void updateJoystick(unsigned int buttonMask, int x, int y, int z);
 void closeJoystick(void);
 void processJoystickGame(void);
 void processJoystickMenu(void);
