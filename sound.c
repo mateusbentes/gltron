@@ -48,8 +48,17 @@ int initSound(void) {
     printf("=== Initializing sound system ===\n");
     
     // Set sound mode and frequency
-    md_mode |= DMODE_SOFT_MUSIC | DMODE_SOFT_SNDFX;
+    md_mode = DMODE_SOFT_MUSIC | DMODE_SOFT_SNDFX | DMODE_16BITS | DMODE_STEREO;
     md_mixfreq = 44100;
+    md_volume = 96;     // Set volume (0-128)
+    md_musicvolume = 96;
+    md_sndfxvolume = 128;  // Max volume for sound effects
+    md_pansep = 128;    // Full stereo separation
+    
+    // IMPORTANT: Reserve voice channels for sound effects
+    md_reverb = 0;      // No reverb
+    // Note: Voice allocation is handled automatically by MikMod
+    printf("MikMod configuration: mixfreq=%d, mode=%d\n", md_mixfreq, md_mode);
 
     // Register appropriate drivers based on platform
 #ifdef WIN32
@@ -76,6 +85,21 @@ int initSound(void) {
     }
     
     printf("MikMod initialized successfully.\n");
+    
+    // Reserve voices for music and sound effects
+    // MikMod_SetNumVoices sets the number of music and sfx voices
+    if (MikMod_SetNumVoices(-1, 16) != 0) {
+        printf("Warning: Could not set voice allocation\n");
+    } else {
+        printf("Reserved 16 voices for sound effects\n");
+    }
+    
+    // Enable sound output
+    MikMod_EnableOutput();
+    printf("MikMod output enabled.\n");
+    
+    // Verify initialization
+    printf("MikMod driver: %s\n", MikMod_InfoDriver());
 
     // Load sound effects if sound is enabled
     if (game->settings->playSound && !sound_effects_loaded) {
@@ -185,8 +209,14 @@ int loadSampleEffect(char* name, SAMPLE** sfx_out) {
                 printf("  Found file: %s\n", full);
                 SAMPLE* s = Sample_Load(full);
                 if (s) {
+                    // Set sample properties
+                    s->volume = 64;  // Maximum volume (0-64)
+                    s->speed = 0;    // Normal speed
+                    s->panning = PAN_CENTER;  // Center panning
+                    
                     *sfx_out = s;
-                    printf("  ✓ Loaded: %s\n", full);
+                    printf("  ✓ Loaded: %s (length=%ld, flags=%d)\n", 
+                           full, (long)s->length, s->flags);
                     return 0;
                 }
                 printf("  ✗ MikMod failed: %s\n", MikMod_strerror(MikMod_errno));
@@ -205,8 +235,35 @@ int playSampleEffect(SAMPLE* sfx) {
         return 1;
     }
     if (game->settings->playSound) {
+        printf("DEBUG: Attempting to play sample (ptr=%p, length=%ld)\n", 
+               (void*)sfx, sfx ? (long)sfx->length : 0);
+        
+        // Make sure MikMod is still active
+        if (!MikMod_Active()) {
+            printf("DEBUG: MikMod is not active! Enabling output...\n");
+            MikMod_EnableOutput();
+        }
+        
+        // Play the sample: Sample_Play(sample, start_position, flags)
+        // Use 0 for flags to play normally
         int voice = Sample_Play(sfx, 0, 0);
-        if (voice >= 0) return 0;
+        
+        if (voice >= 0) {
+            printf("DEBUG: Sample playing on voice %d\n", voice);
+            
+            // Set voice properties
+            Voice_SetVolume(voice, 256);  // 0-256 for voice volume
+            Voice_SetPanning(voice, PAN_CENTER);
+            Voice_SetFrequency(voice, sfx->speed);
+            
+            return 0;
+        } else {
+            printf("DEBUG: Sample_Play failed, returned %d\n", voice);
+            printf("DEBUG: MikMod error: %s\n", MikMod_strerror(MikMod_errno));
+            printf("DEBUG: MikMod_Active=%d\n", MikMod_Active());
+        }
+    } else {
+        printf("DEBUG: Sound is disabled in settings\n");
     }
     return 1;
 }
@@ -288,47 +345,67 @@ void deleteSound(void) {
 
 // Update sound system
 void soundIdle(void) {
-    if (Player_Active())
+    static int update_count = 0;
+    if (Player_Active()) {
         MikMod_Update();
+        // Print debug every 100 updates to avoid spam
+        if (++update_count % 100 == 0) {
+            printf("DEBUG: soundIdle update #%d (music active)\n", update_count);
+        }
+    }
 }
 
 void playCrashSound(void) {
+    printf("DEBUG: playCrashSound called (playSound=%d, sfx=%p)\n", 
+           game->settings->playSound, (void*)crash_sfx);
     if (game->settings->playSound) {
         playSampleEffect(crash_sfx);
     }
 }
 
 void playLoseSound(void) {
+    printf("DEBUG: playLoseSound called (playSound=%d, sfx=%p)\n", 
+           game->settings->playSound, (void*)lose_sfx);
     if (game->settings->playSound) {
         playSampleEffect(lose_sfx);
     }
 }
 
 void playWinSound(void) {
+    printf("DEBUG: playWinSound called (playSound=%d, sfx=%p)\n", 
+           game->settings->playSound, (void*)win_sfx);
     if (game->settings->playSound) {
         playSampleEffect(win_sfx);
     }
 }
 
 void playHighlightSound(void) {
+    printf("DEBUG: playHighlightSound called (playSound=%d, sfx=%p)\n", 
+           game->settings->playSound, (void*)highlight_sfx);
     if (game->settings->playSound) {
         playSampleEffect(highlight_sfx);
     }
 }
 
 void playEngineSound(void) {
+    printf("DEBUG: playEngineSound called (playSound=%d, sfx=%p)\n", 
+           game->settings->playSound, (void*)engine_sfx);
     if (game->settings->playSound) {
         playSampleEffect(engine_sfx);
     }
 }
 
 void playStartSound(void) {
+    printf("DEBUG: playStartSound called (playSound=%d, sfx=%p)\n", 
+           game->settings->playSound, (void*)start_sfx);
     if (game->settings->playSound) {
         playSampleEffect(start_sfx);
     }
 }
 
 void playActionSound(void) {
+    printf("DEBUG: playActionSound called (playSound=%d, sfx=%p)\n", 
+           game->settings->playSound, (void*)action_sfx);
     if (game->settings->playSound) {
         playSampleEffect(action_sfx);
     }

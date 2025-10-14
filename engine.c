@@ -560,7 +560,7 @@ void movePlayers() {
 			 data->dir, &x, &y);
 	if (col) {
 #ifdef SOUND
-	  playSampleEffect(crash_sfx);
+	  playCrashSound();
 #endif
 	  /* set endpoint to collision coordinates */
 	  newx = x;
