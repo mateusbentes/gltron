@@ -82,6 +82,24 @@ void specialGame(int key, int x, int y) {
     /* Ignore special keys when game is finished */
     return;
   }
+  
+  /* Handle spectator mode controls */
+  extern int isSpectatorMode(void);
+  extern void spectatorNextPlayer(void);
+  extern void spectatorPrevPlayer(void);
+  
+  if (isSpectatorMode()) {
+    switch(key) {
+      case GLUT_KEY_LEFT:
+        spectatorPrevPlayer();
+        return;
+      case GLUT_KEY_RIGHT:
+        spectatorNextPlayer();
+        return;
+    }
+    /* Don't process other game controls in spectator mode */
+    return;
+  }
 
   // Desktop GLUT key handling
   switch(key) {

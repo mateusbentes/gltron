@@ -643,6 +643,15 @@ void movePlayers() {
 	  }
 #else
 	  data->speed = SPEED_CRASHED;
+	  
+	  /* Enter spectator mode if this is the local player in multiplayer */
+#ifdef USE_STEAMWORKS
+	  extern int isMultiplayer(void);
+	  extern void enterSpectatorMode(int player_index);
+	  if (isMultiplayer() && i == 0) {  /* Local player crashed */
+	    enterSpectatorMode(i);
+	  }
+#endif
 #endif
 	}
 
