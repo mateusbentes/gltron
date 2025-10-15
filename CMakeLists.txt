@@ -119,6 +119,11 @@ set(SOURCES
 
 # Add Steamworks C++ source files if enabled
 if(USE_STEAMWORKS)
+    # Enable C++ for Steam files
+    enable_language(CXX)
+    set(CMAKE_CXX_STANDARD 11)
+    set(CMAKE_CXX_STANDARD_REQUIRED ON)
+    
     set(STEAM_SOURCES
         steam_multiplayer.cpp
         steam_lobby.cpp
@@ -126,6 +131,9 @@ if(USE_STEAMWORKS)
         steam_interface.cpp
     )
     list(APPEND SOURCES ${STEAM_SOURCES})
+    
+    # Mark Steam sources as C++
+    set_source_files_properties(${STEAM_SOURCES} PROPERTIES LANGUAGE CXX)
 endif()
 
 # Ensure Android-only sources are not part of desktop build
@@ -386,7 +394,7 @@ endif()
 
 # Link Steamworks if enabled
 if(USE_STEAMWORKS)
-    target_link_libraries(gltron PRIVATE ${STEAMWORKS_LIB})
+    target_link_libraries(gltron PRIVATE ${STEAMWORKS_LIB} stdc++ pthread)
     # Copy Steam API library to output directory
     if(WIN32)
         if(CMAKE_SIZEOF_VOID_P EQUAL 8)

@@ -3,6 +3,8 @@
 #include "steam_multiplayer.h"
 #include <string.h>
 
+/* The functions are already declared in gltron.h which is included via steam_multiplayer.h */
+
 /* P2P session request callback */
 void SteamMultiplayer::OnP2PSessionRequest(P2PSessionRequest_t* pCallback)
 {

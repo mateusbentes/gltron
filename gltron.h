@@ -10,6 +10,10 @@
 #ifndef GLTRON_H
 #define GLTRON_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define SEPERATOR '/'
 #define RC_NAME ".gltronrc"
 #define CURRENT_DIR "."
@@ -481,6 +485,10 @@ void getScreenResolution(int *width, int *height);
 #ifdef ANDROID
 void ensure2D(GLuint prog, int w, int h);
 void ensure3D(GLuint prog);
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif

@@ -59,7 +59,8 @@ private:
     STEAM_CALLBACK(SteamMultiplayer, OnLobbyChatUpdate, LobbyChatUpdate_t);
     STEAM_CALLBACK(SteamMultiplayer, OnLobbyDataUpdate, LobbyDataUpdate_t);
     STEAM_CALLBACK(SteamMultiplayer, OnP2PSessionRequest, P2PSessionRequest_t);
-    STEAM_CALLBACK(SteamMultiplayer, OnLobbyMatchList, LobbyMatchList_t);
+    /* OnLobbyMatchList is a CCallResult, not a STEAM_CALLBACK */
+    void OnLobbyMatchList(LobbyMatchList_t* pCallback, bool bIOFailure);
     
     CCallResult<SteamMultiplayer, LobbyMatchList_t> m_LobbyMatchListResult;
     
