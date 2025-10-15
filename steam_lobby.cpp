@@ -129,6 +129,17 @@ void SteamMultiplayer::OnLobbyEnter(LobbyEnter_t* pCallback)
     
     printf("Entered lobby (Host: %s, Players: %d)\n", 
            m_bIsHost ? "Yes" : "No", m_nPlayers);
+    
+    /* If we're not the host, wait for game start signal */
+    if (!m_bIsHost) {
+        printf("Waiting for host to start the game...\n");
+        
+        /* Setup our player slot */
+        if (game) {
+            /* We'll be assigned a player slot by the host */
+            game->players = 4;  /* Always 4 players in multiplayer */
+        }
+    }
 }
 
 /* Lobby chat update callback */
@@ -146,10 +157,27 @@ void SteamMultiplayer::OnLobbyChatUpdate(LobbyChatUpdate_t* pCallback)
     
     if (pCallback->m_rgfChatMemberStateChange & k_EChatMemberStateChangeLeft) {
         printf("Player left lobby\n");
+        
+        /* Find which player left */
+        CSteamID leftPlayer = pCallback->m_ulSteamIDUserChanged;
+        int leftSlot = -1;
+        for (int i = 0; i < MAX_PLAYERS; i++) {
+            if (m_PlayerIDs[i] == leftPlayer) {
+                leftSlot = i;
+                break;
+            }
+        }
+        
         /* Update player list */
         m_nPlayers = SteamMatchmaking()->GetNumLobbyMembers(m_LobbyID);
         for (int i = 0; i < m_nPlayers; i++) {
             m_PlayerIDs[i] = SteamMatchmaking()->GetLobbyMemberByIndex(m_LobbyID, i);
+        }
+        
+        /* If in game, replace disconnected player with AI */
+        if (game && leftSlot >= 0 && leftSlot < game->players) {
+            printf("Replacing player %d with AI\n", leftSlot);
+            game->player[leftSlot].ai->active = 1;  /* Convert to AI */
         }
     }
 }
@@ -169,6 +197,17 @@ void SteamMultiplayer::OnLobbyMatchList(LobbyMatchList_t* pCallback, bool bIOFai
     }
     
     printf("Found %d lobbies\n", pCallback->m_nLobbiesMatching);
+    
+    /* Store found lobbies for the browser */
+    extern CSteamID found_lobbies[];
+    extern int found_lobby_count;
+    
+    found_lobby_count = pCallback->m_nLobbiesMatching;
+    if (found_lobby_count > 100) found_lobby_count = 100;
+    
+    for (int i = 0; i < found_lobby_count; i++) {
+        found_lobbies[i] = SteamMatchmaking()->GetLobbyByIndex(i);
+    }
 }
 
 #endif /* USE_STEAMWORKS */

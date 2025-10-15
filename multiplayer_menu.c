@@ -89,8 +89,57 @@ void createLobby(void) {
         
         if (steam_create_lobby(mp_state.lobby_name, 4)) {
             strcpy(mp_state.status_message, "Creating lobby...");
+            
+            /* Auto-start with AI if we're the host */
+            mp_state.in_lobby = 1;
+            mp_state.is_host = 1;
+            mp_state.player_count = 1;
         } else {
             strcpy(mp_state.status_message, "Failed to create lobby");
+        }
+    }
+#endif
+}
+
+/* Quick match - join existing or create new */
+void quickMatch(void) {
+#ifdef USE_STEAMWORKS
+    if (!mp_state.initialized) {
+        initMultiplayer();
+    }
+    
+    if (mp_state.initialized && !mp_state.in_lobby) {
+        printf("Quick match: searching for lobbies...\n");
+        
+        /* Try to refresh and join an existing lobby */
+        refreshLobbies();
+        
+        /* Wait for lobby list */
+        for (int i = 0; i < 20; i++) {
+            updateMultiplayer();
+        }
+        
+        /* Check if any lobbies found */
+        int lobby_count = steam_get_lobby_count();
+        if (lobby_count > 0) {
+            /* Join first available lobby */
+            uint64_t lobby_id = steam_get_lobby_id(0);
+            if (lobby_id) {
+                printf("Joining existing lobby\n");
+                joinLobby(lobby_id);
+                return;
+            }
+        }
+        
+        /* No lobbies found, create a new one */
+        printf("No lobbies found, creating new lobby\n");
+        createLobby();
+        
+        /* If we created a lobby, start game with AI after a short delay */
+        if (mp_state.is_host) {
+            /* Give time for others to join */
+            printf("Starting game with AI players...\n");
+            startMultiplayerGame();
         }
     }
 #endif
@@ -135,20 +184,35 @@ void refreshLobbies(void) {
 void startMultiplayerGame(void) {
 #ifdef USE_STEAMWORKS
     if (mp_state.in_lobby && mp_state.is_host) {
-        /* Initialize game for all players */
-        game->players = mp_state.player_count;
+        printf("Starting multiplayer game with %d players\n", mp_state.player_count);
         
-        /* Set AI for remote players */
-        for (int i = 1; i < game->players; i++) {
+        /* Always use 4 players in multiplayer */
+        game->players = 4;
+        
+        /* Configure players based on who's in the lobby */
+        /* Player 0 is always the local player (host) */
+        game->player[0].ai->active = -1;  /* -1 = human player */
+        
+        /* Players 1 to player_count-1 are remote players */
+        for (int i = 1; i < mp_state.player_count && i < 4; i++) {
             game->player[i].ai->active = 2;  /* 2 = remote player */
+            printf("Player %d set as remote player\n", i);
         }
         
-        /* Start the game */
-        initData();
-        switchCallbacks(&pauseCallbacks);
+        /* Remaining slots are AI */
+        for (int i = mp_state.player_count; i < 4; i++) {
+            game->player[i].ai->active = 1;  /* 1 = AI player */
+            printf("Player %d set as AI\n", i);
+        }
         
-        /* Notify other players */
+        /* Initialize game data */
+        initData();
+        
+        /* Notify other players to start */
         steam_send_game_start();
+        
+        /* Switch to game */
+        switchCallbacks(&gameCallbacks);
     }
 #endif
 }

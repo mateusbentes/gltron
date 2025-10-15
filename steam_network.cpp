@@ -112,8 +112,29 @@ void SteamMultiplayer::ProcessNetworkMessages()
                 break;
                 
             case MSG_GAME_START:
-                /* Start game */
-                if (!m_bIsHost) {
+                /* Start game for clients */
+                if (!m_bIsHost && game) {
+                    printf("Received game start signal from host\n");
+                    
+                    /* Setup players - packet.player_id contains our assigned slot */
+                    game->players = 4;
+                    
+                    /* Find our player slot (sent by host) */
+                    int my_slot = packet.player_id;
+                    if (my_slot < 0 || my_slot >= 4) my_slot = 1;  /* Default to player 1 */
+                    
+                    /* Configure all players */
+                    for (int i = 0; i < 4; i++) {
+                        if (i == my_slot) {
+                            game->player[i].ai->active = -1;  /* We control this player */
+                        } else if (i < m_nPlayers) {
+                            game->player[i].ai->active = 2;   /* Remote player */
+                        } else {
+                            game->player[i].ai->active = 1;   /* AI player */
+                        }
+                    }
+                    
+                    /* Initialize and start */
                     initData();
                     switchCallbacks(&gameCallbacks);
                 }
@@ -178,11 +199,18 @@ void SteamMultiplayer::SendPlayerCrash(int player_id)
 /* Send game start */
 void SteamMultiplayer::SendGameStart()
 {
-    NetworkPacket packet;
-    packet.type = MSG_GAME_START;
-    packet.timestamp = getElapsedTime();
-    
-    BroadcastPacket(&packet, true);
+    /* Send individual start messages to each player with their slot assignment */
+    for (int i = 0; i < m_nPlayers; i++) {
+        if (m_PlayerIDs[i] != SteamUser()->GetSteamID()) {
+            NetworkPacket packet;
+            packet.type = MSG_GAME_START;
+            packet.player_id = i;  /* Assign this player to slot i */
+            packet.timestamp = getElapsedTime();
+            
+            printf("Sending game start to player %d (slot %d)\n", i, i);
+            SendPacket(&packet, m_PlayerIDs[i], true);
+        }
+    }
 }
 
 /* Send game end */

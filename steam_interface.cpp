@@ -144,6 +144,39 @@ int steam_get_player_count(void)
     return 0;
 }
 
+/* Lobby browser functions - shared with steam_lobby.cpp */
+CSteamID found_lobbies[100];
+int found_lobby_count = 0;
+
+int steam_get_lobby_count(void)
+{
+    return found_lobby_count;
+}
+
+const char* steam_get_lobby_name(int index)
+{
+    if (index >= 0 && index < found_lobby_count) {
+        return SteamMatchmaking()->GetLobbyData(found_lobbies[index], "name");
+    }
+    return NULL;
+}
+
+uint64_t steam_get_lobby_id(int index)
+{
+    if (index >= 0 && index < found_lobby_count) {
+        return found_lobbies[index].ConvertToUint64();
+    }
+    return 0;
+}
+
+int steam_get_lobby_players(int index)
+{
+    if (index >= 0 && index < found_lobby_count) {
+        return SteamMatchmaking()->GetNumLobbyMembers(found_lobbies[index]);
+    }
+    return 0;
+}
+
 } /* extern "C" */
 
 #endif /* USE_STEAMWORKS */

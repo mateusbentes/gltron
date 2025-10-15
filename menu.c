@@ -21,15 +21,29 @@ extern void refreshLobbies(void);
 extern void startMultiplayerGame(void);
 extern const char* getMultiplayerStatus(void);
 
+// Additional multiplayer functions
+extern void quickMatch(void);
+
 static void handleMultiplayerAction(const char* action) {
-  if (strcmp(action, "create") == 0) {
+  if (strcmp(action, "quick") == 0) {
+    initMultiplayer();
+    quickMatch();
+    playActionSound();
+  } else if (strcmp(action, "create") == 0) {
     initMultiplayer();
     createLobby();
+    /* Auto-start after creating */
+    for (int i = 0; i < 10; i++) {
+      updateMultiplayer();
+    }
+    if (isMultiplayerHost()) {
+      startMultiplayerGame();
+    }
     playActionSound();
   } else if (strcmp(action, "join") == 0) {
     initMultiplayer();
     refreshLobbies();
-    /* TODO: Show lobby list and let user select */
+    /* TODO: Show lobby browser */
     playActionSound();
   } else if (strcmp(action, "refresh") == 0) {
     initMultiplayer();

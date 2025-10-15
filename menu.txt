@@ -81,13 +81,17 @@ Player 4 - %s
 # Choose Model (not implemented)
 
 # Multiplayer Submenu
-5
+6
 xsub
 Multiplayer
 
 0
+xc_mp_quick
+Quick Match
+
+0
 xc_mp_create
-Create Lobby
+Create Private Lobby
 
 0
 xc_mp_join

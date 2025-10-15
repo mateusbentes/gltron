@@ -102,6 +102,7 @@ set(SOURCES
     joystick.c
     joystick_steamdeck.c
     multiplayer_menu.c
+    lobby_browser.c
     gamegraphics.c
     input.c
     settings.c
