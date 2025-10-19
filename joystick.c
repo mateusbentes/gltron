@@ -82,7 +82,7 @@ int initJoystick(void) {
         
         /* Enable joystick polling */
         /* Just register the callback, don't try to access game structure yet */
-        glutJoystickFunc(updateJoystick, 20);  /* Poll every 20ms */
+        glutJoystickFunc(updateJoystick, 50);  /* Poll every 50ms (20 Hz) */
         
         printf("Joystick initialized successfully\n");
         return 1;
@@ -133,6 +133,11 @@ void updateJoystick(unsigned int buttonMask, int x, int y, int z) {
 
 /* Process joystick input during gameplay */
 void processJoystickGame(void) {
+    static float last_stick_x = 0.0f;
+    static int last_dpad_left = 0;
+    static int last_dpad_right = 0;
+    static int turn_cooldown = 0;
+    
     if (!joystick.connected || !game) return;
     
     /* Only process if joystick mode is active or we're in any input mode */
@@ -141,17 +146,47 @@ void processJoystickGame(void) {
     Data *data = game->player[0].data;
     if (!data || data->speed <= 0) return;
     
-    /* Left stick or D-pad for turning */
-    float stick_x = joystick.axes[JOY_AXIS_LEFT_X];
-    
-    /* Turn left/right based on stick */
-    if (stick_x < -0.5f || joystick.buttons[JOY_BUTTON_DPAD_LEFT]) {
-        turn(data, 3);  /* Turn left */
-    } else if (stick_x > 0.5f || joystick.buttons[JOY_BUTTON_DPAD_RIGHT]) {
-        turn(data, 1);  /* Turn right */
+    /* Cooldown to prevent too rapid turning */
+    if (turn_cooldown > 0) {
+        turn_cooldown--;
+        return;
     }
     
-    /* L1/R1 for quick turns */
+    /* Left stick or D-pad for turning - only turn on edge detection */
+    float stick_x = joystick.axes[JOY_AXIS_LEFT_X];
+    int turned = 0;
+    
+    /* Detect stick movement crossing threshold (edge detection) */
+    if (stick_x < -0.5f && last_stick_x >= -0.5f) {
+        turn(data, 3);  /* Turn left on edge */
+        turned = 1;
+    } else if (stick_x > 0.5f && last_stick_x <= 0.5f) {
+        turn(data, 1);  /* Turn right on edge */
+        turned = 1;
+    }
+    
+    /* D-pad edge detection */
+    if (!turned) {
+        if (joystick.buttons[JOY_BUTTON_DPAD_LEFT] && !last_dpad_left) {
+            turn(data, 3);  /* Turn left on press */
+            turned = 1;
+        } else if (joystick.buttons[JOY_BUTTON_DPAD_RIGHT] && !last_dpad_right) {
+            turn(data, 1);  /* Turn right on press */
+            turned = 1;
+        }
+    }
+    
+    /* Set cooldown if we turned */
+    if (turned) {
+        turn_cooldown = 5;  /* Skip next 5 updates (100ms at 20ms polling) */
+    }
+    
+    /* Update last states */
+    last_stick_x = stick_x;
+    last_dpad_left = joystick.buttons[JOY_BUTTON_DPAD_LEFT];
+    last_dpad_right = joystick.buttons[JOY_BUTTON_DPAD_RIGHT];
+    
+    /* L1/R1 for quick turns - these already use edge detection */
     if (isJoystickButtonPressed(JOY_BUTTON_L1)) {
         turn(data, 3);  /* Turn left */
     } else if (isJoystickButtonPressed(JOY_BUTTON_R1)) {
