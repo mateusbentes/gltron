@@ -316,7 +316,31 @@ void onReshape(int w, int h) {
 }
 
 void setupDisplay(gDisplay *d) {
-    printf("trying to create window\n");
+    static int window_created = 0;  /* Static flag to track if window was created */
+    
+    printf("setupDisplay called (window_created=%d)\n", window_created);
+    
+    // Check if window already exists using static flag
+    if (window_created) {
+        printf("Window already created, skipping creation\n");
+        
+        // Get current window and make it current
+        int current_win = glutGetWindow();
+        if (current_win > 0) {
+            d->win_id = current_win;
+            glutSetWindow(current_win);
+            
+            // Update window properties if needed
+            if (game->settings->fullscreen) {
+                glutFullScreen();
+            } else {
+                glutReshapeWindow(game->settings->width, game->settings->height);
+            }
+        }
+        return;
+    }
+
+    printf("Creating new window\n");
 
     // Initialize GLUT window properties
     glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH);
@@ -329,6 +353,7 @@ void setupDisplay(gDisplay *d) {
 
     // Create the window
     d->win_id = glutCreateWindow("GLtron");
+    window_created = 1;  /* Mark that window has been created */
 
     // Set fullscreen mode if needed
     if (game->settings->fullscreen) {
@@ -461,7 +486,10 @@ int main( int argc, char *argv[] ) {
 
     setupDisplay(game->screen);
     
-    /* Initialize joystick support AFTER GLUT window is created */
+    /* Switch to GUI callbacks first to ensure everything is set up */
+    switchCallbacks(&guiCallbacks);
+    
+    /* Now initialize joystick after callbacks and window are fully set up */
     printf("Initializing joystick support...\n");
     if (initJoystick()) {
         printf("Joystick initialized successfully\n");
@@ -474,8 +502,6 @@ int main( int argc, char *argv[] ) {
     extern void initMultiplayer(void);
     initMultiplayer();
 #endif
-    
-    switchCallbacks(&guiCallbacks);
 
     glutMainLoop();
 

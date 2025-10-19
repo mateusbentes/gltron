@@ -161,10 +161,8 @@ void menuAction(Menu *activated) {
       /* Ensure any pending display changes are applied before starting */
       requestDisplayApply();
       initData();
-      /* Setup display for the game */
-      if (game && game->screen) {
-        setupDisplay(game->screen);
-      }
+      /* Don't recreate window if it already exists */
+      /* setupDisplay is already called during initialization */
       /* Initialize player viewports */
       changeDisplay();
       switchCallbacks(&pauseCallbacks);

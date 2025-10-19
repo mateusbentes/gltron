@@ -27,21 +27,40 @@ int initJoystick(void) {
         return 0;
     }
     
+    /* Check if we have a window - if not, that's OK, we'll check joystick anyway */
+    int current_window = glutGetWindow();
+    if (current_window <= 0) {
+        printf("Note: No GLUT window active during joystick check\n");
+    }
+    
     /* Check if joystick is available using FreeGLUT API */
     /* FreeGLUT uses joystick index, not GLUT_JOYSTICK_1 constant */
     int num_buttons = 0;
     int num_axes = 0;
     
-    /* Safely check for joystick */
-    glutJoystickFunc(NULL, 0);  /* Clear any existing callback first */
+    /* Try to get joystick info with error checking */
+    printf("Checking for joystick at index %d...\n", joystick.joystick_id);
+    
+    /* First, try to detect if joystick functions are available */
+    /* by checking if we can get device info without crashing */
+    
+    /* Use glutDeviceGet to check if joystick is present */
+    int has_joystick = glutDeviceGet(GLUT_HAS_JOYSTICK);
+    if (!has_joystick) {
+        printf("GLUT reports no joystick support\n");
+        return 0;
+    }
     
     num_buttons = glutJoystickGetNumButtons(joystick.joystick_id);
-    if (num_buttons < 0) {
-        printf("No joystick detected at index %d\n", joystick.joystick_id);
+    printf("Joystick buttons query returned: %d\n", num_buttons);
+    
+    if (num_buttons <= 0) {
+        printf("No joystick detected at index %d (buttons=%d)\n", joystick.joystick_id, num_buttons);
         return 0;
     }
     
     num_axes = glutJoystickGetNumAxes(joystick.joystick_id);
+    printf("Joystick axes query returned: %d\n", num_axes);
     
     if (num_axes > 0 && num_buttons > 0) {
         joystick.connected = 1;
@@ -62,6 +81,7 @@ int initJoystick(void) {
         }
         
         /* Enable joystick polling */
+        /* Just register the callback, don't try to access game structure yet */
         glutJoystickFunc(updateJoystick, 20);  /* Poll every 20ms */
         
         printf("Joystick initialized successfully\n");

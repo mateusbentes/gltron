@@ -158,6 +158,7 @@ void initGameStructures() { /* called only once */
   d->fog = 0;
   d->wall = 1;
   d->onScreen = -1;
+  d->win_id = 0;  /* Initialize window ID to 0 (no window yet) */
 
   game->players = PLAYERS;
   for(i = 0; i < game->players; i++) {
